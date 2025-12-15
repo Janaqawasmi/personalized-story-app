@@ -1,3 +1,5 @@
+import "dotenv/config";
+console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
 import storyDraftRoutes from "./routes/storyDraft.routes";
 import express, { Request, Response } from 'express';
 import cors from 'cors';
