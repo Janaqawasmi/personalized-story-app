@@ -1,11 +1,11 @@
 import React from 'react';
 import './App.css';
-import AdminStoryBriefForm from './pages/AdminStoryBriefForm';
+import SpecialistReviewPage from './pages/SpecialistReviewPage';
 
 function App() {
   return (
     <div className="App">
-      <AdminStoryBriefForm />
+      <SpecialistReviewPage />
     </div>
   );
 }

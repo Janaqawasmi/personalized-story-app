@@ -5,12 +5,15 @@ import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { admin, firestore } from './config/firebase';
 import storyBriefRouter from './routes/storyBrief.routes';
+import storyReviewRoutes from "./routes/storyReview.routes";
 
 const app = express();
 const port = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/specialist", storyReviewRoutes);
 
 app.use("/api/story-drafts", storyDraftRoutes);
 

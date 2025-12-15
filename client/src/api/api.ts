@@ -1,5 +1,7 @@
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
 
+// ---------- Existing APIs ----------
+
 export async function testConnection(): Promise<{ success: boolean; error?: string }> {
   const res = await fetch(`${API_BASE}/api/test-firestore`, { method: 'POST' });
   if (!res.ok) {
@@ -54,6 +56,70 @@ export async function createStoryBrief(data: StoryBriefInput): Promise<StoryBrie
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
     }
     throw err;
+  }
+}
+
+// ---------- Specialist Review APIs ----------
+
+export interface StoryDraftPage {
+  pageNumber: number;
+  text: string;
+  emotionalTone?: string;
+  imagePrompt?: string;
+}
+
+export interface StoryDraft {
+  id: string;
+  title?: string;
+  topicKey?: string;
+  targetAgeGroup?: string;
+  language?: string;
+  status?: string;
+  pages: StoryDraftPage[];
+  createdAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+}
+
+export async function fetchDraftsForReview(): Promise<StoryDraft[]> {
+  const res = await fetch(`${API_BASE}/api/specialist/drafts`);
+  if (!res.ok) {
+    throw new Error(`Failed to load drafts (${res.status})`);
+  }
+  const data = await res.json();
+  return data.drafts ?? [];
+}
+
+export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
+  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}`);
+  if (!res.ok) {
+    throw new Error(`Failed to load draft (${res.status})`);
+  }
+  const data = await res.json();
+  return data.draft;
+}
+
+export async function updateDraftPages(draftId: string, pages: StoryDraftPage[]): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pages }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(errText || `Failed to update draft (${res.status})`);
+  }
+}
+
+export async function approveDraft(draftId: string, specialistId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ specialistId }),
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(errText || `Failed to approve draft (${res.status})`);
   }
 }
 
