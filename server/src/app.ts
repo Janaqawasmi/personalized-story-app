@@ -1,3 +1,4 @@
+import storyDraftRoutes from "./routes/storyDraft.routes";
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { admin, firestore } from './config/firebase';
@@ -7,6 +8,8 @@ const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/story-drafts", storyDraftRoutes);
 
 app.get('/', (_req: Request, res: Response) => {
   res.json({ status: 'ok', message: 'Server is running' });
