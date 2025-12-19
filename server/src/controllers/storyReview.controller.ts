@@ -5,24 +5,28 @@ import { db } from "../config/firebase";
  * List drafts waiting for specialist review
  */
 export const listDraftsForReview = async (_req: Request, res: Response) => {
-  try {
-    const snapshot = await db
-      .collection("story_drafts")
-      .where("status", "==", "in_review")
-      .orderBy("createdAt", "desc")
-      .get();
-
-    const drafts = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
-
-    res.json({ success: true, drafts });
-  } catch (error) {
-    res.status(500).json({ success: false, error: "Failed to fetch drafts" });
-  }
-};
-
+    try {
+      const snapshot = await db
+        .collection("story_drafts")
+        .where("status", "==", "in_review")
+        .get();
+  
+      const drafts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+  
+      res.json({ success: true, drafts });
+    } catch (error) {
+      console.error("List drafts error:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to fetch drafts",
+        details: error instanceof Error ? error.message : error,
+      });
+    }
+  };
+  
 /**
  * Get a single draft by ID
  */
@@ -102,21 +106,20 @@ export const approveDraft = async (req: Request, res: Response) => {
 
     // 1️⃣ Create approved template
     await db.collection("story_templates").add({
-      draftId,
-      title: draft?.title,
-      topicKey: draft?.topicKey,
-      targetAgeGroup: draft?.targetAgeGroup,
-      language: draft?.language,
-      pages: draft?.pages.map((p: any) => ({
-        pageNumber: p.pageNumber,
-        textTemplate: p.text,
-        emotionalTone: p.emotionalTone,
-        imagePromptTemplate: p.imagePrompt,
-      })),
-      approvedBy: specialistId,
-      approvedAt: new Date().toISOString(),
-      isActive: true,
-    });
+        draftId,
+        title: draft?.title ?? "Untitled",
+        pages: Array.isArray(draft?.pages)
+          ? draft.pages.map((p: any) => ({
+              pageNumber: p.pageNumber ?? null,
+              textTemplate: p.text ?? "",
+              emotionalTone: p.emotionalTone ?? "",
+              imagePromptTemplate: p.imagePrompt ?? "",
+            }))
+          : [],
+        approvedBy: specialistId,
+        approvedAt: new Date().toISOString(),
+        isActive: true,
+      });      
 
     // 2️⃣ Update draft status
     await draftRef.update({

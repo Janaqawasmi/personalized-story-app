@@ -11,6 +11,7 @@ import {
   Stack,
 } from '@mui/material';
 import { createStoryBrief, StoryBriefInput } from '../api/api';
+import SpecialistNav from '../components/SpecialistNav';
 
 const AdminStoryBriefForm: React.FC = () => {
   const [formData, setFormData] = useState<StoryBriefInput>({
@@ -99,11 +100,13 @@ const AdminStoryBriefForm: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Create Story Brief
-        </Typography>
+    <>
+      <SpecialistNav />
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Create Story Brief
+          </Typography>
 
         {success && (
           <Alert severity="success" sx={{ mb: 2 }}>
@@ -209,6 +212,7 @@ const AdminStoryBriefForm: React.FC = () => {
         </Box>
       </Paper>
     </Container>
+    </>
   );
 };
 

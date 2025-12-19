@@ -123,3 +123,45 @@ export async function approveDraft(draftId: string, specialistId: string): Promi
   }
 }
 
+// ---------- Story Brief APIs ----------
+
+export interface StoryBrief {
+  id: string;
+  topicKey: string;
+  targetAgeGroup: string;
+  therapeuticMessages: string[];
+  shortDescription?: string;
+  status: string;
+  createdAt: string;
+  createdBy: string;
+  generatedDraftId?: string;
+}
+
+export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to load story briefs (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data ?? [];
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+export async function generateDraftFromBrief(briefId: string): Promise<{ success: boolean; draftId: string; message: string }> {
+  const res = await fetch(`${API_BASE}/api/story-drafts/${briefId}/generate`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to generate draft (${res.status})`);
+  }
+  return res.json();
+}
+
