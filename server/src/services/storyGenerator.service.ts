@@ -3,7 +3,7 @@ import OpenAI from "openai";
 // Lazy initialization - only create client when needed
 let client: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
+export function getOpenAIClient(): OpenAI {
   if (!client) {
     const apiKey = process.env.OPENAI_API_KEY?.trim();
     if (!apiKey) {
@@ -23,8 +23,8 @@ function getOpenAIClient(): OpenAI {
 export async function generateStoryDraft(brief: any, ragContext: string) {
   const prompt = `
 You are a professional therapeutic children's story writer.
-Use the following therapeutic knowledge to guide your writing:
 
+Use the following therapeutic knowledge (RAG):
 ${ragContext}
 
 Admin Inputs:
@@ -32,37 +32,50 @@ Topic: ${brief.topicKey}
 Age Group: ${brief.targetAgeGroup}
 Therapeutic Messages: ${brief.therapeuticMessages?.join(", ")}
 
-TASK:
-Generate a therapeutic children's story following developmental psychology and emotional safety.
-Return a JSON object with this exact schema:
+CRITICAL CONSTRAINTS:
+- The main character MUST be a human child (no animals, no fantasy).
+- Use a realistic everyday setting.
+- Avoid clichés such as "Once upon a time" or repetitive praise.
+- Do NOT write in a childish or silly tone.
+- Include at least one setback and recovery moment.
 
+STORY STRUCTURE (MANDATORY):
+Page 1: Introduce the child in a daily situation.
+Page 2: Attention difficulty appears.
+Page 3: Emotional normalization.
+Page 4: Teach one small coping step.
+Page 5: Small success then setback.
+Page 6: Support and retry.
+Page 7: Meaningful success.
+Page 8: Reassuring ending about self-worth.
+
+WRITING QUALITY:
+- Use sensory details.
+- Show emotions through actions.
+- Embed meaning naturally (no moral lectures).
+
+Return ONLY valid JSON with this schema:
 {
   "title": "string",
   "pages": [
     {
-      "pageNumber": 1,
+      "pageNumber": number,
       "text": "story text using {{child_name}} and pronoun tokens",
       "emotionalTone": "string",
-      "imagePrompt": "scene description for image generation"
+      "imagePrompt": "realistic scene description"
     }
   ]
 }
 
-Rules:
-- Output ONLY valid JSON. No explanations.
-- Use placeholders: {{child_name}}, {{pronoun_subject}}, {{pronoun_object}}, {{pronoun_possessive}}
-- Story must include 5–8 pages.
-- Emotional arc: introduction → identify emotion → challenge → coping → support → resolution.
-- Use age-appropriate language rules from RAG.
-- Avoid harmful or sensitive phrases listed in the RAG dont-do section.
+Before finalizing, verify all constraints. If not met, revise once.
 `;
+
 
   try {
     const openaiClient = getOpenAIClient();
     const completion = await openaiClient.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5-mini",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
     });
 
     const raw = completion.choices[0]?.message?.content || "{}";

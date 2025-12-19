@@ -16,17 +16,24 @@ import {
   approveDraft,
   fetchDraftById,
   StoryDraft,
-  StoryDraftPage,
-  updateDraftPages,
+  createReviewSession,
+  getReviewSession,
+  sendMessage,
+  applyProposal,
+  ReviewSession,
 } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
+import ChatPanel from "../components/ChatPanel";
 
 const SpecialistDraftReview: React.FC = () => {
   const { draftId } = useParams<{ draftId: string }>();
   const navigate = useNavigate();
   const [draft, setDraft] = useState<StoryDraft | null>(null);
+  const [session, setSession] = useState<ReviewSession | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [applying, setApplying] = useState(false);
   const [approving, setApproving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [specialistId, setSpecialistId] = useState("");
@@ -54,22 +61,54 @@ const SpecialistDraftReview: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId]);
 
-  const handlePageChange = (index: number, field: keyof StoryDraftPage, value: string) => {
-    if (!draft) return;
-    const updatedPages = draft.pages.map((p, i) => (i === index ? { ...p, [field]: value } : p));
-    setDraft({ ...draft, pages: updatedPages });
-  };
+  // Create session when specialist ID is entered and draft is loaded
+  useEffect(() => {
+    if (draft && draftId && specialistId.trim() && !session && !sessionLoading) {
+      setSessionLoading(true);
+      createReviewSession(draftId, specialistId.trim())
+        .then((result) => getReviewSession(result.sessionId))
+        .then((sessionData) => setSession(sessionData))
+        .catch((err) => setError(err.message || "Failed to create/load session"))
+        .finally(() => setSessionLoading(false));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, draftId, specialistId]);
 
-  const handleSave = async () => {
-    if (!draft || !draftId) return;
-    setSaving(true);
+
+  const handleSendMessage = async (content: string) => {
+    if (!session || !specialistId.trim()) return;
+
+    setSending(true);
     setError(null);
     try {
-      await updateDraftPages(draftId, draft.pages);
+      const result = await sendMessage(session.id, content, specialistId.trim());
+      // Reload session to get updated messages and proposals
+      const updatedSession = await getReviewSession(session.id);
+      setSession(updatedSession);
+      // Reload draft in case it was updated
+      await loadDraft();
     } catch (err: any) {
-      setError(err.message || "Failed to save draft");
+      setError(err.message || "Failed to send message");
     } finally {
-      setSaving(false);
+      setSending(false);
+    }
+  };
+
+  const handleApplyProposal = async (proposalId: string) => {
+    if (!session || !specialistId.trim()) return;
+
+    setApplying(true);
+    setError(null);
+    try {
+      await applyProposal(session.id, proposalId, specialistId.trim());
+      // Reload session and draft
+      const updatedSession = await getReviewSession(session.id);
+      setSession(updatedSession);
+      await loadDraft();
+    } catch (err: any) {
+      setError(err.message || "Failed to apply proposal");
+    } finally {
+      setApplying(false);
     }
   };
 
@@ -82,7 +121,7 @@ const SpecialistDraftReview: React.FC = () => {
     setApproving(true);
     setError(null);
     try {
-      await approveDraft(draftId, specialistId.trim());
+      await approveDraft(draftId, specialistId.trim(), session?.id);
       navigate("/specialist/drafts");
     } catch (err: any) {
       setError(err.message || "Failed to approve draft");
@@ -125,70 +164,109 @@ const SpecialistDraftReview: React.FC = () => {
       )}
 
       {!loading && draft && (
-        <Card variant="outlined">
-          <CardContent>
-            <Stack spacing={2}>
-              <Typography variant="body2" color="text.secondary">
-                Topic: {draft.topicKey || "N/A"} • Language: {draft.language || "N/A"} • Status:{" "}
-                {draft.status || "N/A"}
-              </Typography>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={3}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Card variant="outlined">
+              <CardContent>
+                <Stack spacing={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    Topic: {draft.topicKey || "N/A"} • Language: {draft.language || "N/A"} • Status:{" "}
+                    {draft.status || "N/A"}
+                    {session && ` • Revision: ${session.revisionCount} / 3`}
+                  </Typography>
 
-              <Divider />
+                  <Divider />
 
-              <Stack spacing={2}>
-                {draft.pages?.map((page, idx) => (
-                  <Card key={page.pageNumber ?? idx} variant="outlined" sx={{ p: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Page {page.pageNumber ?? idx + 1}
-                    </Typography>
-                    <TextField
-                      label="Text"
-                      multiline
-                      minRows={3}
-                      value={page.text || ""}
-                      onChange={(e) => handlePageChange(idx, "text", e.target.value)}
-                      fullWidth
-                      sx={{ mb: 1 }}
-                    />
-                    <TextField
-                      label="Emotional Tone"
-                      value={page.emotionalTone || ""}
-                      onChange={(e) => handlePageChange(idx, "emotionalTone", e.target.value)}
-                      fullWidth
-                      sx={{ mb: 1 }}
-                    />
-                    <TextField
-                      label="Image Prompt"
-                      value={page.imagePrompt || ""}
-                      onChange={(e) => handlePageChange(idx, "imagePrompt", e.target.value)}
-                      fullWidth
-                    />
-                  </Card>
-                ))}
-              </Stack>
+                  <Stack spacing={2}>
+                    {draft.pages?.map((page, idx) => (
+                      <Card key={page.pageNumber ?? idx} variant="outlined" sx={{ p: 2 }}>
+                        <Typography variant="subtitle2" gutterBottom>
+                          Page {page.pageNumber ?? idx + 1}
+                        </Typography>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" color="text.secondary" gutterBottom>
+                            Text
+                          </Typography>
+                          <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
+                            {page.text || "N/A"}
+                          </Typography>
+                        </Box>
+                        {page.emotionalTone && (
+                          <Box sx={{ mb: 2 }}>
+                            <Typography variant="caption" color="text.secondary" gutterBottom>
+                              Emotional Tone
+                            </Typography>
+                            <Typography variant="body2">
+                              {page.emotionalTone}
+                            </Typography>
+                          </Box>
+                        )}
+                        {page.imagePrompt && (
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" gutterBottom>
+                              Image Prompt
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {page.imagePrompt}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Card>
+                    ))}
+                  </Stack>
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
-                <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
-                  Save edits
-                </Button>
-                <TextField
-                  label="Your Specialist ID"
-                  size="small"
-                  value={specialistId}
-                  onChange={(e) => setSpecialistId(e.target.value)}
+                  <Divider />
+
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+                    <TextField
+                      label="Your Specialist ID"
+                      size="small"
+                      value={specialistId}
+                      onChange={(e) => setSpecialistId(e.target.value)}
+                      required
+                      disabled={!!session}
+                    />
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleApprove}
+                      disabled={approving || loading || !specialistId.trim() || (session?.revisionCount ?? 0) >= 3}
+                    >
+                      {approving ? "Approving..." : "Approve draft"}
+                    </Button>
+                  </Stack>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Box>
+
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            {sessionLoading ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : session ? (
+              <Box sx={{ height: "600px" }}>
+                <ChatPanel
+                  messages={session.messages || []}
+                  proposals={session.proposals || []}
+                  onSendMessage={handleSendMessage}
+                  onApplyProposal={handleApplyProposal}
+                  sending={sending || applying}
+                  revisionCount={session.revisionCount}
                 />
-                <Button
-                  variant="outlined"
-                  color="success"
-                  onClick={handleApprove}
-                  disabled={approving || loading}
-                >
-                  Approve draft
-                </Button>
-              </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
+              </Box>
+            ) : (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="body2" color="text.secondary">
+                    Enter your Specialist ID above to start a review session.
+                  </Typography>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
+        </Stack>
       )}
 
       {!loading && !draft && !error && (

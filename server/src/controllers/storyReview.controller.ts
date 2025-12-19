@@ -81,11 +81,12 @@ export const updateDraft = async (req: Request, res: Response) => {
 
 /**
  * Approve draft → create story template
+ * Enforces revision count check
  */
 export const approveDraft = async (req: Request, res: Response) => {
   try {
     const { draftId } = req.params;
-    const { specialistId } = req.body;
+    const { specialistId, sessionId } = req.body;
 
     if (!draftId) {
       return res.status(400).json({ success: false, error: "draftId parameter is required" });
@@ -104,32 +105,68 @@ export const approveDraft = async (req: Request, res: Response) => {
 
     const draft = draftSnap.data();
 
+    // If sessionId provided, verify the session's revision count matches draft
+    if (sessionId) {
+      const sessionSnap = await db.collection("review_sessions").doc(sessionId).get();
+      if (sessionSnap.exists) {
+        const session = sessionSnap.data();
+        const sessionRevisionCount = session?.revisionCount || 0;
+        const draftRevisionCount = draft?.revisionCount || 0;
+
+        if (sessionRevisionCount !== draftRevisionCount) {
+          return res.status(400).json({
+            success: false,
+            error: "Revision count mismatch. The draft has been modified. Please refresh and try again.",
+          });
+        }
+      }
+    }
+
     // 1️⃣ Create approved template
-    await db.collection("story_templates").add({
-        draftId,
-        title: draft?.title ?? "Untitled",
-        pages: Array.isArray(draft?.pages)
-          ? draft.pages.map((p: any) => ({
-              pageNumber: p.pageNumber ?? null,
-              textTemplate: p.text ?? "",
-              emotionalTone: p.emotionalTone ?? "",
-              imagePromptTemplate: p.imagePrompt ?? "",
-            }))
-          : [],
-        approvedBy: specialistId,
-        approvedAt: new Date().toISOString(),
-        isActive: true,
-      });      
+    const templateRef = await db.collection("story_templates").add({
+      draftId,
+      title: draft?.title ?? "Untitled",
+      pages: Array.isArray(draft?.pages)
+        ? draft.pages.map((p: any) => ({
+            pageNumber: p.pageNumber ?? null,
+            textTemplate: p.text ?? "",
+            emotionalTone: p.emotionalTone ?? "",
+            imagePromptTemplate: p.imagePrompt ?? "",
+          }))
+        : [],
+      approvedBy: specialistId,
+      approvedAt: new Date().toISOString(),
+      revisionCount: draft?.revisionCount || 0,
+      isActive: true,
+    });
 
     // 2️⃣ Update draft status
     await draftRef.update({
       status: "approved",
       approvedBy: specialistId,
       approvedAt: new Date().toISOString(),
+      templateId: templateRef.id,
     });
 
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ success: false, error: "Failed to approve draft" });
+    // 3️⃣ Close review session if provided
+    if (sessionId) {
+      await db.collection("review_sessions").doc(sessionId).update({
+        status: "approved",
+        approvedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    res.json({
+      success: true,
+      templateId: templateRef.id,
+    });
+  } catch (error: any) {
+    console.error("Error approving draft:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to approve draft",
+      details: error.message,
+    });
   }
 };

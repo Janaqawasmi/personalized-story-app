@@ -111,16 +111,17 @@ export async function updateDraftPages(draftId: string, pages: StoryDraftPage[])
   }
 }
 
-export async function approveDraft(draftId: string, specialistId: string): Promise<void> {
+export async function approveDraft(draftId: string, specialistId: string, sessionId?: string): Promise<{ success: boolean; templateId: string }> {
   const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ specialistId }),
+    body: JSON.stringify({ specialistId, sessionId }),
   });
   if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(errText || `Failed to approve draft (${res.status})`);
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to approve draft (${res.status})`);
   }
+  return res.json();
 }
 
 // ---------- Story Brief APIs ----------
@@ -161,6 +162,91 @@ export async function generateDraftFromBrief(briefId: string): Promise<{ success
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
     throw new Error(errorData.error || errorData.details || `Failed to generate draft (${res.status})`);
+  }
+  return res.json();
+}
+
+// ---------- Review Session APIs ----------
+
+export interface ReviewSession {
+  id: string;
+  draftId: string;
+  specialistId: string;
+  revisionCount: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  messages?: Message[];
+  proposals?: Proposal[];
+}
+
+export interface Message {
+  id: string;
+  role: 'specialist' | 'assistant';
+  content: string;
+  specialistId?: string;
+  proposalId?: string;
+  createdAt: string;
+}
+
+export interface Proposal {
+  id: string;
+  messageId: string;
+  basedOnRevisionCount: number;
+  proposedPages: StoryDraftPage[];
+  summary: string;
+  safetyNotes: string;
+  applied?: boolean;
+  appliedAt?: string;
+  appliedBy?: string;
+  createdAt: string;
+}
+
+export async function createReviewSession(draftId: string, specialistId: string): Promise<{ success: boolean; sessionId: string; revisionCount: number }> {
+  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}/sessions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ specialistId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to create review session (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function getReviewSession(sessionId: string): Promise<ReviewSession> {
+  const res = await fetch(`${API_BASE}/api/specialist/sessions/${sessionId}`);
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to fetch review session (${res.status})`);
+  }
+  const data = await res.json();
+  return data.session;
+}
+
+export async function sendMessage(sessionId: string, content: string, specialistId: string): Promise<{ success: boolean; messageId: string; proposalId: string; proposal: Proposal }> {
+  const res = await fetch(`${API_BASE}/api/specialist/sessions/${sessionId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content, specialistId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to send message (${res.status})`);
+  }
+  return res.json();
+}
+
+export async function applyProposal(sessionId: string, proposalId: string, specialistId: string): Promise<{ success: boolean; revisionCount: number }> {
+  const res = await fetch(`${API_BASE}/api/specialist/sessions/${sessionId}/proposals/${proposalId}/apply`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ specialistId }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to apply proposal (${res.status})`);
   }
   return res.json();
 }
