@@ -1,111 +1,111 @@
-import { Request, Response } from 'express';
-import { firestore } from '../config/firebase';
-import { StoryBrief } from '../models/storyBrief.model';
+import { Request, Response } from "express";
+import { firestore } from "../config/firebase";
+import { StoryBrief } from "../models/storyBrief.model";
 
+/**
+ * List all story briefs (newest first)
+ */
 export const listStoryBriefs = async (_req: Request, res: Response): Promise<void> => {
   try {
-    // Try with orderBy first, fallback to simple query if index is missing
-    let snapshot;
-    try {
-      snapshot = await firestore.collection('admin_story_briefs').orderBy('createdAt', 'desc').get();
-    } catch (orderByError: any) {
-      // If orderBy fails (likely missing index), just get all documents
-      console.warn('orderBy failed, fetching without ordering:', orderByError.message);
-      snapshot = await firestore.collection('admin_story_briefs').get();
-    }
+    const snapshot = await firestore
+      .collection("admin_story_briefs")
+      .orderBy("createdAt", "desc")
+      .get();
 
-    const briefs = snapshot.docs.map(doc => ({
+    const briefs = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
     }));
-
-    // Sort manually if we couldn't use orderBy
-    briefs.sort((a: any, b: any) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    });
 
     res.status(200).json({
       success: true,
       data: briefs,
     });
   } catch (error: any) {
-    console.error('Error listing story briefs:', error);
+    console.error("Error listing story briefs:", error);
+
     res.status(500).json({
       success: false,
-      error: 'Failed to list story briefs',
+      error: "Failed to list story briefs",
       details: error.message,
     });
   }
 };
 
+/**
+ * Create a new story brief (written by specialist)
+ */
 export const createStoryBrief = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       topicKey,
       targetAgeGroup,
-      therapeuticMessages,
-      shortDescription,
-      status,
+      topicTags,
+      therapeuticIntent,
+      constraints,
       createdBy,
     } = req.body;
 
-    // Validate required fields
-    if (!topicKey || !targetAgeGroup || !therapeuticMessages || !createdBy) {
+    // ─────────────────────────────
+    // Validation (strict & explicit)
+    // ─────────────────────────────
+    if (!topicKey || !targetAgeGroup || !createdBy) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields: topicKey, targetAgeGroup, therapeuticMessages, createdBy',
+        error: "Missing required fields: topicKey, targetAgeGroup, createdBy",
       });
       return;
     }
 
-    // Validate therapeuticMessages is an array
-    if (!Array.isArray(therapeuticMessages)) {
+    if (topicTags && !Array.isArray(topicTags)) {
       res.status(400).json({
         success: false,
-        error: 'therapeuticMessages must be an array',
+        error: "topicTags must be an array of strings",
       });
       return;
     }
 
-    // Validate status if provided
-    if (status && status !== 'pending_generation' && status !== 'draft_generated') {
+    if (therapeuticIntent && !Array.isArray(therapeuticIntent)) {
       res.status(400).json({
         success: false,
-        error: 'status must be either "pending_generation" or "draft_generated"',
+        error: "therapeuticIntent must be an array of strings",
       });
       return;
     }
 
-    // Create story brief document
-    const storyBrief: Omit<StoryBrief, 'id'> = {
+    // ─────────────────────────────
+    // Build Story Brief document
+    // ─────────────────────────────
+    const storyBrief: Omit<StoryBrief, "id"> = {
       topicKey,
       targetAgeGroup,
-      therapeuticMessages,
-      shortDescription,
-      status: status || 'pending_generation',
-      createdAt: new Date().toISOString(),
+      topicTags: topicTags || [],
+      therapeuticIntent: therapeuticIntent || [],
+      constraints: constraints || {},
+      status: "draft", // draft → generated → reviewed → approved
       createdBy,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    // Save to Firestore
-    const docRef = await firestore.collection('admin_story_briefs').add(storyBrief);
+    const docRef = await firestore
+      .collection("admin_story_briefs")
+      .add(storyBrief);
 
     res.status(201).json({
       success: true,
-      id: docRef.id,
       data: {
-        ...storyBrief,
         id: docRef.id,
+        ...storyBrief,
       },
     });
-  } catch (error) {
-    console.error('Error creating story brief:', error);
+  } catch (error: any) {
+    console.error("Error creating story brief:", error);
+
     res.status(500).json({
       success: false,
-      error: 'Failed to create story brief',
+      error: "Failed to create story brief",
+      details: error.message,
     });
   }
 };
-

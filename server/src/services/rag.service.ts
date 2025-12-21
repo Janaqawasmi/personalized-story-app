@@ -1,113 +1,187 @@
 import { db } from "../config/firebase";
 
+type BriefLike = {
+  topicKey?: string;
+  targetAgeGroup?: string;
+  topicTags?: string[];
+  therapeuticMessages?: string[];
+  briefId?: string;
+};
 
-export async function retrieveKnowledgeForStory(briefOrDraft: any) {
-  let topicKey = briefOrDraft?.topicKey;
-  let targetAgeGroup = briefOrDraft?.targetAgeGroup;
+async function safeGetDoc(collection: string, docId: string) {
+  try {
+    const snap = await db.collection(collection).doc(docId).get();
+    return snap.exists ? snap.data() : null;
+  } catch (e) {
+    console.warn(`Error reading ${collection}/${docId}`, e);
+    return null;
+  }
+}
 
-  // If we have a draft with briefId, fetch the brief to get topicKey and targetAgeGroup
-  if (!topicKey && briefOrDraft?.briefId) {
-    const briefSnap = await db.collection("admin_story_briefs").doc(briefOrDraft.briefId).get();
-    if (briefSnap.exists) {
-      const briefData = briefSnap.data();
-      topicKey = briefData?.topicKey;
-      targetAgeGroup = briefData?.targetAgeGroup;
+function compact(items?: string[], max = 8) {
+  if (!items?.length) return "";
+  return items.slice(0, max).map((x) => `- ${x}`).join("\n");
+}
+
+export async function retrieveKnowledgeForStory(brief: BriefLike) {
+  let { topicKey, targetAgeGroup } = brief;
+
+  if ((!topicKey || !targetAgeGroup) && brief.briefId) {
+    const snap = await db
+      .collection("specialist_story_briefs")
+      .doc(brief.briefId)
+      .get();
+    if (snap.exists) {
+      const data = snap.data()!;
+      topicKey = topicKey || data.topicKey;
+      targetAgeGroup = targetAgeGroup || data.targetAgeGroup;
     }
   }
 
-  // If still no values, return empty context
   if (!topicKey || !targetAgeGroup) {
-    console.warn("Missing topicKey or targetAgeGroup, returning minimal context");
     return `
-==== THERAPEUTIC GUIDELINES ====
-Use general therapeutic principles for children's stories.
-
-==== AGE LANGUAGE RULES ====
-Use age-appropriate language and concepts.
-
-==== STORY STRUCTURE ====
-Use standard therapeutic story structure.
-
-==== WORDS/PHRASES TO AVOID ====
-Avoid triggering language, violence, or inappropriate content.
-`;
+==== PLATFORM RULES ====
+Child protagonist must be human.
+Use metaphor → journey → resolution.
+No guilt, no shame, no moralizing.
+`.trim();
   }
 
-  // 1. therapeutic guidelines
-  let guidelines = "";
-  try {
-    const guidelinesSnap = await db
-      .collection("therapeutic_guidelines")
-      .where("topicKey", "==", topicKey)
-      .where("ageGroup", "==", targetAgeGroup)
-      .get();
+  // ─────────────────────────────
+  // A) Platform & Safety
+  // ─────────────────────────────
+  const stylePolicy = await safeGetDoc(
+    "rag_style_policies",
+    "character_policy_no_animal_child_v1"
+  );
+  const writingRules = await safeGetDoc(
+    "rag_writing_rules",
+    "therapeutic_writing_rules"
+  );
+  const dontDo = await safeGetDoc(
+    "rag_dont_do_list",
+    "global_therapeutic_avoid_list"
+  );
+  const ethics = await safeGetDoc(
+    "rag_ethics",
+    "healing_vs_manipulative_gate_v1"
+  );
 
-    guidelines = guidelinesSnap.empty
-      ? ""
-      : guidelinesSnap.docs[0]?.data().content ?? "";
-  } catch (error) {
-    console.warn("Error fetching therapeutic guidelines:", error);
-  }
+  // ─────────────────────────────
+  // B) Core Therapeutic Framework
+  // ─────────────────────────────
+  const principles = await safeGetDoc(
+    "rag_therapeutic_principles",
+    "general_therapeutic_storytelling"
+  );
+  const framework = await safeGetDoc(
+    "rag_narrative_framework",
+    "classic_therapeutic_framework"
+  );
+  const intent = await safeGetDoc(
+    "rag_story_intent",
+    "therapeutic_story_intent"
+  );
+  const journey = await safeGetDoc(
+    "rag_story_journey",
+    "tension_principles_v1"
+  );
+  const ageRules = await safeGetDoc(
+    "rag_age_complexity_rules",
+    "journey_complexity_by_age_v1"
+  );
 
-  // 2. age/language rules
-  let ageRules = "";
-  try {
-    const ageRulesSnap = await db
-      .collection("age_language_rules")
-      .where("ageGroup", "==", targetAgeGroup)
-      .get();
+  // ─────────────────────────────
+  // C) Metaphor & Devices
+  // ─────────────────────────────
+  const metaphorRules = await safeGetDoc(
+    "rag_metaphor_rules",
+    "metaphor_writing_rules"
+  );
+  const metaphorSafety = await safeGetDoc(
+    "rag_metaphor_safety",
+    "metaphor_caution_rules_v1"
+  );
+  const obstacleHelper = await safeGetDoc(
+    "rag_obstacle_helper_integration",
+    "journey_obstacle_helper_mapping_v1"
+  );
+  const refrain = await safeGetDoc(
+    "rag_story_devices",
+    "soothing_refrain_lullaby_v1"
+  );
 
-    ageRules = ageRulesSnap.empty
-      ? ""
-      : ageRulesSnap.docs[0]?.data().content ?? "";
-  } catch (error) {
-    console.warn("Error fetching age rules:", error);
-  }
+  // ─────────────────────────────
+  // D) Topic-Specific Patterns
+  // ─────────────────────────────
+  const desiredTags = new Set([
+    topicKey,
+    ...(brief.topicTags || []),
+    ...(brief.therapeuticMessages || []).map((x) =>
+      x.toLowerCase().replace(/\s+/g, "_")
+    ),
+  ]);
 
-  // 3. story structure template
-  let structure = "Use standard therapeutic story structure.";
-  try {
-    const structureSnap = await db
-      .collection("story_structures")
-      .where("topicKey", "==", topicKey)
-      .get();
+  let patterns: any[] = [];
+  const snap = await db
+    .collection("rag_theme_patterns")
+    .where("targetAges", "array-contains", targetAgeGroup)
+    .get();
 
-    structure = structureSnap.empty
-      ? "Use standard therapeutic story structure."
-      : structureSnap.docs[0]?.data().content ?? "Use standard therapeutic story structure.";
-  } catch (error) {
-    console.warn("Error fetching story structure:", error);
-  }
+  patterns = snap.docs
+    .map((d) => d.data())
+    .map((p) => ({
+      p,
+      score: (p.topicTags || []).filter((t: string) =>
+        desiredTags.has(t)
+      ).length,
+    }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map((x) => x.p);
 
-  // 4. don't-do list
-  let dontDo = "";
-  try {
-    const dontDoSnap = await db
-      .collection("dont_do_lists")
-      .where("topicKey", "==", topicKey)
-      .get();
+  // ─────────────────────────────
+  // Final Context
+  // ─────────────────────────────
+  return `
+==== PLATFORM CONSTRAINTS ====
+Child must be human.
+${compact(stylePolicy?.policy?.notes)}
 
-    dontDo = dontDoSnap.empty
-      ? ""
-      : dontDoSnap.docs[0]?.data().content ?? "";
-  } catch (error) {
-    console.warn("Error fetching dont-do list:", error);
-  }
+==== THERAPEUTIC PRINCIPLES ====
+${compact(principles?.principles)}
 
-  // Combine everything into one context
-  const finalContext = `
-==== THERAPEUTIC GUIDELINES ====
-${guidelines}
+==== NARRATIVE FRAMEWORK ====
+${framework?.framework
+  ?.map((s: any) => `- ${s.stage}: ${s.description}`)
+  .join("\n")}
 
-==== AGE LANGUAGE RULES ====
-${ageRules}
+==== STORY INTENT ====
+${compact(intent?.intent)}
 
-==== STORY STRUCTURE ====
-${structure}
+==== WRITING RULES ====
+${compact(writingRules?.rules)}
 
-==== WORDS/PHRASES TO AVOID ====
-${dontDo}
-`;
+==== DO NOT ====
+${compact(dontDo?.avoid)}
 
-  return finalContext;
+==== METAPHOR RULES ====
+${compact(metaphorRules?.rules)}
+
+==== METAPHOR SAFETY ====
+${compact(metaphorSafety?.rules)}
+
+==== JOURNEY PRINCIPLES ====
+${compact(journey?.principles)}
+
+==== OBSTACLE / HELPER LOGIC ====
+${compact(obstacleHelper?.guidance)}
+
+==== REFRAIN RULES ====
+${compact(refrain?.rules)}
+
+==== TOPIC PATTERNS ====
+${patterns.length ? JSON.stringify(patterns, null, 2) : "Use general framework only."}
+`.trim();
 }

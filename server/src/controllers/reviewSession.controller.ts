@@ -178,7 +178,12 @@ export const sendMessage = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: "Draft not found" });
     }
 
-    const draft = draftSnap.data();
+    const draftData = draftSnap.data();
+    if (!draftData) {
+      return res.status(404).json({ success: false, error: "Draft data not found" });
+    }
+
+    const draft = draftData as any;
 
     // 3. Get RAG context
     const ragContext = await retrieveKnowledgeForStory(draft);

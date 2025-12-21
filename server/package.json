@@ -6,6 +6,7 @@
     "dev": "PORT=5000 ts-node src/app.ts",
     "build": "tsc",
     "start": "PORT=5000 node dist/app.js",
+    "seed:rag": "ts-node scripts/seedRag.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
