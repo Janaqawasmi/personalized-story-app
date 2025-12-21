@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -14,6 +15,7 @@ import { fetchStoryBriefs, generateDraftFromBrief, StoryBrief } from "../api/api
 import SpecialistNav from "../components/SpecialistNav";
 
 const GenerateDraftPage: React.FC = () => {
+  const navigate = useNavigate();
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
@@ -100,7 +102,7 @@ const GenerateDraftPage: React.FC = () => {
                         <Chip
                           label={`Status: ${brief.status}`}
                           size="small"
-                          color={brief.status === "draft_generated" ? "success" : "default"}
+                          color={brief.status === "generated" ? "success" : "default"}
                           variant="outlined"
                         />
                         {brief.generatedDraftId && (
@@ -113,40 +115,87 @@ const GenerateDraftPage: React.FC = () => {
                         )}
                       </Stack>
                     </Box>
-                    <Button
-                      variant="contained"
-                      onClick={() => handleGenerateDraft(brief.id)}
-                      disabled={generating === brief.id || brief.status === "draft_generated"}
-                    >
-                      {generating === brief.id ? (
-                        <>
-                          <CircularProgress size={16} sx={{ mr: 1 }} />
-                          Generating...
-                        </>
-                      ) : brief.status === "draft_generated" ? (
-                        "Draft Generated"
-                      ) : (
-                        "Generate Draft"
-                      )}
-                    </Button>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => navigate(`/specialist/story-briefs/${brief.id}/prompt-preview`)}
+                      >
+                        View Prompt (RAG + LLM)
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={() => handleGenerateDraft(brief.id)}
+                        disabled={generating === brief.id || brief.status === "generated"}
+                      >
+                        {generating === brief.id ? (
+                          <>
+                            <CircularProgress size={16} sx={{ mr: 1 }} />
+                            Generating...
+                          </>
+                        ) : brief.status === "generated" ? (
+                          "Draft Generated"
+                        ) : (
+                          "Generate Draft"
+                        )}
+                      </Button>
+                    </Stack>
                   </Stack>
 
-                  {brief.shortDescription && (
-                    <Typography variant="body2" color="text.secondary">
-                      {brief.shortDescription}
-                    </Typography>
-                  )}
-
-                  {brief.therapeuticMessages && brief.therapeuticMessages.length > 0 && (
+                  {brief.topicTags && brief.topicTags.length > 0 && (
                     <Box>
                       <Typography variant="subtitle2" gutterBottom>
-                        Therapeutic Messages:
+                        Topic Tags:
                       </Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                        {brief.therapeuticMessages.map((msg, idx) => (
-                          <Chip key={idx} label={msg} size="small" variant="outlined" />
+                        {brief.topicTags.map((tag, idx) => (
+                          <Chip key={idx} label={tag} size="small" color="primary" variant="outlined" />
                         ))}
                       </Stack>
+                    </Box>
+                  )}
+
+                  {brief.therapeuticIntent && brief.therapeuticIntent.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Therapeutic Intent:
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                        {brief.therapeuticIntent.map((intent, idx) => (
+                          <Chip key={idx} label={intent} size="small" color="secondary" variant="outlined" />
+                        ))}
+                      </Stack>
+                    </Box>
+                  )}
+
+                  {brief.constraints && (brief.constraints.avoidMetaphors?.length || brief.constraints.avoidLanguage?.length) && (
+                    <Box>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Constraints:
+                      </Typography>
+                      {brief.constraints.avoidMetaphors && brief.constraints.avoidMetaphors.length > 0 && (
+                        <Box mb={1}>
+                          <Typography variant="caption" color="text.secondary">
+                            Avoid Metaphors:
+                          </Typography>
+                          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mt={0.5}>
+                            {brief.constraints.avoidMetaphors.map((item, idx) => (
+                              <Chip key={idx} label={item} size="small" variant="outlined" />
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+                      {brief.constraints.avoidLanguage && brief.constraints.avoidLanguage.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Avoid Language:
+                          </Typography>
+                          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mt={0.5}>
+                            {brief.constraints.avoidLanguage.map((item, idx) => (
+                              <Chip key={idx} label={item} size="small" variant="outlined" />
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
                     </Box>
                   )}
 

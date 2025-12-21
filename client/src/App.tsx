@@ -5,6 +5,7 @@ import AdminStoryBriefForm from './pages/AdminStoryBriefForm';
 import GenerateDraftPage from './pages/GenerateDraftPage';
 import SpecialistDraftReview from './pages/SpecialistDraftReview';
 import SpecialistDraftList from './pages/SpecialistDraftList';
+import SpecialistStoryPromptPreview from './pages/SpecialistStoryPromptPreview';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/specialist/generate-draft" element={<GenerateDraftPage />} />
         <Route path="/specialist/drafts" element={<SpecialistDraftList />} />
         <Route path="/specialist/drafts/:draftId" element={<SpecialistDraftReview />} />
+        <Route path="/specialist/story-briefs/:briefId/prompt-preview" element={<SpecialistStoryPromptPreview />} />
       </Routes>
     </BrowserRouter>
   );

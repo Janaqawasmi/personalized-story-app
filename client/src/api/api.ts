@@ -14,8 +14,12 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 export interface StoryBriefInput {
   topicKey: string;
   targetAgeGroup: string;
-  therapeuticMessages: string[];
-  shortDescription?: string;
+  topicTags: string[];
+  therapeuticIntent: string[];
+  constraints?: {
+    avoidMetaphors?: string[];
+    avoidLanguage?: string[];
+  };
   createdBy: string;
 }
 
@@ -26,10 +30,15 @@ export interface StoryBriefResponse {
     id: string;
     topicKey: string;
     targetAgeGroup: string;
-    therapeuticMessages: string[];
-    shortDescription?: string;
-    status: string;
+    topicTags: string[];
+    therapeuticIntent: string[];
+    constraints?: {
+      avoidMetaphors?: string[];
+      avoidLanguage?: string[];
+    };
+    status: "draft" | "generated" | "reviewed" | "approved";
     createdAt: string;
+    updatedAt: string;
     createdBy: string;
   };
   error?: string;
@@ -130,10 +139,15 @@ export interface StoryBrief {
   id: string;
   topicKey: string;
   targetAgeGroup: string;
-  therapeuticMessages: string[];
-  shortDescription?: string;
-  status: string;
+  topicTags: string[];
+  therapeuticIntent: string[];
+  constraints?: {
+    avoidMetaphors?: string[];
+    avoidLanguage?: string[];
+  };
+  status: "draft" | "generated" | "reviewed" | "approved";
   createdAt: string;
+  updatedAt: string;
   createdBy: string;
   generatedDraftId?: string;
 }
@@ -164,6 +178,31 @@ export async function generateDraftFromBrief(briefId: string): Promise<{ success
     throw new Error(errorData.error || errorData.details || `Failed to generate draft (${res.status})`);
   }
   return res.json();
+}
+
+// ---------- Story Prompt Preview API ----------
+
+export interface StoryPromptPreview {
+  topicKey: string;
+  targetAgeGroup: string;
+  prompt: string;
+}
+
+export async function fetchStoryPromptPreview(briefId: string): Promise<StoryPromptPreview> {
+  try {
+    const res = await fetch(`${API_BASE}/api/specialist/story-briefs/${briefId}/prompt-preview`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to load prompt preview (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
 }
 
 // ---------- Review Session APIs ----------
@@ -249,5 +288,24 @@ export async function applyProposal(sessionId: string, proposalId: string, speci
     throw new Error(errorData.error || errorData.details || `Failed to apply proposal (${res.status})`);
   }
   return res.json();
+}
+
+// ---------- Topic Tags API ----------
+
+export async function fetchTopicTags(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/specialist/topic-tags`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to load topic tags (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data ?? [];
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
 }
 

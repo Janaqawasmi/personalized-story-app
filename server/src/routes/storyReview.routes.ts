@@ -11,6 +11,7 @@ import {
   sendMessage,
   applyProposal,
 } from "../controllers/reviewSession.controller";
+import { getTopicTags } from "../controllers/topicTags.controller";
 
 const router = Router();
 
@@ -25,5 +26,8 @@ router.post("/drafts/:draftId/sessions", createReviewSession);
 router.get("/sessions/:sessionId", getReviewSession);
 router.post("/sessions/:sessionId/messages", sendMessage);
 router.post("/sessions/:sessionId/proposals/:proposalId/apply", applyProposal);
+
+// Topic tags endpoint
+router.get("/topic-tags", getTopicTags);
 
 export default router;
