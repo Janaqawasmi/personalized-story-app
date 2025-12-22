@@ -1,58 +1,91 @@
+// src/services/storyGenerator.service.ts
 import OpenAI from "openai";
+import { StoryBrief } from "../models/storyBrief.model";
+import { buildStoryDraftPrompt } from "./storyPromptBuilder";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+/**
+ * Lazy OpenAI client initialization
+ */
+let client: OpenAI | null = null;
 
-export async function generateStoryDraft(brief: any, ragContext: string) {
-  const prompt = `
-You are a professional therapeutic children's story writer.
-Use the following therapeutic knowledge to guide your writing:
+export function getOpenAIClient(): OpenAI {
+  if (!client) {
+    const apiKey = process.env.OPENAI_API_KEY?.trim();
 
-${ragContext}
-
-Admin Inputs:
-Topic: ${brief.topicKey}
-Age Group: ${brief.targetAgeGroup}
-Therapeutic Messages: ${brief.therapeuticMessages?.join(", ")}
-
-TASK:
-Generate a therapeutic children's story following developmental psychology and emotional safety.
-Return a JSON object with this exact schema:
-
-{
-  "title": "string",
-  "pages": [
-    {
-      "pageNumber": 1,
-      "text": "story text using {{child_name}} and pronoun tokens",
-      "emotionalTone": "string",
-      "imagePrompt": "scene description for image generation"
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY environment variable is not set");
     }
-  ]
+
+    if (!apiKey.startsWith("sk-")) {
+      console.warn(
+        "WARNING: OpenAI API key does not start with 'sk-'. Check if this is intentional."
+      );
+    }
+
+    client = new OpenAI({ apiKey });
+  }
+
+  return client;
 }
 
-Rules:
-- Output ONLY valid JSON. No explanations.
-- Use placeholders: {{child_name}}, {{pronoun_subject}}, {{pronoun_object}}, {{pronoun_possessive}}
-- Story must include 5–8 pages.
-- Emotional arc: introduction → identify emotion → challenge → coping → support → resolution.
-- Use age-appropriate language rules from RAG.
-- Avoid harmful or sensitive phrases listed in the RAG dont-do section.
-`;
-
-  const completion = await client.chat.completions.create({
-    model: "gpt-4.1",
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
-  });
-
-  const raw = completion.choices[0]?.message?.content || "{}";
+/**
+ * Generate a therapeutic story draft
+ * - Prompt is BUILT elsewhere
+ * - This function only executes the LLM call
+ */
+export async function generateStoryDraft(
+  brief: StoryBrief,
+  ragContext: string
+) {
+  // 🔑 SINGLE SOURCE OF TRUTH
+  const prompt = buildStoryDraftPrompt(brief, ragContext);
 
   try {
-    return JSON.parse(raw);
-  } catch (err) {
-    console.error("Failed JSON from LLM:", raw);
-    throw new Error("LLM did not return valid JSON");
+    const openaiClient = getOpenAIClient();
+
+    const completion = await openaiClient.chat.completions.create({
+      model: "gpt-5-mini",
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+
+    try {
+      return {
+        draft: JSON.parse(raw),
+        promptSnapshot: prompt,     // 👈 IMPORTANT (audit / preview)
+        ragSnapshot: ragContext,    // 👈 IMPORTANT (traceability)
+      };
+    } catch {
+      console.error("❌ LLM returned invalid JSON:\n", raw);
+      throw new Error("LLM response is not valid JSON");
+    }
+  } catch (error: any) {
+    console.error("OpenAI API Error:", {
+      code: error.code,
+      status: error.status,
+      message: error.message,
+      type: error.type,
+    });
+
+    if (error.code === "insufficient_quota" || error.status === 429) {
+      throw new Error(
+        "OpenAI quota exceeded. Please check billing at https://platform.openai.com/account/billing"
+      );
+    }
+
+    if (
+      error.code === "invalid_api_key" ||
+      error.code === "authentication_error" ||
+      error.status === 401
+    ) {
+      throw new Error(
+        "Invalid OpenAI API key. Please check OPENAI_API_KEY in your environment."
+      );
+    }
+
+    throw new Error(
+      `OpenAI API error: ${error.message || "Unknown error"}`
+    );
   }
 }

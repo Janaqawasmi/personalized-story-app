@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { db } from "../config/firebase";
 import { retrieveKnowledgeForStory } from "../services/rag.service";
 import { generateStoryDraft } from "../services/storyGenerator.service";
+import { StoryBrief } from "../models/storyBrief.model";
 
 export const generateDraftFromBrief = async (req: Request, res: Response) => {
   try {
@@ -18,26 +19,31 @@ export const generateDraftFromBrief = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Story brief not found" });
     }
 
-    const brief = briefSnap.data();
+    const briefData = briefSnap.data();
+    if (!briefData) {
+      return res.status(404).json({ error: "Story brief data not found" });
+    }
+
+    const brief = { id: briefSnap.id, ...briefData } as StoryBrief;
 
     // 2. Retrieve RAG knowledge context
     const ragContext = await retrieveKnowledgeForStory(brief);
 
     // 3. Generate story draft via LLM
-    const storyDraft = await generateStoryDraft(brief, ragContext);
+    const storyDraftResult = await generateStoryDraft(brief, ragContext);
 
     // 4. Save the draft into Firestore
     const draftDocRef = await db.collection("story_drafts").add({
       briefId,
-      title: storyDraft.title,
-      pages: storyDraft.pages,
+      title: storyDraftResult.draft.title,
+      pages: storyDraftResult.draft.pages,
       status: "in_review",
       createdAt: new Date().toISOString(),
     });
 
     // 5. Update the brief status
     await db.collection("admin_story_briefs").doc(briefId).update({
-      status: "draft_generated",
+      status: "generated",
       generatedDraftId: draftDocRef.id,
     });
 
