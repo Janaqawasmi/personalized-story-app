@@ -1,35 +1,42 @@
-import path from 'path';
-import admin from 'firebase-admin';
-import fs from 'fs';
+import path from "path";
+import fs from "fs";
+import admin from "firebase-admin";
 
-const serviceAccountPath = path.resolve(__dirname, '../../config/serviceAccountKey.json');
+const serviceAccountPath = path.resolve(
+  __dirname,
+  "../../config/serviceAccountKey.json"
+);
+
+// Read & parse once
+const serviceAccount = JSON.parse(
+  fs.readFileSync(serviceAccountPath, "utf8")
+);
 
 try {
   if (!admin.apps.length) {
-    // Read service account to get project ID for logging
-    let projectId = 'unknown';
-    try {
-      const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-      projectId = serviceAccount.project_id || 'unknown';
-    } catch (e) {
-      // Ignore read errors, will use 'unknown'
-    }
-
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccountPath),
+      credential: admin.credential.cert(serviceAccount),
     });
-    console.log("Firebase initialized - Project:", projectId);
+
+    console.log(
+      "Firebase initialized - Project:",
+      serviceAccount.project_id
+    );
   } else {
-    const projectId = admin.app().options.projectId || 'unknown';
-    console.log("Firebase already initialized - Project:", projectId);
+    console.log(
+      "Firebase already initialized - Project:",
+      admin.app().options.projectId
+    );
   }
 } catch (error) {
   console.error("Firebase initialization error:", error);
   throw error;
 }
 
+// Must show real project ID
+console.log("🔥 Firebase project:", admin.app().options.projectId);
+
 const firestore = admin.firestore();
 const db = firestore;
 
 export { admin, firestore, db };
-

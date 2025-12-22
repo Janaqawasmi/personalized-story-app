@@ -1,82 +1,115 @@
 import "dotenv/config";
 console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
 
-// Add error handlers BEFORE any other imports that might cause issues
-process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // Don't exit - just log the error
+// ---------- GLOBAL ERROR HANDLERS ----------
+process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 
-process.on('uncaughtException', (error: Error) => {
-  console.error('Uncaught Exception:', error);
-  // Don't exit immediately - log and let the server try to continue
-  // In production, you might want to exit gracefully
+process.on("uncaughtException", (error: Error) => {
+  console.error("Uncaught Exception:", error);
 });
+
+// ---------- IMPORTS ----------
+import express, { Request, Response } from "express";
+import cors from "cors";
+
+import { admin, firestore } from "./config/firebase";
 
 import storyDraftRoutes from "./routes/storyDraft.routes";
-import express, { Request, Response } from 'express';
-import cors from 'cors';
-import { admin, firestore } from './config/firebase';
-import storyBriefRouter from './routes/storyBrief.routes';
+import storyBriefRouter from "./routes/storyBrief.routes";
+import templateRoutes from "./routes/template.routes";
+import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
-import specialistPromptRoutes from "./routes/specialistPrompt.routes"; // ✅ NEW
+import specialistPromptRoutes from "./routes/specialistPrompt.routes";
 
+// ---------- APP ----------
 const app = express();
 const port = process.env.PORT || 5000;
 
+// ---------- MIDDLEWARE ----------
 app.use(cors());
 app.use(express.json());
 
-app.use("/api/specialist", storyReviewRoutes);
+// ---------- ROUTES ----------
+app.use("/api/story-templates", templateRoutes);
 app.use("/api/story-drafts", storyDraftRoutes);
-app.use("/api/specialist", specialistPromptRoutes); // ✅ NEW
+app.use("/api/personalized-stories", personalizedStoryRoutes);
 
-app.get('/', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', message: 'Server is running' });
+app.use("/api/admin/story-briefs", storyBriefRouter);
+
+app.use("/api/specialist/reviews", storyReviewRoutes);
+app.use("/api/specialist/prompts", specialistPromptRoutes);
+
+// ---------- DEBUG FIRESTORE ----------
+app.get("/api/debug/firestore", async (_req: Request, res: Response) => {
+  try {
+    const snap = await firestore
+      .collection("approved_story_templates")
+      .limit(5)
+      .get();
+
+    res.json({
+      empty: snap.empty,
+      count: snap.size,
+      docs: snap.docs.map((d) => d.id),
+    });
+  } catch (error) {
+    console.error("🔥 Firestore debug error:", error);
+    res.status(500).json({ success: false });
+  }
 });
 
-app.post('/api/test-firestore', async (_req: Request, res: Response) => {
+// ---------- HEALTH CHECK ----------
+app.get("/", (_req: Request, res: Response) => {
+  res.json({ status: "ok", message: "Server is running" });
+});
+
+// ---------- FIRESTORE WRITE TEST ----------
+app.post("/api/test-firestore", async (_req: Request, res: Response) => {
   try {
-    await firestore.collection('tests').add({
+    await firestore.collection("tests").add({
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     res.json({ success: true });
   } catch (error) {
-    console.error('Error writing test document to Firestore:', error);
-    res.status(500).json({ success: false, error: 'Failed to write to Firestore' });
+    console.error("Error writing test document to Firestore:", error);
+    res.status(500).json({ success: false });
   }
 });
 
-app.use('/api/admin/story-briefs', storyBriefRouter);
-
-// Error handling middleware (should be last)
+// ---------- EXPRESS ERROR HANDLER (LAST) ----------
 app.use((err: any, _req: Request, res: Response, _next: any) => {
-  console.error('Express error:', err);
-  res.status(500).json({ error: 'Internal server error', details: err.message });
+  console.error("Express error:", err);
+  res.status(500).json({
+    error: "Internal server error",
+    details: err.message,
+  });
 });
 
+// ---------- START SERVER ----------
 const server = app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
+  console.log(`🚀 Server listening on port ${port}`);
 });
 
-// Keep the process alive
-server.on('error', (error: any) => {
-  console.error('Server error:', error);
+// ---------- SERVER ERROR ----------
+server.on("error", (error: any) => {
+  console.error("Server error:", error);
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+// ---------- GRACEFUL SHUTDOWN ----------
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully");
   server.close(() => {
-    console.log('Server closed');
+    console.log("Server closed");
     process.exit(0);
   });
 });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
+process.on("SIGINT", () => {
+  console.log("SIGINT received, shutting down gracefully");
   server.close(() => {
-    console.log('Server closed');
+    console.log("Server closed");
     process.exit(0);
   });
 });
