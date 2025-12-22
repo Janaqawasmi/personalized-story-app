@@ -1,9 +1,10 @@
 import { Router } from "express";
 
-import { createStoryBrief } from "../controllers/storyBrief.controller";
+import { createStoryBrief, listStoryBriefs } from "../controllers/storyBrief.controller";
 
 const router = Router();
 
+router.get("/", listStoryBriefs);
 router.post("/", createStoryBrief);
 
 export default router;

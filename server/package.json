@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node src/app.ts",
+    "dev": "PORT=5000 ts-node src/app.ts",
     "build": "tsc",
-    "start": "node dist/app.js",
+    "start": "PORT=5000 node dist/app.js",
+    "seed:rag": "ts-node scripts/seedRag.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
+    "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.6",
     "@types/node": "^25.0.0",
     "ts-node": "^10.9.2",

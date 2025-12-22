@@ -7,18 +7,33 @@ const serviceAccountPath = path.resolve(
   "../../config/serviceAccountKey.json"
 );
 
-// ✅ READ AND PARSE THE JSON FILE
+// Read & parse once
 const serviceAccount = JSON.parse(
   fs.readFileSync(serviceAccountPath, "utf8")
 );
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+try {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+
+    console.log(
+      "Firebase initialized - Project:",
+      serviceAccount.project_id
+    );
+  } else {
+    console.log(
+      "Firebase already initialized - Project:",
+      admin.app().options.projectId
+    );
+  }
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+  throw error;
 }
 
-// ✅ This MUST show a real project ID
+// Must show real project ID
 console.log("🔥 Firebase project:", admin.app().options.projectId);
 
 const firestore = admin.firestore();
