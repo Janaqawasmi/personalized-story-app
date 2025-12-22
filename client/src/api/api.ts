@@ -91,7 +91,7 @@ export interface StoryDraft {
 }
 
 export async function fetchDraftsForReview(): Promise<StoryDraft[]> {
-  const res = await fetch(`${API_BASE}/api/specialist/drafts`);
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts`);
   if (!res.ok) {
     throw new Error(`Failed to load drafts (${res.status})`);
   }
@@ -100,7 +100,7 @@ export async function fetchDraftsForReview(): Promise<StoryDraft[]> {
 }
 
 export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
-  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}`);
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`);
   if (!res.ok) {
     throw new Error(`Failed to load draft (${res.status})`);
   }
@@ -109,7 +109,7 @@ export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
 }
 
 export async function updateDraftPages(draftId: string, pages: StoryDraftPage[]): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}`, {
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pages }),
@@ -121,7 +121,7 @@ export async function updateDraftPages(draftId: string, pages: StoryDraftPage[])
 }
 
 export async function approveDraft(draftId: string, specialistId: string, sessionId?: string): Promise<{ success: boolean; templateId: string }> {
-  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}/approve`, {
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ specialistId, sessionId }),
@@ -242,7 +242,7 @@ export interface Proposal {
 }
 
 export async function createReviewSession(draftId: string, specialistId: string): Promise<{ success: boolean; sessionId: string; revisionCount: number }> {
-  const res = await fetch(`${API_BASE}/api/specialist/drafts/${draftId}/sessions`, {
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ specialistId }),
@@ -255,7 +255,7 @@ export async function createReviewSession(draftId: string, specialistId: string)
 }
 
 export async function getReviewSession(sessionId: string): Promise<ReviewSession> {
-  const res = await fetch(`${API_BASE}/api/specialist/sessions/${sessionId}`);
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/sessions/${sessionId}`);
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
     throw new Error(errorData.error || errorData.details || `Failed to fetch review session (${res.status})`);
@@ -265,7 +265,7 @@ export async function getReviewSession(sessionId: string): Promise<ReviewSession
 }
 
 export async function sendMessage(sessionId: string, content: string, specialistId: string): Promise<{ success: boolean; messageId: string; proposalId: string; proposal: Proposal }> {
-  const res = await fetch(`${API_BASE}/api/specialist/sessions/${sessionId}/messages`, {
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/sessions/${sessionId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content, specialistId }),
@@ -278,7 +278,7 @@ export async function sendMessage(sessionId: string, content: string, specialist
 }
 
 export async function applyProposal(sessionId: string, proposalId: string, specialistId: string): Promise<{ success: boolean; revisionCount: number }> {
-  const res = await fetch(`${API_BASE}/api/specialist/sessions/${sessionId}/proposals/${proposalId}/apply`, {
+  const res = await fetch(`${API_BASE}/api/specialist/reviews/sessions/${sessionId}/proposals/${proposalId}/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ specialistId }),
@@ -294,7 +294,7 @@ export async function applyProposal(sessionId: string, proposalId: string, speci
 
 export async function fetchTopicTags(): Promise<string[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/specialist/topic-tags`);
+    const res = await fetch(`${API_BASE}/api/specialist/reviews/topic-tags`);
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load topic tags (${res.status})`);

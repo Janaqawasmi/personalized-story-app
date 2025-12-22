@@ -81,7 +81,7 @@ const SpecialistDraftReview: React.FC = () => {
     setSending(true);
     setError(null);
     try {
-      const result = await sendMessage(session.id, content, specialistId.trim());
+      await sendMessage(session.id, content, specialistId.trim());
       // Reload session to get updated messages and proposals
       const updatedSession = await getReviewSession(session.id);
       setSession(updatedSession);
