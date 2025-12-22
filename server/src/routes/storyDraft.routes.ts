@@ -8,3 +8,8 @@ router.post("/:briefId/generate", generateDraftFromBrief);
 
 export default router;
 
+
+
+
+
+
