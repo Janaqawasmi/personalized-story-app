@@ -29,28 +29,30 @@ export const listDraftsForReview = async (_req: Request, res: Response) => {
   
 /**
  * Get a single draft by ID
+ * OUT OF SCOPE FOR PHASE 2 - Commented out
+ * Use getDraftById from storyDraft.controller.ts instead (GET /api/story-drafts/:draftId)
  */
-export const getDraftById = async (req: Request, res: Response) => {
-  try {
-    const { draftId } = req.params;
-
-    if (!draftId) {
-      return res.status(400).json({ success: false, error: "draftId parameter is required" });
-    }
-
-    const doc = await db.collection("storyDrafts").doc(draftId).get();
-    if (!doc.exists) {
-      return res.status(404).json({ success: false, error: "Draft not found" });
-    }
-
-    res.json({
-      success: true,
-      draft: { id: doc.id, ...doc.data() },
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: "Failed to fetch draft" });
-  }
-};
+// export const getDraftById = async (req: Request, res: Response) => {
+//   try {
+//     const { draftId } = req.params;
+//
+//     if (!draftId) {
+//       return res.status(400).json({ success: false, error: "draftId parameter is required" });
+//     }
+//
+//     const doc = await db.collection("storyDrafts").doc(draftId).get();
+//     if (!doc.exists) {
+//       return res.status(404).json({ success: false, error: "Draft not found" });
+//     }
+//
+//     res.json({
+//       success: true,
+//       draft: { id: doc.id, ...doc.data() },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, error: "Failed to fetch draft" });
+//   }
+// };
 
 /**
  * Update draft content (specialist edits)

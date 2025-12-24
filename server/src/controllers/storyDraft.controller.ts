@@ -5,18 +5,74 @@ import { firestore } from "../config/firebase";
 import { StoryBrief } from "../models/storyBrief.model";
 import { StoryDraft, GenerateDraftInput, GenerationConfig } from "../models/storyDraft.model";
 
+// TODO: AUTH - Add authentication middleware in later phase
 // Extend Express Request to include user from authentication middleware
-interface AuthenticatedRequest extends Request {
-  user?: {
-    uid: string;
-  };
-}
+// interface AuthenticatedRequest extends Request {
+//   user?: {
+//     uid: string;
+//   };
+// }
+
+/**
+ * List all generated drafts (READ-ONLY)
+ * GET /api/story-drafts
+ * 
+ * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
+ */
+export const listDrafts = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    // Query for generated drafts (collection name: storyDrafts)
+    // Note: We filter by status and sort in memory to avoid requiring a composite index
+    const snapshot = await firestore
+      .collection("storyDrafts")
+      .where("status", "==", "generated")
+      .get();
+
+    const drafts = snapshot.docs
+      .map((doc) => {
+        const data = doc.data() as StoryDraft;
+        return {
+          id: doc.id,
+          title: data.title,
+          generationConfig: data.generationConfig,
+          status: data.status,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        };
+      })
+      // Sort in memory by createdAt descending (newest first)
+      // Note: createdAt is already a Firestore Timestamp object at this point
+      .sort((a, b) => {
+        const aTime = a.createdAt instanceof admin.firestore.Timestamp 
+          ? a.createdAt.seconds 
+          : (a.createdAt as any)?.seconds || 0;
+        const bTime = b.createdAt instanceof admin.firestore.Timestamp 
+          ? b.createdAt.seconds 
+          : (b.createdAt as any)?.seconds || 0;
+        return bTime - aTime; // Descending order (newest first)
+      });
+
+    res.status(200).json({
+      success: true,
+      data: drafts,
+    });
+  } catch (error: any) {
+    console.error("Error listing drafts:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to list drafts",
+      details: error.message,
+    });
+  }
+};
 
 /**
  * Get a story draft by ID (READ-ONLY)
  * GET /api/story-drafts/:draftId
+ * 
+ * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
-export const getDraftById = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const getDraftById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -29,14 +85,14 @@ export const getDraftById = async (req: AuthenticatedRequest, res: Response): Pr
       return;
     }
 
-    // Validate authentication
-    if (!req.user || !req.user.uid) {
-      res.status(401).json({
-        success: false,
-        error: "Authentication required",
-      });
-      return;
-    }
+    // TODO: AUTH - Re-introduce authentication check when auth middleware is added
+    // if (!req.user || !req.user.uid) {
+    //   res.status(401).json({
+    //     success: false,
+    //     error: "Authentication required",
+    //   });
+    //   return;
+    // }
 
     // Fetch draft from Firestore
     const draftDoc = await firestore.collection("storyDrafts").doc(draftId).get();
@@ -87,8 +143,9 @@ export const getDraftById = async (req: AuthenticatedRequest, res: Response): Pr
  * POST /api/admin/story-briefs/:briefId/generate-draft
  * 
  * TODO: Add idempotency protection for generate-draft
+ * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
-export const generateDraftFromBrief = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const generateDraftFromBrief = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
     const input = req.body as GenerateDraftInput;
@@ -102,16 +159,17 @@ export const generateDraftFromBrief = async (req: AuthenticatedRequest, res: Res
       return;
     }
 
-    // Validate authentication
-    if (!req.user || !req.user.uid) {
-      res.status(401).json({
-        success: false,
-        error: "Authentication required",
-      });
-      return;
-    }
+    // TODO: AUTH - Re-introduce authentication check when auth middleware is added
+    // if (!req.user || !req.user.uid) {
+    //   res.status(401).json({
+    //     success: false,
+    //     error: "Authentication required",
+    //   });
+    //   return;
+    // }
 
-    const createdBy = req.user.uid;
+    // TODO: AUTH - Replace with req.user.uid when authentication is implemented
+    const createdBy = "system_specialist";
 
     // Validate input
     if (!input.length || !input.tone) {

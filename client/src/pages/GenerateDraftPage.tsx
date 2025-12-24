@@ -14,6 +14,66 @@ import {
 import { fetchStoryBriefs, generateDraftFromBrief, StoryBrief } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
 
+// Helper function to derive display title from StoryBrief fields
+function getBriefDisplayTitle(brief: StoryBrief): string {
+  const topic = brief.therapeuticFocus?.primaryTopic;
+  const situation = brief.therapeuticFocus?.specificSituation;
+
+  if (topic && situation) {
+    return `Brief: ${topic} → ${situation}`;
+  }
+
+  return "Untitled Brief";
+}
+
+// Helper function to format age group keys to readable format
+function formatAgeGroup(ageGroup: string): string {
+  const map: Record<string, string> = {
+    "3_4": "3–4",
+    "5_6": "5–6",
+    "7_8": "7–8",
+    "9_10": "9–10",
+  };
+
+  return map[ageGroup] || ageGroup;
+}
+
+// Helper function to format Firestore timestamps
+// Handles multiple Firestore timestamp formats:
+// - admin.firestore.Timestamp (with .seconds property)
+// - Older SDK format (with ._seconds property)
+// - ISO strings
+// - Gracefully falls back to "—" if missing or invalid
+function formatTimestamp(ts: any): string {
+  if (!ts) return "—";
+  
+  // Handle admin.firestore.Timestamp format: { seconds: number, nanoseconds: number }
+  if (typeof ts === 'object' && ts.seconds != null) {
+    return new Date(ts.seconds * 1000).toLocaleDateString();
+  }
+  
+  // Handle older SDK format: { _seconds: number, _nanoseconds: number }
+  if (typeof ts === 'object' && ts._seconds != null) {
+    return new Date(ts._seconds * 1000).toLocaleDateString();
+  }
+  
+  // Handle ISO string format
+  if (typeof ts === 'string') {
+    const date = new Date(ts);
+    if (!isNaN(date.getTime())) {
+      return date.toLocaleDateString();
+    }
+  }
+  
+  // Handle Date object
+  if (ts instanceof Date) {
+    return ts.toLocaleDateString();
+  }
+  
+  // Fallback for any other format
+  return "—";
+}
+
 const GenerateDraftPage: React.FC = () => {
   const navigate = useNavigate();
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);
@@ -91,10 +151,10 @@ const GenerateDraftPage: React.FC = () => {
                 <Stack spacing={2}>
                   <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
                     <Box>
-                      <Typography variant="h6">{brief.topicKey || "Untitled Brief"}</Typography>
+                      <Typography variant="h6">{getBriefDisplayTitle(brief)}</Typography>
                       <Stack direction="row" spacing={1} mt={1} flexWrap="wrap" gap={1}>
                         <Chip
-                          label={`Age: ${brief.targetAgeGroup}`}
+                          label={`Age group: ${formatAgeGroup(brief.childProfile.ageGroup)}`}
                           size="small"
                           color="primary"
                           variant="outlined"
@@ -102,12 +162,12 @@ const GenerateDraftPage: React.FC = () => {
                         <Chip
                           label={`Status: ${brief.status}`}
                           size="small"
-                          color={brief.status === "generated" ? "success" : "default"}
+                          color={brief.status === "draft_generated" ? "success" : "default"}
                           variant="outlined"
                         />
-                        {brief.generatedDraftId && (
+                        {brief.lockedByDraftId && (
                           <Chip
-                            label={`Draft: ${brief.generatedDraftId.substring(0, 8)}...`}
+                            label={`Draft: ${brief.lockedByDraftId.substring(0, 8)}...`}
                             size="small"
                             color="info"
                             variant="outlined"
@@ -125,14 +185,16 @@ const GenerateDraftPage: React.FC = () => {
                       <Button
                         variant="contained"
                         onClick={() => handleGenerateDraft(brief.id)}
-                        disabled={generating === brief.id || brief.status === "generated"}
+                        disabled={generating === brief.id || brief.status === "draft_generated" || brief.status === "draft_generating"}
                       >
                         {generating === brief.id ? (
                           <>
                             <CircularProgress size={16} sx={{ mr: 1 }} />
                             Generating...
                           </>
-                        ) : brief.status === "generated" ? (
+                        ) : brief.status === "draft_generating" ? (
+                          "Generating..."
+                        ) : brief.status === "draft_generated" ? (
                           "Draft Generated"
                         ) : (
                           "Generate Draft"
@@ -141,66 +203,30 @@ const GenerateDraftPage: React.FC = () => {
                     </Stack>
                   </Stack>
 
-                  {brief.topicTags && brief.topicTags.length > 0 && (
+                  <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Primary topic:</strong> {brief.therapeuticFocus.primaryTopic}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Situation:</strong> {brief.therapeuticFocus.specificSituation}
+                    </Typography>
+                  </Stack>
+
+                  {brief.therapeuticIntent.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
                     <Box>
                       <Typography variant="subtitle2" gutterBottom>
-                        Topic Tags:
+                        Emotional Goals:
                       </Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                        {brief.topicTags.map((tag, idx) => (
-                          <Chip key={idx} label={tag} size="small" color="primary" variant="outlined" />
+                        {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
+                          <Chip key={idx} label={goal} size="small" color="secondary" variant="outlined" />
                         ))}
                       </Stack>
-                    </Box>
-                  )}
-
-                  {brief.therapeuticIntent && brief.therapeuticIntent.length > 0 && (
-                    <Box>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Therapeutic Intent:
-                      </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                        {brief.therapeuticIntent.map((intent, idx) => (
-                          <Chip key={idx} label={intent} size="small" color="secondary" variant="outlined" />
-                        ))}
-                      </Stack>
-                    </Box>
-                  )}
-
-                  {brief.constraints && (brief.constraints.avoidMetaphors?.length || brief.constraints.avoidLanguage?.length) && (
-                    <Box>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Constraints:
-                      </Typography>
-                      {brief.constraints.avoidMetaphors && brief.constraints.avoidMetaphors.length > 0 && (
-                        <Box mb={1}>
-                          <Typography variant="caption" color="text.secondary">
-                            Avoid Metaphors:
-                          </Typography>
-                          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mt={0.5}>
-                            {brief.constraints.avoidMetaphors.map((item, idx) => (
-                              <Chip key={idx} label={item} size="small" variant="outlined" />
-                            ))}
-                          </Stack>
-                        </Box>
-                      )}
-                      {brief.constraints.avoidLanguage && brief.constraints.avoidLanguage.length > 0 && (
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">
-                            Avoid Language:
-                          </Typography>
-                          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1} mt={0.5}>
-                            {brief.constraints.avoidLanguage.map((item, idx) => (
-                              <Chip key={idx} label={item} size="small" variant="outlined" />
-                            ))}
-                          </Stack>
-                        </Box>
-                      )}
                     </Box>
                   )}
 
                   <Typography variant="caption" color="text.secondary">
-                    Created by: {brief.createdBy} • {new Date(brief.createdAt).toLocaleString()}
+                    Created by: {brief.createdBy} • Created: {formatTimestamp(brief.createdAt)}
                   </Typography>
                 </Stack>
               </CardContent>

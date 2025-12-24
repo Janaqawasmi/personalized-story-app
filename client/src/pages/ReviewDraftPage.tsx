@@ -141,11 +141,11 @@ const ReviewDraftPage: React.FC = () => {
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" gutterBottom>
-                  Story Pages ({draft.pages.length})
+                  Story Pages ({draft.pages?.length || 0})
                 </Typography>
                 <Divider sx={{ my: 2 }} />
                 <Stack spacing={3}>
-                  {draft.pages
+                  {(draft.pages || [])
                     .sort((a, b) => a.pageNumber - b.pageNumber)
                     .map((page) => (
                       <Card key={page.pageNumber} variant="outlined" sx={{ p: 2 }}>
