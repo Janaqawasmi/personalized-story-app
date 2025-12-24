@@ -7,7 +7,7 @@ import { db } from "../config/firebase";
 export const listDraftsForReview = async (_req: Request, res: Response) => {
     try {
       const snapshot = await db
-        .collection("story_drafts")
+        .collection("storyDrafts")
         .where("status", "==", "in_review")
         .get();
   
@@ -38,7 +38,7 @@ export const getDraftById = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "draftId parameter is required" });
     }
 
-    const doc = await db.collection("story_drafts").doc(draftId).get();
+    const doc = await db.collection("storyDrafts").doc(draftId).get();
     if (!doc.exists) {
       return res.status(404).json({ success: false, error: "Draft not found" });
     }
@@ -68,7 +68,7 @@ export const updateDraft = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "pages must be an array" });
     }
 
-    await db.collection("story_drafts").doc(draftId).update({
+    await db.collection("storyDrafts").doc(draftId).update({
       pages,
       updatedAt: new Date().toISOString(),
     });
@@ -96,7 +96,7 @@ export const approveDraft = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "specialistId is required" });
     }
 
-    const draftRef = db.collection("story_drafts").doc(draftId);
+    const draftRef = db.collection("storyDrafts").doc(draftId);
     const draftSnap = await draftRef.get();
 
     if (!draftSnap.exists) {

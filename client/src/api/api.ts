@@ -114,13 +114,58 @@ export async function fetchDraftsForReview(): Promise<StoryDraft[]> {
   return data.drafts ?? [];
 }
 
-export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`);
-  if (!res.ok) {
-    throw new Error(`Failed to load draft (${res.status})`);
+// Old endpoint (out of scope for current phase)
+// export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
+//   const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`);
+//   if (!res.ok) {
+//     throw new Error(`Failed to load draft (${res.status})`);
+//   }
+//   const data = await res.json();
+//   return data.draft;
+// }
+
+// Phase 2: READ-ONLY draft viewing
+export interface StoryDraftView {
+  id: string;
+  title?: string;
+  generationConfig: {
+    language: "ar" | "he";
+    targetAgeGroup: string;
+    length: "short" | "medium" | "long";
+    tone: string;
+    emphasis?: string;
+  };
+  pages: Array<{
+    pageNumber: number;
+    text: string;
+    imagePrompt: string;
+    emotionalTone?: string;
+  }>;
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+  updatedAt: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+}
+
+export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to load draft (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
   }
-  const data = await res.json();
-  return data.draft;
 }
 
 export async function updateDraftPages(draftId: string, pages: StoryDraftPage[]): Promise<void> {

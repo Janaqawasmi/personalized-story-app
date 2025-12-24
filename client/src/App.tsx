@@ -17,7 +17,7 @@ import FinalPreviewStep from "./components/personalization/FinalPreviewStep";
 import AdminStoryBriefForm from "./pages/AdminStoryBriefForm";
 import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
-import SpecialistDraftReview from "./pages/SpecialistDraftReview";
+import ReviewDraftPage from "./pages/ReviewDraftPage";
 import SpecialistStoryPromptPreview from "./pages/SpecialistStoryPromptPreview";
 
 /* API */
@@ -134,7 +134,7 @@ export default function App() {
         />
         <Route
           path="/specialist/drafts/:draftId"
-          element={<SpecialistDraftReview />}
+          element={<ReviewDraftPage />}
         />
         <Route
           path="/specialist/story-briefs/:briefId/prompt-preview"

@@ -12,6 +12,8 @@ import admin from "firebase-admin";
 // Constants
 // ============================================================================
 
+// TODO: Replace hardcoded emotionalGoals validation
+//       with dynamic validation against referenceData collection
 const ALLOWED_EMOTIONAL_GOALS = [
   "normalize_emotions",
   "reduce_fear",
@@ -24,7 +26,7 @@ const ALLOWED_EMOTIONAL_GOALS = [
 // Type Definitions
 // ============================================================================
 
-export type StoryBriefStatus = "created" | "draft_generated" | "archived";
+export type StoryBriefStatus = "created" | "draft_generating" | "draft_generated" | "archived";
 
 export type AgeGroup = "3_4" | "5_6" | "7_8" | "9_10";
 
@@ -116,8 +118,10 @@ export interface StoryBrief {
   createdBy: string;
   /** Once status becomes "draft_generated", this brief must be treated as immutable */
   status: StoryBriefStatus;
-  /** Optional timestamp when brief was locked (only set when status === "draft_generated") */
+  /** Optional timestamp when brief was locked (set when status === "draft_generating" or "draft_generated") */
   lockedAt?: admin.firestore.Timestamp;
+  /** ID of the draft that locked this brief (set when status === "draft_generated") */
+  lockedByDraftId?: string;
   /** Document version number (starts at 1) */
   version: number;
 
