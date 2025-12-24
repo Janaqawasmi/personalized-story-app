@@ -22,6 +22,7 @@ import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
 import specialistPromptRoutes from "./routes/specialistPrompt.routes";
+import referenceDataRoutes from "./routes/referenceData.routes";
 
 // ---------- APP ----------
 const app = express();
@@ -40,6 +41,7 @@ app.use("/api/admin/story-briefs", storyBriefRouter);
 
 app.use("/api/specialist/reviews", storyReviewRoutes);
 app.use("/api/specialist/prompts", specialistPromptRoutes);
+app.use("/api/reference-data", referenceDataRoutes);
 
 // ---------- DEBUG FIRESTORE ----------
 app.get("/api/debug/firestore", async (_req: Request, res: Response) => {

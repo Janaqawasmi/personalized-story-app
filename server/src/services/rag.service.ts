@@ -1,4 +1,5 @@
 import { db } from "../config/firebase";
+import { StoryBrief } from "../models/storyBrief.model";
 
 type BriefLike = {
   topicKey?: string;
@@ -7,6 +8,30 @@ type BriefLike = {
   therapeuticMessages?: string[];
   briefId?: string;
 };
+
+/**
+ * Maps StoryBrief to BriefLike format for RAG service compatibility
+ */
+function mapStoryBriefToBriefLike(brief: StoryBrief): BriefLike {
+  // Map age group from "3_4" format to expected format if needed
+  // For now, we'll use the ageGroup as-is, but you may need to convert it
+  const ageGroupMapping: Record<string, string> = {
+    "3_4": "3-4",
+    "5_6": "5-6", 
+    "7_8": "7-8",
+    "9_10": "9-10"
+  };
+  
+  const targetAgeGroup = ageGroupMapping[brief.childProfile.ageGroup] || brief.childProfile.ageGroup;
+  
+  return {
+    topicKey: brief.therapeuticFocus.primaryTopic,
+    targetAgeGroup: targetAgeGroup,
+    topicTags: brief.therapeuticIntent.emotionalGoals,
+    therapeuticMessages: brief.therapeuticIntent.keyMessage ? [brief.therapeuticIntent.keyMessage] : [],
+    ...(brief.id && { briefId: brief.id })
+  };
+}
 
 async function safeGetDoc(collection: string, docId: string) {
   try {
@@ -23,7 +48,11 @@ function compact(items?: string[], max = 8) {
   return items.slice(0, max).map((x) => `- ${x}`).join("\n");
 }
 
-export async function retrieveKnowledgeForStory(brief: BriefLike) {
+export async function retrieveKnowledgeForStory(brief: BriefLike | StoryBrief) {
+  // If it's a StoryBrief, convert it to BriefLike format
+  if ('therapeuticFocus' in brief && 'childProfile' in brief) {
+    brief = mapStoryBriefToBriefLike(brief as StoryBrief);
+  }
   let { topicKey, targetAgeGroup } = brief;
 
   if ((!topicKey || !targetAgeGroup) && brief.briefId) {

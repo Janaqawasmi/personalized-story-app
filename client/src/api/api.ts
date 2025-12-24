@@ -12,15 +12,30 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 }
 
 export interface StoryBriefInput {
-  topicKey: string;
-  targetAgeGroup: string;
-  topicTags: string[];
-  therapeuticIntent: string[];
-  constraints?: {
-    avoidMetaphors?: string[];
-    avoidLanguage?: string[];
-  };
   createdBy: string;
+  therapeuticFocus: {
+    primaryTopic: string;
+    specificSituation: string;
+  };
+  childProfile: {
+    ageGroup: "3_4" | "5_6" | "7_8" | "9_10";
+    emotionalSensitivity: "low" | "medium" | "high";
+  };
+  therapeuticIntent: {
+    emotionalGoals: string[];
+    keyMessage?: string;
+  };
+  languageTone: {
+    complexity: "very_simple" | "simple" | "moderate";
+    emotionalTone: "very_gentle" | "calm" | "encouraging";
+  };
+  safetyConstraints: {
+    exclusions: string[];
+  };
+  storyPreferences: {
+    caregiverPresence: "included" | "self_guided";
+    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+  };
 }
 
 export interface StoryBriefResponse {

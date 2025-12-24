@@ -13,7 +13,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response) => {
     }
 
     // 1. Retrieve the story brief
-    const briefSnap = await db.collection("admin_story_briefs").doc(briefId).get();
+    const briefSnap = await db.collection("storyBriefs").doc(briefId).get();
 
     if (!briefSnap.exists) {
       return res.status(404).json({ error: "Story brief not found" });
@@ -26,7 +26,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response) => {
 
     const brief = { id: briefSnap.id, ...briefData } as StoryBrief;
 
-    // 2. Retrieve RAG knowledge context
+    // 2. Retrieve RAG knowledge context (map StoryBrief to expected format)
     const ragContext = await retrieveKnowledgeForStory(brief);
 
     // 3. Generate story draft via LLM
@@ -42,7 +42,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response) => {
     });
 
     // 5. Update the brief status
-    await db.collection("admin_story_briefs").doc(briefId).update({
+    await db.collection("storyBriefs").doc(briefId).update({
       status: "generated",
       generatedDraftId: draftDocRef.id,
     });

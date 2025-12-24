@@ -24,23 +24,30 @@ ${ragContext}
 ────────────────────────────────
 STORY BRIEF (HUMAN-DEFINED)
 ────────────────────────────────
-Topic: ${brief.topicKey}
-Target Age Group: ${brief.targetAgeGroup}
+Primary Topic: ${brief.therapeuticFocus.primaryTopic}
+Specific Situation: ${brief.therapeuticFocus.specificSituation}
+Target Age Group: ${brief.childProfile.ageGroup}
+Emotional Sensitivity: ${brief.childProfile.emotionalSensitivity}
 
-Therapeutic Intent:
-${brief.therapeuticIntent.map(i => `- ${i}`).join("\n")}
+Therapeutic Intent (Emotional Goals):
+${brief.therapeuticIntent.emotionalGoals.map((goal: string) => `- ${goal}`).join("\n")}
 
-Topic Tags:
-${brief.topicTags.map(t => `- ${t}`).join("\n")}
+${brief.therapeuticIntent.keyMessage
+  ? `Key Message: ${brief.therapeuticIntent.keyMessage}`
+  : ""}
 
-Constraints:
-${brief.constraints?.avoidMetaphors?.length
-  ? `Avoid metaphors:\n${brief.constraints.avoidMetaphors.map(m => `- ${m}`).join("\n")}`
-  : "- No metaphor restrictions"}
+Language & Tone:
+- Complexity: ${brief.languageTone.complexity}
+- Emotional Tone: ${brief.languageTone.emotionalTone}
 
-${brief.constraints?.avoidLanguage?.length
-  ? `Avoid language:\n${brief.constraints.avoidLanguage.map(l => `- ${l}`).join("\n")}`
-  : "- No language restrictions"}
+Safety Exclusions:
+${brief.safetyConstraints.exclusions.length > 0
+  ? brief.safetyConstraints.exclusions.map((exclusion: string) => `- ${exclusion}`).join("\n")
+  : "- No exclusions specified"}
+
+Story Preferences:
+- Caregiver Presence: ${brief.storyPreferences.caregiverPresence}
+- Ending Style: ${brief.storyPreferences.endingStyle}
 
 ────────────────────────────────
 CRITICAL SAFETY RULES
