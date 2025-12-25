@@ -75,6 +75,40 @@ function formatAgeGroup(ageGroup: string): string {
   return map[ageGroup] || ageGroup;
 }
 
+// Helper function to format emotional sensitivity
+function formatEmotionalSensitivity(sensitivity: string): string {
+  return formatDisplayText(sensitivity);
+}
+
+// Helper function to format emotional tone
+function formatEmotionalTone(tone: string): string {
+  return formatDisplayText(tone);
+}
+
+// Helper function to format complexity
+function formatComplexity(complexity: string): string {
+  return formatDisplayText(complexity);
+}
+
+// Helper function to format caregiver presence
+function formatCaregiverPresence(presence: string): string {
+  const map: Record<string, string> = {
+    "included": "Caregiver Included",
+    "self_guided": "Self-Guided",
+  };
+  return map[presence] || formatDisplayText(presence);
+}
+
+// Helper function to format ending style
+function formatEndingStyle(style: string): string {
+  const map: Record<string, string> = {
+    "calm_resolution": "Calm Resolution",
+    "open_ended": "Open-Ended",
+    "empowering": "Empowering",
+  };
+  return map[style] || formatDisplayText(style);
+}
+
 // Helper function to format Firestore timestamps
 function formatTimestamp(ts: any): string {
   if (!ts) return "—";
@@ -182,6 +216,24 @@ const ConfirmGenerateDialog: React.FC<ConfirmGenerateDialogProps> = ({
                 secondary={formatAgeGroup(brief.childProfile?.ageGroup || "")}
               />
             </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Emotional Sensitivity"
+                secondary={formatEmotionalSensitivity(brief.childProfile?.emotionalSensitivity || "")}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Language Complexity"
+                secondary={formatComplexity(brief.languageTone?.complexity || "")}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Emotional Tone"
+                secondary={formatEmotionalTone(brief.languageTone?.emotionalTone || "")}
+              />
+            </ListItem>
             {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
               <ListItem>
                 <ListItemText
@@ -189,6 +241,26 @@ const ConfirmGenerateDialog: React.FC<ConfirmGenerateDialogProps> = ({
                   secondary={brief.therapeuticIntent.emotionalGoals
                     .map((goal) => formatDisplayText(goal))
                     .join(", ")}
+                />
+              </ListItem>
+            )}
+            <ListItem>
+              <ListItemText
+                primary="Caregiver Presence"
+                secondary={formatCaregiverPresence(brief.storyPreferences?.caregiverPresence || "")}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText
+                primary="Ending Style"
+                secondary={formatEndingStyle(brief.storyPreferences?.endingStyle || "")}
+              />
+            </ListItem>
+            {brief.therapeuticIntent?.keyMessage && (
+              <ListItem>
+                <ListItemText
+                  primary="Core Message"
+                  secondary={brief.therapeuticIntent.keyMessage}
                 />
               </ListItem>
             )}
@@ -622,7 +694,133 @@ const GenerateDraftPage: React.FC = () => {
 
                       <Divider />
 
-                      {/* Details Section */}
+                      {/* Story Writing Configuration */}
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
+                          Story Writing Configuration
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                          {brief.childProfile?.emotionalSensitivity && (
+                            <Chip
+                              label={`Emotional Sensitivity: ${formatEmotionalSensitivity(brief.childProfile.emotionalSensitivity)}`}
+                              size="small"
+                              variant="outlined"
+                              color="default"
+                            />
+                          )}
+                          {brief.languageTone?.emotionalTone && (
+                            <Chip
+                              label={`Tone: ${formatEmotionalTone(brief.languageTone.emotionalTone)}`}
+                              size="small"
+                              variant="outlined"
+                              color="default"
+                            />
+                          )}
+                          {brief.languageTone?.complexity && (
+                            <Chip
+                              label={`Complexity: ${formatComplexity(brief.languageTone.complexity)}`}
+                              size="small"
+                              variant="outlined"
+                              color="default"
+                            />
+                          )}
+                        </Stack>
+                      </Box>
+
+                      <Divider />
+
+                      {/* Core Therapeutic Message */}
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
+                          Core Therapeutic Message
+                        </Typography>
+                        {brief.therapeuticIntent?.keyMessage ? (
+                          <Paper
+                            variant="outlined"
+                            sx={{
+                              p: 2,
+                              bgcolor: (theme) => theme.palette.mode === 'light' 
+                                ? 'rgba(25, 118, 210, 0.08)' 
+                                : 'rgba(144, 202, 249, 0.16)',
+                              borderColor: "primary.main",
+                              borderWidth: 1,
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontStyle: "italic" }}>
+                              "{brief.therapeuticIntent.keyMessage}"
+                            </Typography>
+                          </Paper>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                            No core message defined
+                          </Typography>
+                        )}
+                      </Box>
+
+                      <Divider />
+
+                      {/* Story Structure */}
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
+                          Story Structure
+                        </Typography>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                          {brief.storyPreferences?.caregiverPresence && (
+                            <Chip
+                              label={formatCaregiverPresence(brief.storyPreferences.caregiverPresence)}
+                              size="small"
+                              variant="outlined"
+                              color="default"
+                            />
+                          )}
+                          {brief.storyPreferences?.endingStyle && (
+                            <Chip
+                              label={`Ending: ${formatEndingStyle(brief.storyPreferences.endingStyle)}`}
+                              size="small"
+                              variant="outlined"
+                              color="default"
+                            />
+                          )}
+                        </Stack>
+                      </Box>
+
+                      {/* Safety / Content Indicator */}
+                      <Box>
+                        <Tooltip title="Safety and therapeutic constraints are enforced automatically.">
+                          <Chip
+                            label="Content Restrictions Applied"
+                            size="small"
+                            variant="outlined"
+                            color="info"
+                          />
+                        </Tooltip>
+                      </Box>
+
+                      <Divider />
+
+                      {/* Emotional Goals */}
+                      {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                            Emotional Goals
+                          </Typography>
+                          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                            {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
+                              <Chip
+                                key={idx}
+                                label={formatDisplayText(goal)}
+                                size="small"
+                                color="secondary"
+                                variant="outlined"
+                              />
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+
+                      <Divider />
+
+                      {/* Metadata Section */}
                       <Box
                         sx={{
                           display: "grid",
@@ -663,29 +861,6 @@ const GenerateDraftPage: React.FC = () => {
                           </Typography>
                         </Box>
                       </Box>
-
-                      {/* Emotional Goals */}
-                      {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
-                        <>
-                          <Divider />
-                          <Box>
-                            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                              Emotional Goals
-                            </Typography>
-                            <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                              {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
-                                <Chip
-                                  key={idx}
-                                  label={formatDisplayText(goal)}
-                                  size="small"
-                                  color="secondary"
-                                  variant="outlined"
-                                />
-                              ))}
-                            </Stack>
-                          </Box>
-                        </>
-                      )}
                     </Stack>
                   </CardContent>
                 </Card>
