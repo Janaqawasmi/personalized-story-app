@@ -1,11 +1,12 @@
 import { Box, Typography, Button } from "@mui/material";
+import { COLORS } from "../theme";
 
 export default function Hero() {
   return (
     <Box
       sx={{
-        backgroundColor: "#617891",
-        color: "white",
+        backgroundColor: COLORS.primary,
+        color: COLORS.surface,
         borderRadius: 4,
         p: 6,
         textAlign: "center",

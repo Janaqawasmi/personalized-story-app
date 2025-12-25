@@ -1,10 +1,11 @@
 import { SxProps, Theme } from "@mui/material";
+import { COLORS } from "../../theme";
 
 // Therapeutic design tokens
 export const columnTitle: SxProps<Theme> = {
   fontSize: "0.875rem",
   fontWeight: 600,
-  color: "#617891",
+  color: COLORS.primary,
   marginBottom: 2,
   textTransform: "uppercase",
   letterSpacing: "0.05em",
@@ -14,16 +15,16 @@ export const itemStyle: SxProps<Theme> = {
   padding: "12px 20px",
   marginBottom: 1.5,
   borderRadius: "24px", // Pill-style rounded
-  backgroundColor: "#ffffff",
-  border: "1px solid #e8e8e8",
+  backgroundColor: COLORS.surface,
+  border: `1px solid ${COLORS.border}`,
   cursor: "pointer",
   transition: "all 0.2s ease",
   fontSize: "1rem",
   fontWeight: 400,
-  color: "#2c3e50",
+  color: COLORS.textDark,
   "&:hover": {
-    backgroundColor: "#f8f9fa",
-    borderColor: "#d0d7de",
+    backgroundColor: COLORS.grayLight,
+    borderColor: COLORS.border,
     transform: "translateY(-1px)",
   },
   "&:active": {
@@ -32,12 +33,12 @@ export const itemStyle: SxProps<Theme> = {
 };
 
 export const activeItem: SxProps<Theme> = {
-  backgroundColor: "#f5f1ec", // Soft beige
-  borderColor: "#617891",
-  color: "#617891",
+  backgroundColor: COLORS.beigeLight, // Soft beige
+  borderColor: COLORS.primary,
+  color: COLORS.primary,
   fontWeight: 500,
   "&:hover": {
-    backgroundColor: "#ede8e0",
+    backgroundColor: COLORS.beigeLighter,
   },
 };
 

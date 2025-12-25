@@ -37,13 +37,13 @@ export function TopicColumn({
       {filtered.map((situation) => (
         <Box
           key={situation.id}
-          sx={{
-            ...s.item,
-            ...(selectedSituation === situation.id ? s.itemActive : {}),
-          }}
+          sx={[
+            s.item,
+            selectedSituation === situation.id && s.itemActive,
+          ]}
           onClick={() => onSelect(situation.id)}
         >
-          {situation[`label_${lang}` as const]}
+          {situation.label_he}
         </Box>
       ))}
     </Box>

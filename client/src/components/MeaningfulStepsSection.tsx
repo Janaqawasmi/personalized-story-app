@@ -3,6 +3,7 @@ import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 import CardGiftcardOutlinedIcon from "@mui/icons-material/CardGiftcardOutlined";
+import { COLORS } from "../theme";
 
 const steps = [
   {
@@ -31,7 +32,7 @@ export default function MeaningfulStepsSection() {
   return (
     <Box
       sx={{
-        backgroundColor: "#FAF4E8",
+        backgroundColor: COLORS.beige,
         py: 6,
         mt: 6,
       }}
@@ -73,8 +74,8 @@ export default function MeaningfulStepsSection() {
                   width: 56,
                   height: 56,
                   borderRadius: "50%",
-                  backgroundColor: "#1F4F46",
-                  color: "#fff",
+                  backgroundColor: COLORS.iconCircleBg,
+                  color: COLORS.iconCircleText,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -88,7 +89,7 @@ export default function MeaningfulStepsSection() {
                 <Typography sx={{ fontWeight: 700, mb: 0.5 }}>
                   {step.title}
                 </Typography>
-                <Typography sx={{ fontSize: "0.95rem", color: "rgba(0,0,0,0.7)" }}>
+                <Typography sx={{ fontSize: "0.95rem", color: COLORS.textMutedMedium }}>
                   {step.text}
                 </Typography>
               </Box>

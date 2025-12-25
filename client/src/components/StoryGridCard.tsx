@@ -72,11 +72,11 @@ import {
             fullWidth
             onClick={onClick}
             sx={{
-              backgroundColor: "#1C1C1C",
-              color: "#FFFFFF",
+              backgroundColor: COLORS.darkButton,
+              color: COLORS.surface,
               borderRadius: 2,
               fontWeight: 600,
-  
+
               "&:hover": {
                 backgroundColor: COLORS.primary,
               },

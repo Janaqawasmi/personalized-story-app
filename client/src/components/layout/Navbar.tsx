@@ -4,6 +4,7 @@ import {
   IconButton,
   Typography,
 } from "@mui/material";
+import { COLORS } from "../../theme";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
@@ -33,8 +34,8 @@ export default function Navbar({
         position="fixed"
         elevation={0}
         sx={{
-          backgroundColor: "#fff",
-          color: "#000",
+          backgroundColor: COLORS.surface,
+          color: COLORS.textPrimary,
           px: 4,
         }}
       >

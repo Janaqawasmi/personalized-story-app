@@ -22,13 +22,13 @@ export function CategoryColumn({
       {topics.map((topic) => (
         <Box
           key={topic.id}
-          sx={{
-            ...s.item,
-            ...(selectedTopicKey === topic.id ? s.itemActive : {}),
-          }}
+          sx={[
+            s.item,
+            selectedTopicKey === topic.id && s.itemActive,
+          ]}
           onClick={() => onSelect(topic.id)}
         >
-          {topic[`label_${lang}` as const]}
+          {topic.label_he}
         </Box>
       ))}
     </Box>

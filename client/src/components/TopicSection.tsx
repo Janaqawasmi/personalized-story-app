@@ -1,5 +1,6 @@
 import { Box, Typography, Card, CardContent } from "@mui/material";
 import { TOPIC_CATEGORIES } from "../data/categories";
+import { COLORS } from "../theme";
 
 type Props = {
   selectedTopic: string | null;
@@ -31,7 +32,7 @@ export default function TopicSection({ selectedTopic, onSelectTopic }: Props) {
               height: "100%",
               cursor: "pointer",
               transition: "0.3s",
-              border: selectedTopic === t.id ? "2px solid #617891" : "1px solid #ddd",
+              border: selectedTopic === t.id ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.border}`,
               "&:hover": {
                 transform: "translateY(-4px)",
                 boxShadow: 6,

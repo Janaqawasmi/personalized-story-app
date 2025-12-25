@@ -1,13 +1,14 @@
 import { Box, Typography, Button, Container } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import GoogleIcon from "@mui/icons-material/Google";
+import { COLORS } from "../theme";
 
 export default function LoginPage() {
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        backgroundColor: "#F5F1EC",
+        backgroundColor: COLORS.beigeLight,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -22,7 +23,7 @@ export default function LoginPage() {
             sx={{
               fontWeight: 900,
               fontSize: "2.5rem",
-              color: "#000",
+              color: COLORS.textPrimary,
               mb: 6,
             }}
           >
@@ -38,9 +39,9 @@ export default function LoginPage() {
               sx={{
                 py: 2,
                 borderRadius: "999px",
-                borderColor: "#000",
-                backgroundColor: "#F5F1EC",
-                color: "#000",
+                borderColor: COLORS.textPrimary,
+                backgroundColor: COLORS.beigeLight,
+                color: COLORS.textPrimary,
                 fontSize: "1rem",
                 fontWeight: 500,
                 textTransform: "none",
@@ -48,8 +49,8 @@ export default function LoginPage() {
                 justifyContent: "center",
                 alignItems: "center",
                 "&:hover": {
-                  borderColor: "#000",
-                  backgroundColor: "#EBE5DC",
+                  borderColor: COLORS.textPrimary,
+                  backgroundColor: COLORS.beigeLighter,
                 },
               }}
             >
@@ -68,9 +69,9 @@ export default function LoginPage() {
               sx={{
                 py: 2,
                 borderRadius: "999px",
-                borderColor: "#000",
-                backgroundColor: "#F5F1EC",
-                color: "#000",
+                borderColor: COLORS.textPrimary,
+                backgroundColor: COLORS.beigeLight,
+                color: COLORS.textPrimary,
                 fontSize: "1rem",
                 fontWeight: 500,
                 textTransform: "none",
@@ -78,8 +79,8 @@ export default function LoginPage() {
                 justifyContent: "center",
                 alignItems: "center",
                 "&:hover": {
-                  borderColor: "#000",
-                  backgroundColor: "#EBE5DC",
+                  borderColor: COLORS.textPrimary,
+                  backgroundColor: COLORS.beigeLighter,
                 },
               }}
             >
@@ -87,7 +88,7 @@ export default function LoginPage() {
                 <Typography sx={{ fontSize: "1rem", fontWeight: 500 }}>
                   התחברות עם Google
                 </Typography>
-                <GoogleIcon sx={{ fontSize: "1.2rem", color: "#4285F4" }} />
+                <GoogleIcon sx={{ fontSize: "1.2rem", color: COLORS.googleBlue }} />
               </Box>
             </Button>
           </Box>

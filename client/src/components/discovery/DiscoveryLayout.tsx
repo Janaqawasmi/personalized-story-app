@@ -1,4 +1,5 @@
 import { Box } from "@mui/material";
+import { COLORS } from "../../theme";
 import AgeColumn from "./AgeColumn";
 import CategoryColumn from "./CategoryColumn";
 import TopicColumn from "./TopicColumn";
@@ -60,7 +61,7 @@ export default function DiscoveryLayout({
               sx={{
                 p: 2,
                 mb: 2,
-                border: "1px solid #e5e7eb",
+                border: `1px solid ${COLORS.border}`,
                 borderRadius: 2,
                 cursor: "pointer",
               }}
