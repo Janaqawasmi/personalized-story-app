@@ -71,7 +71,8 @@ export async function createStoryBrief(data: StoryBriefInput): Promise<StoryBrie
     
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      throw new Error(errorData.error || `Failed to create story brief (${res.status})`);
+      const errorMessage = errorData.details || errorData.error || `Failed to create story brief (${res.status})`;
+      throw new Error(errorMessage);
     }
     
     return res.json();
