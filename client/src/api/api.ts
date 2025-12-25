@@ -296,13 +296,12 @@ export async function generateDraftFromBrief(
 
 // ---------- Story Prompt Preview API ----------
 
-export interface StoryPromptPreview {
-  topicKey: string;
-  targetAgeGroup: string;
-  prompt: string;
+export interface PromptPreviewResponse {
+  promptPreview: string;
+  ragSources: string[];
 }
 
-export async function fetchStoryPromptPreview(briefId: string): Promise<StoryPromptPreview> {
+export async function fetchPromptPreview(briefId: string): Promise<PromptPreviewResponse> {
   try {
     const res = await fetch(`${API_BASE}/api/specialist/story-briefs/${briefId}/prompt-preview`);
     if (!res.ok) {

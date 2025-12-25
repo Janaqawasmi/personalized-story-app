@@ -4,7 +4,7 @@ import { createTheme } from "@mui/material/styles";
 export const COLORS = {
   // Brand colors
   primary: "#617891",     // Blue (main brand color)
-  secondary: "#926B72",   // Rose accent
+  secondary: "#824D5C",   // Rose accent
 
   // Backgrounds
   background: "#E5DFD9",  // Frost / page background

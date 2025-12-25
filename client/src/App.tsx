@@ -18,7 +18,7 @@ import AdminStoryBriefForm from "./pages/AdminStoryBriefForm";
 import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
 import ReviewDraftPage from "./pages/ReviewDraftPage";
-import SpecialistStoryPromptPreview from "./pages/SpecialistStoryPromptPreview";
+import PromptPreviewPage from "./pages/PromptPreviewPage";
 
 /* API */
 import { fetchStories } from "./api/stories";
@@ -138,7 +138,7 @@ export default function App() {
         />
         <Route
           path="/specialist/story-briefs/:briefId/prompt-preview"
-          element={<SpecialistStoryPromptPreview />}
+          element={<PromptPreviewPage />}
         />
 
         {/* Fallback */}
