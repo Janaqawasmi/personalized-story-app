@@ -98,7 +98,7 @@ export default function TopicResultsPage() {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "1fr 1fr",
-              md: "1fr 1fr 1fr 1fr",
+              md: "repeat(3, 1fr)",
             },
             gap: 4,
           }}

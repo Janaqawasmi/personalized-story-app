@@ -1,60 +1,39 @@
 // src/components/MegaMenu/styles.ts
 import { Theme } from "@mui/material/styles";
 import { SystemStyleObject } from "@mui/system";
-import { COLORS } from "../../theme";
 
-export const overlay: SystemStyleObject<Theme> = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 1300, // Below panel but above AppBar
-  backgroundColor: COLORS.overlay,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 2, // Add some padding on mobile
-};
-
+// Dropdown panel - attached to navbar
 export const panel: SystemStyleObject<Theme> = {
-  width: "100%",
-  maxWidth: 1400,
-  maxHeight: "90vh", // Prevent overflow on small screens
-  backgroundColor: COLORS.surface,
-  borderRadius: 4,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.12)",
+  position: "fixed",
+  top: 64, // Height of AppBar
+  left: 0,
+  right: 0,
+  zIndex: 1301, // Above AppBar
+  backgroundColor: (theme: Theme) => theme.palette.background.paper,
+  borderTop: "none", // No border line
+  borderBottomLeftRadius: (theme: Theme) => theme.shape.borderRadius,
+  borderBottomRightRadius: (theme: Theme) => theme.shape.borderRadius,
+  boxShadow: "none", // No shadow - looks integrated with navbar
   direction: "rtl",
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
-  margin: "auto", // Additional centering support
 };
 
-export const header: SystemStyleObject<Theme> = {
-  px: 4,
-  py: 3,
-  borderBottom: `1px solid ${COLORS.borderLight}`,
-  position: "relative",
+// Container to center content
+export const container: SystemStyleObject<Theme> = {
+  maxWidth: 1400,
+  margin: "0 auto",
+  width: "100%",
 };
 
-export const title: SystemStyleObject<Theme> = {
-  fontSize: "1.35rem",
-  fontWeight: 800,
-  color: COLORS.textDark,
-};
-
-export const subtitle: SystemStyleObject<Theme> = {
-  fontSize: "0.95rem",
-  color: COLORS.textMuted,
-  mt: 0.5,
-};
-
+// Grid layout - 2 columns
 export const grid: SystemStyleObject<Theme> = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr 1fr",
-  gap: 28,
-  px: 4,
-  py: 4,
-  overflowY: "auto", // Allow scrolling if content is too tall
-  flex: 1, // Take available space
+  gridTemplateColumns: "1fr 1fr",
+  gap: 40,
+  px: 5,
+  py: 5,
 };
 
 export const column: SystemStyleObject<Theme> = {
@@ -63,48 +42,32 @@ export const column: SystemStyleObject<Theme> = {
 };
 
 export const columnHeader: SystemStyleObject<Theme> = {
-  fontWeight: 800,
-  fontSize: "1rem",
-  color: COLORS.textDark,
+  fontWeight: 700,
+  fontSize: "0.875rem",
+  color: (theme: Theme) => theme.palette.text.primary,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  mb: 2.5,
   pb: 1,
-  mb: 2,
-  borderBottom: `1px solid ${COLORS.borderLight}`,
-};
-
-export const helperText: SystemStyleObject<Theme> = {
-  fontSize: "0.85rem",
-  color: COLORS.textMutedLight,
-  mt: -1,
-  mb: 2,
+  borderBottom: (theme: Theme) => `1px solid ${theme.palette.divider}`,
 };
 
 export const item: SystemStyleObject<Theme> = {
   textAlign: "right",
-  px: 2,
-  py: 1.4,
-  borderRadius: 4,
+  px: 0,
+  py: 1,
   cursor: "pointer",
   fontSize: "0.95rem",
-  color: COLORS.textMedium,
-  transition: "background-color 120ms ease",
-  "&:hover": { backgroundColor: COLORS.hoverBg },
+  color: (theme: Theme) => theme.palette.text.primary,
+  fontWeight: 400,
+  transition: "color 0.15s ease",
+  textDecoration: "none",
+  "&:hover": {
+    color: (theme: Theme) => theme.palette.primary.main,
+  },
 };
 
 export const itemActive: SystemStyleObject<Theme> = {
-  backgroundColor: COLORS.activeBg,
-  fontWeight: 800,
-  color: COLORS.textDark,
+  color: (theme: Theme) => theme.palette.primary.main,
+  fontWeight: 600,
 };
-
-export const mutedBox: SystemStyleObject<Theme> = {
-  mt: 1,
-  px: 2,
-  py: 2,
-  borderRadius: 4,
-  backgroundColor: COLORS.mutedBg,
-  color: COLORS.textMutedLight,
-  fontSize: "0.9rem",
-  textAlign: "right",
-};
-
-

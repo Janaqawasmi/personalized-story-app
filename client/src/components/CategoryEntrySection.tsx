@@ -1,6 +1,5 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, useTheme } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { COLORS } from "../theme";
 
 const categories = [
   {
@@ -8,33 +7,34 @@ const categories = [
     title: "רגשי",
     subtitle: "פחדים, חרדה, ביטוי רגשי",
     image: "/images/categories/emotional.jpg",
-    color: COLORS.categoryEmotional,
+    color: "#E6F4F1",
   },
   {
     id: "family",
     title: "משפחתי",
     subtitle: "אחים, גירושין, שינויים",
     image: "/images/categories/family.jpg",
-    color: COLORS.categoryFamily,
+    color: "#F3EFEA",
   },
   {
     id: "social",
     title: "חברתי",
     subtitle: "חברות, שייכות, ביטחון",
     image: "/images/categories/social.jpg",
-    color: COLORS.categorySocial,
+    color: "#EEF2F8",
   },
   {
     id: "educational",
     title: "לימודי",
     subtitle: "גן, בית ספר, למידה",
     image: "/images/categories/educational.jpg",
-    color: COLORS.categoryEducational,
+    color: "#F6F3FF",
   },
 ];
 
 export default function CategoryEntrySection() {
   const navigate = useNavigate();
+  const theme = useTheme();
 
   return (
     <Box sx={{ py: 10 }}>
@@ -49,7 +49,7 @@ export default function CategoryEntrySection() {
 
       <Typography
         textAlign="center"
-        sx={{ color: COLORS.textMutedSecondary, mb: 6 }}
+        sx={{ color: theme.palette.text.secondary, mb: 6 }}
       >
         התחילו מהעולם שמתאים לילד שלכם
       </Typography>
@@ -98,7 +98,7 @@ export default function CategoryEntrySection() {
                 {cat.title}
               </Typography>
 
-              <Typography sx={{ color: COLORS.textMutedSecondary, fontSize: "0.9rem" }}>
+              <Typography sx={{ color: theme.palette.text.secondary, fontSize: "0.9rem" }}>
                 {cat.subtitle}
               </Typography>
             </Box>

@@ -4,7 +4,7 @@ import {
   IconButton,
   Typography,
 } from "@mui/material";
-import { COLORS } from "../../theme";
+import { useTheme } from "@mui/material/styles";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
@@ -27,6 +27,7 @@ export default function Navbar({
 }: NavbarProps) {
   const navigate = useNavigate();
   const [megaOpen, setMegaOpen] = useState(false);
+  const theme = useTheme();
 
   return (
     <>
@@ -34,8 +35,8 @@ export default function Navbar({
         position="fixed"
         elevation={0}
         sx={{
-          backgroundColor: COLORS.surface,
-          color: COLORS.textPrimary,
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
           px: 4,
         }}
       >
@@ -44,28 +45,17 @@ export default function Navbar({
             height: 64,
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            direction: "ltr", // 👈 THIS IS THE KEY
+            direction: "rtl", // RTL direction for Hebrew/Arabic
           }}
         >
-          {/* LEFT — LOGO */}
-          <Typography
-            sx={{
-              fontWeight: 800,
-              fontSize: "1.2rem",
-              cursor: "pointer",
-            }}
-            onClick={() => navigate("/")}
-          >
-            QOSATI
-          </Typography>
-
-          {/* RIGHT — MENU + ICONS */}
+          {/* 1️⃣ RIGHT SECTION — Text Navigation Links */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 1,
+              gap: 3,
+              flex: 1,
+              justifyContent: "flex-start", // RTL: flex-start = right side
             }}
           >
             {/* Mega menu trigger */}
@@ -75,13 +65,47 @@ export default function Navbar({
                 alignItems: "center",
                 cursor: "pointer",
                 fontWeight: 600,
+                fontSize: "0.95rem",
+                gap: 0.5,
               }}
               onClick={() => setMegaOpen((p) => !p)}
             >
               עיון בסיפורים
-              <KeyboardArrowDownIcon />
+              <KeyboardArrowDownIcon fontSize="small" />
             </Box>
+          </Box>
 
+          {/* 2️⃣ CENTER SECTION — Logo */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flex: 1,
+            }}
+          >
+            <Typography
+              sx={{
+                fontWeight: 800,
+                fontSize: "1.2rem",
+                cursor: "pointer",
+              }}
+              onClick={() => navigate("/")}
+            >
+              QOSATI
+            </Typography>
+          </Box>
+
+          {/* 3️⃣ LEFT SECTION — Utility Icons */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              flex: 1,
+              justifyContent: "flex-end", // RTL: flex-end = left side
+            }}
+          >
             <IconButton onClick={() => navigate("/search")}>
               <SearchOutlinedIcon />
             </IconButton>

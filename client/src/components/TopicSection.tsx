@@ -1,6 +1,5 @@
-import { Box, Typography, Card, CardContent } from "@mui/material";
+import { Box, Typography, Card, CardContent, useTheme } from "@mui/material";
 import { TOPIC_CATEGORIES } from "../data/categories";
-import { COLORS } from "../theme";
 
 type Props = {
   selectedTopic: string | null;
@@ -8,6 +7,8 @@ type Props = {
 };
 
 export default function TopicSection({ selectedTopic, onSelectTopic }: Props) {
+  const theme = useTheme();
+  
   return (
     <Box mt={7}>
       <Typography variant="h5" textAlign="center" mb={3}>
@@ -32,7 +33,7 @@ export default function TopicSection({ selectedTopic, onSelectTopic }: Props) {
               height: "100%",
               cursor: "pointer",
               transition: "0.3s",
-              border: selectedTopic === t.id ? `2px solid ${COLORS.primary}` : `1px solid ${COLORS.border}`,
+              border: selectedTopic === t.id ? `2px solid ${theme.palette.primary.main}` : `1px solid ${theme.palette.divider}`,
               "&:hover": {
                 transform: "translateY(-4px)",
                 boxShadow: 6,

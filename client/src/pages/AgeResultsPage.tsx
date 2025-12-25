@@ -4,7 +4,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
-import { COLORS } from "../theme";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
 
@@ -143,7 +142,7 @@ export default function AgeResultsPage() {
             gridTemplateColumns: {
               xs: "1fr",
               sm: "1fr 1fr",
-              md: "1fr 1fr 1fr 1fr",
+              md: "repeat(3, 1fr)",
             },
             gap: 4,
           }}

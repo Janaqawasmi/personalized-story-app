@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, useTheme } from "@mui/material";
 import { ReferenceSituation } from "../../hooks/useReferenceData";
 import * as s from "./styles";
 
@@ -17,17 +17,21 @@ export function TopicColumn({
   onSelect,
   lang,
 }: Props) {
+  const theme = useTheme();
+  
   if (!selectedTopicKey) {
     return (
-      <Box sx={{ ...s.column, opacity: 0.4 }}>
+      <Box sx={s.column}>
         <Box sx={s.columnHeader}>נושא</Box>
-        <Box sx={s.helperText}>בחרו קטגוריה</Box>
+        <Box sx={{ fontSize: "0.875rem", color: theme.palette.text.secondary, py: 1 }}>
+          בחרו קטגוריה
+        </Box>
       </Box>
     );
   }
 
   const filtered = situations.filter(
-    (s) => s.topicKey === selectedTopicKey
+    (s) => s.topicKey === selectedTopicKey && s.active
   );
 
   return (
@@ -37,11 +41,15 @@ export function TopicColumn({
       {filtered.map((situation) => (
         <Box
           key={situation.id}
+          component="a"
           sx={[
             s.item,
             selectedSituation === situation.id && s.itemActive,
           ]}
-          onClick={() => onSelect(situation.id)}
+          onClick={(e) => {
+            e.preventDefault();
+            onSelect(situation.id);
+          }}
         >
           {situation.label_he}
         </Box>

@@ -1,5 +1,4 @@
 import { Box } from "@mui/material";
-import { COLORS } from "../../theme";
 import AgeColumn from "./AgeColumn";
 import CategoryColumn from "./CategoryColumn";
 import TopicColumn from "./TopicColumn";

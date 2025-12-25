@@ -1,9 +1,8 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Container, useTheme } from "@mui/material";
 import MenuBookOutlinedIcon from "@mui/icons-material/MenuBookOutlined";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import FavoriteBorderOutlinedIcon from "@mui/icons-material/FavoriteBorderOutlined";
 import CardGiftcardOutlinedIcon from "@mui/icons-material/CardGiftcardOutlined";
-import { COLORS } from "../theme";
 
 const steps = [
   {
@@ -29,21 +28,24 @@ const steps = [
 ];
 
 export default function MeaningfulStepsSection() {
+  const theme = useTheme();
+  
   return (
     <Box
       sx={{
-        backgroundColor: COLORS.beige,
-        py: 6,
+        width: "100%",
+        backgroundColor: theme.palette.background.default,
+        py: 8,
         mt: 6,
       }}
     >
-      <Box sx={{ maxWidth: "lg", mx: "auto", px: 3 }}>
+      <Container maxWidth="lg">
         <Typography
           variant="h4"
           sx={{
             fontWeight: 800,
             mb: 4,
-            textAlign: "right",
+            textAlign: "center",
           }}
         >
           סיפורים משמעותיים — בכמה דקות
@@ -67,15 +69,17 @@ export default function MeaningfulStepsSection() {
                 display: "flex",
                 gap: 2,
                 alignItems: "flex-start",
+                maxWidth: 420,
               }}
             >
+              {/* Icon badge */}
               <Box
                 sx={{
                   width: 56,
                   height: 56,
                   borderRadius: "50%",
-                  backgroundColor: COLORS.iconCircleBg,
-                  color: COLORS.iconCircleText,
+                  backgroundColor: "#1F4F46",
+                  color: theme.palette.background.paper,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -85,18 +89,32 @@ export default function MeaningfulStepsSection() {
                 {step.icon}
               </Box>
 
+              {/* Text */}
               <Box>
-                <Typography sx={{ fontWeight: 700, mb: 0.5 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 700,
+                    mb: 0.5,
+                    color: theme.palette.text.primary,
+                  }}
+                >
                   {step.title}
                 </Typography>
-                <Typography sx={{ fontSize: "0.95rem", color: COLORS.textMutedMedium }}>
+
+                <Typography
+                  sx={{
+                    fontSize: "0.95rem",
+                    color: theme.palette.text.secondary,
+                    lineHeight: 1.6,
+                  }}
+                >
                   {step.text}
                 </Typography>
               </Box>
             </Box>
           ))}
         </Box>
-      </Box>
+      </Container>
     </Box>
   );
 }

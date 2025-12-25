@@ -1,6 +1,5 @@
-import { Box, IconButton } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import { useRef, useState } from "react";
+import { Box } from "@mui/material";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { AgeColumn } from "./AgeColumn";
@@ -29,13 +28,35 @@ export function MegaMenu({ isOpen, onClose, onApply, value }: Props) {
     value?.category ?? null
   );
 
+  // Close on outside click
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen, onClose]);
+
   if (!isOpen || loading || !data) return null;
 
-  // Handle age selection - navigate to age results
+  // Handle navigation when item is selected
+  const handleCategorySelect = (categoryId: string) => {
+    setCategory(categoryId);
+    navigate(`/stories/category/${categoryId}`);
+    onClose();
+  };
+
   const handleAgeSelect = (selectedAge: AgeId) => {
     setAge(selectedAge);
     if (selectedAge) {
-      // If category is also selected, navigate to category page with age param
       if (category) {
         navigate(`/stories/category/${category}?age=${selectedAge}`);
       } else {
@@ -45,43 +66,14 @@ export function MegaMenu({ isOpen, onClose, onApply, value }: Props) {
     }
   };
 
-  // Handle category selection - navigate to category results
-  const handleCategorySelect = (categoryId: string) => {
-    setCategory(categoryId);
-    // If age is also selected, navigate with age param
-    if (age) {
-      navigate(`/stories/category/${categoryId}?age=${age}`);
-    } else {
-      navigate(`/stories/category/${categoryId}`);
-    }
-    onClose();
-  };
-
   return (
-    <Box sx={s.overlay}>
-      <Box ref={panelRef} sx={s.panel}>
-        <Box sx={s.header}>
-          <Box sx={s.title}>עיון בסיפורים</Box>
-          <Box sx={s.subtitle}>בחרו גיל או קטגוריה — גיל הוא אופציונלי</Box>
-
-          <IconButton
-            onClick={onClose}
-            sx={{ position: "absolute", top: 10, left: 10 }}
-          >
-            <CloseIcon />
-          </IconButton>
-        </Box>
-
-        <Box
-          sx={{
-            ...s.grid,
-            gridTemplateColumns: "1fr 1fr", // 2 columns instead of 3
-          }}
-        >
-          {/* גיל */}
+    <Box ref={panelRef} sx={s.panel}>
+      <Box sx={s.container}>
+        <Box sx={s.grid}>
+          {/* Right column: Age */}
           <AgeColumn selectedAge={age} onSelectAge={handleAgeSelect} />
 
-          {/* קטגוריות */}
+          {/* Left column: Category */}
           <CategoryColumn
             topics={data.topics}
             selectedTopicKey={category}

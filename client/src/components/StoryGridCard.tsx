@@ -1,91 +1,122 @@
 import {
-    Card,
-    Box,
-    Typography,
-    Button,
-  } from "@mui/material";
-  import { COLORS } from "../theme";
-  
-  type Props = {
-    title: string;
-    description?: string;
-    imageUrl?: string;
-    onClick: () => void;
-  };
-  
-  export default function StoryGridCard({
-    title,
-    description,
-    imageUrl,
-    onClick,
-  }: Props) {
-    return (
-      <Card
-        elevation={0}
+  Card,
+  Box,
+  Typography,
+  Button,
+  useTheme,
+} from "@mui/material";
+
+type Props = {
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  onClick: () => void;
+};
+
+export default function StoryGridCard({
+  title,
+  description,
+  imageUrl,
+  onClick,
+}: Props) {
+  const theme = useTheme();
+
+  return (
+    <Card
+      elevation={0}
+      sx={{
+        backgroundColor: "transparent",
+        borderRadius: 6,
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 380,                // 🔹 smaller card
+        overflow: "hidden",
+        transition: "all 0.3s ease",
+        "&:hover": {
+          transform: "translateY(-4px)",
+          boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
+        },
+      }}
+    >
+      {/* Image */}
+      <Box
         sx={{
-          backgroundColor: COLORS.surface,
-          borderRadius: 3,
-          border: `1px solid ${COLORS.border}`,
-          overflow: "hidden",
-          transition: "all 0.35s ease",
-  
-          "&:hover": {
-            transform: "translateY(-6px)",
-            boxShadow: "0 18px 40px rgba(0,0,0,0.12)",
-          },
+          height: 190,                  // 🔹 shorter image
+          backgroundImage: `url(${imageUrl || "/book-placeholder.png"})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+
+      {/* Content */}
+      <Box
+        sx={{
+          px: 3,
+          pt: 2,
+          pb: 2.5,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1.2,
+          flexGrow: 1,
+          textAlign: "center",
         }}
       >
- {/* Image */}
-<Box
-  sx={{
-    height: 260,
-    backgroundColor: COLORS.background,
-    backgroundImage: `url(${imageUrl || "/book-placeholder.png"})`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-  }}
-/>
+        {/* Title */}
+        <Typography
+          sx={{
+            fontSize: "0.95rem",
+            fontWeight: 600,
+            lineHeight: 1.4,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {title}
+        </Typography>
 
-  
-        {/* Content */}
-        <Box p={2.5}>
+        {/* Situation (now has space) */}
+        {description && (
           <Typography
-            variant="subtitle1"
-            fontWeight={700}
-            gutterBottom
-          >
-            {title}
-          </Typography>
-  
-          {description && (
-            <Typography
-              variant="body2"
-              color={COLORS.textSecondary}
-              mb={2}
-            >
-              {description}
-            </Typography>
-          )}
-  
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={onClick}
             sx={{
-              backgroundColor: COLORS.darkButton,
-              color: COLORS.surface,
-              borderRadius: 2,
-              fontWeight: 600,
-
-              "&:hover": {
-                backgroundColor: COLORS.primary,
-              },
+              fontSize: "0.85rem",
+              color: theme.palette.text.secondary,
+              lineHeight: 1.6,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              minHeight: "2.8em",        // 🔹 reserves space
             }}
           >
-            Personalize
-          </Button>
-        </Box>
-      </Card>
-    );
-  }
-  
+            {description}
+          </Typography>
+        )}
+
+        {/* Button pushed DOWN */}
+        <Button
+          variant="contained"
+          onClick={onClick}
+          sx={{
+            mt: "auto",                 // 🔹 pushes button to bottom
+            alignSelf: "center",
+            px: 2.8,
+            py: 0.7,
+            fontSize: "0.82rem",
+            fontWeight: 500,
+            borderRadius: 6,
+            textTransform: "none",
+            backgroundColor: theme.palette.primary.main,
+            "&:hover": {
+              backgroundColor: theme.palette.primary.dark,
+            },
+          }}
+        >
+          Personalize
+        </Button>
+      </Box>
+    </Card>
+  );
+}

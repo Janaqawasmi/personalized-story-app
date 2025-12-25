@@ -1,13 +1,14 @@
-import { Box, Typography, Button } from "@mui/material";
-import { COLORS } from "../theme";
+import { Box, Typography, Button, useTheme } from "@mui/material";
 
 export default function Hero() {
+  const theme = useTheme();
+  
   return (
     <Box
       sx={{
-        backgroundColor: COLORS.primary,
-        color: COLORS.surface,
-        borderRadius: 4,
+        backgroundColor: theme.palette.primary.main,
+        color: theme.palette.background.paper,
+        borderRadius: theme.shape.borderRadius,
         p: 6,
         textAlign: "center",
         mt: 4,

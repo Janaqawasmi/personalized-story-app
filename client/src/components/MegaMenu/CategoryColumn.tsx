@@ -15,18 +15,25 @@ export function CategoryColumn({
   onSelect,
   lang,
 }: Props) {
+  // Filter only active topics
+  const activeTopics = topics.filter((topic) => topic.active);
+
   return (
     <Box sx={s.column}>
       <Box sx={s.columnHeader}>קטגוריה</Box>
 
-      {topics.map((topic) => (
+      {activeTopics.map((topic) => (
         <Box
           key={topic.id}
+          component="a"
           sx={[
             s.item,
             selectedTopicKey === topic.id && s.itemActive,
           ]}
-          onClick={() => onSelect(topic.id)}
+          onClick={(e) => {
+            e.preventDefault();
+            onSelect(topic.id);
+          }}
         >
           {topic.label_he}
         </Box>

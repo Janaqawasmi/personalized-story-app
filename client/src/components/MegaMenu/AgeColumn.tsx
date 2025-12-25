@@ -8,27 +8,19 @@ export function AgeColumn({ selectedAge, onSelectAge }: AgeColumnProps) {
   return (
     <Box sx={s.column}>
       <Box sx={s.columnHeader}>גיל</Box>
-      <Box sx={s.helperText}>פילטר אופציונלי (אפשר לבחור גם בהמשך)</Box>
-
-      {/* כל הגילאים */}
-      <Box
-        sx={{
-          ...s.item,
-          ...(selectedAge === null && s.itemActive),
-        }}
-        onClick={() => onSelectAge(null)}
-      >
-        כל הגילאים
-      </Box>
 
       {AGE_GROUPS.map((age) => (
         <Box
           key={age.id}
-          sx={{
-            ...s.item,
-            ...(selectedAge === age.id && s.itemActive),
+          component="a"
+          sx={[
+            s.item,
+            selectedAge === age.id && s.itemActive,
+          ]}
+          onClick={(e) => {
+            e.preventDefault();
+            onSelectAge(age.id);
           }}
-          onClick={() => onSelectAge(age.id)}
         >
           {age.label}
         </Box>
