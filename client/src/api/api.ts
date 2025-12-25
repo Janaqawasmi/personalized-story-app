@@ -133,11 +133,17 @@ export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
 //   return data.draft;
 // }
 
-// Phase 2: READ-ONLY draft viewing
+// Phase 2: READ-ONLY draft viewing + Edit/Approve flow
 export interface StoryDraftView {
   id: string;
   title?: string;
-  status?: "generating" | "generated" | "failed";
+  status?: "generating" | "generated" | "failed" | "editing" | "approved";
+  revisionCount?: number;
+  approvedAt?: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+  approvedBy?: string;
   generationConfig: {
     language: "ar" | "he";
     targetAgeGroup: string;
@@ -161,6 +167,13 @@ export interface StoryDraftView {
   } | string | Date;
 }
 
+export interface StoryDraftPage {
+  pageNumber: number;
+  text: string;
+  imagePrompt?: string;
+  emotionalTone?: string;
+}
+
 export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
   try {
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`);
@@ -178,29 +191,97 @@ export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
   }
 }
 
-export async function updateDraftPages(draftId: string, pages: StoryDraftPage[]): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pages }),
-  });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(errText || `Failed to update draft (${res.status})`);
+/**
+ * Enter edit mode for a draft
+ */
+export async function enterEditMode(draftId: string): Promise<{ success: boolean; status: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to enter edit mode (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
   }
 }
 
-export async function approveDraft(draftId: string, specialistId: string, sessionId?: string): Promise<{ success: boolean; templateId: string }> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}/approve`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ specialistId, sessionId }),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-    throw new Error(errorData.error || errorData.details || `Failed to approve draft (${res.status})`);
+/**
+ * Cancel edit mode for a draft (reset to generated)
+ */
+export async function cancelEditMode(draftId: string): Promise<{ success: boolean; status: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/cancel-edit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to cancel edit mode (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
   }
-  return res.json();
+}
+
+/**
+ * Update a draft (save edits)
+ */
+export async function updateDraft(draftId: string, updates: { title?: string; pages: StoryDraftPage[] }): Promise<{ success: boolean; status: string; revisionCount: number }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to update draft (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Approve a draft (finalize and create template)
+ */
+export async function approveDraft(draftId: string): Promise<{ success: boolean; status: string; message: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to approve draft (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
 }
 
 // ---------- Story Brief APIs ----------
