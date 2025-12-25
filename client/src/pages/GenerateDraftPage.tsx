@@ -22,10 +22,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  List,
-  ListItem,
-  ListItemText,
   Skeleton,
+  IconButton,
 } from "@mui/material";
 import {
   CheckCircle,
@@ -35,6 +33,9 @@ import {
   Refresh,
   Search,
   Launch,
+  ExpandMore,
+  ExpandLess,
+  Check,
 } from "@mui/icons-material";
 import { fetchStoryBriefs, generateDraftFromBrief, StoryBrief } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
@@ -165,6 +166,65 @@ function getStatusConfig(status: string) {
   }
 }
 
+// Collapsible Message Callout Component
+interface MessageCalloutProps {
+  message: string;
+}
+
+const MessageCallout: React.FC<MessageCalloutProps> = ({ message }) => {
+  const [expanded, setExpanded] = useState(false);
+  const needsTruncation = message.length > 120; // Approximate 2 lines of text
+  
+  const displayText = expanded || !needsTruncation 
+    ? message 
+    : `${message.substring(0, 120)}...`;
+
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+        Core Therapeutic Message
+      </Typography>
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 1.5,
+          bgcolor: "grey.50",
+          borderColor: "divider",
+          borderWidth: 1,
+          position: "relative",
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="flex-start">
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{ 
+              flex: 1,
+              fontStyle: "italic",
+              lineHeight: 1.5,
+            }}
+          >
+            "{displayText}"
+          </Typography>
+          {needsTruncation && (
+            <IconButton
+              size="small"
+              onClick={() => setExpanded(!expanded)}
+              sx={{ 
+                mt: -0.5,
+                ml: 0.5,
+                p: 0.5,
+              }}
+            >
+              {expanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+            </IconButton>
+          )}
+        </Stack>
+      </Paper>
+    </Box>
+  );
+};
+
 // Confirmation Dialog Component
 interface ConfirmGenerateDialogProps {
   open: boolean;
@@ -181,6 +241,26 @@ const ConfirmGenerateDialog: React.FC<ConfirmGenerateDialogProps> = ({
 }) => {
   if (!brief) return null;
 
+  // Build compact summary string
+  const topic = formatDisplayText(brief.therapeuticFocus?.primaryTopic || "");
+  const situation = formatDisplayText(brief.therapeuticFocus?.specificSituation || "");
+  const ageGroup = formatAgeGroup(brief.childProfile?.ageGroup || "");
+  const complexity = formatComplexity(brief.languageTone?.complexity || "");
+  const tone = formatEmotionalTone(brief.languageTone?.emotionalTone || "");
+
+  const summaryParts = [];
+  if (topic && situation) {
+    summaryParts.push(`${topic} → ${situation}`);
+  }
+  if (ageGroup) {
+    summaryParts.push(`Age ${ageGroup}`);
+  }
+  if (complexity && tone) {
+    summaryParts.push(`${complexity} · ${tone}`);
+  }
+
+  const summary = summaryParts.join(" · ");
+
   return (
     <Dialog
       open={open}
@@ -193,81 +273,23 @@ const ConfirmGenerateDialog: React.FC<ConfirmGenerateDialogProps> = ({
         Generate Story Draft
       </DialogTitle>
       <DialogContent>
-        <Stack spacing={2}>
-          <Typography variant="body2" color="text.secondary">
-            Please review the following details before generating the draft:
-          </Typography>
-          <List dense>
-            <ListItem>
-              <ListItemText
-                primary="Primary Topic"
-                secondary={formatDisplayText(brief.therapeuticFocus?.primaryTopic || "—")}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Situation"
-                secondary={formatDisplayText(brief.therapeuticFocus?.specificSituation || "—")}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Age Group"
-                secondary={formatAgeGroup(brief.childProfile?.ageGroup || "")}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Emotional Sensitivity"
-                secondary={formatEmotionalSensitivity(brief.childProfile?.emotionalSensitivity || "")}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Language Complexity"
-                secondary={formatComplexity(brief.languageTone?.complexity || "")}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Emotional Tone"
-                secondary={formatEmotionalTone(brief.languageTone?.emotionalTone || "")}
-              />
-            </ListItem>
-            {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
-              <ListItem>
-                <ListItemText
-                  primary="Emotional Goals"
-                  secondary={brief.therapeuticIntent.emotionalGoals
-                    .map((goal) => formatDisplayText(goal))
-                    .join(", ")}
-                />
-              </ListItem>
-            )}
-            <ListItem>
-              <ListItemText
-                primary="Caregiver Presence"
-                secondary={formatCaregiverPresence(brief.storyPreferences?.caregiverPresence || "")}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemText
-                primary="Ending Style"
-                secondary={formatEndingStyle(brief.storyPreferences?.endingStyle || "")}
-              />
-            </ListItem>
-            {brief.therapeuticIntent?.keyMessage && (
-              <ListItem>
-                <ListItemText
-                  primary="Core Message"
-                  secondary={brief.therapeuticIntent.keyMessage}
-                />
-              </ListItem>
-            )}
-          </List>
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            This action will lock the story brief and cannot be undone.
+        <Stack spacing={3} sx={{ py: 1 }}>
+          {/* Prominent Warning - Always visible at top */}
+          <Alert severity="warning" sx={{ mb: 1 }}>
+            <Typography variant="body2" fontWeight="medium">
+              This action will lock the story brief and cannot be undone.
+            </Typography>
           </Alert>
+
+          {/* Compact Summary */}
+          <Box>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Brief Summary
+            </Typography>
+            <Typography variant="body1" fontWeight="medium">
+              {summary || "Untitled Brief"}
+            </Typography>
+          </Box>
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -607,7 +629,7 @@ const GenerateDraftPage: React.FC = () => {
                   }}
                 >
               <CardContent>
-                    <Stack spacing={3}>
+                <Stack spacing={2}>
                       {/* Header Row */}
                       <Stack
                         direction={{ xs: "column", md: "row" }}
@@ -637,20 +659,6 @@ const GenerateDraftPage: React.FC = () => {
                           color="primary"
                           variant="outlined"
                         />
-                            {brief.lockedByDraftId && (
-                              <Tooltip title={`View draft: ${brief.lockedByDraftId}`}>
-                        <Chip
-                                  label={`Draft ID: ${brief.lockedByDraftId.substring(0, 8)}...`}
-                            size="small"
-                            color="info"
-                            variant="outlined"
-                                  onClick={() => navigate(`/specialist/drafts/${brief.lockedByDraftId}`)}
-                                  onDelete={() => navigate(`/specialist/drafts/${brief.lockedByDraftId}`)}
-                                  deleteIcon={<Launch fontSize="small" />}
-                                  sx={{ cursor: "pointer" }}
-                          />
-                              </Tooltip>
-                        )}
                       </Stack>
                     </Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
@@ -694,15 +702,15 @@ const GenerateDraftPage: React.FC = () => {
 
                       <Divider />
 
-                      {/* Story Writing Configuration */}
+                      {/* Writing Style */}
                     <Box>
-                        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
-                          Story Writing Configuration
+                        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                          Writing Style
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75}>
                           {brief.childProfile?.emotionalSensitivity && (
                             <Chip
-                              label={`Emotional Sensitivity: ${formatEmotionalSensitivity(brief.childProfile.emotionalSensitivity)}`}
+                              label={`Sensitivity: ${formatEmotionalSensitivity(brief.childProfile.emotionalSensitivity)}`}
                               size="small"
                               variant="outlined"
                               color="default"
@@ -727,44 +735,17 @@ const GenerateDraftPage: React.FC = () => {
                       </Stack>
                     </Box>
 
-                      <Divider />
+                      {/* Core Therapeutic Message (Collapsible) */}
+                      {brief.therapeuticIntent?.keyMessage && (
+                        <MessageCallout message={brief.therapeuticIntent.keyMessage} />
+                  )}
 
-                      {/* Core Therapeutic Message */}
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
-                          Core Therapeutic Message
-                        </Typography>
-                        {brief.therapeuticIntent?.keyMessage ? (
-                          <Paper
-                            variant="outlined"
-                            sx={{
-                              p: 2,
-                              bgcolor: (theme) => theme.palette.mode === 'light' 
-                                ? 'rgba(25, 118, 210, 0.08)' 
-                                : 'rgba(144, 202, 249, 0.16)',
-                              borderColor: "primary.main",
-                              borderWidth: 1,
-                            }}
-                          >
-                            <Typography variant="body2" sx={{ fontStyle: "italic" }}>
-                              "{brief.therapeuticIntent.keyMessage}"
-                            </Typography>
-                          </Paper>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: "italic" }}>
-                            No core message defined
-                          </Typography>
-                        )}
-                      </Box>
-
-                      <Divider />
-
-                      {/* Story Structure */}
+                      {/* Story Constraints & Structure */}
                     <Box>
-                        <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
-                          Story Structure
+                        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                          Story Constraints & Structure
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75} alignItems="center">
                           {brief.storyPreferences?.caregiverPresence && (
                             <Chip
                               label={formatCaregiverPresence(brief.storyPreferences.caregiverPresence)}
@@ -781,30 +762,25 @@ const GenerateDraftPage: React.FC = () => {
                               color="default"
                             />
                           )}
+                          <Tooltip title="Safety and therapeutic constraints are enforced automatically.">
+                            <Chip
+                              icon={<Check />}
+                              label="Safety Enforced"
+                              size="small"
+                              variant="outlined"
+                              color="info"
+                            />
+                          </Tooltip>
                       </Stack>
                     </Box>
 
-                      {/* Safety / Content Indicator */}
-                      <Box>
-                        <Tooltip title="Safety and therapeutic constraints are enforced automatically.">
-                          <Chip
-                            label="Content Restrictions Applied"
-                            size="small"
-                            variant="outlined"
-                            color="info"
-                          />
-                        </Tooltip>
-                      </Box>
-
-                      <Divider />
-
-                      {/* Emotional Goals */}
+                      {/* Emotional Goals (De-emphasized) */}
                       {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
                     <Box>
                           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
                             Emotional Goals
                           </Typography>
-                          <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75}>
                             {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
                               <Chip
                                 key={idx}
@@ -818,45 +794,45 @@ const GenerateDraftPage: React.FC = () => {
                         </Box>
                       )}
 
-                      <Divider />
+                      <Divider sx={{ my: 1 }} />
 
-                      {/* Metadata Section */}
+                      {/* Metadata Section (Quieter) */}
                       <Box
                         sx={{
                           display: "grid",
                           gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
-                          gap: 2,
+                          gap: 1.5,
                         }}
                       >
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">
+                          <Typography variant="caption" color="text.secondary" display="block" fontSize="0.7rem">
                             Primary Topic
                           </Typography>
-                          <Typography variant="body2" fontWeight="medium">
+                          <Typography variant="caption" color="text.secondary">
                             {formatDisplayText(brief.therapeuticFocus.primaryTopic) || "—"}
                           </Typography>
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">
+                          <Typography variant="caption" color="text.secondary" display="block" fontSize="0.7rem">
                             Situation
                           </Typography>
-                          <Typography variant="body2" fontWeight="medium">
+                          <Typography variant="caption" color="text.secondary">
                             {formatDisplayText(brief.therapeuticFocus.specificSituation) || "—"}
                           </Typography>
                         </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">
+                          <Typography variant="caption" color="text.secondary" display="block" fontSize="0.7rem">
                             Created
                           </Typography>
-                          <Typography variant="body2">
+                          <Typography variant="caption" color="text.secondary">
                             {formatTimestamp(brief.createdAt)}
                           </Typography>
                     </Box>
                         <Box>
-                          <Typography variant="caption" color="text.secondary" display="block">
+                          <Typography variant="caption" color="text.secondary" display="block" fontSize="0.7rem">
                             Created By
                           </Typography>
-                          <Typography variant="body2">
+                  <Typography variant="caption" color="text.secondary">
                             {brief.createdBy || "—"}
                   </Typography>
                         </Box>
