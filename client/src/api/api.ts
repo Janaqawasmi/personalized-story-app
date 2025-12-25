@@ -18,7 +18,7 @@ export interface StoryBriefInput {
     specificSituation: string;
   };
   childProfile: {
-    ageGroup: "3_4" | "5_6" | "7_8" | "9_10";
+    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
     emotionalSensitivity: "low" | "medium" | "high";
   };
   therapeuticIntent: {
@@ -222,7 +222,7 @@ export interface StoryBrief {
     specificSituation: string;
   };
   childProfile: {
-    ageGroup: "3_4" | "5_6" | "7_8" | "9_10";
+    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
     emotionalSensitivity: "low" | "medium" | "high";
   };
   therapeuticIntent: {

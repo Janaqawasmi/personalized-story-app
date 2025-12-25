@@ -68,10 +68,10 @@ const ReviewDraftPage: React.FC = () => {
   // Format age group for display
   const formatAgeGroup = (ageGroup: string) => {
     const mapping: Record<string, string> = {
-      "3_4": "3-4",
-      "5_6": "5-6",
-      "7_8": "7-8",
-      "9_10": "9-10",
+      "0_3": "0-3",
+      "3_6": "3-6",
+      "6_9": "6-9",
+      "9_12": "9-12",
     };
     return mapping[ageGroup] || ageGroup;
   };

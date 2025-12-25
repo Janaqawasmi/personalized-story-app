@@ -66,10 +66,10 @@ function getBriefDisplayTitle(brief: StoryBrief): string {
 // Helper function to format age group keys to readable format
 function formatAgeGroup(ageGroup: string): string {
   const map: Record<string, string> = {
-    "3_4": "3–4 years",
-    "5_6": "5–6 years",
-    "7_8": "7–8 years",
-    "9_10": "9–12 years",
+    "0_3": "0–3 years",
+    "3_6": "3–6 years",
+    "6_9": "6–9 years",
+    "9_12": "9–12 years",
   };
 
   return map[ageGroup] || ageGroup;
@@ -460,17 +460,17 @@ const GenerateDraftPage: React.FC = () => {
             disabled={loading}
           >
             Refresh
-          </Button>
-        </Stack>
+        </Button>
+      </Stack>
 
         {/* Alerts */}
-        {error && (
+      {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+          {error}
+        </Alert>
+      )}
 
-        {success && (
+      {success && (
           <Alert 
             severity="success" 
             sx={{ mb: 3 }} 
@@ -495,9 +495,9 @@ const GenerateDraftPage: React.FC = () => {
               )
             }
           >
-            {success}
-          </Alert>
-        )}
+          {success}
+        </Alert>
+      )}
 
         {/* Filters and Search */}
         <Box sx={{ mb: 3 }}>
@@ -606,7 +606,7 @@ const GenerateDraftPage: React.FC = () => {
                     }),
                   }}
                 >
-                  <CardContent>
+              <CardContent>
                     <Stack spacing={3}>
                       {/* Header Row */}
                       <Stack
@@ -631,40 +631,40 @@ const GenerateDraftPage: React.FC = () => {
                             )}
                           </Stack>
                           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
-                            <Chip
+                        <Chip
                               label={formatAgeGroup(brief.childProfile.ageGroup)}
-                              size="small"
-                              color="primary"
-                              variant="outlined"
-                            />
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
                             {brief.lockedByDraftId && (
                               <Tooltip title={`View draft: ${brief.lockedByDraftId}`}>
-                                <Chip
+                        <Chip
                                   label={`Draft ID: ${brief.lockedByDraftId.substring(0, 8)}...`}
-                                  size="small"
-                                  color="info"
-                                  variant="outlined"
+                            size="small"
+                            color="info"
+                            variant="outlined"
                                   onClick={() => navigate(`/specialist/drafts/${brief.lockedByDraftId}`)}
                                   onDelete={() => navigate(`/specialist/drafts/${brief.lockedByDraftId}`)}
                                   deleteIcon={<Launch fontSize="small" />}
                                   sx={{ cursor: "pointer" }}
-                                />
+                          />
                               </Tooltip>
-                            )}
-                          </Stack>
-                        </Box>
+                        )}
+                      </Stack>
+                    </Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
-                          <Button
-                            variant="outlined"
+                      <Button
+                        variant="outlined"
                             size="small"
                             startIcon={<Visibility />}
-                            onClick={() => navigate(`/specialist/story-briefs/${brief.id}/prompt-preview`)}
-                          >
+                        onClick={() => navigate(`/specialist/story-briefs/${brief.id}/prompt-preview`)}
+                      >
                             View Prompt
-                          </Button>
+                      </Button>
                           {isGenerated && brief.lockedByDraftId ? (
-                            <Button
-                              variant="contained"
+                      <Button
+                        variant="contained"
                               color="success"
                               startIcon={<Launch />}
                               onClick={() => navigate(`/specialist/drafts/${brief.lockedByDraftId}`)}
@@ -689,17 +689,17 @@ const GenerateDraftPage: React.FC = () => {
                               </span>
                             </Tooltip>
                           )}
-                        </Stack>
-                      </Stack>
+                    </Stack>
+                  </Stack>
 
                       <Divider />
 
                       {/* Story Writing Configuration */}
-                      <Box>
+                    <Box>
                         <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
                           Story Writing Configuration
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                           {brief.childProfile?.emotionalSensitivity && (
                             <Chip
                               label={`Emotional Sensitivity: ${formatEmotionalSensitivity(brief.childProfile.emotionalSensitivity)}`}
@@ -724,8 +724,8 @@ const GenerateDraftPage: React.FC = () => {
                               color="default"
                             />
                           )}
-                        </Stack>
-                      </Box>
+                      </Stack>
+                    </Box>
 
                       <Divider />
 
@@ -760,11 +760,11 @@ const GenerateDraftPage: React.FC = () => {
                       <Divider />
 
                       {/* Story Structure */}
-                      <Box>
+                    <Box>
                         <Typography variant="subtitle2" fontWeight="medium" gutterBottom>
                           Story Structure
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                           {brief.storyPreferences?.caregiverPresence && (
                             <Chip
                               label={formatCaregiverPresence(brief.storyPreferences.caregiverPresence)}
@@ -781,8 +781,8 @@ const GenerateDraftPage: React.FC = () => {
                               color="default"
                             />
                           )}
-                        </Stack>
-                      </Box>
+                      </Stack>
+                    </Box>
 
                       {/* Safety / Content Indicator */}
                       <Box>
@@ -800,7 +800,7 @@ const GenerateDraftPage: React.FC = () => {
 
                       {/* Emotional Goals */}
                       {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
-                        <Box>
+                    <Box>
                           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
                             Emotional Goals
                           </Typography>
@@ -851,23 +851,23 @@ const GenerateDraftPage: React.FC = () => {
                           <Typography variant="body2">
                             {formatTimestamp(brief.createdAt)}
                           </Typography>
-                        </Box>
+                    </Box>
                         <Box>
                           <Typography variant="caption" color="text.secondary" display="block">
                             Created By
                           </Typography>
                           <Typography variant="body2">
                             {brief.createdBy || "—"}
-                          </Typography>
+                  </Typography>
                         </Box>
                       </Box>
-                    </Stack>
-                  </CardContent>
-                </Card>
+                </Stack>
+              </CardContent>
+            </Card>
               );
             })}
-          </Stack>
-        )}
+        </Stack>
+      )}
       </Container>
 
       {/* Confirmation Dialog */}

@@ -28,7 +28,7 @@ const ALLOWED_EMOTIONAL_GOALS = [
 
 export type StoryBriefStatus = "created" | "draft_generating" | "draft_generated" | "archived";
 
-export type AgeGroup = "3_4" | "5_6" | "7_8" | "9_10";
+export type AgeGroup = "0_3" | "3_6" | "6_9" | "9_12";
 
 export type EmotionalSensitivity = "low" | "medium" | "high";
 
@@ -219,8 +219,8 @@ export function createStoryBrief(data: StoryBriefInput): Omit<StoryBrief, "id"> 
     throw new Error("childProfile is required");
   }
 
-  if (!data.childProfile.ageGroup || !["3_4", "5_6", "7_8", "9_10"].includes(data.childProfile.ageGroup)) {
-    throw new Error("childProfile.ageGroup is required and must be one of: 3_4, 5_6, 7_8, 9_10");
+  if (!data.childProfile.ageGroup || !["0_3", "3_6", "6_9", "9_12"].includes(data.childProfile.ageGroup)) {
+    throw new Error("childProfile.ageGroup is required and must be one of: 0_3, 3_6, 6_9, 9_12");
   }
 
   if (!data.childProfile.emotionalSensitivity || !["low", "medium", "high"].includes(data.childProfile.emotionalSensitivity)) {

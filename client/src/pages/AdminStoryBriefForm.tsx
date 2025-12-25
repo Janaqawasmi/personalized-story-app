@@ -35,13 +35,6 @@ function getLabel(item: any, lang: "en" | "ar" | "he" = "en"): string {
   return item[`label_${lang}`] || item.label_en || '';
 }
 
-// Map frontend age groups to backend format
-const AGE_GROUP_MAPPING: Record<string, "3_4" | "5_6" | "7_8" | "9_10"> = {
-  "0-3": "3_4",
-  "3-6": "5_6",
-  "6-9": "7_8",
-  "9-12": "9_10",
-};
 
 const AdminStoryBriefForm: React.FC = () => {
   // Reference data state
@@ -201,7 +194,7 @@ const AdminStoryBriefForm: React.FC = () => {
           specificSituation: selectedSituationKey,
         },
         childProfile: {
-          ageGroup: AGE_GROUP_MAPPING[selectedAgeGroup] || "5_6",
+          ageGroup: (selectedAgeGroup as "0_3" | "3_6" | "6_9" | "9_12") || "3_6",
           emotionalSensitivity: selectedEmotionalSensitivity,
         },
         therapeuticIntent: {

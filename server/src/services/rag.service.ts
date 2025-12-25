@@ -13,13 +13,13 @@ type BriefLike = {
  * Maps StoryBrief to BriefLike format for RAG service compatibility
  */
 function mapStoryBriefToBriefLike(brief: StoryBrief): BriefLike {
-  // Map age group from "3_4" format to expected format if needed
+  // Map age group from "0_3" format to expected format if needed
   // For now, we'll use the ageGroup as-is, but you may need to convert it
   const ageGroupMapping: Record<string, string> = {
-    "3_4": "3-4",
-    "5_6": "5-6", 
-    "7_8": "7-8",
-    "9_10": "9-10"
+    "0_3": "0-3",
+    "3_6": "3-6", 
+    "6_9": "6-9",
+    "9_12": "9-12"
   };
   
   const targetAgeGroup = ageGroupMapping[brief.childProfile.ageGroup] || brief.childProfile.ageGroup;
