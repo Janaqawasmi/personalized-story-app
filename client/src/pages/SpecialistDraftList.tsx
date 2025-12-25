@@ -9,13 +9,13 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { fetchDraftsForReview, StoryDraft } from "../api/api";
+import { fetchDraftsForReview, StoryDraftView } from "../api/api";
 import { useNavigate } from "react-router-dom";
 import SpecialistNav from "../components/SpecialistNav";
 
 const SpecialistDraftList: React.FC = () => {
   const navigate = useNavigate();
-  const [drafts, setDrafts] = useState<StoryDraft[]>([]);
+  const [drafts, setDrafts] = useState<StoryDraftView[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +66,7 @@ const SpecialistDraftList: React.FC = () => {
                   <Box>
                     <Typography variant="h6">{draft.title || "Untitled Draft"}</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Age: {draft.targetAgeGroup || "N/A"} • Status: {draft.status || "-"}
+                      Age: {draft.generationConfig?.targetAgeGroup || "N/A"} • Status: {draft.status || "-"}
                     </Typography>
                   </Box>
                   <Button variant="contained" onClick={() => navigate(`/specialist/drafts/${draft.id}`)}>

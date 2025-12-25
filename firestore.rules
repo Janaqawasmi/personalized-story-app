@@ -1,0 +1,154 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================================================
+    // storyBriefs Collection Rules
+    // ============================================================================
+    match /storyBriefs/{briefId} {
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // Read Access
+      // ─────────────────────────────────────────────────────────────────────────
+      // Only authenticated users can read story briefs
+      allow read: if request.auth != null;
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // Create Access
+      // ─────────────────────────────────────────────────────────────────────────
+      allow create: if request.auth != null
+        // User must match the createdBy field
+        && request.auth.uid == request.resource.data.createdBy
+        // Status must be "created" on creation
+        && request.resource.data.status == "created"
+        // Version must be 1 on creation
+        && request.resource.data.version == 1
+        // System-controlled fields must be set correctly
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        // Clients cannot set lockedAt on creation
+        && !request.resource.data.keys().hasAny(['lockedAt'])
+        // Enforced safety constraints must all be true and cannot be modified
+        && request.resource.data.safetyConstraints.enforced.noThreateningImagery == true
+        && request.resource.data.safetyConstraints.enforced.noShameLanguage == true
+        && request.resource.data.safetyConstraints.enforced.noMoralizing == true
+        && request.resource.data.safetyConstraints.enforced.validateEmotions == true
+        && request.resource.data.safetyConstraints.enforced.externalizeProblem == true
+        // Enforce strict schema - only allowed top-level fields
+        && request.resource.data.keys().hasOnly([
+          'createdAt',
+          'updatedAt',
+          'createdBy',
+          'status',
+          'version',
+          'therapeuticFocus',
+          'childProfile',
+          'therapeuticIntent',
+          'languageTone',
+          'safetyConstraints',
+          'storyPreferences'
+        ]);
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // Update Access
+      // ─────────────────────────────────────────────────────────────────────────
+      allow update: if request.auth != null
+        // CRITICAL: Cannot update if status is "draft_generated" (immutable)
+        && resource.data.status != "draft_generated"
+        // CRITICAL: Cannot update if status is "archived" (read-only)
+        && resource.data.status != "archived"
+        // Only the creator can update (unless using admin SDK)
+        && (request.auth.uid == resource.data.createdBy || request.auth.token.admin == true)
+        // Clients cannot change createdBy (ownership is immutable)
+        && request.resource.data.createdBy == resource.data.createdBy
+        // Clients cannot change status (only admin can)
+        && (request.resource.data.status == resource.data.status || request.auth.token.admin == true)
+        // Clients cannot change lockedAt (only admin can set/modify it)
+        && (request.resource.data.lockedAt == resource.data.lockedAt
+            || request.auth.token.admin == true)
+        // Clients cannot modify version (only admin can)
+        && (request.resource.data.version == resource.data.version || request.auth.token.admin == true)
+        // CRITICAL: Enforced safety constraints must never change (even admin cannot modify)
+        && request.resource.data.safetyConstraints.enforced.noThreateningImagery
+          == resource.data.safetyConstraints.enforced.noThreateningImagery
+        && request.resource.data.safetyConstraints.enforced.noShameLanguage
+          == resource.data.safetyConstraints.enforced.noShameLanguage
+        && request.resource.data.safetyConstraints.enforced.noMoralizing
+          == resource.data.safetyConstraints.enforced.noMoralizing
+        && request.resource.data.safetyConstraints.enforced.validateEmotions
+          == resource.data.safetyConstraints.enforced.validateEmotions
+        && request.resource.data.safetyConstraints.enforced.externalizeProblem
+          == resource.data.safetyConstraints.enforced.externalizeProblem
+        // updatedAt must be a valid timestamp
+        && request.resource.data.updatedAt is timestamp
+        // Prevent clients from adding unexpected top-level fields during updates
+        && request.resource.data.keys().hasOnly(resource.data.keys());
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // Delete Access
+      // ─────────────────────────────────────────────────────────────────────────
+      // Delete is not allowed from clients (only admin SDK can delete)
+      allow delete: if false;
+      
+    }
+    
+    // ============================================================================
+    // referenceData Collection Rules
+    // ============================================================================
+    match /referenceData/{subcollection}/{documentId} {
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // Read Access
+      // ─────────────────────────────────────────────────────────────────────────
+      // Authenticated users can read reference data
+      allow read: if request.auth != null;
+      
+      // ─────────────────────────────────────────────────────────────────────────
+      // Write Access
+      // ─────────────────────────────────────────────────────────────────────────
+      // Only admin users can write reference data
+      // This includes: topics, situations, emotionalGoals, exclusions subcollections
+      allow create: if request.auth != null && request.auth.token.admin == true
+        // Enforce required fields for all reference data documents
+        && request.resource.data.keys().hasAll(['label_en', 'label_ar', 'label_he', 'active'])
+        // Labels must be strings
+        && request.resource.data.label_en is string
+        && request.resource.data.label_ar is string
+        && request.resource.data.label_he is string
+        // active must be boolean
+        && request.resource.data.active is bool
+        // situations must have topicKey
+        && (subcollection != 'situations' 
+            || (request.resource.data.keys().hasAll(['topicKey']) 
+                && request.resource.data.topicKey is string));
+      
+      allow update: if request.auth != null && request.auth.token.admin == true
+        // Enforce required fields remain
+        && request.resource.data.keys().hasAll(['label_en', 'label_ar', 'label_he', 'active'])
+        // Labels must be strings
+        && request.resource.data.label_en is string
+        && request.resource.data.label_ar is string
+        && request.resource.data.label_he is string
+        // active must be boolean
+        && request.resource.data.active is bool
+        // situations must maintain topicKey
+        && (subcollection != 'situations' 
+            || (request.resource.data.keys().hasAll(['topicKey']) 
+                && request.resource.data.topicKey is string));
+      
+      // Only admin can delete reference data
+      allow delete: if request.auth != null && request.auth.token.admin == true;
+      
+    }
+    
+    // ============================================================================
+    // Default Deny
+    // ============================================================================
+    // All other collections and documents are denied by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

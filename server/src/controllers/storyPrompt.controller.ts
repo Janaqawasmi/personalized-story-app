@@ -17,7 +17,7 @@ export const previewStoryPrompt = async (
     }
 
     const snap = await firestore
-      .collection("admin_story_briefs")
+      .collection("storyBriefs")
       .doc(briefId)
       .get();
 

@@ -22,6 +22,7 @@ import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
 import specialistPromptRoutes from "./routes/specialistPrompt.routes";
+import referenceDataRoutes from "./routes/referenceData.routes";
 
 // ---------- APP ----------
 const app = express();
@@ -32,33 +33,37 @@ app.use(cors());
 app.use(express.json());
 
 // ---------- ROUTES ----------
-app.use("/api/story-templates", templateRoutes);
-app.use("/api/story-drafts", storyDraftRoutes);
-app.use("/api/personalized-stories", personalizedStoryRoutes);
+// OUT OF SCOPE FOR CURRENT PHASE (review/approval/publishing)
+// app.use("/api/story-templates", templateRoutes);
+// app.use("/api/personalized-stories", personalizedStoryRoutes);
 
-app.use("/api/admin/story-briefs", storyBriefRouter);
+app.use("/api/admin/story-briefs", storyBriefRouter); // Includes generate-draft endpoint
+app.use("/api/story-drafts", storyDraftRoutes); // READ-ONLY draft viewing
 
-app.use("/api/specialist/reviews", storyReviewRoutes);
-app.use("/api/specialist/prompts", specialistPromptRoutes);
+// REVIEW/APPROVAL ENDPOINTS COMMENTED OUT
+// app.use("/api/specialist/reviews", storyReviewRoutes);
+// app.use("/api/specialist/prompts", specialistPromptRoutes);
+app.use("/api/reference-data", referenceDataRoutes);
 
 // ---------- DEBUG FIRESTORE ----------
-app.get("/api/debug/firestore", async (_req: Request, res: Response) => {
-  try {
-    const snap = await firestore
-      .collection("approved_story_templates")
-      .limit(5)
-      .get();
-
-    res.json({
-      empty: snap.empty,
-      count: snap.size,
-      docs: snap.docs.map((d) => d.id),
-    });
-  } catch (error) {
-    console.error("🔥 Firestore debug error:", error);
-    res.status(500).json({ success: false });
-  }
-});
+// REVIEW/APPROVAL ENDPOINTS COMMENTED OUT (out of scope for current phase)
+// app.get("/api/debug/firestore", async (_req: Request, res: Response) => {
+//   try {
+//     const snap = await firestore
+//       .collection("approved_story_templates")
+//       .limit(5)
+//       .get();
+//
+//     res.json({
+//       empty: snap.empty,
+//       count: snap.size,
+//       docs: snap.docs.map((d) => d.id),
+//     });
+//   } catch (error) {
+//     console.error("🔥 Firestore debug error:", error);
+//     res.status(500).json({ success: false });
+//   }
+// });
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {

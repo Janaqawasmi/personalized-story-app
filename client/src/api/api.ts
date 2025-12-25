@@ -12,15 +12,30 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 }
 
 export interface StoryBriefInput {
-  topicKey: string;
-  targetAgeGroup: string;
-  topicTags: string[];
-  therapeuticIntent: string[];
-  constraints?: {
-    avoidMetaphors?: string[];
-    avoidLanguage?: string[];
-  };
   createdBy: string;
+  therapeuticFocus: {
+    primaryTopic: string;
+    specificSituation: string;
+  };
+  childProfile: {
+    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
+    emotionalSensitivity: "low" | "medium" | "high";
+  };
+  therapeuticIntent: {
+    emotionalGoals: string[];
+    keyMessage?: string;
+  };
+  languageTone: {
+    complexity: "very_simple" | "simple" | "moderate";
+    emotionalTone: "very_gentle" | "calm" | "encouraging";
+  };
+  safetyConstraints: {
+    exclusions: string[];
+  };
+  storyPreferences: {
+    caregiverPresence: "included" | "self_guided";
+    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+  };
 }
 
 export interface StoryBriefResponse {
@@ -56,7 +71,8 @@ export async function createStoryBrief(data: StoryBriefInput): Promise<StoryBrie
     
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      throw new Error(errorData.error || `Failed to create story brief (${res.status})`);
+      const errorMessage = errorData.details || errorData.error || `Failed to create story brief (${res.status})`;
+      throw new Error(errorMessage);
     }
     
     return res.json();
@@ -90,22 +106,76 @@ export interface StoryDraft {
   approvedAt?: string;
 }
 
-export async function fetchDraftsForReview(): Promise<StoryDraft[]> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts`);
-  if (!res.ok) {
-    throw new Error(`Failed to load drafts (${res.status})`);
+export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to load drafts (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data ?? [];
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
   }
-  const data = await res.json();
-  return data.drafts ?? [];
 }
 
-export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`);
-  if (!res.ok) {
-    throw new Error(`Failed to load draft (${res.status})`);
+// Old endpoint (out of scope for current phase)
+// export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
+//   const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`);
+//   if (!res.ok) {
+//     throw new Error(`Failed to load draft (${res.status})`);
+//   }
+//   const data = await res.json();
+//   return data.draft;
+// }
+
+// Phase 2: READ-ONLY draft viewing
+export interface StoryDraftView {
+  id: string;
+  title?: string;
+  status?: "generating" | "generated" | "failed";
+  generationConfig: {
+    language: "ar" | "he";
+    targetAgeGroup: string;
+    length: "short" | "medium" | "long";
+    tone: string;
+    emphasis?: string;
+  };
+  pages?: Array<{
+    pageNumber: number;
+    text: string;
+    imagePrompt: string;
+    emotionalTone?: string;
+  }>;
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+  updatedAt: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+}
+
+export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
+  try {
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to load draft (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
   }
-  const data = await res.json();
-  return data.draft;
 }
 
 export async function updateDraftPages(draftId: string, pages: StoryDraftPage[]): Promise<void> {
@@ -137,19 +207,52 @@ export async function approveDraft(draftId: string, specialistId: string, sessio
 
 export interface StoryBrief {
   id: string;
-  topicKey: string;
-  targetAgeGroup: string;
-  topicTags: string[];
-  therapeuticIntent: string[];
-  constraints?: {
-    avoidMetaphors?: string[];
-    avoidLanguage?: string[];
-  };
-  status: "draft" | "generated" | "reviewed" | "approved";
-  createdAt: string;
-  updatedAt: string;
+  createdAt: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+  updatedAt: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
   createdBy: string;
-  generatedDraftId?: string;
+  status: "created" | "draft_generating" | "draft_generated" | "archived";
+  version: number;
+  therapeuticFocus: {
+    primaryTopic: string;
+    specificSituation: string;
+  };
+  childProfile: {
+    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
+    emotionalSensitivity: "low" | "medium" | "high";
+  };
+  therapeuticIntent: {
+    emotionalGoals: string[];
+    keyMessage?: string;
+  };
+  languageTone: {
+    complexity: "very_simple" | "simple" | "moderate";
+    emotionalTone: "very_gentle" | "calm" | "encouraging";
+  };
+  safetyConstraints: {
+    enforced: {
+      noThreateningImagery: true;
+      noShameLanguage: true;
+      noMoralizing: true;
+      validateEmotions: true;
+      externalizeProblem: true;
+    };
+    exclusions: string[];
+  };
+  storyPreferences: {
+    caregiverPresence: "included" | "self_guided";
+    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+  };
+  lockedAt?: {
+    seconds: number;
+    nanoseconds: number;
+  } | string | Date;
+  lockedByDraftId?: string;
 }
 
 export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
@@ -169,9 +272,20 @@ export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
   }
 }
 
-export async function generateDraftFromBrief(briefId: string): Promise<{ success: boolean; draftId: string; message: string }> {
-  const res = await fetch(`${API_BASE}/api/story-drafts/${briefId}/generate`, {
+export async function generateDraftFromBrief(
+  briefId: string,
+  options?: { length?: "short" | "medium" | "long"; tone?: string; emphasis?: string }
+): Promise<{ success: boolean; draftId: string; message: string }> {
+  const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/generate-draft`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      length: options?.length || "medium",
+      tone: options?.tone || "calm",
+      emphasis: options?.emphasis,
+    }),
   });
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
