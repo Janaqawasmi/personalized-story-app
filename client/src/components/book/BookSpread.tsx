@@ -274,7 +274,7 @@ export default function BookSpread({
           sx={{
             position: "absolute",
             top: 20,
-            left: 32, // ✅ shifted right
+            left: 48,
             zIndex: 10,
             display: "flex",
             alignItems: "center",
@@ -338,17 +338,30 @@ export default function BookSpread({
         </Typography>
 
         {/* Page Text */}
-        <Typography
+        <Box
           sx={{
-            fontSize: "1.1rem",
-            lineHeight: 1.9,
-            color: theme.palette.text.primary,
             flexGrow: 1,
-            fontFamily: `"Tajawal", "Alef", "Georgia", serif`,
+            display: "flex",
+            alignItems: "center", // ⬅ vertical centering
+            justifyContent: "center",
           }}
         >
-          {page.textTemplate || ""}
-        </Typography>
+          <Typography
+            sx={{
+              maxWidth: 420,
+              textAlign: "center",
+              fontSize: "1.25rem",
+              lineHeight: 2,
+              letterSpacing: "0.02em",
+              wordSpacing: "0.04em",
+              color: theme.palette.text.primary,
+              fontFamily: `"Tajawal", "Alef", "Georgia", serif`,
+              whiteSpace: "pre-line",
+            }}
+          >
+            {page.textTemplate || ""}
+          </Typography>
+        </Box>
 
         {/* Page Number (bottom corner) */}
         <Typography
