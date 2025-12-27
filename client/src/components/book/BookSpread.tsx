@@ -148,7 +148,8 @@ export default function BookSpread({
         mx: "auto",
         minHeight: { xs: "70vh", md: 640 },
         borderRadius: { xs: 4, md: 8 },
-        overflow: "hidden",
+        overflowX: "visible",
+        overflowY: "hidden",
         border: "1px solid rgba(0,0,0,0.10)",
         background: "linear-gradient(180deg, #f7f2ec 0%, #efe7de 100%)",
         boxShadow:
@@ -178,32 +179,25 @@ export default function BookSpread({
         },
       }}
     >
-      {/* Page stack - left edge */}
+      {/* Page stack — DEBUG VISIBLE */}
       <Box
         sx={{
           position: "absolute",
-          top: 14,
-          bottom: 14,
-          left: 12,
+          top: 20,
+          bottom: 20,
+          left: -14, // 👈 MUST be negative
           width: 18,
+          background: "#d4c2c8", // 👈 solid color for debug
+          borderRadius: 2,
           zIndex: 1,
           pointerEvents: "none",
-          display: { xs: "none", md: "block" },
-          opacity: 0.85,
-          background:
-            "repeating-linear-gradient(to bottom," +
-            "rgba(0,0,0,0.16) 0px," +
-            "rgba(0,0,0,0.16) 1px," +
-            "rgba(255,255,255,0.00) 4px," +
-            "rgba(255,255,255,0.00) 7px)",
-          filter: "blur(0.2px)",
         }}
       />
       {/* Left Page - Text */}
       <Box
         sx={{
           flex: 1,
-          zIndex: 3,
+          zIndex: 2,
           backgroundColor: "#fbfbfb",
           // Paper grain (subtle dots)
           backgroundImage:
@@ -416,14 +410,16 @@ export default function BookSpread({
           zIndex: 1,
           pointerEvents: "none",
           display: { xs: "none", md: "block" },
-          opacity: 0.85,
+          opacity: 0.75,
           background:
             "repeating-linear-gradient(to bottom," +
-            "rgba(0,0,0,0.16) 0px," +
-            "rgba(0,0,0,0.16) 1px," +
+            "rgba(0,0,0,0.08) 0px," +
+            "rgba(0,0,0,0.08) 1px," +
             "rgba(255,255,255,0.00) 4px," +
             "rgba(255,255,255,0.00) 7px)",
-          filter: "blur(0.2px)",
+          filter: "blur(0.6px)",
+          maskImage:
+            "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
         }}
       />
       {/* Right Page - Image */}

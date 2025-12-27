@@ -8,6 +8,7 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
+import InstructionModal from "../components/InstructionModal";
 
 type Page = {
   pageNumber: number;
@@ -50,6 +51,7 @@ export default function BookReaderPage() {
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showLanguageNotice, setShowLanguageNotice] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
@@ -169,6 +171,11 @@ export default function BookReaderPage() {
   }, [showCover]);
 
   const handleStart = () => {
+    setShowInstructions(true);
+  };
+
+  const handleInstructionsClose = () => {
+    setShowInstructions(false);
     setShowCover(false);
     setSpreadIndex(0);
   };
@@ -262,23 +269,29 @@ export default function BookReaderPage() {
   const canGoNext = spreadIndex < story.pages.length - 1;
 
   return (
-    <Box
-      ref={containerRef}
-      sx={{
-        minHeight: "100vh",
-        backgroundColor: theme.palette.background.default,
-        direction: isRTL ? "rtl" : "ltr",
-        position: "relative",
-      }}
-    >
-      {showCover ? (
-        <BookCover
-          title={story.title}
-          onStart={handleStart}
-          language={story.language || CURRENT_LANGUAGE}
-        />
-      ) : (
-        <>
+    <>
+      <InstructionModal
+        open={showInstructions}
+        onClose={handleInstructionsClose}
+      />
+      <Box
+        ref={containerRef}
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: theme.palette.background.default,
+          direction: isRTL ? "rtl" : "ltr",
+          position: "relative",
+        }}
+      >
+        {showCover ? (
+          <BookCover
+            title={story.title}
+            onStart={handleStart}
+            language={story.language || CURRENT_LANGUAGE}
+          />
+        ) : (
+          !showInstructions && (
+            <>
           {/* Language Notice (soft, non-blocking) */}
           {showLanguageNotice && story && (
             <Box
@@ -405,10 +418,12 @@ export default function BookReaderPage() {
                 canGoPrev={canGoPrev}
               />
             </Box>
-          </Box>
-        </>
-      )}
-    </Box>
+            </Box>
+          </>
+          )
+        )}
+      </Box>
+    </>
   );
 }
 
