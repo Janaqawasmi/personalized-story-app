@@ -1,4 +1,5 @@
 import { Box, Typography, useTheme } from "@mui/material";
+import { useRef, useEffect, useState } from "react";
 
 type Page = {
   pageNumber: number;
@@ -31,6 +32,78 @@ export default function BookSpread({
 }: BookSpreadProps) {
   const theme = useTheme();
 
+  // Drag tracking state
+  const dragStartX = useRef<number | null>(null);
+  const dragSide = useRef<"left" | "right" | null>(null);
+  const isDragging = useRef(false);
+  const hasFlippedRef = useRef(false);
+  const didDragRef = useRef(false);
+
+  // Visual curl state
+  const [curlProgress, setCurlProgress] = useState(0); // 0 → 1
+  const [curlSide, setCurlSide] = useState<"left" | "right" | null>(null);
+
+  const DRAG_THRESHOLD = 80; // px
+  const CORNER_SIZE = 120; // px
+
+  // Update curl progress while dragging
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!isDragging.current || dragStartX.current === null) return;
+
+      const deltaX = e.clientX - dragStartX.current;
+      
+      // Mark as drag if movement exceeds threshold
+      if (Math.abs(deltaX) > 10) {
+        didDragRef.current = true;
+      }
+      
+      const progress = Math.min(Math.abs(deltaX) / 240, 1);
+
+      setCurlProgress(progress);
+      setCurlSide(dragSide.current);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    return () => window.removeEventListener("pointermove", handlePointerMove);
+  }, []);
+
+  // Handle drag release (flip logic)
+  useEffect(() => {
+    const handlePointerUp = (e: PointerEvent) => {
+      if (
+        !isDragging.current ||
+        dragStartX.current === null ||
+        hasFlippedRef.current
+      ) {
+        return;
+      }
+
+      const deltaX = e.clientX - dragStartX.current;
+
+      if (dragSide.current === "left" && deltaX > DRAG_THRESHOLD) {
+        hasFlippedRef.current = true;
+        onNext?.();
+      }
+
+      if (dragSide.current === "right" && deltaX < -DRAG_THRESHOLD) {
+        hasFlippedRef.current = true;
+        onPrev?.();
+      }
+
+      dragStartX.current = null;
+      dragSide.current = null;
+      isDragging.current = false;
+
+      // Reset curl animation
+      setCurlProgress(0);
+      setCurlSide(null);
+    };
+
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => window.removeEventListener("pointerup", handlePointerUp);
+  }, [onNext, onPrev]);
+
   return (
     <Box
       sx={{
@@ -56,14 +129,39 @@ export default function BookSpread({
           position: "relative",
           minHeight: { xs: "50vh", md: "70vh" },
           cursor: canGoNext ? "pointer" : "default",
-          transition: "transform 0.2s ease",
-          "&:hover": canGoNext
+          transform:
+            curlSide === "left"
+              ? `translateX(${curlProgress * 12}px)`
+              : undefined,
+          transition: isDragging.current ? "none" : "transform 0.35s ease",
+          "&:hover": canGoNext && !isDragging.current
             ? {
                 transform: "scale(1.01)",
               }
             : {},
         }}
-        onClick={canGoNext ? onNext : undefined}
+        onPointerDown={(e) => {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+
+          const inLeftCorner =
+            x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
+
+          if (!inLeftCorner || !canGoNext) return;
+
+          hasFlippedRef.current = false;
+          didDragRef.current = false;
+          dragStartX.current = e.clientX;
+          dragSide.current = "left";
+          isDragging.current = true;
+        }}
+        onClick={() => {
+          if (didDragRef.current) return;
+          if (canGoNext) {
+            onNext?.();
+          }
+        }}
       >
         {/* Story Title (small, top) */}
         <Typography
@@ -103,6 +201,34 @@ export default function BookSpread({
         >
           {page.pageNumber}
         </Typography>
+
+        {/* Curl Overlay - Left Page */}
+        {curlSide === "left" && (
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              width: `${curlProgress * 220}px`,
+              height: `${curlProgress * 220}px`,
+              background: `
+                linear-gradient(
+                  135deg,
+                  #ffffff 0%,
+                  #f2f2f2 40%,
+                  #d6d6d6 100%
+                )
+              `,
+              clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+              boxShadow: `
+                ${curlProgress * 8}px ${curlProgress * -8}px
+                ${curlProgress * 16}px rgba(0,0,0,0.25)
+              `,
+              transition: isDragging.current ? "none" : "all 0.35s ease",
+              pointerEvents: "none",
+            }}
+          />
+        )}
       </Box>
 
       {/* Right Page - Image */}
@@ -124,14 +250,39 @@ export default function BookSpread({
           backgroundSize: "cover",
           backgroundPosition: "center",
           cursor: canGoPrev ? "pointer" : "default",
-          transition: "transform 0.2s ease",
-          "&:hover": canGoPrev
+          transform:
+            curlSide === "right"
+              ? `translateX(-${curlProgress * 12}px)`
+              : undefined,
+          transition: isDragging.current ? "none" : "transform 0.35s ease",
+          "&:hover": canGoPrev && !isDragging.current
             ? {
                 transform: "scale(1.01)",
               }
             : {},
         }}
-        onClick={canGoPrev ? onPrev : undefined}
+        onPointerDown={(e) => {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const x = rect.width - (e.clientX - rect.left);
+          const y = e.clientY - rect.top;
+
+          const inRightCorner =
+            x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
+
+          if (!inRightCorner || !canGoPrev) return;
+
+          hasFlippedRef.current = false;
+          didDragRef.current = false;
+          dragStartX.current = e.clientX;
+          dragSide.current = "right";
+          isDragging.current = true;
+        }}
+        onClick={() => {
+          if (didDragRef.current) return;
+          if (canGoPrev) {
+            onPrev?.();
+          }
+        }}
       >
         {/* Page Flip Corner (on hover) */}
         {canGoNext && (
@@ -175,6 +326,34 @@ export default function BookSpread({
               {page.imagePromptTemplate || "תמונה תופיע כאן בקרוב"}
             </Typography>
           </Box>
+        )}
+
+        {/* Curl Overlay - Right Page */}
+        {curlSide === "right" && (
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              right: 0,
+              width: `${curlProgress * 220}px`,
+              height: `${curlProgress * 220}px`,
+              background: `
+                linear-gradient(
+                  225deg,
+                  #ffffff 0%,
+                  #f2f2f2 40%,
+                  #d6d6d6 100%
+                )
+              `,
+              clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+              boxShadow: `
+                ${curlProgress * -8}px ${curlProgress * -8}px
+                ${curlProgress * 16}px rgba(0,0,0,0.25)
+              `,
+              transition: isDragging.current ? "none" : "all 0.35s ease",
+              pointerEvents: "none",
+            }}
+          />
         )}
       </Box>
     </Box>
