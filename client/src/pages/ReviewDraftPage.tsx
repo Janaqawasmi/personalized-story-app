@@ -31,7 +31,7 @@ import {
   ArrowBack,
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchDraftById, StoryDraftView, enterEditMode, cancelEditMode, updateDraft, approveDraft, StoryDraftPage } from "../api/api";
+import { fetchDraftById, StoryDraftView, updateDraft, approveDraft, StoryDraftPage } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
 
 const ReviewDraftPage: React.FC = () => {
@@ -67,8 +67,8 @@ const ReviewDraftPage: React.FC = () => {
         setDraft(data);
         setEditedTitle(data.title || "");
         setEditedPages(data.pages || []);
-        // Set edit mode if status is "editing"
-        setIsEditing(data.status === "editing");
+        // Edit mode is now purely local UI state - don't set based on status
+        // Status "editing" means "revised", not "currently being edited"
       } catch (err: any) {
         setError(err.message || "Failed to load draft");
         setDraft(null);
@@ -135,38 +135,26 @@ const ReviewDraftPage: React.FC = () => {
   };
 
   // Handle entering edit mode
-  const handleEnterEditMode = async () => {
+  // Handle entering edit mode (now purely local UI state)
+  const handleEnterEditMode = () => {
     if (!draftId) return;
     
-    try {
-      setError(null);
-      await enterEditMode(draftId);
-      setIsEditing(true);
-      // Reload draft to get updated status
-      const data = await fetchDraftById(draftId);
-      setDraft(data);
-    } catch (err: any) {
-      setError(err.message || "Failed to enter edit mode");
-    }
+    // Edit mode is now a local UI state - no backend call needed
+    // Status only changes when edits are saved
+    setIsEditing(true);
+    setError(null);
   };
 
-  // Handle canceling edit mode
-  const handleCancelEdit = async () => {
-    if (!draftId) return;
+  // Handle canceling edit mode (now purely local UI state)
+  const handleCancelEdit = () => {
+    if (!draftId || !draft) return;
     
-    try {
-      setError(null);
-      // Reset backend status to "generated"
-      await cancelEditMode(draftId);
-      // Reload draft to get updated status
-      const data = await fetchDraftById(draftId);
-      setDraft(data);
-      setEditedTitle(data.title || "");
-      setEditedPages(data.pages || []);
-      setIsEditing(false);
-    } catch (err: any) {
-      setError(err.message || "Failed to cancel editing");
-    }
+    // Edit mode is now a local UI state - reset to original draft content
+    // Status remains unchanged (reflects content revisions, not UI mode)
+    setEditedTitle(draft.title || "");
+    setEditedPages(draft.pages || []);
+    setIsEditing(false);
+    setError(null);
   };
 
   // Handle saving edits
@@ -204,8 +192,18 @@ const ReviewDraftPage: React.FC = () => {
     setError(null);
     
     try {
+      // If in edit mode, save changes first, then approve
+      if (isEditing) {
+        // Save current edits before approving
+        await updateDraft(draftId, {
+          title: editedTitle,
+          pages: editedPages,
+        });
+      }
+      
       await approveDraft(draftId);
       setApproveDialogOpen(false);
+      setApproving(false);
       // Redirect to drafts list
       navigate("/specialist/drafts");
     } catch (err: any) {
@@ -224,7 +222,8 @@ const ReviewDraftPage: React.FC = () => {
   };
 
   // Determine if draft can be edited (only if status is "generated")
-  const canEdit = draft?.status === "generated";
+  // Can edit if draft is not approved or failed (edit mode is UI-only, status reflects revisions)
+  const canEdit = draft?.status !== "approved" && draft?.status !== "failed";
   // Determine if draft can be approved (only if status is "generated" or "editing")
   const canApprove = draft?.status === "generated" || draft?.status === "editing";
   // Determine if draft is approved
@@ -257,72 +256,123 @@ const ReviewDraftPage: React.FC = () => {
                   This draft was generated automatically and is read-only.
                 </Typography>
               )}
-              {isEditing && (
-                <Typography variant="caption" color="warning.main" sx={{ mt: 0.5, display: "block" }}>
-                  You are editing this draft. Save your changes to preserve them.
-                </Typography>
-              )}
               {isApproved && (
                 <Typography variant="caption" color="secondary.main" sx={{ mt: 0.5, display: "block" }}>
                   This draft has been approved and is now immutable.
                 </Typography>
               )}
             </Box>
-            <Stack direction="row" spacing={1} flexWrap="wrap">
-              {!isApproved && (
-                <>
-                  {!isEditing && canEdit && (
-                    <Button variant="outlined" onClick={handleEnterEditMode}>
-                      Edit Draft
-                    </Button>
-                  )}
-                  {canApprove && (
-                    <Button variant="contained" color="primary" onClick={() => setApproveDialogOpen(true)} disabled={saving || approving}>
-                      Approve Draft
-                    </Button>
-                  )}
-                  {isEditing && (
-                    <>
-                      <Button variant="outlined" onClick={handleCancelEdit} disabled={saving}>
-                        Cancel Editing
+          </Stack>
+          
+          {/* Edit Mode Indicator Banner */}
+          {isEditing && !isApproved && (
+            <Alert 
+              severity="info" 
+              icon={null}
+              sx={{ 
+                mt: 1,
+                bgcolor: "info.light",
+                color: "info.dark",
+                "& .MuiAlert-message": {
+                  width: "100%",
+                },
+              }}
+            >
+              <Typography variant="body2">
+                Edit mode: Changes are saved manually. Draft status reflects content revisions, not current activity.
+              </Typography>
+            </Alert>
+          )}
+
+          {/* Toolbar */}
+          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 2 }}>
+            {!isApproved && (
+              <>
+                {/* MODE A: READ-ONLY */}
+                {!isEditing && (
+                  <>
+                    {canEdit && (
+                      <Button variant="outlined" onClick={handleEnterEditMode} disabled={saving || approving}>
+                        Edit Draft
                       </Button>
-                      <Button variant="contained" color="primary" onClick={handleSaveChanges} disabled={saving}>
-                        {saving ? <CircularProgress size={20} /> : "Save Changes"}
+                    )}
+                    {canApprove && (
+                      <Button 
+                        variant="contained" 
+                        color="secondary" 
+                        onClick={() => setApproveDialogOpen(true)} 
+                        disabled={saving || approving}
+                      >
+                        Approve Draft
                       </Button>
-                    </>
-                  )}
-                </>
-              )}
-              {draft?.briefId && (
-                <Button
-                  variant="outlined"
-                  startIcon={<Description />}
-                  onClick={() => navigate(`/specialist/generate-draft?briefId=${draft.briefId}`)}
-                  disabled={saving}
+                    )}
+                  </>
+                )}
+
+                {/* MODE B: EDIT MODE */}
+                {isEditing && (
+                  <>
+                    <Button 
+                      variant="contained" 
+                      color="primary" 
+                      onClick={handleSaveChanges} 
+                      disabled={saving || approving}
+                    >
+                      {saving ? <CircularProgress size={20} /> : "Save Changes"}
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      onClick={handleCancelEdit} 
+                      disabled={saving || approving}
+                    >
+                      Cancel Editing
+                    </Button>
+                    {canApprove && (
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => setApproveDialogOpen(true)}
+                        disabled={saving || approving}
+                        sx={{
+                          borderWidth: 2,
+                          fontWeight: 500,
+                          ml: 1, // Visual separation from Save/Cancel
+                        }}
+                      >
+                        Approve & Finalize
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {/* Common Actions (always visible when not approved) */}
+            {!isApproved && (
+              <>
+                {draft?.briefId && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<Description />}
+                    onClick={() => navigate(`/specialist/generate-draft?briefId=${draft.briefId}`)}
+                    disabled={saving || approving}
+                  >
+                    View Story Brief
+                  </Button>
+                )}
+                <Button 
+                  variant="outlined" 
+                  startIcon={<ArrowBack />}
+                  onClick={() => {
+                    // Edit mode is now local UI state - no backend call needed
+                    navigate("/specialist/drafts");
+                  }}
+                  disabled={saving || approving}
                 >
-                  View Story Brief
+                  Back to List
                 </Button>
-              )}
-              <Button 
-                variant="outlined" 
-                startIcon={<ArrowBack />}
-                onClick={async () => {
-                  // If in editing mode, cancel it before navigating
-                  if (isEditing && draftId) {
-                    try {
-                      await cancelEditMode(draftId);
-                    } catch (err) {
-                      // Log error but still navigate
-                      console.error("Failed to cancel edit mode before navigation:", err);
-                    }
-                  }
-                  navigate("/specialist/drafts");
-                }}
-                disabled={saving}
-              >
-                Back to List
-              </Button>
-            </Stack>
+              </>
+            )}
           </Stack>
         </Stack>
 
@@ -366,9 +416,9 @@ const ReviewDraftPage: React.FC = () => {
                   )}
                   {draft.status && (
                     <Chip 
-                      label={`Status: ${draft.status}`} 
+                      label={`Status: ${draft.status === "editing" ? "Revised" : draft.status}`} 
                       variant="outlined" 
-                      color={draft.status === "approved" ? "secondary" : draft.status === "editing" ? "warning" : "default"}
+                      color={draft.status === "approved" ? "secondary" : draft.status === "editing" ? "info" : draft.status === "generated" ? "success" : "default"}
                     />
                   )}
                 </Stack>
@@ -553,22 +603,32 @@ const ReviewDraftPage: React.FC = () => {
 
       {/* Approval Confirmation Dialog */}
       <Dialog open={approveDialogOpen} onClose={() => !approving && setApproveDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Approve Draft</DialogTitle>
+        <DialogTitle>
+          {isEditing ? "Approve final version?" : "Approve Draft"}
+        </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            This will finalize the story and make it available for personalization.
-            This action cannot be undone.
+            {isEditing 
+              ? "This will approve the current content and make it available for personalization."
+              : "This will finalize the story and make it available for personalization. This action cannot be undone."}
           </Alert>
-          <Typography variant="body2" color="text.secondary">
-            Once approved, the draft will become immutable and a story template will be created.
-          </Typography>
+          {!isEditing && (
+            <Typography variant="body2" color="text.secondary">
+              Once approved, the draft will become immutable and a story template will be created.
+            </Typography>
+          )}
+          {isEditing && (
+            <Typography variant="body2" color="text.secondary">
+              The current edited content will be approved and saved as the final version. This action cannot be undone.
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setApproveDialogOpen(false)} disabled={approving}>
             Cancel
           </Button>
           <Button onClick={handleApprove} variant="contained" color="primary" disabled={approving}>
-            {approving ? <CircularProgress size={20} /> : "Approve"}
+            {approving ? <CircularProgress size={20} /> : isEditing ? "Approve Final Version" : "Approve"}
           </Button>
         </DialogActions>
       </Dialog>

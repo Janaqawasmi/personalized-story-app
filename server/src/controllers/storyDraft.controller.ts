@@ -383,8 +383,8 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
  * Enter edit mode for a draft
  * POST /api/story-drafts/:draftId/edit
  * 
- * Allows specialist to enter editing mode for a draft.
- * Only allowed if status === "generated"
+ * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
+ * but does not change draft status. Status only changes when edits are saved.
  */
 export const enterEditMode = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -397,9 +397,6 @@ export const enterEditMode = async (req: Request, res: Response): Promise<void> 
       });
       return;
     }
-
-    // TODO: AUTH - Replace with req.user.uid when authentication is implemented
-    // const userId = req.user?.uid || "system_specialist";
 
     const draftRef = firestore.collection("storyDrafts").doc(draftId);
     const draftDoc = await draftRef.get();
@@ -414,24 +411,11 @@ export const enterEditMode = async (req: Request, res: Response): Promise<void> 
 
     const draftData = draftDoc.data() as StoryDraft;
 
-    // Only allow editing if status is "generated"
-    if (draftData.status !== "generated") {
-      res.status(409).json({
-        success: false,
-        error: `Cannot enter edit mode: draft status is "${draftData.status}", expected "generated"`,
-      });
-      return;
-    }
-
-    // Update status to "editing"
-    await draftRef.update({
-      status: "editing",
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
-
+    // Edit mode is now purely a UI state - return current status
+    // Status will only change when edits are saved
     res.status(200).json({
       success: true,
-      status: "editing",
+      status: draftData.status,
     });
   } catch (error: any) {
     console.error("Error entering edit mode:", error);
@@ -444,11 +428,11 @@ export const enterEditMode = async (req: Request, res: Response): Promise<void> 
 };
 
 /**
- * Cancel edit mode (reset to generated)
+ * Cancel edit mode
  * POST /api/story-drafts/:draftId/cancel-edit
  * 
- * Resets draft status from "editing" back to "generated" without saving changes.
- * Only allowed if status === "editing"
+ * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
+ * but does not change draft status. Status reflects content revisions, not UI mode.
  */
 export const cancelEditMode = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -475,24 +459,10 @@ export const cancelEditMode = async (req: Request, res: Response): Promise<void>
 
     const draftData = draftDoc.data() as StoryDraft;
 
-    // Only allow canceling if status is "editing"
-    if (draftData.status !== "editing") {
-      res.status(409).json({
-        success: false,
-        error: `Cannot cancel edit mode: draft status is "${draftData.status}", expected "editing"`,
-      });
-      return;
-    }
-
-    // Reset status back to "generated"
-    await draftRef.update({
-      status: "generated",
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
-
+    // Edit mode is now purely a UI state - return current status unchanged
     res.status(200).json({
       success: true,
-      status: "generated",
+      status: draftData.status,
     });
   } catch (error: any) {
     console.error("Error canceling edit mode:", error);
@@ -508,7 +478,8 @@ export const cancelEditMode = async (req: Request, res: Response): Promise<void>
  * Update a draft (save edits)
  * PATCH /api/story-drafts/:draftId
  * 
- * Saves edits to a draft. Only allowed if status === "editing"
+ * Saves edits to a draft. Allowed if status === "generated" or "editing".
+ * Status changes to "editing" (meaning "revised") when first saved from "generated".
  */
 export const updateDraft = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -550,11 +521,11 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
 
     const draftData = draftDoc.data() as StoryDraft;
 
-    // Only allow saving if status is "editing"
-    if (draftData.status !== "editing") {
+    // Allow saving if status is "generated" or "editing" (not "approved" or "failed")
+    if (draftData.status !== "generated" && draftData.status !== "editing") {
       res.status(409).json({
         success: false,
-        error: `Cannot save edits: draft status is "${draftData.status}", expected "editing"`,
+        error: `Cannot save edits: draft status is "${draftData.status}", must be "generated" or "editing"`,
       });
       return;
     }
@@ -583,17 +554,19 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
 
     // Update draft with new content and increment revision count
     const currentRevisionCount = draftData.revisionCount || 0;
+    const newStatus = draftData.status === "generated" ? "editing" : draftData.status; // Mark as revised on first save
+    
     await draftRef.update({
       ...(updateData.title !== undefined && { title: updateData.title }),
       pages: updateData.pages,
       revisionCount: currentRevisionCount + 1,
+      status: newStatus, // Set to "editing" (revised) if was "generated"
       updatedAt: admin.firestore.Timestamp.now(),
-      // Status remains "editing"
     });
 
     res.status(200).json({
       success: true,
-      status: "editing",
+      status: newStatus,
       revisionCount: currentRevisionCount + 1,
     });
   } catch (error: any) {
@@ -695,9 +668,12 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
 
       // Create StoryTemplate document
       const templateRef = firestore.collection("story_templates").doc();
-      if (!draftDataInTx.pages || draftDataInTx.pages.length === 0) {
-        throw new Error("Cannot approve draft: missing pages");
+      
+      // Re-validate required fields inside transaction
+      if (!draftDataInTx.title || !draftDataInTx.pages || draftDataInTx.pages.length === 0) {
+        throw new Error("Cannot approve draft: missing title or pages");
       }
+      
       transaction.set(templateRef, {
         draftId: draftId,
         briefId: draftDataInTx.briefId,

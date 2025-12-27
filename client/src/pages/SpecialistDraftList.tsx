@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   Alert,
   Box,
@@ -27,7 +27,7 @@ import {
   Search,
 } from "@mui/icons-material";
 import { fetchDraftsForReview, StoryDraftView } from "../api/api";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SpecialistNav from "../components/SpecialistNav";
 
 // Helper to format age group for display
@@ -42,12 +42,13 @@ const formatAgeGroup = (ageGroup: string): string => {
 };
 
 // Get status chip configuration
+// NOTE: "editing" status now means "revised" (content has been modified), not "actively being edited"
 const getStatusChip = (status: string | undefined) => {
   switch (status) {
     case "generated":
       return { label: "Generated", color: "success" as const, icon: <CheckCircle fontSize="small" /> };
     case "editing":
-      return { label: "Editing", color: "info" as const, icon: <Edit fontSize="small" /> };
+      return { label: "Revised", color: "info" as const, icon: <Edit fontSize="small" /> };
     case "approved":
       return { label: "Approved", color: "secondary" as const, icon: <CheckCircle fontSize="small" /> };
     case "failed":
@@ -63,7 +64,7 @@ const getButtonLabel = (status: string | undefined): string => {
     case "generated":
       return "Start Review";
     case "editing":
-      return "Continue Editing";
+      return "Continue Review"; // Changed from "Continue Editing" to reflect new semantics
     case "approved":
       return "View";
     case "failed":
@@ -77,6 +78,7 @@ type FilterTab = "all" | "generated" | "editing" | "approved" | "failed";
 
 const SpecialistDraftList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [drafts, setDrafts] = useState<StoryDraftView[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +86,7 @@ const SpecialistDraftList: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
 
-  const loadDrafts = async () => {
+  const loadDrafts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -96,11 +98,44 @@ const SpecialistDraftList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadDrafts();
   }, []);
+
+  // Track if this is the initial mount
+  const isInitialMount = useRef(true);
+
+  // Load drafts on mount and when navigating back to this page
+  useEffect(() => {
+    // On initial mount, load immediately
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      loadDrafts();
+      return;
+    }
+
+    // When navigating back to this page, refresh after a small delay
+    if (location.pathname === "/specialist/drafts") {
+      const timer = setTimeout(() => {
+        loadDrafts();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [location.pathname, loadDrafts]);
+
+  // Refresh when window regains focus (user returns to tab/window)
+  useEffect(() => {
+    const handleFocus = () => {
+      // Only refresh if we're on the drafts list page and haven't updated recently
+      if (location.pathname === "/specialist/drafts" && 
+          (!lastUpdated || (Date.now() - lastUpdated.getTime()) > 2000)) {
+    loadDrafts();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [lastUpdated, location.pathname, loadDrafts]);
 
   // Filter and search drafts
   const filteredDrafts = useMemo(() => {
@@ -261,7 +296,7 @@ const SpecialistDraftList: React.FC = () => {
               >
                 <Tab label={`All (${statusCounts.all})`} value="all" />
                 <Tab label={`Generated (${statusCounts.generated})`} value="generated" />
-                <Tab label={`Editing (${statusCounts.editing})`} value="editing" />
+                <Tab label={`Revised (${statusCounts.editing})`} value="editing" />
                 <Tab label={`Approved (${statusCounts.approved})`} value="approved" />
                 <Tab label={`Failed (${statusCounts.failed})`} value="failed" />
               </Tabs>
@@ -417,7 +452,7 @@ const SpecialistDraftList: React.FC = () => {
             </Card>
               );
             })
-            )}
+          )}
         </Stack>
       )}
       </Container>
@@ -426,4 +461,5 @@ const SpecialistDraftList: React.FC = () => {
 };
 
 export default SpecialistDraftList;
+
 
