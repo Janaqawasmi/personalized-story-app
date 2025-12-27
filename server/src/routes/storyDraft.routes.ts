@@ -7,11 +7,15 @@ import {
   updateDraft, 
   approveDraft 
 } from "../controllers/storyDraft.controller";
+import draftSuggestionRoutes from "./draftSuggestion.routes";
 
 const router = Router();
 
 // GET /api/story-drafts (READ-ONLY) - List all generated drafts
 router.get("/", listDrafts);
+
+// Mount suggestion routes before :draftId route (more specific routes first)
+router.use("/", draftSuggestionRoutes);
 
 // POST /api/story-drafts/:draftId/edit - Enter edit mode
 router.post("/:draftId/edit", enterEditMode);

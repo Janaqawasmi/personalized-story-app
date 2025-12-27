@@ -530,7 +530,7 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Validate page numbers are sequential
+    // Validate page numbers are sequential and required fields exist
     const sortedPages = [...updateData.pages].sort((a, b) => a.pageNumber - b.pageNumber);
     for (let i = 0; i < sortedPages.length; i++) {
       const page = sortedPages[i];
@@ -538,6 +538,32 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
         res.status(400).json({
           success: false,
           error: `Page numbers must be sequential starting from 1. Found page ${page?.pageNumber ?? 'unknown'} at position ${i + 1}`,
+        });
+        return;
+      }
+
+      // Validate required fields for each page
+      if (typeof page.text !== "string" || page.text.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: `Page ${page.pageNumber} is missing required field 'text' or text is empty`,
+        });
+        return;
+      }
+
+      // Validate imagePrompt is present and is a string (required field per DraftPage model)
+      if (page.imagePrompt === undefined || page.imagePrompt === null) {
+        res.status(400).json({
+          success: false,
+          error: `Page ${page.pageNumber} is missing required field 'imagePrompt'`,
+        });
+        return;
+      }
+
+      if (typeof page.imagePrompt !== "string") {
+        res.status(400).json({
+          success: false,
+          error: `Page ${page.pageNumber} has invalid 'imagePrompt': must be a string`,
         });
         return;
       }
@@ -552,13 +578,21 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    // Normalize pages to ensure they match the DraftPage model structure
+    const normalizedPages = sortedPages.map((page) => ({
+      pageNumber: page.pageNumber,
+      text: page.text.trim(),
+      imagePrompt: page.imagePrompt.trim(), // Required field, already validated above
+      ...(page.emotionalTone && typeof page.emotionalTone === "string" && { emotionalTone: page.emotionalTone.trim() }),
+    }));
+
     // Update draft with new content and increment revision count
     const currentRevisionCount = draftData.revisionCount || 0;
     const newStatus = draftData.status === "generated" ? "editing" : draftData.status; // Mark as revised on first save
     
     await draftRef.update({
       ...(updateData.title !== undefined && { title: updateData.title }),
-      pages: updateData.pages,
+      pages: normalizedPages,
       revisionCount: currentRevisionCount + 1,
       status: newStatus, // Set to "editing" (revised) if was "generated"
       updatedAt: admin.firestore.Timestamp.now(),
