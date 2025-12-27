@@ -241,6 +241,14 @@ const ReviewDraftPage: React.FC = () => {
       setDraft(data);
       setEditedTitle(data.title || "");
       setEditedPages(data.pages || []);
+      
+      // Update original page texts to reflect saved changes
+      const updatedOriginalTexts: Record<number, string> = {};
+      (data.pages || []).forEach(page => {
+        updatedOriginalTexts[page.pageNumber] = page.text;
+      });
+      setOriginalPageTexts(updatedOriginalTexts);
+      
       // Stay in editing mode
       setIsEditing(true);
     } catch (err: any) {
@@ -406,6 +414,13 @@ const ReviewDraftPage: React.FC = () => {
         setDraft(data);
         setEditedTitle(data.title || "");
         setEditedPages(data.pages || []);
+        
+        // Update original page texts to reflect saved changes
+        const updatedOriginalTexts: Record<number, string> = {};
+        (data.pages || []).forEach(page => {
+          updatedOriginalTexts[page.pageNumber] = page.text;
+        });
+        setOriginalPageTexts(updatedOriginalTexts);
       }
 
       // Remove suggestion
