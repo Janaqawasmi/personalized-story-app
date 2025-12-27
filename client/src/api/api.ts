@@ -680,3 +680,36 @@ export async function rejectDraftSuggestion(
   }
 }
 
+/**
+ * Generate an AI suggestion for aligning an image prompt with story text
+ */
+export async function generateImagePromptSuggestion(
+  draftId: string,
+  pageNumber: number,
+  currentText: string,
+  currentImagePrompt: string
+): Promise<{ success: boolean; data: { suggestedImagePrompt: string; rationale?: string } }> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/pages/${pageNumber}/image-prompt-suggestion`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        currentText,
+        currentImagePrompt,
+      }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to generate image prompt suggestion (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+

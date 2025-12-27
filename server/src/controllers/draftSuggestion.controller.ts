@@ -4,6 +4,7 @@ import { firestore, admin } from "../config/firebase";
 import { StoryDraft } from "../models/storyDraft.model";
 import { DraftSuggestion, CreateSuggestionInput } from "../models/draftSuggestion.model";
 import { createSuggestionForDraft } from "../services/draftSuggestion.service";
+import { generateImagePromptSuggestion } from "../services/imagePromptSuggestion.service";
 
 /**
  * Extend Express Request to include user from auth middleware
@@ -500,6 +501,111 @@ export const rejectSuggestion = async (req: AuthenticatedRequest, res: Response)
     res.status(500).json({
       success: false,
       error: "Failed to reject suggestion",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Generate an AI suggestion for aligning an image prompt with story text
+ * POST /api/story-drafts/:draftId/pages/:pageNumber/image-prompt-suggestion
+ */
+export const generateImagePromptSuggestionEndpoint = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const { draftId, pageNumber } = req.params;
+    const userId = req.user?.uid;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "Authentication required",
+      });
+      return;
+    }
+
+    if (!draftId) {
+      res.status(400).json({
+        success: false,
+        error: "draftId parameter is required",
+      });
+      return;
+    }
+
+    if (!pageNumber) {
+      res.status(400).json({
+        success: false,
+        error: "pageNumber parameter is required",
+      });
+      return;
+    }
+
+    // Validate pageNumber
+    const pageNum = parseInt(pageNumber, 10);
+    if (isNaN(pageNum) || pageNum < 1) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid pageNumber. Must be a positive integer.",
+      });
+      return;
+    }
+
+    // Validate request body
+    const { currentText, currentImagePrompt } = req.body;
+    if (!currentText || typeof currentText !== "string" || currentText.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: "Missing or invalid 'currentText' field. Must be a non-empty string.",
+      });
+      return;
+    }
+
+    if (!currentImagePrompt || typeof currentImagePrompt !== "string" || currentImagePrompt.trim().length === 0) {
+      res.status(400).json({
+        success: false,
+        error: "Missing or invalid 'currentImagePrompt' field. Must be a non-empty string.",
+      });
+      return;
+    }
+
+    // Verify draft exists and page exists
+    const draftRef = firestore.collection("storyDrafts").doc(draftId);
+    const draftDoc = await draftRef.get();
+
+    if (!draftDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: "Draft not found",
+      });
+      return;
+    }
+
+    const draft = draftDoc.data() as StoryDraft;
+    if (!draft.pages || !draft.pages.some((p) => p.pageNumber === pageNum)) {
+      res.status(404).json({
+        success: false,
+        error: `Page number ${pageNum} does not exist in this draft.`,
+      });
+      return;
+    }
+
+    // Generate suggestion (read-only, no Firestore writes)
+    const result = await generateImagePromptSuggestion({
+      currentText: currentText.trim(),
+      currentImagePrompt: currentImagePrompt.trim(),
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        suggestedImagePrompt: result.suggestedImagePrompt,
+        rationale: result.rationale,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error generating image prompt suggestion:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to generate image prompt suggestion",
       details: error.message,
     });
   }

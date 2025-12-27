@@ -30,6 +30,8 @@ import {
   Description,
   ArrowBack,
   Check,
+  Warning,
+  Psychology,
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
@@ -43,10 +45,12 @@ import {
   acceptDraftSuggestion,
   rejectDraftSuggestion,
   DraftSuggestion,
+  generateImagePromptSuggestion,
 } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
 import PageAISuggestionBox from "../components/PageAISuggestionBox";
 import AISuggestionCard from "../components/AISuggestionCard";
+import ImagePromptSuggestionCard from "../components/ImagePromptSuggestionCard";
 
 const ReviewDraftPage: React.FC = () => {
   const { draftId } = useParams<{ draftId: string }>();
@@ -72,6 +76,17 @@ const ReviewDraftPage: React.FC = () => {
   const [acceptingSuggestionId, setAcceptingSuggestionId] = useState<string | null>(null);
   const [rejectingSuggestionId, setRejectingSuggestionId] = useState<string | null>(null);
 
+  // Track original page text to detect changes
+  const [originalPageTexts, setOriginalPageTexts] = useState<Record<number, string>>({});
+
+  // Image prompt suggestion state (pageNumber -> suggestion data)
+  const [imagePromptSuggestions, setImagePromptSuggestions] = useState<Record<number, {
+    suggestedImagePrompt: string;
+    rationale?: string;
+  }>>({});
+  const [requestingImagePromptSuggestion, setRequestingImagePromptSuggestion] = useState<number | null>(null);
+  const [acceptingImagePromptSuggestion, setAcceptingImagePromptSuggestion] = useState<number | null>(null);
+
   // Load draft and suggestions
   useEffect(() => {
     const loadDraft = async () => {
@@ -88,6 +103,14 @@ const ReviewDraftPage: React.FC = () => {
         setDraft(data);
         setEditedTitle(data.title || "");
         setEditedPages(data.pages || []);
+        
+        // Store original page texts to detect changes
+        const originalTexts: Record<number, string> = {};
+        (data.pages || []).forEach(page => {
+          originalTexts[page.pageNumber] = page.text;
+        });
+        setOriginalPageTexts(originalTexts);
+        
         // Edit mode is now purely local UI state - don't set based on status
         // Status "editing" means "revised", not "currently being edited"
       } catch (err: any) {
@@ -302,6 +325,118 @@ const ReviewDraftPage: React.FC = () => {
     } finally {
       setRejectingSuggestionId(null);
     }
+  };
+
+  // Handle requesting image prompt suggestion
+  const handleRequestImagePromptSuggestion = async (pageNumber: number) => {
+    if (!draftId) return;
+
+    const page = (isEditing ? editedPages : (draft?.pages || [])).find(p => p.pageNumber === pageNumber);
+    if (!page) {
+      setError(`Page ${pageNumber} not found`);
+      return;
+    }
+
+    // Validate that imagePrompt exists (required by backend)
+    if (!page.imagePrompt || page.imagePrompt.trim().length === 0) {
+      setError(`Page ${pageNumber} is missing an image prompt. Cannot generate suggestion.`);
+      return;
+    }
+
+    setRequestingImagePromptSuggestion(pageNumber);
+    setError(null);
+
+    try {
+      const result = await generateImagePromptSuggestion(
+        draftId,
+        pageNumber,
+        page.text,
+        page.imagePrompt
+      );
+
+      // Store the suggestion
+      setImagePromptSuggestions(prev => ({
+        ...prev,
+        [pageNumber]: {
+          suggestedImagePrompt: result.data.suggestedImagePrompt,
+          rationale: result.data.rationale,
+        },
+      }));
+    } catch (err: any) {
+      setError(err.message || "Failed to generate image prompt suggestion");
+    } finally {
+      setRequestingImagePromptSuggestion(null);
+    }
+  };
+
+  // Handle accepting image prompt suggestion
+  const handleAcceptImagePromptSuggestion = async (pageNumber: number) => {
+    if (!draftId) return;
+
+    const suggestion = imagePromptSuggestions[pageNumber];
+    if (!suggestion) return;
+
+    setAcceptingImagePromptSuggestion(pageNumber);
+    setError(null);
+
+    try {
+      // Update the page's image prompt locally
+      if (isEditing) {
+        // Update in editedPages
+        const updatedPages = editedPages.map(p =>
+          p.pageNumber === pageNumber
+            ? { ...p, imagePrompt: suggestion.suggestedImagePrompt }
+            : p
+        );
+        setEditedPages(updatedPages);
+      } else {
+        // Update in draft and save immediately
+        const updatedPages = (draft?.pages || []).map(p =>
+          p.pageNumber === pageNumber
+            ? { ...p, imagePrompt: suggestion.suggestedImagePrompt }
+            : p
+        );
+
+        await updateDraft(draftId, {
+          pages: updatedPages,
+        });
+
+        // Reload draft
+        const data = await fetchDraftById(draftId);
+        setDraft(data);
+        setEditedTitle(data.title || "");
+        setEditedPages(data.pages || []);
+      }
+
+      // Remove suggestion
+      setImagePromptSuggestions(prev => {
+        const updated = { ...prev };
+        delete updated[pageNumber];
+        return updated;
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to accept image prompt suggestion");
+    } finally {
+      setAcceptingImagePromptSuggestion(null);
+    }
+  };
+
+  // Handle rejecting image prompt suggestion
+  const handleRejectImagePromptSuggestion = (pageNumber: number) => {
+    setImagePromptSuggestions(prev => {
+      const updated = { ...prev };
+      delete updated[pageNumber];
+      return updated;
+    });
+  };
+
+  // Check if page text has changed from original
+  const hasPageTextChanged = (pageNumber: number): boolean => {
+    const currentPage = (isEditing ? editedPages : (draft?.pages || [])).find(p => p.pageNumber === pageNumber);
+    const originalText = originalPageTexts[pageNumber];
+    
+    if (!currentPage || !originalText) return false;
+    return currentPage.text.trim() !== originalText.trim();
   };
 
   // Handle approving draft
@@ -659,6 +794,17 @@ const ReviewDraftPage: React.FC = () => {
                                 {page.text}
                               </Typography>
                             )}
+                            
+                            {/* Warning when text has changed */}
+                            {hasPageTextChanged(page.pageNumber) && (
+                              <Alert 
+                                severity="warning" 
+                                icon={<Warning />}
+                                sx={{ mt: 1, fontSize: "0.75rem" }}
+                              >
+                                Story text has changed. Image prompt may need updating.
+                              </Alert>
+                            )}
                           </Box>
 
                           {/* AI Assistant Section (only in read-only mode, only for generated/editing status) */}
@@ -703,24 +849,42 @@ const ReviewDraftPage: React.FC = () => {
 
                           {/* Image Prompt (Editable if in edit mode) */}
                           <Box>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1} flexWrap="wrap" gap={1}>
                               <Typography variant="caption" color="text.secondary">
                                 Image Prompt
                               </Typography>
-                              {!isEditing && (
-                                <Button
-                                  size="small"
-                                  onClick={() => toggleImagePrompt(page.pageNumber)}
-                                  endIcon={expandedPrompts[page.pageNumber] ? <ExpandLess /> : <ExpandMore />}
-                                  sx={{ 
-                                    textTransform: "none",
-                                    minWidth: "auto",
-                                    fontSize: "0.75rem",
-                                  }}
-                                >
-                                  {expandedPrompts[page.pageNumber] ? "Hide" : "Show"} image prompt
-                                </Button>
-                              )}
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                {hasPageTextChanged(page.pageNumber) && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="primary"
+                                    startIcon={requestingImagePromptSuggestion === page.pageNumber ? <CircularProgress size={16} /> : <Psychology />}
+                                    onClick={() => handleRequestImagePromptSuggestion(page.pageNumber)}
+                                    disabled={requestingImagePromptSuggestion !== null || acceptingImagePromptSuggestion !== null}
+                                    sx={{ 
+                                      textTransform: "none",
+                                      fontSize: "0.75rem",
+                                    }}
+                                  >
+                                    {requestingImagePromptSuggestion === page.pageNumber ? "Generating..." : "Align image prompt"}
+                                  </Button>
+                                )}
+                                {!isEditing && (
+                                  <Button
+                                    size="small"
+                                    onClick={() => toggleImagePrompt(page.pageNumber)}
+                                    endIcon={expandedPrompts[page.pageNumber] ? <ExpandLess /> : <ExpandMore />}
+                                    sx={{ 
+                                      textTransform: "none",
+                                      minWidth: "auto",
+                                      fontSize: "0.75rem",
+                                    }}
+                                  >
+                                    {expandedPrompts[page.pageNumber] ? "Hide" : "Show"} image prompt
+                                  </Button>
+                                )}
+                              </Stack>
                             </Stack>
                             {isEditing ? (
                               <TextField
@@ -742,6 +906,18 @@ const ReviewDraftPage: React.FC = () => {
                                   {page.imagePrompt}
                                 </Typography>
                               </Collapse>
+                            )}
+                            
+                            {/* Image Prompt Suggestion Card */}
+                            {imagePromptSuggestions[page.pageNumber] && (
+                              <ImagePromptSuggestionCard
+                                suggestedImagePrompt={imagePromptSuggestions[page.pageNumber].suggestedImagePrompt}
+                                rationale={imagePromptSuggestions[page.pageNumber].rationale}
+                                onAccept={() => handleAcceptImagePromptSuggestion(page.pageNumber)}
+                                onReject={() => handleRejectImagePromptSuggestion(page.pageNumber)}
+                                accepting={acceptingImagePromptSuggestion === page.pageNumber}
+                                disabled={requestingImagePromptSuggestion !== null || acceptingImagePromptSuggestion !== null}
+                              />
                             )}
                           </Box>
                         </Stack>

@@ -53,22 +53,36 @@ export function parseDraftOutput(rawOutput: string): ParsedDraft {
   let expectedPageNumber = 1;
 
   for (const page of parsed.pages) {
+    // Extract page number early for sequential validation
+    const pageNum = page.pageNumber 
+      ? (typeof page.pageNumber === "number" ? page.pageNumber : parseInt(String(page.pageNumber), 10))
+      : null;
+
     // Skip malformed pages
-    if (!page.pageNumber || !page.text) {
-      console.warn(`Skipping malformed page: missing pageNumber or text`, page);
+    if (!pageNum || isNaN(pageNum) || !page.text) {
+      console.warn(`Skipping malformed page: missing or invalid pageNumber or text`, page);
+      // Increment expectedPageNumber to maintain sequential validation for remaining pages
+      if (pageNum && !isNaN(pageNum)) {
+        expectedPageNumber = pageNum + 1;
+      } else {
+        expectedPageNumber++;
+      }
       continue;
     }
 
     // Validate imagePrompt is present and non-empty (required field per DraftPage model)
     if (!page.imagePrompt || typeof page.imagePrompt !== "string" || page.imagePrompt.trim().length === 0) {
       console.warn(`Skipping malformed page: missing or empty imagePrompt`, page);
+      // Increment expectedPageNumber to maintain sequential validation for remaining pages
+      expectedPageNumber = pageNum + 1;
       continue;
     }
 
     // Validate page number is sequential
-    const pageNum = typeof page.pageNumber === "number" ? page.pageNumber : parseInt(page.pageNumber, 10);
-    if (isNaN(pageNum) || pageNum !== expectedPageNumber) {
+    if (pageNum !== expectedPageNumber) {
       console.warn(`Skipping page with non-sequential number: expected ${expectedPageNumber}, got ${pageNum}`);
+      // Increment expectedPageNumber to maintain sequential validation for remaining pages
+      expectedPageNumber = pageNum + 1;
       continue;
     }
 

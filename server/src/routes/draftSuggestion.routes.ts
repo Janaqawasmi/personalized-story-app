@@ -5,6 +5,7 @@ import {
   listSuggestions,
   acceptSuggestion,
   rejectSuggestion,
+  generateImagePromptSuggestionEndpoint,
 } from "../controllers/draftSuggestion.controller";
 import { requireAuth } from "../middleware/requireAuth";
 
@@ -21,6 +22,9 @@ router.post("/:draftId/suggestions/:suggestionId/accept", requireAuth, acceptSug
 
 // POST /api/story-drafts/:draftId/suggestions/:suggestionId/reject - Reject a suggestion
 router.post("/:draftId/suggestions/:suggestionId/reject", requireAuth, rejectSuggestion);
+
+// POST /api/story-drafts/:draftId/pages/:pageNumber/image-prompt-suggestion - Generate image prompt suggestion
+router.post("/:draftId/pages/:pageNumber/image-prompt-suggestion", requireAuth, generateImagePromptSuggestionEndpoint);
 
 export default router;
 
