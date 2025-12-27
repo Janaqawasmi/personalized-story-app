@@ -516,6 +516,102 @@ export default function BookSpread({
           }}
         />
       )}
+
+      {/* Page Counter */}
+      <Typography
+        sx={{
+          position: "absolute",
+          bottom: 12,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 20,
+          fontSize: "0.75rem",
+          color: "rgba(0,0,0,0.55)",
+          background: "rgba(255,255,255,0.55)",
+          backdropFilter: "blur(6px)",
+          border: "1px solid rgba(0,0,0,0.08)",
+          borderRadius: 999,
+          px: 1.4,
+          py: 0.4,
+          letterSpacing: "0.08em",
+        }}
+      >
+        {page.pageNumber} / {totalPages}
+      </Typography>
+
+      {/* LEFT EDGE TAB — Next */}
+      {canGoNext && (
+        <Box
+          onClick={() => startPageTurn("next")}
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: 0,
+            transform: "translateY(-50%)",
+            zIndex: 30,
+            width: { xs: 34, md: 40 },
+            height: { xs: 54, md: 64 },
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            userSelect: "none",
+            background: "rgba(255,255,255,0.65)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(0,0,0,0.10)",
+            borderLeft: "none",
+            borderRadius: "0 999px 999px 0",
+            boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
+            opacity: 0.55,
+            transition: "opacity 160ms ease, transform 160ms ease",
+            "&:hover": {
+              opacity: 1,
+              transform: "translateY(-50%) translateX(2px)",
+            },
+          }}
+        >
+          <Typography sx={{ fontSize: "1.35rem", lineHeight: 1 }}>
+            ←
+          </Typography>
+        </Box>
+      )}
+
+      {/* RIGHT EDGE TAB — Prev */}
+      {canGoPrev && (
+        <Box
+          onClick={() => startPageTurn("prev")}
+          sx={{
+            position: "absolute",
+            top: "50%",
+            right: 0,
+            transform: "translateY(-50%)",
+            zIndex: 30,
+            width: { xs: 34, md: 40 },
+            height: { xs: 54, md: 64 },
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            userSelect: "none",
+            background: "rgba(255,255,255,0.65)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid rgba(0,0,0,0.10)",
+            borderRight: "none",
+            borderRadius: "999px 0 0 999px",
+            boxShadow: "0 10px 22px rgba(0,0,0,0.18)",
+            opacity: 0.55,
+            transition: "opacity 160ms ease, transform 160ms ease",
+            "&:hover": {
+              opacity: 1,
+              transform: "translateY(-50%) translateX(-2px)",
+            },
+          }}
+        >
+          <Typography sx={{ fontSize: "1.35rem", lineHeight: 1 }}>
+            →
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }
