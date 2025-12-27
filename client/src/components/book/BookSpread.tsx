@@ -43,8 +43,41 @@ export default function BookSpread({
   const [curlProgress, setCurlProgress] = useState(0); // 0 → 1
   const [curlSide, setCurlSide] = useState<"left" | "right" | null>(null);
 
+  // Page turn animation state
+  const [isTurning, setIsTurning] = useState(false);
+  const [turnDirection, setTurnDirection] = useState<"next" | "prev" | null>(null);
+
   const DRAG_THRESHOLD = 80; // px
   const CORNER_SIZE = 120; // px
+
+  // Page turn trigger function
+  const startPageTurn = (direction: "next" | "prev") => {
+    if (isTurning) return;
+
+    setIsTurning(true);
+    setTurnDirection(direction);
+
+    // Call navigation ONLY after animation finishes
+    setTimeout(() => {
+      if (direction === "next") onNext?.();
+      if (direction === "prev") onPrev?.();
+
+      setIsTurning(false);
+      setTurnDirection(null);
+    }, 420); // must match animation duration
+  };
+
+  // Keyframes for page turn animation
+  const pageTurnStyles = {
+    "@keyframes pageTurnNext": {
+      from: { transform: "translateX(0%)" },
+      to: { transform: "translateX(100%)" },
+    },
+    "@keyframes pageTurnPrev": {
+      from: { transform: "translateX(0%)" },
+      to: { transform: "translateX(-100%)" },
+    },
+  };
 
   // Update curl progress while dragging
   useEffect(() => {
@@ -83,12 +116,12 @@ export default function BookSpread({
 
       if (dragSide.current === "left" && deltaX > DRAG_THRESHOLD) {
         hasFlippedRef.current = true;
-        onNext?.();
+        startPageTurn("next");
       }
 
       if (dragSide.current === "right" && deltaX < -DRAG_THRESHOLD) {
         hasFlippedRef.current = true;
-        onPrev?.();
+        startPageTurn("prev");
       }
 
       dragStartX.current = null;
@@ -107,6 +140,8 @@ export default function BookSpread({
   return (
     <Box
       sx={{
+        ...pageTurnStyles,
+        position: "relative",
         display: "flex",
         flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
         width: "100%",
@@ -134,6 +169,7 @@ export default function BookSpread({
               ? `translateX(${curlProgress * 12}px)`
               : undefined,
           transition: isDragging.current ? "none" : "transform 0.35s ease",
+          pointerEvents: isTurning ? "none" : "auto",
           "&:hover": canGoNext && !isDragging.current
             ? {
                 transform: "scale(1.01)",
@@ -159,7 +195,7 @@ export default function BookSpread({
         onClick={() => {
           if (didDragRef.current) return;
           if (canGoNext) {
-            onNext?.();
+            startPageTurn("next");
           }
         }}
       >
@@ -255,6 +291,7 @@ export default function BookSpread({
               ? `translateX(-${curlProgress * 12}px)`
               : undefined,
           transition: isDragging.current ? "none" : "transform 0.35s ease",
+          pointerEvents: isTurning ? "none" : "auto",
           "&:hover": canGoPrev && !isDragging.current
             ? {
                 transform: "scale(1.01)",
@@ -280,7 +317,7 @@ export default function BookSpread({
         onClick={() => {
           if (didDragRef.current) return;
           if (canGoPrev) {
-            onPrev?.();
+            startPageTurn("prev");
           }
         }}
       >
@@ -356,6 +393,23 @@ export default function BookSpread({
           />
         )}
       </Box>
+
+      {/* Full-page turn overlay */}
+      {isTurning && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: turnDirection === "next" ? "0%" : "50%",
+            width: "50%",
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: "0 0 40px rgba(0,0,0,0.35)",
+            zIndex: 9999,
+            animation: `${turnDirection === "next" ? "pageTurnNext" : "pageTurnPrev"} 420ms ease forwards`,
+          }}
+        />
+      )}
     </Box>
   );
 }
