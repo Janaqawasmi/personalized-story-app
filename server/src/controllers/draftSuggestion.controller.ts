@@ -378,7 +378,7 @@ export const acceptSuggestion = async (req: AuthenticatedRequest, res: Response)
         draftId,
         title: draft.title,
         status: draft.status,
-        revisionCount: draft.revisionCount,
+        revisionCount: draft.revisionCount || 0,
         updatedAt: draft.updatedAt,
       },
     });

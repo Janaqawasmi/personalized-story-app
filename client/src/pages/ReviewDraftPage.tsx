@@ -116,6 +116,20 @@ const ReviewDraftPage: React.FC = () => {
         });
         setOriginalPageTexts(originalTexts);
         
+        // Fetch brief data if briefId exists
+        if (data.briefId) {
+          try {
+            const briefs = await fetchStoryBriefs();
+            const foundBrief = briefs.find(b => b.id === data.briefId);
+            if (foundBrief) {
+              setBrief(foundBrief);
+            }
+          } catch (briefErr) {
+            console.warn("Failed to load brief:", briefErr);
+            // Don't fail the whole page if brief fetch fails
+          }
+        }
+        
         // Edit mode is now purely local UI state - don't set based on status
         // Status "editing" means "revised", not "currently being edited"
       } catch (err: any) {
@@ -277,6 +291,13 @@ const ReviewDraftPage: React.FC = () => {
       setDraft(data);
       setEditedTitle(data.title || "");
       setEditedPages(data.pages || []);
+
+      // Update original page texts to reflect accepted suggestion
+      const updatedOriginalTexts: Record<number, string> = {};
+      (data.pages || []).forEach(page => {
+        updatedOriginalTexts[page.pageNumber] = page.text;
+      });
+      setOriginalPageTexts(updatedOriginalTexts);
 
       // Reload suggestions (this one should be gone, others may remain)
       const suggestionsResult = await listDraftSuggestions(draftId, "proposed");
@@ -566,7 +587,7 @@ const ReviewDraftPage: React.FC = () => {
           )}
 
           {/* Toolbar */}
-          <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" sx={{ mt: 2 }}>
             {!isApproved && (
               <>
                 {/* MODE A: READ-ONLY */}
@@ -578,19 +599,14 @@ const ReviewDraftPage: React.FC = () => {
                       </Button>
                     )}
                     {canApprove && (
-                      <Stack direction="column" spacing={0.5} alignItems="flex-end">
-                        <Button 
-                          variant="contained" 
-                          color="secondary" 
-                          onClick={() => setApproveDialogOpen(true)} 
-                          disabled={saving || approving}
-                        >
-                          Approve Draft
-                        </Button>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
-                          All pages reviewed
-                        </Typography>
-                      </Stack>
+                      <Button 
+                        variant="contained" 
+                        color="secondary" 
+                        onClick={() => setApproveDialogOpen(true)} 
+                        disabled={saving || approving}
+                      >
+                        Approve Draft
+                      </Button>
                     )}
                   </>
                 )}
@@ -614,44 +630,39 @@ const ReviewDraftPage: React.FC = () => {
                       Cancel Editing
                     </Button>
                     {canApprove && (
-                      <Stack direction="column" spacing={0.5} alignItems="flex-end">
-                        <Button
-                          variant="outlined"
-                          color="secondary"
-                          onClick={() => setApproveDialogOpen(true)}
-                          disabled={saving || approving}
-                          sx={{
-                            borderWidth: 2,
-                            fontWeight: 500,
-                            ml: 1, // Visual separation from Save/Cancel
-                          }}
-                        >
-                          Approve & Finalize
-                        </Button>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", ml: 1 }}>
-                          All pages reviewed
-                        </Typography>
-                      </Stack>
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => setApproveDialogOpen(true)}
+                        disabled={saving || approving}
+                        sx={{
+                          borderWidth: 2,
+                          fontWeight: 500,
+                          ml: 1, // Visual separation from Save/Cancel
+                        }}
+                      >
+                        Approve & Finalize
+                      </Button>
                     )}
                   </>
                 )}
               </>
             )}
 
-            {/* Common Actions (always visible when not approved) */}
-            {!isApproved && (
-              <Button 
-                variant="outlined" 
-                startIcon={<ArrowBack />}
-                onClick={() => {
-                  // Edit mode is now local UI state - no backend call needed
-                  navigate("/specialist/drafts");
-                }}
-                disabled={saving || approving}
-              >
-                Back to List
-              </Button>
-            )}
+            {/* Spacer */}
+            <Box sx={{ flexGrow: 1 }} />
+
+            {/* Common Actions (always visible) */}
+            <Button 
+              variant="outlined" 
+              startIcon={<ArrowBack />}
+              onClick={() => {
+                navigate("/specialist/drafts");
+              }}
+              disabled={saving || approving}
+            >
+              Back to List
+            </Button>
           </Stack>
         </Stack>
 
@@ -681,14 +692,18 @@ const ReviewDraftPage: React.FC = () => {
                 <Divider sx={{ my: 2 }} />
                 <Stack spacing={1.5}>
                   <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                    {brief?.therapeuticFocus?.primaryTopic && (
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Topic:</strong> {formatTopicLabel(brief.therapeuticFocus.primaryTopic)}
+                      </Typography>
+                    )}
+                    {brief?.therapeuticFocus?.specificSituation && (
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Situation:</strong> {formatTopicLabel(brief.therapeuticFocus.specificSituation)}
+                      </Typography>
+                    )}
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Target reader:</strong> Ages {formatAgeGroup(draft.generationConfig.targetAgeGroup)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Language:</strong> {draft.generationConfig.language.toUpperCase()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Approach:</strong> {formatTopicLabel(draft.generationConfig.tone || "")}
+                      <strong>Target reader:</strong> Ages {formatAgeGroup(brief?.childProfile?.ageGroup || draft.generationConfig.targetAgeGroup)}
                     </Typography>
                   </Stack>
                   {draft.briefId && (
