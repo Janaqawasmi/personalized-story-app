@@ -46,6 +46,8 @@ import {
   rejectDraftSuggestion,
   DraftSuggestion,
   generateImagePromptSuggestion,
+  fetchStoryBriefs,
+  StoryBrief,
 } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
 import PageAISuggestionBox from "../components/PageAISuggestionBox";
@@ -86,6 +88,9 @@ const ReviewDraftPage: React.FC = () => {
   }>>({});
   const [requestingImagePromptSuggestion, setRequestingImagePromptSuggestion] = useState<number | null>(null);
   const [acceptingImagePromptSuggestion, setAcceptingImagePromptSuggestion] = useState<number | null>(null);
+
+  // Brief data for Review Context
+  const [brief, setBrief] = useState<StoryBrief | null>(null);
 
   // Load draft and suggestions
   useEffect(() => {
@@ -148,38 +153,6 @@ const ReviewDraftPage: React.FC = () => {
 
   // Determine if content is RTL (Arabic or Hebrew)
   const isRTL = draft?.generationConfig?.language === "ar" || draft?.generationConfig?.language === "he";
-
-  // Format timestamp (handles Firestore Timestamp format)
-  const formatTimestamp = (timestamp: { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | string | Date | null | undefined) => {
-    if (!timestamp) {
-      return "—";
-    }
-    
-    let date: Date;
-    
-    if (typeof timestamp === 'string') {
-      date = new Date(timestamp);
-    } else if (timestamp instanceof Date) {
-      date = timestamp;
-    } else if (typeof timestamp === 'object') {
-      // Handle Firestore Timestamp formats: { seconds, nanoseconds } or { _seconds, _nanoseconds }
-      const seconds = timestamp.seconds || timestamp._seconds;
-      if (seconds !== undefined && seconds !== null) {
-        date = new Date(seconds * 1000);
-      } else {
-        return "—";
-      }
-    } else {
-      return "—";
-    }
-    
-    // Check if date is valid
-    if (isNaN(date.getTime())) {
-      return "—";
-    }
-    
-    return date.toLocaleString();
-  };
 
   // Format age group for display
   const formatAgeGroup = (ageGroup: string) => {
@@ -454,6 +427,51 @@ const ReviewDraftPage: React.FC = () => {
     return currentPage.text.trim() !== originalText.trim();
   };
 
+  // Helper: Format relative time (e.g., "2 days ago", "1 hour ago")
+  const formatRelativeTime = (timestamp: any): string => {
+    if (!timestamp) return "—";
+    
+    let date: Date;
+    if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === "string") {
+      date = new Date(timestamp);
+    } else if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    } else if (timestamp._seconds) {
+      date = new Date(timestamp._seconds * 1000);
+    } else {
+      return "—";
+    }
+    
+    if (isNaN(date.getTime())) return "—";
+    
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffSeconds / 60);
+    const diffHours = Math.floor(diffMinutes / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffDays > 0) {
+      return `${diffDays} ${diffDays === 1 ? "day" : "days"} ago`;
+    } else if (diffHours > 0) {
+      return `${diffHours} ${diffHours === 1 ? "hour" : "hours"} ago`;
+    } else if (diffMinutes > 0) {
+      return `${diffMinutes} ${diffMinutes === 1 ? "minute" : "minutes"} ago`;
+    } else {
+      return "just now";
+    }
+  };
+
+  // Helper: Format topic/situation for display (convert snake_case to Title Case)
+  const formatTopicLabel = (value: string): string => {
+    return value
+      .split("_")
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
   // Handle approving draft
   const handleApprove = async () => {
     if (!draftId) return;
@@ -560,14 +578,19 @@ const ReviewDraftPage: React.FC = () => {
                       </Button>
                     )}
                     {canApprove && (
-                      <Button 
-                        variant="contained" 
-                        color="secondary" 
-                        onClick={() => setApproveDialogOpen(true)} 
-                        disabled={saving || approving}
-                      >
-                        Approve Draft
-                      </Button>
+                      <Stack direction="column" spacing={0.5} alignItems="flex-end">
+                        <Button 
+                          variant="contained" 
+                          color="secondary" 
+                          onClick={() => setApproveDialogOpen(true)} 
+                          disabled={saving || approving}
+                        >
+                          Approve Draft
+                        </Button>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                          All pages reviewed
+                        </Typography>
+                      </Stack>
                     )}
                   </>
                 )}
@@ -591,19 +614,24 @@ const ReviewDraftPage: React.FC = () => {
                       Cancel Editing
                     </Button>
                     {canApprove && (
-                      <Button
-                        variant="outlined"
-                        color="secondary"
-                        onClick={() => setApproveDialogOpen(true)}
-                        disabled={saving || approving}
-                        sx={{
-                          borderWidth: 2,
-                          fontWeight: 500,
-                          ml: 1, // Visual separation from Save/Cancel
-                        }}
-                      >
-                        Approve & Finalize
-                      </Button>
+                      <Stack direction="column" spacing={0.5} alignItems="flex-end">
+                        <Button
+                          variant="outlined"
+                          color="secondary"
+                          onClick={() => setApproveDialogOpen(true)}
+                          disabled={saving || approving}
+                          sx={{
+                            borderWidth: 2,
+                            fontWeight: 500,
+                            ml: 1, // Visual separation from Save/Cancel
+                          }}
+                        >
+                          Approve & Finalize
+                        </Button>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem", ml: 1 }}>
+                          All pages reviewed
+                        </Typography>
+                      </Stack>
                     )}
                   </>
                 )}
@@ -612,29 +640,17 @@ const ReviewDraftPage: React.FC = () => {
 
             {/* Common Actions (always visible when not approved) */}
             {!isApproved && (
-              <>
-                {draft?.briefId && (
-                  <Button
-                    variant="outlined"
-                    startIcon={<Description />}
-                    onClick={() => navigate(`/specialist/generate-draft?briefId=${draft.briefId}`)}
-                    disabled={saving || approving}
-                  >
-                    View Story Brief
-                  </Button>
-                )}
-                <Button 
-                  variant="outlined" 
-                  startIcon={<ArrowBack />}
-                  onClick={() => {
-                    // Edit mode is now local UI state - no backend call needed
-                    navigate("/specialist/drafts");
-                  }}
-                  disabled={saving || approving}
-                >
-                  Back to List
-                </Button>
-              </>
+              <Button 
+                variant="outlined" 
+                startIcon={<ArrowBack />}
+                onClick={() => {
+                  // Edit mode is now local UI state - no backend call needed
+                  navigate("/specialist/drafts");
+                }}
+                disabled={saving || approving}
+              >
+                Back to List
+              </Button>
             )}
           </Stack>
         </Stack>
@@ -656,56 +672,79 @@ const ReviewDraftPage: React.FC = () => {
         {/* Draft Content */}
         {!loading && draft && (
           <Stack spacing={3}>
-            {/* AI Assistant Info Microcopy */}
-            {!isApproved && (draft.status === "generated" || draft.status === "editing") && (
-              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
-                This draft was generated automatically. You can request AI suggestions, but all edits require your approval.
-              </Typography>
-            )}
-
-            {/* Generation Metadata */}
-            <Card variant="outlined">
+            {/* Review Context Section */}
+            <Card variant="outlined" sx={{ bgcolor: "background.paper" }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Generation Details
+                <Typography variant="h6" gutterBottom color="primary">
+                  Review Context
                 </Typography>
                 <Divider sx={{ my: 2 }} />
-                <Stack direction="row" spacing={2} flexWrap="wrap" gap={1}>
-                  <Chip label={`Language: ${draft.generationConfig.language.toUpperCase()}`} variant="outlined" />
-                  <Chip
-                    label={`Age Group: ${formatAgeGroup(draft.generationConfig.targetAgeGroup)}`}
-                    variant="outlined"
-                  />
-                  <Chip label={`Length: ${draft.generationConfig.length}`} variant="outlined" />
-                  <Chip label={`Tone: ${draft.generationConfig.tone}`} variant="outlined" />
-                  {draft.generationConfig.emphasis && (
-                    <Chip label={`Emphasis: ${draft.generationConfig.emphasis}`} variant="outlined" />
-                  )}
-                  {draft.revisionCount !== undefined && draft.revisionCount > 0 && (
-                    <Chip label={`Revisions: ${draft.revisionCount}`} variant="outlined" color="info" />
-                  )}
-                  {draft.status && (
-                    <Chip 
-                      label={`Status: ${draft.status === "editing" ? "Revised" : draft.status}`} 
-                      variant="outlined" 
-                      color={draft.status === "approved" ? "secondary" : draft.status === "editing" ? "info" : draft.status === "generated" ? "success" : "default"}
-                    />
-                  )}
-                </Stack>
-                <Stack direction="row" spacing={2} sx={{ mt: 2 }} flexWrap="wrap" gap={1}>
-                  <Typography variant="caption" color="text.secondary">
-                    Created: {formatTimestamp(draft.createdAt)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Updated: {formatTimestamp(draft.updatedAt)}
-                  </Typography>
-                  {draft.approvedAt && (
-                    <Typography variant="caption" color="secondary.main">
-                      Approved: {formatTimestamp(draft.approvedAt)}
-                      {draft.approvedBy && ` by ${draft.approvedBy}`}
+                <Stack spacing={1.5}>
+                  <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Target reader:</strong> Ages {formatAgeGroup(draft.generationConfig.targetAgeGroup)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Language:</strong> {draft.generationConfig.language.toUpperCase()}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Approach:</strong> {formatTopicLabel(draft.generationConfig.tone || "")}
+                    </Typography>
+                  </Stack>
+                  {draft.briefId && (
+                    <Typography variant="caption" color="text.secondary">
+                      <Button
+                        variant="text"
+                        size="small"
+                        startIcon={<Description />}
+                        onClick={() => navigate(`/specialist/generate-draft?briefId=${draft.briefId}`)}
+                        sx={{ textTransform: "none", p: 0, minWidth: "auto" }}
+                      >
+                        View full story brief for complete context
+                      </Button>
                     </Typography>
                   )}
                 </Stack>
+              </CardContent>
+            </Card>
+
+            {/* Revision Status Section */}
+            <Card variant="outlined">
+              <CardContent>
+                <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap" gap={1}>
+                  {draft.status && (
+                    <Chip 
+                      label={draft.status === "editing" ? "Revised" : draft.status === "generated" ? "Generated" : draft.status === "approved" ? "Approved" : draft.status}
+                      color={draft.status === "approved" ? "secondary" : draft.status === "editing" ? "info" : draft.status === "generated" ? "success" : "default"}
+                      size="small"
+                    />
+                  )}
+                  {draft.revisionCount !== undefined && draft.revisionCount > 0 && (
+                    <Chip 
+                      label={`${draft.revisionCount} ${draft.revisionCount === 1 ? "revision" : "revisions"}`}
+                      variant="outlined"
+                      color="info"
+                      size="small"
+                    />
+                  )}
+                  {draft.status === "editing" && draft.revisionCount !== undefined && draft.revisionCount > 0 && (
+                    <Typography variant="caption" color="text.secondary">
+                      This draft has been modified since generation
+                    </Typography>
+                  )}
+                  <Box sx={{ flexGrow: 1 }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Last updated: {formatRelativeTime(draft.updatedAt)}
+                  </Typography>
+                </Stack>
+                {draft.approvedAt && (
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1.5 }}>
+                    <Typography variant="caption" color="secondary.main">
+                      Approved: {formatRelativeTime(draft.approvedAt)}
+                      {draft.approvedBy && ` by ${draft.approvedBy}`}
+                    </Typography>
+                  </Stack>
+                )}
               </CardContent>
             </Card>
 
@@ -714,11 +753,11 @@ const ReviewDraftPage: React.FC = () => {
               <CardContent>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
                   <Typography variant="h6">
-                    Story Pages ({isEditing ? editedPages.length : (draft.pages?.length || 0)})
+                    Story Pages
                   </Typography>
-                  {!isEditing && draft.pages && draft.pages.length > 0 && (
-                    <Typography variant="caption" color="text.secondary">
-                      Page 1 of {draft.pages.length}
+                  {draft.pages && draft.pages.length > 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      {draft.pages.length} {draft.pages.length === 1 ? "page" : "pages"}
                     </Typography>
                   )}
                 </Stack>
@@ -736,9 +775,19 @@ const ReviewDraftPage: React.FC = () => {
                         <Stack spacing={2}>
                           {/* Page Header */}
                           <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              Page {page.pageNumber}
-                            </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="subtitle1" fontWeight="bold">
+                                Page {page.pageNumber} of {isEditing ? editedPages.length : (draft.pages?.length || 0)}
+                              </Typography>
+                              {!isEditing && hasPageTextChanged(page.pageNumber) && (
+                                <Chip
+                                  label="Edited"
+                                  size="small"
+                                  color="warning"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Stack>
                             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                               {isEditing ? (
                                 <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -754,21 +803,14 @@ const ReviewDraftPage: React.FC = () => {
                                   </Select>
                                 </FormControl>
                               ) : (
-                                <>
-                                  {page.emotionalTone && (
-                                    <Chip
-                                      label={`Tone: ${page.emotionalTone}`}
-                                      size="small"
-                                      color="primary"
-                                      variant="outlined"
-                                    />
-                                  )}
-                                  {!isEditing && draft.pages && (
-                                    <Typography variant="caption" color="text.secondary">
-                                      {page.pageNumber} of {draft.pages.length}
-                                    </Typography>
-                                  )}
-                                </>
+                                page.emotionalTone && (
+                                  <Chip
+                                    label={`Tone: ${page.emotionalTone}`}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                  />
+                                )
                               )}
                             </Stack>
                           </Stack>
