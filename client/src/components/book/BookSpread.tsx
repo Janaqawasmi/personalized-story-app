@@ -142,22 +142,80 @@ export default function BookSpread({
       sx={{
         ...pageTurnStyles,
         position: "relative",
+        // Book shell frame
+        width: "100%",
+        maxWidth: 1200,
+        mx: "auto",
+        minHeight: { xs: "70vh", md: 640 },
+        borderRadius: { xs: 4, md: 8 },
+        overflow: "hidden",
+        border: "1px solid rgba(0,0,0,0.10)",
+        background: "linear-gradient(180deg, #f7f2ec 0%, #efe7de 100%)",
+        boxShadow:
+          "0 26px 60px rgba(0,0,0,0.20), 0 2px 0 rgba(255,255,255,0.65) inset",
+        // IMPORTANT: pages must touch
         display: "flex",
         flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
-        width: "100%",
-        maxWidth: 1100,
-        mx: "auto",
-        gap: 2,
-        minHeight: "70vh",
+        // Spine / gutter crease (the "connected pages" look)
+        "&::after": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: "50%",
+          width: { xs: 0, md: 28 },
+          transform: "translateX(-50%)",
+          // 🔥 THIS IS THE FIX - spine behind pages
+          zIndex: 1,
+          pointerEvents: "none",
+          background:
+            "linear-gradient(to right," +
+            "rgba(0,0,0,0.22) 0%," +
+            "rgba(0,0,0,0.08) 25%," +
+            "rgba(255,255,255,0.35) 50%," +
+            "rgba(0,0,0,0.08) 75%," +
+            "rgba(0,0,0,0.22) 100%)",
+        },
       }}
     >
+      {/* Page stack - left edge */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 14,
+          bottom: 14,
+          left: 12,
+          width: 18,
+          zIndex: 1,
+          pointerEvents: "none",
+          display: { xs: "none", md: "block" },
+          opacity: 0.85,
+          background:
+            "repeating-linear-gradient(to bottom," +
+            "rgba(0,0,0,0.16) 0px," +
+            "rgba(0,0,0,0.16) 1px," +
+            "rgba(255,255,255,0.00) 4px," +
+            "rgba(255,255,255,0.00) 7px)",
+          filter: "blur(0.2px)",
+        }}
+      />
       {/* Left Page - Text */}
       <Box
         sx={{
           flex: 1,
-          backgroundColor: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 1,
+          zIndex: 3,
+          backgroundColor: "#fbfbfb",
+          // Paper grain (subtle dots)
+          backgroundImage:
+            "radial-gradient(rgba(0,0,0,0.025) 1px, transparent 1px)",
+          backgroundSize: "3px 3px",
+          // Inner shadow toward the spine (makes pages "bend inward")
+          boxShadow: isRTL
+            ? "inset -30px 0 30px rgba(0,0,0,0.12)"
+            : "inset 30px 0 30px rgba(0,0,0,0.12)",
+          // Slight edge line
+          borderRight: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
+          borderLeft: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
           p: { xs: 3, md: 6 },
           display: "flex",
           flexDirection: "column",
@@ -175,6 +233,15 @@ export default function BookSpread({
                 transform: "scale(1.01)",
               }
             : {},
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            borderRadius: { xs: 4, md: 0 }, // on desktop pages are flush; mobile can be rounded
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55)",
+            opacity: 0.7,
+          },
         }}
         onPointerDown={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -267,13 +334,39 @@ export default function BookSpread({
         )}
       </Box>
 
+      {/* Page stack - right edge */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 14,
+          bottom: 14,
+          right: 12,
+          width: 18,
+          zIndex: 1,
+          pointerEvents: "none",
+          display: { xs: "none", md: "block" },
+          opacity: 0.85,
+          background:
+            "repeating-linear-gradient(to bottom," +
+            "rgba(0,0,0,0.16) 0px," +
+            "rgba(0,0,0,0.16) 1px," +
+            "rgba(255,255,255,0.00) 4px," +
+            "rgba(255,255,255,0.00) 7px)",
+          filter: "blur(0.2px)",
+        }}
+      />
       {/* Right Page - Image */}
       <Box
         sx={{
           flex: 1,
-          backgroundColor: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-          borderRadius: 1,
+          zIndex: 3,
+          // Inner shadow toward the spine (makes pages "bend inward")
+          boxShadow: isRTL
+            ? "inset 30px 0 30px rgba(0,0,0,0.12)"
+            : "inset -30px 0 30px rgba(0,0,0,0.12)",
+          // Slight edge line
+          borderLeft: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
+          borderRight: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
           minHeight: "70vh",
           display: "flex",
           alignItems: "center",
@@ -297,6 +390,15 @@ export default function BookSpread({
                 transform: "scale(1.01)",
               }
             : {},
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            borderRadius: { xs: 4, md: 0 }, // on desktop pages are flush; mobile can be rounded
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55)",
+            opacity: 0.7,
+          },
         }}
         onPointerDown={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -403,7 +505,11 @@ export default function BookSpread({
             bottom: 0,
             left: turnDirection === "next" ? "0%" : "50%",
             width: "50%",
-            backgroundColor: theme.palette.background.paper,
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,245,245,0.96))",
+            backgroundImage:
+              "radial-gradient(rgba(0,0,0,0.02) 1px, transparent 1px)",
+            backgroundSize: "3px 3px",
             boxShadow: "0 0 40px rgba(0,0,0,0.35)",
             zIndex: 9999,
             animation: `${turnDirection === "next" ? "pageTurnNext" : "pageTurnPrev"} 420ms ease forwards`,
