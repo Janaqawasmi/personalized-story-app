@@ -55,15 +55,15 @@ export default function BookSpread({
           flexDirection: "column",
           position: "relative",
           minHeight: { xs: "50vh", md: "70vh" },
-          cursor: canGoPrev ? "pointer" : "default",
+          cursor: canGoNext ? "pointer" : "default",
           transition: "transform 0.2s ease",
-          "&:hover": canGoPrev
+          "&:hover": canGoNext
             ? {
                 transform: "scale(1.01)",
               }
             : {},
         }}
-        onClick={canGoPrev ? onPrev : undefined}
+        onClick={canGoNext ? onNext : undefined}
       >
         {/* Story Title (small, top) */}
         <Typography
@@ -123,15 +123,15 @@ export default function BookSpread({
             : `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}08 100%)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          cursor: canGoNext ? "pointer" : "default",
+          cursor: canGoPrev ? "pointer" : "default",
           transition: "transform 0.2s ease",
-          "&:hover": canGoNext
+          "&:hover": canGoPrev
             ? {
                 transform: "scale(1.01)",
               }
             : {},
         }}
-        onClick={canGoNext ? onNext : undefined}
+        onClick={canGoPrev ? onPrev : undefined}
       >
         {/* Page Flip Corner (on hover) */}
         {canGoNext && (
