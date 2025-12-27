@@ -15,6 +15,7 @@ import { useNavigate } from "react-router-dom";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
+import SearchOverlay from "./SearchOverlay";
 
 type NavbarProps = {
   currentSelection: MegaSelection;
@@ -27,6 +28,7 @@ export default function Navbar({
 }: NavbarProps) {
   const navigate = useNavigate();
   const [megaOpen, setMegaOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
 
   return (
@@ -38,6 +40,8 @@ export default function Navbar({
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
           px: 4,
+          zIndex: 1300, // מעל ה-SearchOverlay (zIndex: 1200-1201)
+          pointerEvents: "auto", // Ensure navbar is always clickable
         }}
       >
         <Box
@@ -46,6 +50,7 @@ export default function Navbar({
             display: "flex",
             alignItems: "center",
             direction: "rtl", // RTL direction for Hebrew/Arabic
+            pointerEvents: "auto", // Ensure all navbar items are clickable
           }}
         >
           {/* 1️⃣ RIGHT SECTION — Text Navigation Links */}
@@ -68,7 +73,10 @@ export default function Navbar({
                 fontSize: "0.95rem",
                 gap: 0.5,
               }}
-              onClick={() => setMegaOpen((p) => !p)}
+              onClick={() => {
+                setMegaOpen((p) => !p);
+                setSearchOpen(false); // Close search overlay if open
+              }}
             >
               עיון בסיפורים
               <KeyboardArrowDownIcon fontSize="small" />
@@ -89,8 +97,15 @@ export default function Navbar({
                 fontWeight: 800,
                 fontSize: "1.2rem",
                 cursor: "pointer",
+                transition: "opacity 0.2s ease",
+                "&:hover": {
+                  opacity: 0.8,
+                },
               }}
-              onClick={() => navigate("/")}
+              onClick={() => {
+                navigate("/");
+                setSearchOpen(false); // Close search overlay if open
+              }}
             >
               QOSATI
             </Typography>
@@ -106,15 +121,25 @@ export default function Navbar({
               justifyContent: "flex-end", // RTL: flex-end = left side
             }}
           >
-            <IconButton onClick={() => navigate("/search")}>
+            <IconButton onClick={() => setSearchOpen(true)}>
               <SearchOutlinedIcon />
             </IconButton>
 
-            <IconButton onClick={() => navigate("/login")}>
+            <IconButton
+              onClick={() => {
+                navigate("/login");
+                setSearchOpen(false); // Close search overlay if open
+              }}
+            >
               <PersonOutlineOutlinedIcon />
             </IconButton>
 
-            <IconButton onClick={() => navigate("/cart")}>
+            <IconButton
+              onClick={() => {
+                navigate("/cart");
+                setSearchOpen(false); // Close search overlay if open
+              }}
+            >
               <ShoppingBagOutlinedIcon />
             </IconButton>
 
@@ -134,6 +159,12 @@ export default function Navbar({
           setMegaOpen(false);
         }}
         value={currentSelection}
+      />
+
+      {/* Search Overlay */}
+      <SearchOverlay
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
       />
     </>
   );
