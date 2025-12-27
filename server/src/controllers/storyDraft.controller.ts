@@ -9,13 +9,12 @@ import { loadWritingRules } from "../services/ragWritingRules.service";
 import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
 
-// TODO: AUTH - Add authentication middleware in later phase
-// Extend Express Request to include user from authentication middleware
-// interface AuthenticatedRequest extends Request {
-//   user?: {
-//     uid: string;
-//   };
-// }
+/**
+ * Extend Express Request to include user from auth middleware
+ */
+interface AuthenticatedRequest extends Request {
+  user?: { uid: string };
+}
 
 /**
  * List all generated drafts (READ-ONLY)
@@ -380,13 +379,20 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
 };
 
 /**
+ * Extend Express Request to include user from auth middleware
+ */
+interface AuthenticatedRequest extends Request {
+  user?: { uid: string };
+}
+
+/**
  * Enter edit mode for a draft
  * POST /api/story-drafts/:draftId/edit
  * 
  * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
  * but does not change draft status. Status only changes when edits are saved.
  */
-export const enterEditMode = async (req: Request, res: Response): Promise<void> => {
+export const enterEditMode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -434,7 +440,7 @@ export const enterEditMode = async (req: Request, res: Response): Promise<void> 
  * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
  * but does not change draft status. Status reflects content revisions, not UI mode.
  */
-export const cancelEditMode = async (req: Request, res: Response): Promise<void> => {
+export const cancelEditMode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -481,7 +487,7 @@ export const cancelEditMode = async (req: Request, res: Response): Promise<void>
  * Saves edits to a draft. Allowed if status === "generated" or "editing".
  * Status changes to "editing" (meaning "revised") when first saved from "generated".
  */
-export const updateDraft = async (req: Request, res: Response): Promise<void> => {
+export const updateDraft = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
     const updateData = req.body as {
@@ -505,8 +511,8 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // TODO: AUTH - Replace with req.user.uid when authentication is implemented
-    // const userId = req.user?.uid || "system_specialist";
+    // Get user ID from authentication middleware
+    const userId = req.user?.uid || "system_specialist";
 
     const draftRef = firestore.collection("storyDrafts").doc(draftId);
     const draftDoc = await draftRef.get();
@@ -567,6 +573,15 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
         });
         return;
       }
+
+      // Validate imagePrompt is non-empty after trimming (required field per DraftPage model)
+      if (page.imagePrompt.trim().length === 0) {
+        res.status(400).json({
+          success: false,
+          error: `Page ${page.pageNumber} has empty 'imagePrompt': must contain non-whitespace content`,
+        });
+        return;
+      }
     }
 
     // Validate minimum page count
@@ -620,7 +635,7 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
  * Approves a draft, making it immutable and creating a StoryTemplate.
  * Only allowed if status === "editing" OR "generated"
  */
-export const approveDraft = async (req: Request, res: Response): Promise<void> => {
+export const approveDraft = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -632,8 +647,8 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    // TODO: AUTH - Replace with req.user.uid when authentication is implemented
-    const approvedBy = "system_specialist";
+    // Get user ID from authentication middleware
+    const approvedBy = req.user?.uid || "system_specialist";
 
     const draftRef = firestore.collection("storyDrafts").doc(draftId);
     const draftDoc = await draftRef.get();

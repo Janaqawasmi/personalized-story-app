@@ -422,12 +422,17 @@ const GenerateDraftPage: React.FC = () => {
       // The backend updates the brief status to "draft_generating" immediately
       // in a transaction before starting the LLM call. Give it a moment to complete,
       // then reload briefs so it appears in the "Generating" tab filter.
-      setTimeout(() => {
-        loadBriefs().catch((err) => {
-          console.error("Failed to reload briefs after generation start:", err);
-          // Don't show error to user as generation is still in progress
-        });
-      }, 500);
+      await new Promise<void>((resolve) => {
+        setTimeout(async () => {
+          try {
+            await loadBriefs();
+          } catch (err) {
+            console.error("Failed to reload briefs after generation start:", err);
+            // Don't show error to user as generation is still in progress
+          }
+          resolve();
+        }, 500);
+      });
       
       // Wait for generation to complete
       const result = await resultPromise;

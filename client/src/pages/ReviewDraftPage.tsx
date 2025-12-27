@@ -29,10 +29,24 @@ import {
   ExpandLess,
   Description,
   ArrowBack,
+  Check,
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
-import { fetchDraftById, StoryDraftView, updateDraft, approveDraft, StoryDraftPage } from "../api/api";
+import { 
+  fetchDraftById, 
+  StoryDraftView, 
+  updateDraft, 
+  approveDraft, 
+  StoryDraftPage,
+  createDraftSuggestion,
+  listDraftSuggestions,
+  acceptDraftSuggestion,
+  rejectDraftSuggestion,
+  DraftSuggestion,
+} from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
+import PageAISuggestionBox from "../components/PageAISuggestionBox";
+import AISuggestionCard from "../components/AISuggestionCard";
 
 const ReviewDraftPage: React.FC = () => {
   const { draftId } = useParams<{ draftId: string }>();
@@ -52,6 +66,13 @@ const ReviewDraftPage: React.FC = () => {
   // Track which page's image prompt is expanded (pageNumber -> boolean)
   const [expandedPrompts, setExpandedPrompts] = useState<Record<number, boolean>>({});
 
+  // AI Suggestions state
+  const [suggestions, setSuggestions] = useState<DraftSuggestion[]>([]);
+  const [requestingSuggestionForPage, setRequestingSuggestionForPage] = useState<number | null>(null);
+  const [acceptingSuggestionId, setAcceptingSuggestionId] = useState<string | null>(null);
+  const [rejectingSuggestionId, setRejectingSuggestionId] = useState<string | null>(null);
+
+  // Load draft and suggestions
   useEffect(() => {
     const loadDraft = async () => {
       if (!draftId) {
@@ -79,6 +100,28 @@ const ReviewDraftPage: React.FC = () => {
 
     loadDraft();
   }, [draftId]);
+
+  // Load existing suggestions when draft is loaded
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      if (!draftId || !draft || (draft.status !== "generated" && draft.status !== "editing")) {
+        setSuggestions([]);
+        return;
+      }
+
+      try {
+        const result = await listDraftSuggestions(draftId, "proposed");
+        setSuggestions(result.data || []);
+      } catch (err: any) {
+        console.error("Failed to load suggestions:", err);
+        // Don't show error to user - suggestions are optional
+      }
+    };
+
+    if (draft) {
+      loadSuggestions();
+    }
+  }, [draftId, draft]);
 
   // Determine if content is RTL (Arabic or Hebrew)
   const isRTL = draft?.generationConfig?.language === "ar" || draft?.generationConfig?.language === "he";
@@ -184,6 +227,83 @@ const ReviewDraftPage: React.FC = () => {
     }
   };
 
+  // Handle AI suggestion request
+  const handleRequestSuggestion = async (pageNumber: number, instruction: string) => {
+    if (!draftId || !draft?.pages) return;
+
+    const page = draft.pages.find(p => p.pageNumber === pageNumber);
+    if (!page) {
+      setError(`Page ${pageNumber} not found`);
+      return;
+    }
+
+    setRequestingSuggestionForPage(pageNumber);
+    setError(null);
+
+    try {
+      await createDraftSuggestion(draftId, {
+        scope: "page",
+        pageNumber,
+        originalText: page.text,
+        instruction,
+      });
+
+      // Reload suggestions to show the new one
+      const suggestionsResult = await listDraftSuggestions(draftId, "proposed");
+      setSuggestions(suggestionsResult.data || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to create suggestion");
+    } finally {
+      setRequestingSuggestionForPage(null);
+    }
+  };
+
+  // Handle accepting a suggestion
+  const handleAcceptSuggestion = async (suggestionId: string) => {
+    if (!draftId) return;
+
+    setAcceptingSuggestionId(suggestionId);
+    setError(null);
+
+    try {
+      await acceptDraftSuggestion(draftId, suggestionId);
+      
+      // Reload draft to get updated text
+      const data = await fetchDraftById(draftId);
+      setDraft(data);
+      setEditedTitle(data.title || "");
+      setEditedPages(data.pages || []);
+
+      // Reload suggestions (this one should be gone, others may remain)
+      const suggestionsResult = await listDraftSuggestions(draftId, "proposed");
+      setSuggestions(suggestionsResult.data || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to accept suggestion");
+    } finally {
+      setAcceptingSuggestionId(null);
+    }
+  };
+
+  // Handle rejecting a suggestion
+  const handleRejectSuggestion = async (suggestionId: string) => {
+    if (!draftId) return;
+
+    setRejectingSuggestionId(suggestionId);
+    setError(null);
+
+    try {
+      await rejectDraftSuggestion(draftId, suggestionId);
+      
+      // Remove from suggestions list (or reload)
+      const suggestionsResult = await listDraftSuggestions(draftId, "proposed");
+      setSuggestions(suggestionsResult.data || []);
+    } catch (err: any) {
+      setError(err.message || "Failed to reject suggestion");
+    } finally {
+      setRejectingSuggestionId(null);
+    }
+  };
+
   // Handle approving draft
   const handleApprove = async () => {
     if (!draftId) return;
@@ -235,34 +355,27 @@ const ReviewDraftPage: React.FC = () => {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         {/* Header */}
         <Stack spacing={1} mb={3}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-            <Box flex={1}>
-              {isEditing ? (
-                <TextField
-                  fullWidth
-                  label="Story Title"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  variant="outlined"
-                  sx={{ mb: 1 }}
-                />
-              ) : (
-                <Typography variant="h4" component="h1">
-                  {draft?.title || "Draft Review"}
-                </Typography>
-              )}
-              {!isEditing && !isApproved && (
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                  This draft was generated automatically and is read-only.
-                </Typography>
-              )}
-              {isApproved && (
-                <Typography variant="caption" color="secondary.main" sx={{ mt: 0.5, display: "block" }}>
-                  This draft has been approved and is now immutable.
-                </Typography>
-              )}
-            </Box>
-          </Stack>
+          <Box sx={{ textAlign: "center", mb: 2 }}>
+            {isEditing ? (
+              <TextField
+                fullWidth
+                label="Story Title"
+                value={editedTitle}
+                onChange={(e) => setEditedTitle(e.target.value)}
+                variant="outlined"
+                sx={{ mb: 1, maxWidth: "600px", mx: "auto" }}
+              />
+            ) : (
+              <Typography variant="h4" component="h1" sx={{ textAlign: "center" }}>
+                {draft?.title || "Draft Review"}
+              </Typography>
+            )}
+            {isApproved && (
+              <Typography variant="caption" color="secondary.main" sx={{ mt: 0.5, display: "block", textAlign: "center" }}>
+                This draft has been approved and is now immutable.
+              </Typography>
+            )}
+          </Box>
           
           {/* Edit Mode Indicator Banner */}
           {isEditing && !isApproved && (
@@ -393,6 +506,13 @@ const ReviewDraftPage: React.FC = () => {
         {/* Draft Content */}
         {!loading && draft && (
           <Stack spacing={3}>
+            {/* AI Assistant Info Microcopy */}
+            {!isApproved && (draft.status === "generated" || draft.status === "editing") && (
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>
+                This draft was generated automatically. You can request AI suggestions, but all edits require your approval.
+              </Typography>
+            )}
+
             {/* Generation Metadata */}
             <Card variant="outlined">
               <CardContent>
@@ -540,6 +660,46 @@ const ReviewDraftPage: React.FC = () => {
                               </Typography>
                             )}
                           </Box>
+
+                          {/* AI Assistant Section (only in read-only mode, only for generated/editing status) */}
+                          {!isEditing && !isApproved && (draft.status === "generated" || draft.status === "editing") && (
+                            <PageAISuggestionBox
+                              pageNumber={page.pageNumber}
+                              onRequestSuggestion={(instruction) => handleRequestSuggestion(page.pageNumber, instruction)}
+                              disabled={requestingSuggestionForPage !== null || acceptingSuggestionId !== null || rejectingSuggestionId !== null}
+                              loading={requestingSuggestionForPage === page.pageNumber}
+                            />
+                          )}
+
+                          {/* Existing Suggestions for this page */}
+                          {!isEditing && suggestions
+                            .filter(s => s.pageNumber === page.pageNumber && s.status === "proposed")
+                            .map((suggestion) => (
+                              <AISuggestionCard
+                                key={suggestion.id}
+                                suggestion={suggestion}
+                                onAccept={handleAcceptSuggestion}
+                                onReject={handleRejectSuggestion}
+                                isRTL={isRTL}
+                                accepting={acceptingSuggestionId === suggestion.id}
+                                rejecting={rejectingSuggestionId === suggestion.id}
+                                disabled={acceptingSuggestionId !== null || rejectingSuggestionId !== null || requestingSuggestionForPage !== null}
+                              />
+                            ))}
+
+                          {/* Accepted suggestion indicator */}
+                          {!isEditing && suggestions
+                            .filter(s => s.pageNumber === page.pageNumber && s.status === "accepted")
+                            .length > 0 && (
+                              <Box sx={{ mt: 1 }}>
+                                <Chip
+                                  label="Applied"
+                                  color="success"
+                                  size="small"
+                                  icon={<Check />}
+                                />
+                              </Box>
+                            )}
 
                           {/* Image Prompt (Editable if in edit mode) */}
                           <Box>

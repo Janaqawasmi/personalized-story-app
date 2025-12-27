@@ -243,9 +243,10 @@ export async function cancelEditMode(draftId: string): Promise<{ success: boolea
  */
 export async function updateDraft(draftId: string, updates: { title?: string; pages: StoryDraftPage[] }): Promise<{ success: boolean; status: string; revisionCount: number }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(updates),
     });
     if (!res.ok) {
@@ -267,9 +268,10 @@ export async function updateDraft(draftId: string, updates: { title?: string; pa
  */
 export async function approveDraft(draftId: string): Promise<{ success: boolean; status: string; message: string }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/approve`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -496,6 +498,180 @@ export async function fetchTopicTags(): Promise<string[]> {
     }
     const data = await res.json();
     return data.data ?? [];
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+// ---------- Draft Suggestion APIs ----------
+
+/**
+ * Helper to get Firebase auth token for authenticated requests
+ * Returns null if auth is not available (for development/testing)
+ */
+async function getAuthToken(): Promise<string | null> {
+  try {
+    // Try to get Firebase auth token
+    // This will be implemented when Firebase Auth is set up
+    // For now, return null to allow testing without auth
+    const auth = (window as any).firebaseAuth;
+    if (auth?.currentUser) {
+      return await auth.currentUser.getIdToken();
+    }
+    return null;
+  } catch (error) {
+    console.warn('Failed to get auth token:', error);
+    return null;
+  }
+}
+
+/**
+ * Helper to create authenticated fetch headers
+ */
+async function getAuthHeaders(): Promise<HeadersInit> {
+  const headers: HeadersInit = { 'Content-Type': 'application/json' };
+  const token = await getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export interface DraftSuggestion {
+  id: string;
+  draftId: string;
+  briefId: string;
+  pageNumber?: number;
+  scope: "page" | "selection";
+  instruction: string;
+  originalText: string;
+  suggestedText: string;
+  rationale?: string;
+  status: "proposed" | "accepted" | "rejected";
+  createdAt: { seconds: number; nanoseconds: number } | string | Date;
+  updatedAt: { seconds: number; nanoseconds: number } | string | Date;
+  createdBy: string;
+  acceptedAt?: { seconds: number; nanoseconds: number } | string | Date;
+  rejectedAt?: { seconds: number; nanoseconds: number } | string | Date;
+}
+
+export interface CreateSuggestionInput {
+  scope: "page" | "selection";
+  pageNumber?: number;
+  originalText: string;
+  instruction: string;
+}
+
+/**
+ * Create a new AI suggestion for a draft
+ */
+export async function createDraftSuggestion(
+  draftId: string,
+  input: CreateSuggestionInput
+): Promise<{ success: boolean; data: { suggestionId: string; suggestedText: string; rationale?: string; status: string } }> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/suggestions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(input),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to create suggestion (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * List suggestions for a draft
+ */
+export async function listDraftSuggestions(
+  draftId: string,
+  status?: "proposed" | "accepted" | "rejected"
+): Promise<{ success: boolean; data: DraftSuggestion[] }> {
+  try {
+    const headers = await getAuthHeaders();
+    const url = new URL(`${API_BASE}/api/story-drafts/${draftId}/suggestions`);
+    if (status) {
+      url.searchParams.set('status', status);
+    }
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to list suggestions (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Accept a suggestion (apply it to the draft)
+ */
+export async function acceptDraftSuggestion(
+  draftId: string,
+  suggestionId: string
+): Promise<{ success: boolean; data?: { draftId: string; title?: string; status: string; revisionCount: number; updatedAt: any } }> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/suggestions/${suggestionId}/accept`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to accept suggestion (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Reject a suggestion
+ */
+export async function rejectDraftSuggestion(
+  draftId: string,
+  suggestionId: string
+): Promise<{ success: boolean; message?: string }> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/suggestions/${suggestionId}/reject`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to reject suggestion (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');

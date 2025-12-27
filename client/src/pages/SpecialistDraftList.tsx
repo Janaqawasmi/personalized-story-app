@@ -127,7 +127,7 @@ const SpecialistDraftList: React.FC = () => {
       // Only refresh if we're on the drafts list page and haven't updated recently
       if (location.pathname === "/specialist/drafts" && 
           (!lastUpdated || (Date.now() - lastUpdated.getTime()) > 2000)) {
-    loadDrafts();
+        loadDrafts();
       }
     };
 

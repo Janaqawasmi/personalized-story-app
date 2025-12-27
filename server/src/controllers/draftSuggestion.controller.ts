@@ -192,29 +192,42 @@ export const listSuggestions = async (req: AuthenticatedRequest, res: Response):
       query = query.where("status", "==", statusFilter) as any;
     }
 
-    const snapshot = await query.orderBy("createdAt", "desc").get();
+    // Fetch without orderBy to avoid index requirements, then sort in memory
+    const snapshot = await query.get();
 
-    const suggestions = snapshot.docs.map((doc) => {
-      const data = doc.data() as DraftSuggestion;
-      return {
-        id: doc.id,
-        draftId: data.draftId,
-        briefId: data.briefId,
-        pageNumber: data.pageNumber,
-        scope: data.scope,
-        instruction: data.instruction,
-        originalText: data.originalText,
-        suggestedText: data.suggestedText,
-        rationale: data.rationale,
-        status: data.status,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt,
-        createdBy: data.createdBy,
-        acceptedAt: data.acceptedAt,
-        rejectedAt: data.rejectedAt,
-        // Exclude rawModelOutput from API response
-      };
-    });
+    const suggestions = snapshot.docs
+      .map((doc) => {
+        const data = doc.data() as DraftSuggestion;
+        return {
+          id: doc.id,
+          draftId: data.draftId,
+          briefId: data.briefId,
+          pageNumber: data.pageNumber,
+          scope: data.scope,
+          instruction: data.instruction,
+          originalText: data.originalText,
+          suggestedText: data.suggestedText,
+          rationale: data.rationale,
+          status: data.status,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          createdBy: data.createdBy,
+          acceptedAt: data.acceptedAt,
+          rejectedAt: data.rejectedAt,
+          // Exclude rawModelOutput from API response
+        };
+      })
+      // Sort by createdAt descending in memory
+      .sort((a, b) => {
+        // Handle Firestore Timestamp objects
+        const getTime = (ts: any): number => {
+          if (!ts) return 0;
+          if (typeof ts.toMillis === "function") return ts.toMillis();
+          if (typeof ts.seconds === "number") return ts.seconds * 1000;
+          return 0;
+        };
+        return getTime(b.createdAt) - getTime(a.createdAt); // Descending order
+      });
 
     res.status(200).json({
       success: true,

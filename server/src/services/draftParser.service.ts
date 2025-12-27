@@ -59,6 +59,12 @@ export function parseDraftOutput(rawOutput: string): ParsedDraft {
       continue;
     }
 
+    // Validate imagePrompt is present and non-empty (required field per DraftPage model)
+    if (!page.imagePrompt || typeof page.imagePrompt !== "string" || page.imagePrompt.trim().length === 0) {
+      console.warn(`Skipping malformed page: missing or empty imagePrompt`, page);
+      continue;
+    }
+
     // Validate page number is sequential
     const pageNum = typeof page.pageNumber === "number" ? page.pageNumber : parseInt(page.pageNumber, 10);
     if (isNaN(pageNum) || pageNum !== expectedPageNumber) {
@@ -70,7 +76,7 @@ export function parseDraftOutput(rawOutput: string): ParsedDraft {
     const validatedPage: DraftPage = {
       pageNumber: pageNum,
       text: String(page.text),
-      imagePrompt: page.imagePrompt ? String(page.imagePrompt) : "",
+      imagePrompt: String(page.imagePrompt).trim(),
       ...(page.emotionalTone ? { emotionalTone: String(page.emotionalTone) } : {}),
     };
 
