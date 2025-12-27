@@ -266,6 +266,64 @@ export default function BookSpread({
           }
         }}
       >
+        {/* Audio Narration Control — soft pill design */}
+        <Box
+          onClick={() => {
+            console.log("Audio narration clicked");
+          }}
+          sx={{
+            position: "absolute",
+            top: 20,
+            left: 32, // ✅ shifted right
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+        >
+          {/* Play icon circle */}
+          <Box
+            sx={{
+              width: 34,
+              height: 34,
+              borderRadius: "50%",
+              background: "#F3E6EA",
+              border: "2px solid #824D5C",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#824D5C",
+              fontSize: "0.9rem",
+              lineHeight: 1,
+              zIndex: 2,
+            }}
+          >
+            ▶
+          </Box>
+
+          {/* Text pill */}
+          <Box
+            sx={{
+              ml: -1.2, // overlap with circle
+              pl: 2.4,
+              pr: 2,
+              py: 0.6,
+              borderRadius: 999,
+              background: "#F3E6EA",
+              color: "#824D5C",
+              fontSize: "0.85rem",
+              fontWeight: 500,
+              letterSpacing: "0.02em",
+              display: "flex",
+              alignItems: "center",
+              whiteSpace: "nowrap",
+            }}
+          >
+            הקראה קולית
+          </Box>
+        </Box>
+
         {/* Story Title (small, top) */}
         <Typography
           sx={{
