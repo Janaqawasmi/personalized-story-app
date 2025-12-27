@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../config/firebase";
+import { StoryBrief } from "../models/storyBrief.model";
+import { StoryDraft } from "../models/storyDraft.model";
 
 /**
  * List drafts waiting for specialist review
@@ -105,7 +107,7 @@ export const approveDraft = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, error: "Draft not found" });
     }
 
-    const draft = draftSnap.data();
+    const draft = draftSnap.data() as StoryDraft;
 
     // If sessionId provided, verify the session's revision count matches draft
     if (sessionId) {
@@ -124,10 +126,37 @@ export const approveDraft = async (req: Request, res: Response) => {
       }
     }
 
+    // Fetch the brief to get topic, situation, and age group
+    let primaryTopic: string | undefined;
+    let specificSituation: string | undefined;
+    let ageGroup: string | undefined;
+
+    if (draft.briefId) {
+      try {
+        const briefSnap = await db.collection("storyBriefs").doc(draft.briefId).get();
+        if (briefSnap.exists) {
+          const briefData = briefSnap.data() as StoryBrief;
+          primaryTopic = briefData.therapeuticFocus?.primaryTopic;
+          specificSituation = briefData.therapeuticFocus?.specificSituation;
+          ageGroup = briefData.childProfile?.ageGroup;
+        }
+      } catch (error) {
+        console.warn("Failed to fetch brief for template:", error);
+        // Continue without brief data - template will still be created
+      }
+    }
+
     // 1️⃣ Create approved template
     const templateRef = await db.collection("story_templates").add({
       draftId,
+      briefId: draft.briefId,
       title: draft?.title ?? "Untitled",
+      status: "approved",
+      // Topic, situation, and age group from brief (if available)
+      ...(primaryTopic && { primaryTopic }),
+      ...(specificSituation && { specificSituation }),
+      ...(ageGroup && { ageGroup }),
+      generationConfig: draft?.generationConfig,
       pages: Array.isArray(draft?.pages)
         ? draft.pages.map((p: any) => ({
             pageNumber: p.pageNumber ?? null,

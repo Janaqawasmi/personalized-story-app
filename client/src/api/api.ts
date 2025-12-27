@@ -136,6 +136,7 @@ export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
 // Phase 2: READ-ONLY draft viewing + Edit/Approve flow
 export interface StoryDraftView {
   id: string;
+  briefId?: string;
   title?: string;
   status?: "generating" | "generated" | "failed" | "editing" | "approved";
   revisionCount?: number;

@@ -27,6 +27,8 @@ import {
 import {
   ExpandMore,
   ExpandLess,
+  Description,
+  ArrowBack,
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchDraftById, StoryDraftView, enterEditMode, cancelEditMode, updateDraft, approveDraft, StoryDraftPage } from "../api/api";
@@ -82,15 +84,34 @@ const ReviewDraftPage: React.FC = () => {
   const isRTL = draft?.generationConfig?.language === "ar" || draft?.generationConfig?.language === "he";
 
   // Format timestamp (handles Firestore Timestamp format)
-  const formatTimestamp = (timestamp: { seconds: number; nanoseconds: number } | string | Date) => {
+  const formatTimestamp = (timestamp: { seconds?: number; nanoseconds?: number; _seconds?: number; _nanoseconds?: number } | string | Date | null | undefined) => {
+    if (!timestamp) {
+      return "—";
+    }
+    
     let date: Date;
+    
     if (typeof timestamp === 'string') {
       date = new Date(timestamp);
     } else if (timestamp instanceof Date) {
       date = timestamp;
+    } else if (typeof timestamp === 'object') {
+      // Handle Firestore Timestamp formats: { seconds, nanoseconds } or { _seconds, _nanoseconds }
+      const seconds = timestamp.seconds || timestamp._seconds;
+      if (seconds !== undefined && seconds !== null) {
+        date = new Date(seconds * 1000);
+      } else {
+        return "—";
+      }
     } else {
-      date = new Date(timestamp.seconds * 1000);
+      return "—";
     }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return "—";
+    }
+    
     return date.toLocaleString();
   };
 
@@ -242,38 +263,49 @@ const ReviewDraftPage: React.FC = () => {
                 </Typography>
               )}
               {isApproved && (
-                <Typography variant="caption" color="success.main" sx={{ mt: 0.5, display: "block" }}>
+                <Typography variant="caption" color="secondary.main" sx={{ mt: 0.5, display: "block" }}>
                   This draft has been approved and is now immutable.
                 </Typography>
               )}
             </Box>
             <Stack direction="row" spacing={1} flexWrap="wrap">
-              {!isEditing && !isApproved && (
+              {!isApproved && (
                 <>
-                  {canEdit && (
+                  {!isEditing && canEdit && (
                     <Button variant="outlined" onClick={handleEnterEditMode}>
                       Edit Draft
                     </Button>
                   )}
                   {canApprove && (
-                    <Button variant="contained" color="primary" onClick={() => setApproveDialogOpen(true)}>
+                    <Button variant="contained" color="primary" onClick={() => setApproveDialogOpen(true)} disabled={saving || approving}>
                       Approve Draft
                     </Button>
                   )}
+                  {isEditing && (
+                    <>
+                      <Button variant="outlined" onClick={handleCancelEdit} disabled={saving}>
+                        Cancel Editing
+                      </Button>
+                      <Button variant="contained" color="primary" onClick={handleSaveChanges} disabled={saving}>
+                        {saving ? <CircularProgress size={20} /> : "Save Changes"}
+                      </Button>
+                    </>
+                  )}
                 </>
               )}
-              {isEditing && (
-                <>
-                  <Button variant="outlined" onClick={handleCancelEdit} disabled={saving}>
-                    Cancel Editing
-                  </Button>
-                  <Button variant="contained" color="primary" onClick={handleSaveChanges} disabled={saving}>
-                    {saving ? <CircularProgress size={20} /> : "Save Changes"}
-                  </Button>
-                </>
+              {draft?.briefId && (
+                <Button
+                  variant="outlined"
+                  startIcon={<Description />}
+                  onClick={() => navigate(`/specialist/generate-draft?briefId=${draft.briefId}`)}
+                  disabled={saving}
+                >
+                  View Story Brief
+                </Button>
               )}
               <Button 
                 variant="outlined" 
+                startIcon={<ArrowBack />}
                 onClick={async () => {
                   // If in editing mode, cancel it before navigating
                   if (isEditing && draftId) {
@@ -336,7 +368,7 @@ const ReviewDraftPage: React.FC = () => {
                     <Chip 
                       label={`Status: ${draft.status}`} 
                       variant="outlined" 
-                      color={draft.status === "approved" ? "success" : draft.status === "editing" ? "warning" : "default"}
+                      color={draft.status === "approved" ? "secondary" : draft.status === "editing" ? "warning" : "default"}
                     />
                   )}
                 </Stack>
@@ -348,7 +380,7 @@ const ReviewDraftPage: React.FC = () => {
                     Updated: {formatTimestamp(draft.updatedAt)}
                   </Typography>
                   {draft.approvedAt && (
-                    <Typography variant="caption" color="success.main">
+                    <Typography variant="caption" color="secondary.main">
                       Approved: {formatTimestamp(draft.approvedAt)}
                       {draft.approvedBy && ` by ${draft.approvedBy}`}
                     </Typography>

@@ -38,6 +38,7 @@ export const listDrafts = async (_req: Request, res: Response): Promise<void> =>
         const data = doc.data() as StoryDraft;
         return {
           id: doc.id,
+          briefId: data.briefId,
           title: data.title,
           generationConfig: data.generationConfig,
           status: data.status,
@@ -129,6 +130,7 @@ export const getDraftById = async (req: Request, res: Response): Promise<void> =
       success: true,
       data: {
         id: draftDoc.id,
+        briefId: draftData.briefId,
         title: draftData.title,
         generationConfig: draftData.generationConfig,
         pages: draftData.pages || [],
@@ -250,7 +252,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       // Create new draft with "generating" status
       const draftRef = firestore.collection("storyDrafts").doc();
       const draft: Omit<StoryDraft, "title" | "pages"> = {
-        briefId,
+      briefId,
         createdBy,
         status: "generating",
         version: 1,
@@ -288,7 +290,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       // Update draft with generated content
       const draftRef = firestore.collection("storyDrafts").doc(draftId);
       await draftRef.update({
-        status: "generated",
+      status: "generated",
         title: parsedDraft.title,
         pages: parsedDraft.pages,
         rawModelOutput: rawModelOutput, // Store raw output for debugging
@@ -303,7 +305,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       });
 
       res.status(201).json({
-        success: true,
+      success: true,
         draftId,
         status: "generated",
       });
@@ -672,6 +674,17 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
         throw new Error(`Cannot approve draft: draft status is "${draftDataInTx.status}", expected "editing" or "generated"`);
       }
 
+      // Fetch the brief to get topic, situation, and age group
+      if (!draftDataInTx.briefId) {
+        throw new Error("Cannot approve draft: missing briefId");
+      }
+      const briefRef = firestore.collection("storyBriefs").doc(draftDataInTx.briefId);
+      const briefDocInTx = await transaction.get(briefRef);
+      if (!briefDocInTx.exists) {
+        throw new Error("Story brief not found");
+      }
+      const briefData = briefDocInTx.data() as StoryBrief;
+
       // Update draft to "approved" status
       transaction.update(draftRef, {
         status: "approved",
@@ -687,8 +700,13 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
       }
       transaction.set(templateRef, {
         draftId: draftId,
+        briefId: draftDataInTx.briefId,
         title: draftDataInTx.title,
         status: "approved",
+        // Topic and situation from brief
+        primaryTopic: briefData.therapeuticFocus.primaryTopic,
+        specificSituation: briefData.therapeuticFocus.specificSituation,
+        ageGroup: briefData.childProfile.ageGroup,
         generationConfig: draftDataInTx.generationConfig,
         pages: draftDataInTx.pages.map((page) => ({
           pageNumber: page.pageNumber,
