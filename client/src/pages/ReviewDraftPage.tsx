@@ -292,12 +292,8 @@ const ReviewDraftPage: React.FC = () => {
       setEditedTitle(data.title || "");
       setEditedPages(data.pages || []);
 
-      // Update original page texts to reflect accepted suggestion
-      const updatedOriginalTexts: Record<number, string> = {};
-      (data.pages || []).forEach(page => {
-        updatedOriginalTexts[page.pageNumber] = page.text;
-      });
-      setOriginalPageTexts(updatedOriginalTexts);
+      // DO NOT update originalPageTexts here - preserve the original generated text baseline
+      // so that hasPageTextChanged() compares against the truly original text, not suggestion-modified text
 
       // Reload suggestions (this one should be gone, others may remain)
       const suggestionsResult = await listDraftSuggestions(draftId, "proposed");
@@ -694,12 +690,12 @@ const ReviewDraftPage: React.FC = () => {
                   <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
                     {brief?.therapeuticFocus?.primaryTopic && (
                       <Typography variant="body2" color="text.secondary">
-                        <strong>Topic:</strong> {formatTopicLabel(brief.therapeuticFocus.primaryTopic)}
+                        <strong>Topic:</strong> {formatTopicLabel(brief?.therapeuticFocus?.primaryTopic || "")}
                       </Typography>
                     )}
                     {brief?.therapeuticFocus?.specificSituation && (
                       <Typography variant="body2" color="text.secondary">
-                        <strong>Situation:</strong> {formatTopicLabel(brief.therapeuticFocus.specificSituation)}
+                        <strong>Situation:</strong> {formatTopicLabel(brief?.therapeuticFocus?.specificSituation || "")}
                       </Typography>
                     )}
                     <Typography variant="body2" color="text.secondary">

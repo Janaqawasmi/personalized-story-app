@@ -379,13 +379,26 @@ const GenerateDraftPage: React.FC = () => {
     loadBriefs();
   }, []);
 
+  // Track the last processed briefId to allow re-processing when briefId changes
+  const lastProcessedBriefIdRef = useRef<string | null>(null);
+
   // Scroll to specific brief if briefId is in URL
   useEffect(() => {
-    if (briefIdFromUrl && briefs.length > 0) {
+    // Reset the ref when briefId is cleared from URL (allows re-processing if user returns with same briefId)
+    if (!briefIdFromUrl) {
+      lastProcessedBriefIdRef.current = null;
+      return;
+    }
+
+    // Process if briefId exists, briefs are loaded, and this briefId hasn't been processed yet
+    if (briefs.length > 0 && briefIdFromUrl !== lastProcessedBriefIdRef.current) {
       // Wait for briefs to be loaded and filtered
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         const briefCard = briefCardRefs.current[briefIdFromUrl];
         if (briefCard) {
+          // Mark this briefId as processed
+          lastProcessedBriefIdRef.current = briefIdFromUrl;
+          
           briefCard.scrollIntoView({ behavior: "smooth", block: "center" });
           // Highlight the card briefly
           briefCard.style.transition = "box-shadow 0.3s ease";
@@ -397,6 +410,11 @@ const GenerateDraftPage: React.FC = () => {
           setSearchParams({});
         }
       }, 100);
+
+      // Cleanup: cancel timeout if dependencies change before it fires
+      return () => {
+        clearTimeout(timeoutId);
+      };
     }
   }, [briefIdFromUrl, briefs, setSearchParams]);
 

@@ -89,8 +89,8 @@ export async function createStoryBrief(data: StoryBriefInput): Promise<StoryBrie
 export interface StoryDraftPage {
   pageNumber: number;
   text: string;
+  imagePrompt: string;
   emotionalTone?: string;
-  imagePrompt?: string;
 }
 
 export interface StoryDraft {
@@ -171,7 +171,7 @@ export interface StoryDraftView {
 export interface StoryDraftPage {
   pageNumber: number;
   text: string;
-  imagePrompt?: string;
+  imagePrompt: string;
   emotionalTone?: string;
 }
 
