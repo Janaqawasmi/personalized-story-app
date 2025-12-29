@@ -125,7 +125,20 @@ export default function BookReaderPage() {
     };
 
     fetchStory();
-  }, [storyId, CURRENT_LANGUAGE]);
+  }, [storyId, CURRENT_LANGUAGE, navigate]);
+
+  // Clear personalization when component unmounts (user leaves the story)
+  // This ensures personalization is session-scoped, not persistent
+  useEffect(() => {
+    if (!storyId) return;
+
+    const personalizationKey = `qosati_personalization_${storyId}`;
+    
+    return () => {
+      // Clear personalization when user leaves the story reader
+      localStorage.removeItem(personalizationKey);
+    };
+  }, [storyId]);
 
   // Keyboard navigation
   useEffect(() => {

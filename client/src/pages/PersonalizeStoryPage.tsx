@@ -189,11 +189,9 @@ export default function PersonalizeStoryPage() {
           generationConfig: data.generationConfig,
         });
 
-        // Load existing personalization if available
-        const existing = loadPersonalization(storyId);
-        if (existing) {
-          setPersonalization(existing);
-        }
+        // Do NOT preload existing personalization
+        // Personalization is session-scoped and should start fresh each time
+        // This ensures privacy and prevents unintended data reuse
       } catch (err) {
         console.error("Error fetching story:", err);
         navigate("/");
