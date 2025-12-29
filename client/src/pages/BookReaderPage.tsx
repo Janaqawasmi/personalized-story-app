@@ -407,18 +407,202 @@ export default function BookReaderPage() {
                 transition: "opacity 0.4s ease, transform 0.4s ease",
               }}
             >
-              <BookSpread
-                page={currentPage}
-                title={story.title}
-                isRTL={isRTL}
-                totalPages={story.pages.length}
-                onNext={handleNext}
-                onPrev={handlePrev}
-                canGoNext={canGoNext}
-                canGoPrev={canGoPrev}
-              />
+              {/* Wrapper for book and arrows */}
+              <Box
+                sx={{
+                  position: "relative",
+                  isolation: "isolate", // 🔥 VERY IMPORTANT - prevents stacking context issues
+                  overflow: "visible",
+                }}
+              >
+                {/* Book Spread */}
+                <BookSpread
+                  page={currentPage}
+                  title={story.title}
+                  isRTL={isRTL}
+                  totalPages={story.pages.length}
+                  onNext={handleNext}
+                  onPrev={handlePrev}
+                  canGoNext={canGoNext}
+                  canGoPrev={canGoPrev}
+                />
+
+                {/* LEFT ARROW — NEXT PAGE (RTL) or PREVIOUS PAGE (LTR) */}
+                {isRTL ? (
+                  // RTL: LEFT arrow = NEXT page
+                  canGoNext && (
+                    <Box
+                      onClick={handleNext}
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: { xs: -56, md: -72 },
+                        transform: "translateY(-50%)",
+                        width: { xs: 44, md: 56 },
+                        height: { xs: 56, md: 72 },
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        border: `2px solid ${theme.palette.divider}`,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
+                        "&:hover": {
+                          opacity: 1,
+                          backgroundColor: "rgba(255, 255, 255, 1)",
+                          transform: "translateY(-50%) scale(1.05)",
+                        },
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: "1.5rem", md: "1.8rem" },
+                          color: "#824D5C",
+                          fontWeight: 600,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ←
+                      </Typography>
+                    </Box>
+                  )
+                ) : (
+                  // LTR: LEFT arrow = PREVIOUS page
+                  canGoPrev && (
+                    <Box
+                      onClick={handlePrev}
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        left: { xs: -56, md: -72 },
+                        transform: "translateY(-50%)",
+                        width: { xs: 44, md: 56 },
+                        height: { xs: 56, md: 72 },
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        border: `2px solid ${theme.palette.divider}`,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
+                        "&:hover": {
+                          opacity: 1,
+                          backgroundColor: "rgba(255, 255, 255, 1)",
+                          transform: "translateY(-50%) scale(1.05)",
+                        },
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: "1.5rem", md: "1.8rem" },
+                          color: "#824D5C",
+                          fontWeight: 600,
+                          lineHeight: 1,
+                        }}
+                      >
+                        ←
+                      </Typography>
+                    </Box>
+                  )
+                )}
+
+                {/* RIGHT ARROW — PREVIOUS PAGE (RTL) or NEXT PAGE (LTR) */}
+                {isRTL ? (
+                  // RTL: RIGHT arrow = PREVIOUS page
+                  canGoPrev && (
+                    <Box
+                      onClick={handlePrev}
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        right: { xs: -56, md: -72 },
+                        transform: "translateY(-50%)",
+                        width: { xs: 44, md: 56 },
+                        height: { xs: 56, md: 72 },
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        border: `2px solid ${theme.palette.divider}`,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
+                        "&:hover": {
+                          opacity: 1,
+                          backgroundColor: "rgba(255, 255, 255, 1)",
+                          transform: "translateY(-50%) scale(1.05)",
+                        },
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: "1.5rem", md: "1.8rem" },
+                          color: "#824D5C",
+                          fontWeight: 600,
+                          lineHeight: 1,
+                        }}
+                      >
+                        →
+                      </Typography>
+                    </Box>
+                  )
+                ) : (
+                  // LTR: RIGHT arrow = NEXT page
+                  canGoNext && (
+                    <Box
+                      onClick={handleNext}
+                      sx={{
+                        position: "absolute",
+                        top: "50%",
+                        right: { xs: -56, md: -72 },
+                        transform: "translateY(-50%)",
+                        width: { xs: 44, md: 56 },
+                        height: { xs: 56, md: 72 },
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundColor: "rgba(255, 255, 255, 0.9)",
+                        border: `2px solid ${theme.palette.divider}`,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
+                        "&:hover": {
+                          opacity: 1,
+                          backgroundColor: "rgba(255, 255, 255, 1)",
+                          transform: "translateY(-50%) scale(1.05)",
+                        },
+                      }}
+                    >
+                      <Typography
+                        sx={{
+                          fontSize: { xs: "1.5rem", md: "1.8rem" },
+                          color: "#824D5C",
+                          fontWeight: 600,
+                          lineHeight: 1,
+                        }}
+                      >
+                        →
+                      </Typography>
+                    </Box>
+                  )
+                )}
+              </Box>
             </Box>
-            </Box>
+          </Box>
           </>
           )
         )}
