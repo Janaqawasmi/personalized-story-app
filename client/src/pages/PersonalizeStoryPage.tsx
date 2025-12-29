@@ -35,12 +35,18 @@ type VisualStyle =
   | "paper_craft"
   | "vintage_1950s_little_golden";
 
-type StoryPersonalization = {
+type StoryPersonalizationData = {
   childName: string;
   gender: "female" | "male" | "neutral";
-  photoFile: File; // REQUIRED
+  photoFile?: File; // Not stored in localStorage (File objects can't be serialized)
   photoPreviewUrl: string; // REQUIRED
   visualStyle: VisualStyle;
+};
+
+type PersonalizationSession = {
+  status: "draft" | "completed";
+  data: StoryPersonalizationData;
+  updatedAt: number;
 };
 
 type StoryTemplate = {
@@ -119,30 +125,40 @@ function getPersonalizationKey(storyId: string): string {
   return `qosati_personalization_${storyId}`;
 }
 
-function loadPersonalization(storyId: string): StoryPersonalization | null {
+function loadPersonalizationSession(storyId: string): PersonalizationSession | null {
   const key = getPersonalizationKey(storyId);
   const stored = localStorage.getItem(key);
   if (!stored) return null;
   try {
-    return JSON.parse(stored);
+    return JSON.parse(stored) as PersonalizationSession;
   } catch {
     return null;
   }
 }
 
-function savePersonalization(storyId: string, data: StoryPersonalization): void {
+function savePersonalizationSession(
+  storyId: string,
+  data: StoryPersonalizationData,
+  status: "draft" | "completed"
+): void {
   const key = getPersonalizationKey(storyId);
-  // Don't store File object, only preview URL
-  // File object cannot be serialized to JSON
-  const toStore = {
-    childName: data.childName,
-    gender: data.gender,
-    photoPreviewUrl: data.photoPreviewUrl, // Store preview URL for display
-    visualStyle: data.visualStyle,
-    // Note: photoFile is not stored (File objects can't be serialized)
-    // The actual file will need to be uploaded separately when generating the story
+  const session: PersonalizationSession = {
+    status,
+    data: {
+      childName: data.childName,
+      gender: data.gender,
+      photoPreviewUrl: data.photoPreviewUrl,
+      visualStyle: data.visualStyle,
+      // Note: photoFile is not stored (File objects can't be serialized)
+    },
+    updatedAt: Date.now(),
   };
-  localStorage.setItem(key, JSON.stringify(toStore));
+  localStorage.setItem(key, JSON.stringify(session));
+}
+
+function deletePersonalizationSession(storyId: string): void {
+  const key = getPersonalizationKey(storyId);
+  localStorage.removeItem(key);
 }
 
 export default function PersonalizeStoryPage() {
@@ -154,11 +170,15 @@ export default function PersonalizeStoryPage() {
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeStep, setActiveStep] = useState(0);
-  const [personalization, setPersonalization] = useState<Partial<StoryPersonalization>>({
+  const [personalization, setPersonalization] = useState<Partial<StoryPersonalizationData>>({
     childName: "",
     gender: "neutral",
     visualStyle: "watercolor", // Default to first style
   });
+  const [session, setSession] = useState<PersonalizationSession | null>(null);
+  const [showResumeScreen, setShowResumeScreen] = useState(false);
+  const [showCompletedScreen, setShowCompletedScreen] = useState(false);
+  const [showFinalError, setShowFinalError] = useState(false);
 
   const isRTL = true; // Hebrew/Arabic
 
@@ -189,9 +209,19 @@ export default function PersonalizeStoryPage() {
           generationConfig: data.generationConfig,
         });
 
-        // Do NOT preload existing personalization
-        // Personalization is session-scoped and should start fresh each time
-        // This ensures privacy and prevents unintended data reuse
+        // Load existing session and determine flow
+        const existingSession = loadPersonalizationSession(storyId);
+        setSession(existingSession);
+
+        if (existingSession) {
+          if (existingSession.status === "completed") {
+            // Show completed decision screen
+            setShowCompletedScreen(true);
+          } else if (existingSession.status === "draft") {
+            // Show resume screen
+            setShowResumeScreen(true);
+          }
+        }
       } catch (err) {
         console.error("Error fetching story:", err);
         navigate("/");
@@ -203,9 +233,54 @@ export default function PersonalizeStoryPage() {
     fetchStory();
   }, [storyId, navigate]);
 
+  // Step-specific validation (only validates current step)
+  const validateCurrentStep = (step: number): boolean => {
+    switch (step) {
+      case 0:
+        return (personalization.childName?.trim().length ?? 0) >= 2;
+      case 1:
+        return !!personalization.gender;
+      case 2:
+        // Photo is REQUIRED
+        return !!(personalization.photoFile && personalization.photoPreviewUrl);
+      case 3:
+        return !!personalization.visualStyle;
+      default:
+        return true;
+    }
+  };
+
+  // Global validation (only for final submit)
+  const validateAllSteps = (): boolean => {
+    return !!(
+      personalization.childName &&
+      personalization.gender &&
+      personalization.photoFile &&
+      personalization.photoPreviewUrl &&
+      personalization.visualStyle
+    );
+  };
+
+  // Infer step from data (for resume logic)
+  const inferStepFromData = (data: StoryPersonalizationData): number => {
+    if (!data.childName || data.childName.trim().length < 2) return 0;
+    if (!data.gender) return 1;
+    if (!data.photoPreviewUrl) return 2;
+    if (!data.visualStyle) return 3;
+    return 4; // Review step
+  };
+
   const handleNext = () => {
+    // Only validate current step, not all steps
+    if (!validateCurrentStep(activeStep)) {
+      // Don't show alert - just block progression
+      // The UI already shows validation feedback via disabled button
+      return;
+    }
+
     if (activeStep < STEPS.length - 1) {
       setActiveStep(activeStep + 1);
+      setShowFinalError(false); // Clear any previous errors
     }
   };
 
@@ -226,11 +301,26 @@ export default function PersonalizeStoryPage() {
 
     const reader = new FileReader();
     reader.onloadend = () => {
-      setPersonalization({
+      const updated = {
         ...personalization,
         photoFile: file,
         photoPreviewUrl: reader.result as string,
-      });
+      };
+      setPersonalization(updated);
+      
+      // Auto-save as draft after photo upload
+      if (storyId && updated.childName && updated.gender && updated.visualStyle) {
+        savePersonalizationSession(
+          storyId,
+          {
+            childName: updated.childName,
+            gender: updated.gender,
+            photoPreviewUrl: reader.result as string,
+            visualStyle: updated.visualStyle,
+          },
+          "draft"
+        );
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -238,41 +328,88 @@ export default function PersonalizeStoryPage() {
   const handleComplete = () => {
     if (!storyId) return;
 
-    // Validate required fields
-    if (!personalization.childName || !personalization.gender || !personalization.photoFile || !personalization.photoPreviewUrl || !personalization.visualStyle) {
-      alert("אנא מלא את כל השדות הנדרשים");
+    // Global validation ONLY on final submit
+    if (!validateAllSteps()) {
+      setShowFinalError(true);
+      // Scroll to top to show error message
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
-    // Create complete personalization object
-    const completePersonalization: StoryPersonalization = {
-      childName: personalization.childName,
-      gender: personalization.gender,
-      photoFile: personalization.photoFile,
-      photoPreviewUrl: personalization.photoPreviewUrl,
-      visualStyle: personalization.visualStyle,
+    setShowFinalError(false);
+
+    // Create complete personalization data
+    const completePersonalization: StoryPersonalizationData = {
+      childName: personalization.childName!,
+      gender: personalization.gender!,
+      photoFile: personalization.photoFile!,
+      photoPreviewUrl: personalization.photoPreviewUrl!,
+      visualStyle: personalization.visualStyle!,
     };
 
-    savePersonalization(storyId, completePersonalization);
+    // Save as completed session
+    savePersonalizationSession(storyId, completePersonalization, "completed");
     navigate(`/stories/${storyId}/read`);
   };
 
+
+  // Resume from draft
+  const handleResume = () => {
+    if (!session || session.status !== "draft") return;
+    
+    // Restore personalization data
+    setPersonalization(session.data);
+    
+    // Infer step from data (where user left off)
+    const step = inferStepFromData(session.data);
+    setActiveStep(step);
+    
+    // Clear any error states
+    setShowFinalError(false);
+    setShowResumeScreen(false);
+  };
+
+  // Start over from draft
+  const handleStartOver = () => {
+    if (!storyId) return;
+    deletePersonalizationSession(storyId);
+    setSession(null);
+    setPersonalization({
+      childName: "",
+      gender: "neutral",
+      visualStyle: "watercolor",
+    });
+    setActiveStep(0);
+    setShowResumeScreen(false);
+  };
+
+  // Start new personalization from completed
+  const handleStartNew = () => {
+    if (!storyId) return;
+    deletePersonalizationSession(storyId);
+    setSession(null);
+    setPersonalization({
+      childName: "",
+      gender: "neutral",
+      visualStyle: "watercolor",
+    });
+    setActiveStep(0);
+    setShowCompletedScreen(false);
+  };
+
+  // Use previous personalization from completed
+  const handleUsePrevious = () => {
+    if (!session || session.status !== "completed" || !storyId) return;
+    
+    // Mark as draft if user wants to edit
+    // Navigate directly to reader (they can edit later if needed)
+    navigate(`/stories/${storyId}/read`);
+  };
+
+  // Keep isStepValid for UI (button disabled state)
+  // This uses validateCurrentStep to ensure consistency
   const isStepValid = (step: number): boolean => {
-    switch (step) {
-      case 0:
-        return (personalization.childName?.trim().length ?? 0) >= 2;
-      case 1:
-        return !!personalization.gender;
-      case 2:
-        // Photo is REQUIRED
-        return !!(personalization.photoFile && personalization.photoPreviewUrl);
-      case 3:
-        return !!personalization.visualStyle;
-      case 4:
-        return true; // Review step is always valid
-      default:
-        return false;
-    }
+    return validateCurrentStep(step);
   };
 
   if (loading) {
@@ -292,6 +429,118 @@ export default function PersonalizeStoryPage() {
 
   if (!story) {
     return null;
+  }
+
+  // Resume Screen (Draft exists)
+  if (showResumeScreen && session?.status === "draft") {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: theme.palette.background.default,
+          direction: "rtl",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 3,
+        }}
+      >
+        <Card
+          sx={{
+            maxWidth: 500,
+            width: "100%",
+            p: 4,
+            textAlign: "center",
+            borderRadius: 3,
+          }}
+        >
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+            המשך התאמה אישית
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            התחלת להתאים את הסיפור הזה. מה תרצה לעשות?
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Button
+              variant="contained"
+              onClick={handleResume}
+              fullWidth
+              sx={{
+                backgroundColor: "#824D5C",
+                "&:hover": { backgroundColor: "#6f404d" },
+                py: 1.5,
+              }}
+            >
+              המשך מהמקום שעצרת
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleStartOver}
+              fullWidth
+              sx={{ py: 1.5 }}
+            >
+              התחל מחדש
+            </Button>
+          </Box>
+        </Card>
+      </Box>
+    );
+  }
+
+  // Completed Decision Screen
+  if (showCompletedScreen && session?.status === "completed") {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: theme.palette.background.default,
+          direction: "rtl",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          px: 3,
+        }}
+      >
+        <Card
+          sx={{
+            maxWidth: 500,
+            width: "100%",
+            p: 4,
+            textAlign: "center",
+            borderRadius: 3,
+          }}
+        >
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+            כבר התאמת את הסיפור הזה
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            מה תרצה לעשות?
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Button
+              variant="contained"
+              onClick={handleStartNew}
+              fullWidth
+              sx={{
+                backgroundColor: "#824D5C",
+                "&:hover": { backgroundColor: "#6f404d" },
+                py: 1.5,
+              }}
+            >
+              התחל התאמה אישית חדשה
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleUsePrevious}
+              fullWidth
+              sx={{ py: 1.5 }}
+            >
+              השתמש בהתאמה הקודמת
+            </Button>
+          </Box>
+        </Card>
+      </Box>
+    );
   }
 
   return (
@@ -345,9 +594,23 @@ export default function PersonalizeStoryPage() {
                 <TextField
                   fullWidth
                   value={personalization.childName || ""}
-                  onChange={(e) =>
-                    setPersonalization({ ...personalization, childName: e.target.value })
-                  }
+                  onChange={(e) => {
+                    const updated = { ...personalization, childName: e.target.value };
+                    setPersonalization(updated);
+                    // Auto-save draft on change
+                    if (storyId && e.target.value.trim().length >= 2) {
+                      savePersonalizationSession(
+                        storyId,
+                        {
+                          childName: e.target.value,
+                          gender: personalization.gender || "neutral",
+                          photoPreviewUrl: personalization.photoPreviewUrl || "",
+                          visualStyle: personalization.visualStyle || "watercolor",
+                        },
+                        "draft"
+                      );
+                    }
+                  }}
                   placeholder="הכנס שם"
                   sx={{ mb: 2 }}
                   inputProps={{ maxLength: 50 }}
@@ -375,9 +638,23 @@ export default function PersonalizeStoryPage() {
                   {GENDER_OPTIONS.map((option) => (
                     <Card
                       key={option.value}
-                      onClick={() =>
-                        setPersonalization({ ...personalization, gender: option.value })
-                      }
+                      onClick={() => {
+                        const updated = { ...personalization, gender: option.value };
+                        setPersonalization(updated);
+                        // Auto-save draft
+                        if (storyId && personalization.childName && personalization.childName.trim().length >= 2) {
+                          savePersonalizationSession(
+                            storyId,
+                            {
+                              childName: personalization.childName,
+                              gender: option.value,
+                              photoPreviewUrl: personalization.photoPreviewUrl || "",
+                              visualStyle: personalization.visualStyle || "watercolor",
+                            },
+                            "draft"
+                          );
+                        }
+                      }}
                       sx={{
                         cursor: "pointer",
                         border:
@@ -582,6 +859,21 @@ export default function PersonalizeStoryPage() {
                 <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
                   סיכום ואישור
                 </Typography>
+                {showFinalError && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      mb: 3,
+                      backgroundColor: theme.palette.error.light,
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.error.main}`,
+                    }}
+                  >
+                    <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
+                      אנא מלא את כל השדות הנדרשים לפני שתסיים
+                    </Typography>
+                  </Box>
+                )}
                 <Card variant="outlined" sx={{ p: 3, mb: 3 }}>
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <Box>

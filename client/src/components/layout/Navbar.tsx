@@ -103,12 +103,9 @@ export default function Navbar({
                 },
               }}
               onClick={() => {
-                // Clear all personalization data when navigating home
-                // This ensures personalization is session-scoped, not persistent
-                Object.keys(localStorage)
-                  .filter((k) => k.startsWith("qosati_personalization_"))
-                  .forEach((k) => localStorage.removeItem(k));
-                
+                // Navigate home without clearing personalization
+                // Draft sessions are preserved for resuming
+                // Completed sessions are preserved for user choice
                 navigate("/");
                 setSearchOpen(false); // Close search overlay if open
               }}

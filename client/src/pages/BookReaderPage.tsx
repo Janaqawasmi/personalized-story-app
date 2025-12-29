@@ -64,12 +64,25 @@ export default function BookReaderPage() {
       return;
     }
 
-    // Check if personalization exists
+    // Check if personalization session exists and is completed
     const personalizationKey = `qosati_personalization_${storyId}`;
-    const personalization = localStorage.getItem(personalizationKey);
+    const personalizationStr = localStorage.getItem(personalizationKey);
     
-    if (!personalization) {
-      // Redirect to personalization page
+    if (!personalizationStr) {
+      // No session - redirect to personalization
+      navigate(`/stories/${storyId}/personalize`);
+      return;
+    }
+
+    try {
+      const session = JSON.parse(personalizationStr);
+      if (session.status !== "completed") {
+        // Draft session or invalid - redirect to personalization
+        navigate(`/stories/${storyId}/personalize`);
+        return;
+      }
+    } catch {
+      // Invalid session data - redirect to personalization
       navigate(`/stories/${storyId}/personalize`);
       return;
     }
