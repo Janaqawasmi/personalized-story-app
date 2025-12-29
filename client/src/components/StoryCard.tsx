@@ -6,6 +6,7 @@ import {
   Chip,
 } from "@mui/material";
 import { COLORS } from "../theme";
+import { formatAgeGroupLabel } from "../data/categories";
 
 type Props = {
   title: string;
@@ -65,7 +66,7 @@ export default function StoryCard({
           {/* Tags */}
           <Box display="flex" gap={1} mt={1}>
             <Chip
-              label={`Age ${ageGroup}`}
+              label={formatAgeGroupLabel(ageGroup)}
               size="small"
               sx={{
                 backgroundColor: COLORS.background,

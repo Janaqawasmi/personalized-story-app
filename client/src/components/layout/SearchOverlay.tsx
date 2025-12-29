@@ -99,9 +99,16 @@ import {
   
     const formatAgeGroup = (ageGroup?: string): string => {
       if (!ageGroup) return "";
-      if (ageGroup.startsWith("O_")) return `לגיל ${ageGroup.replace("O_", "")}+`;
-      if (ageGroup.startsWith("0_")) return `לגיל ${ageGroup.replace("0_", "")}+`;
-      return `לגיל ${ageGroup.replace("-", "–")}`;
+      // Handle both "0_3" and "0-3" formats
+      const normalized = ageGroup.replace(/-/g, "_");
+      if (normalized.startsWith("0_") || normalized.match(/^\d+_\d+$/)) {
+        const parts = normalized.split("_");
+        if (parts.length === 2) {
+          return `לגיל ${parts[0]}–${parts[1]}`;
+        }
+      }
+      // Fallback: try to format other patterns
+      return `לגיל ${ageGroup.replace(/_/g, "–")}`;
     };
   
     const getStoryAge = (story: StoryTemplate): string | undefined => {
@@ -282,6 +289,22 @@ import {
       }
     };
   
+    // Parse age group from query (handles "0-3", "0_3", "0 – 3", etc.)
+    const parseAgeGroupFromQuery = (q: string): string | null => {
+      if (!q) return null;
+
+      const normalized = q
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "") // remove spaces
+        .replace(/years|year|yrs|yr/g, "") // remove year words
+        .replace(/[–-]/g, "_"); // convert dash/en-dash to underscore
+
+      // Check against known age group IDs
+      const ageGroups = ["0_3", "3_6", "6_9", "9_12"];
+      return ageGroups.includes(normalized) ? normalized : null;
+    };
+
     const performSearch = (term: string) => {
       const clean = term.trim();
       if (!clean) {
@@ -289,34 +312,49 @@ import {
         setIsSearching(false);
         return;
       }
-  
+
       setIsSearching(true);
-  
+
       try {
+        // Priority 0: Check if query is an age group
+        const ageGroupId = parseAgeGroupFromQuery(clean);
+        if (ageGroupId) {
+          const filtered = allStoriesCache.filter((s) => {
+            const storyAge =
+              s.ageGroup ||
+              s.targetAgeGroup ||
+              s.generationConfig?.targetAgeGroup;
+            return storyAge === ageGroupId;
+          });
+          setSearchResults(filtered.slice(0, 30));
+          setIsSearching(false);
+          return;
+        }
+
         // Priority 1: match against reference labels (situations/topics)
         const { situationId, topicId } = resolveMatchByReferenceData(clean);
-  
+
         // Priority 1b: if referenceData not ready, but term equals a known id, treat it as id
         const rawLower = clean.toLowerCase();
         const rawSituationId = availableSituations.has(rawLower) ? rawLower : undefined;
         const rawTopicId = availableTopics.has(rawLower) ? rawLower : undefined;
-  
+
         if (situationId || rawSituationId) {
           performSearchByField("specificSituation", situationId || rawSituationId!);
           return;
         }
-  
+
         if (topicId || rawTopicId) {
           performSearchByField("primaryTopic", topicId || rawTopicId!);
           return;
         }
-  
+
         // Fallback: filter by title from cache
         const q = clean.toLowerCase();
         const filtered = allStoriesCache.filter((s) =>
           (s.title || "").toLowerCase().includes(q)
         );
-  
+
         setSearchResults(filtered.slice(0, 30));
       } catch (e) {
         console.error("[SearchOverlay] search error:", e);
@@ -424,6 +462,13 @@ import {
                 placeholder="חפשו לפי רגש, גיל או מצב (למשל: פחד מהחושך)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    e.preventDefault();
+                    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+                    onClose();
+                  }
+                }}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     backgroundColor: theme.palette.background.paper,
