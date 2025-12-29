@@ -584,6 +584,22 @@ const ReviewDraftPage: React.FC = () => {
 
           {/* Toolbar */}
           <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" sx={{ mt: 2 }}>
+            {/* Back to List Button (left side) */}
+            <Button 
+              variant="outlined" 
+              startIcon={<ArrowBack />}
+              onClick={() => {
+                navigate("/specialist/drafts");
+              }}
+              disabled={saving || approving}
+            >
+              Back to List
+            </Button>
+
+            {/* Spacer */}
+            <Box sx={{ flexGrow: 1 }} />
+
+            {/* Edit/Approve Buttons (right side) */}
             {!isApproved && (
               <>
                 {/* MODE A: READ-ONLY */}
@@ -644,21 +660,6 @@ const ReviewDraftPage: React.FC = () => {
                 )}
               </>
             )}
-
-            {/* Spacer */}
-            <Box sx={{ flexGrow: 1 }} />
-
-            {/* Common Actions (always visible) */}
-            <Button 
-              variant="outlined" 
-              startIcon={<ArrowBack />}
-              onClick={() => {
-                navigate("/specialist/drafts");
-              }}
-              disabled={saving || approving}
-            >
-              Back to List
-            </Button>
           </Stack>
         </Stack>
 
