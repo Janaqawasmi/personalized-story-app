@@ -354,7 +354,7 @@ import {
     };
   
     const handleStoryClick = (storyId: string) => {
-      navigate(`/stories/${storyId}/read`);
+      navigate(`/stories/${storyId}/personalize`);
       onClose();
     };
   

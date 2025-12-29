@@ -56,11 +56,21 @@ export default function BookReaderPage() {
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
 
-  // Fetch story from Firestore
+  // Check for personalization before loading story
   useEffect(() => {
     if (!storyId) {
       setError("Story ID is missing");
       setLoading(false);
+      return;
+    }
+
+    // Check if personalization exists
+    const personalizationKey = `qosati_personalization_${storyId}`;
+    const personalization = localStorage.getItem(personalizationKey);
+    
+    if (!personalization) {
+      // Redirect to personalization page
+      navigate(`/stories/${storyId}/personalize`);
       return;
     }
 

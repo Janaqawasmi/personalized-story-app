@@ -157,7 +157,7 @@ export default function CategoryResultsPage() {
               description={story.shortDescription}
               imageUrl={story.coverImage}
               onClick={() => {
-                navigate(`/stories/${story.id}/read`);
+                navigate(`/stories/${story.id}/personalize`);
               }}
             />
           ))}

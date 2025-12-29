@@ -17,6 +17,7 @@ import SpecialistStoryPromptPreview from "./pages/SpecialistStoryPromptPreview";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
 import BookReaderPage from "./pages/BookReaderPage";
+import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -50,6 +51,10 @@ export default function App() {
               element={<CategoryResultsPage />}
             />
             <Route path="/stories/topic/:topicId" element={<TopicResultsPage />} />
+            <Route
+              path="/stories/:storyId/personalize"
+              element={<PersonalizeStoryPage />}
+            />
             <Route path="/stories/:storyId/read" element={<BookReaderPage />} />
 
             {/* ───────────── USER PAGES ───────────── */}
