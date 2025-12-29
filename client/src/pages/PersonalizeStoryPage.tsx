@@ -17,7 +17,7 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 
@@ -939,8 +939,9 @@ export default function PersonalizeStoryPage() {
           <Button
             onClick={handleBack}
             disabled={activeStep === 0}
-            startIcon={<ArrowBackIcon />}
+            endIcon={<ArrowForwardIcon sx={{ direction: "ltr" }} />}
             variant="outlined"
+            aria-label="חזרה לעמוד הקודם"
           >
             חזור
           </Button>
