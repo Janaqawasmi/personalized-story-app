@@ -27,3 +27,25 @@ export function parseAgeGroupIdFromQuery(q: string): string | null {
   return AGE_GROUPS.some((ag) => ag.id === normalized) ? normalized : null;
 }
 
+/**
+ * Normalize age group from UI / URL to Firestore format
+ * Examples:
+ * "0-3"   -> "0_3"
+ * "0–3"   -> "0_3"
+ * "0_3"   -> "0_3"
+ * 
+ * This is used when age comes from URL params or UI (human-readable format)
+ * and needs to be converted to the database format before querying.
+ */
+export function normalizeAgeGroupId(input: string): string | null {
+  if (!input) return null;
+
+  const normalized = input
+    .trim()
+    .replace(/[–-]/g, "_") // dash or en-dash → underscore
+    .replace(/\s+/g, "");  // remove spaces
+
+  const exists = AGE_GROUPS.some((ag) => ag.id === normalized);
+  return exists ? normalized : null;
+}
+

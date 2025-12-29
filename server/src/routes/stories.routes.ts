@@ -16,6 +16,11 @@ router.get("/search", async (req, res) => {
     const qRaw = String(req.query.q ?? "").trim();
     const ageGroupId = parseAgeGroupIdFromQuery(qRaw);
 
+    // Debug logging (temporary - can be removed after verification)
+    if (qRaw && ageGroupId) {
+      console.log(`[search] Age from query: "${qRaw}" → normalized: "${ageGroupId}"`);
+    }
+
     // If user typed an age, filter by ageGroup (check multiple field locations)
     if (ageGroupId) {
       // Fetch all approved stories and filter by ageGroup in memory

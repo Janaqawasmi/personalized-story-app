@@ -110,6 +110,19 @@ import {
       // Fallback: try to format other patterns
       return `לגיל ${ageGroup.replace(/_/g, "–")}`;
     };
+
+    /**
+     * Normalize age group value for comparison
+     * Converts "0-3", "0–3", "0_3" etc. to "0_3" format
+     */
+    const normalizeAgeGroup = (value?: string): string | null => {
+      if (!value) return null;
+      return value
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, "") // remove spaces
+        .replace(/[–-]/g, "_"); // dash or en-dash → underscore
+    };
   
     const getStoryAge = (story: StoryTemplate): string | undefined => {
       return (
@@ -319,12 +332,25 @@ import {
         // Priority 0: Check if query is an age group
         const ageGroupId = parseAgeGroupFromQuery(clean);
         if (ageGroupId) {
+          // Debug logging (temporary - can be removed after verification)
+          console.log("[SearchOverlay] QUERY ageGroupId:", ageGroupId);
+          
           const filtered = allStoriesCache.filter((s) => {
             const storyAge =
               s.ageGroup ||
               s.targetAgeGroup ||
               s.generationConfig?.targetAgeGroup;
-            return storyAge === ageGroupId;
+            
+            // Normalize both sides before comparison
+            const normalizedStoryAge = normalizeAgeGroup(storyAge);
+            
+            // Debug logging (temporary)
+            if (s.id === allStoriesCache[0]?.id) {
+              console.log("[SearchOverlay] STORY age raw:", storyAge);
+              console.log("[SearchOverlay] STORY age normalized:", normalizedStoryAge);
+            }
+            
+            return normalizedStoryAge === ageGroupId;
           });
           setSearchResults(filtered.slice(0, 30));
           setIsSearching(false);
