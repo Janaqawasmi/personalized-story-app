@@ -40,21 +40,6 @@ export default function App() {
             setSelection(sel);
           }}
         />
-
-        <Route
-          path="/specialist/drafts/:draftId"
-          element={<ReviewDraftPage />}
-        />
-        <Route
-          path="/specialist/story-briefs/:briefId/prompt-preview"
-          element={<PromptPreviewPage />}
-        />
-
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-
-
         <Box sx={{ pt: 10 }}>
           <Routes>
             {/* ───────────── HOME ───────────── */}
