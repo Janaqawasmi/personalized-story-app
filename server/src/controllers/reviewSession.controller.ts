@@ -20,7 +20,7 @@ export const createReviewSession = async (req: Request, res: Response) => {
     }
 
     // Verify draft exists
-    const draftSnap = await db.collection("story_drafts").doc(draftId).get();
+    const draftSnap = await db.collection("storyDrafts").doc(draftId).get();
     if (!draftSnap.exists) {
       return res.status(404).json({ success: false, error: "Draft not found" });
     }
@@ -173,7 +173,7 @@ export const sendMessage = async (req: Request, res: Response) => {
       });
 
     // 2. Get draft
-    const draftSnap = await db.collection("story_drafts").doc(session?.draftId).get();
+    const draftSnap = await db.collection("storyDrafts").doc(session?.draftId).get();
     if (!draftSnap.exists) {
       return res.status(404).json({ success: false, error: "Draft not found" });
     }
@@ -298,7 +298,7 @@ export const applyProposal = async (req: Request, res: Response) => {
     }
 
     // Update draft with proposal pages
-    await db.collection("story_drafts").doc(draftId).update({
+    await db.collection("storyDrafts").doc(draftId).update({
       pages: proposal.proposedPages,
       revisionCount: currentRevisionCount + 1,
       updatedAt: new Date().toISOString(),

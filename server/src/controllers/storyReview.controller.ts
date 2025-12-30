@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../config/firebase";
+import { StoryBrief } from "../models/storyBrief.model";
+import { StoryDraft } from "../models/storyDraft.model";
 
 /**
  * List drafts waiting for specialist review
@@ -7,7 +9,7 @@ import { db } from "../config/firebase";
 export const listDraftsForReview = async (_req: Request, res: Response) => {
     try {
       const snapshot = await db
-        .collection("story_drafts")
+        .collection("storyDrafts")
         .where("status", "==", "in_review")
         .get();
   
@@ -29,28 +31,30 @@ export const listDraftsForReview = async (_req: Request, res: Response) => {
   
 /**
  * Get a single draft by ID
+ * OUT OF SCOPE FOR PHASE 2 - Commented out
+ * Use getDraftById from storyDraft.controller.ts instead (GET /api/story-drafts/:draftId)
  */
-export const getDraftById = async (req: Request, res: Response) => {
-  try {
-    const { draftId } = req.params;
-
-    if (!draftId) {
-      return res.status(400).json({ success: false, error: "draftId parameter is required" });
-    }
-
-    const doc = await db.collection("story_drafts").doc(draftId).get();
-    if (!doc.exists) {
-      return res.status(404).json({ success: false, error: "Draft not found" });
-    }
-
-    res.json({
-      success: true,
-      draft: { id: doc.id, ...doc.data() },
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: "Failed to fetch draft" });
-  }
-};
+// export const getDraftById = async (req: Request, res: Response) => {
+//   try {
+//     const { draftId } = req.params;
+//
+//     if (!draftId) {
+//       return res.status(400).json({ success: false, error: "draftId parameter is required" });
+//     }
+//
+//     const doc = await db.collection("storyDrafts").doc(draftId).get();
+//     if (!doc.exists) {
+//       return res.status(404).json({ success: false, error: "Draft not found" });
+//     }
+//
+//     res.json({
+//       success: true,
+//       draft: { id: doc.id, ...doc.data() },
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, error: "Failed to fetch draft" });
+//   }
+// };
 
 /**
  * Update draft content (specialist edits)
@@ -68,7 +72,7 @@ export const updateDraft = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "pages must be an array" });
     }
 
-    await db.collection("story_drafts").doc(draftId).update({
+    await db.collection("storyDrafts").doc(draftId).update({
       pages,
       updatedAt: new Date().toISOString(),
     });
@@ -96,14 +100,14 @@ export const approveDraft = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: "specialistId is required" });
     }
 
-    const draftRef = db.collection("story_drafts").doc(draftId);
+    const draftRef = db.collection("storyDrafts").doc(draftId);
     const draftSnap = await draftRef.get();
 
     if (!draftSnap.exists) {
       return res.status(404).json({ success: false, error: "Draft not found" });
     }
 
-    const draft = draftSnap.data();
+    const draft = draftSnap.data() as StoryDraft;
 
     // If sessionId provided, verify the session's revision count matches draft
     if (sessionId) {
@@ -122,10 +126,37 @@ export const approveDraft = async (req: Request, res: Response) => {
       }
     }
 
+    // Fetch the brief to get topic, situation, and age group
+    let primaryTopic: string | undefined;
+    let specificSituation: string | undefined;
+    let ageGroup: string | undefined;
+
+    if (draft.briefId) {
+      try {
+        const briefSnap = await db.collection("storyBriefs").doc(draft.briefId).get();
+        if (briefSnap.exists) {
+          const briefData = briefSnap.data() as StoryBrief;
+          primaryTopic = briefData.therapeuticFocus?.primaryTopic;
+          specificSituation = briefData.therapeuticFocus?.specificSituation;
+          ageGroup = briefData.childProfile?.ageGroup;
+        }
+      } catch (error) {
+        console.warn("Failed to fetch brief for template:", error);
+        // Continue without brief data - template will still be created
+      }
+    }
+
     // 1️⃣ Create approved template
     const templateRef = await db.collection("story_templates").add({
       draftId,
+      briefId: draft.briefId,
       title: draft?.title ?? "Untitled",
+      status: "approved",
+      // Topic, situation, and age group from brief (if available)
+      ...(primaryTopic && { primaryTopic }),
+      ...(specificSituation && { specificSituation }),
+      ...(ageGroup && { ageGroup }),
+      generationConfig: draft?.generationConfig,
       pages: Array.isArray(draft?.pages)
         ? draft.pages.map((p: any) => ({
             pageNumber: p.pageNumber ?? null,

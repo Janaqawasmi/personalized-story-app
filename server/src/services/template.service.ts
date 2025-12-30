@@ -1,7 +1,7 @@
 import { db } from "../config/firebase";
 
 export async function getApprovedStoryTemplate(templateId: string) {
-  const docRef = db.collection("approved_story_templates").doc(templateId);
+  const docRef = db.collection("story_templates").doc(templateId);
   const snapshot = await docRef.get();
 
   if (!snapshot.exists) {
