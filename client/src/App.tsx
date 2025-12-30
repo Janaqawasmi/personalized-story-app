@@ -79,10 +79,10 @@ export default function App() {
             <Route path="/specialist/create-brief" element={<AdminStoryBriefForm />} />
             <Route path="/specialist/generate-draft" element={<GenerateDraftPage />} />
             <Route path="/specialist/drafts" element={<SpecialistDraftList />} />
-            <Route path="/specialist/drafts/:draftId" element={<SpecialistDraftReview />} />
+            <Route path="/specialist/drafts/:draftId" element={<ReviewDraftPage />} />
             <Route
               path="/specialist/story-briefs/:briefId/prompt-preview"
-              element={<SpecialistStoryPromptPreview />}
+              element={<PromptPreviewPage />}
             />
 
             <Route path="*" element={<Navigate to="/" replace />} />
