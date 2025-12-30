@@ -26,7 +26,7 @@ import {
   Inbox,
   Search,
 } from "@mui/icons-material";
-import { fetchDraftsForReview, StoryDraftView } from "../api/api";
+import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief } from "../api/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import SpecialistNav from "../components/SpecialistNav";
 
@@ -39,6 +39,15 @@ const formatAgeGroup = (ageGroup: string): string => {
     "9_12": "9–12",
   };
   return mapping[ageGroup] || ageGroup;
+};
+
+// Helper to format topic/situation for display (convert snake_case to Title Case)
+const formatTopicLabel = (value: string): string => {
+  if (!value) return "";
+  return value
+    .split("_")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 };
 
 // Get status chip configuration
@@ -80,6 +89,7 @@ const SpecialistDraftList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [drafts, setDrafts] = useState<StoryDraftView[]>([]);
+  const [briefs, setBriefs] = useState<StoryBrief[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -90,8 +100,13 @@ const SpecialistDraftList: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchDraftsForReview();
-      setDrafts(data);
+      // Load drafts and briefs in parallel
+      const [draftsData, briefsData] = await Promise.all([
+        fetchDraftsForReview(),
+        fetchStoryBriefs(),
+      ]);
+      setDrafts(draftsData);
+      setBriefs(briefsData);
       setLastUpdated(new Date());
     } catch (err: any) {
       setError(err.message || "Failed to load drafts");
@@ -99,6 +114,12 @@ const SpecialistDraftList: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  // Helper to get brief for a draft
+  const getBriefForDraft = useCallback((draft: StoryDraftView): StoryBrief | null => {
+    if (!draft.briefId) return null;
+    return briefs.find(b => b.id === draft.briefId) || null;
+  }, [briefs]);
 
   // Track if this is the initial mount
   const isInitialMount = useRef(true);
@@ -127,7 +148,7 @@ const SpecialistDraftList: React.FC = () => {
       // Only refresh if we're on the drafts list page and haven't updated recently
       if (location.pathname === "/specialist/drafts" && 
           (!lastUpdated || (Date.now() - lastUpdated.getTime()) > 2000)) {
-        loadDrafts();
+    loadDrafts();
       }
     };
 
@@ -350,6 +371,13 @@ const SpecialistDraftList: React.FC = () => {
               const ageGroup = draft.generationConfig?.targetAgeGroup 
                 ? formatAgeGroup(draft.generationConfig.targetAgeGroup) 
                 : "N/A";
+              const brief = getBriefForDraft(draft);
+              const topic = brief?.therapeuticFocus?.primaryTopic 
+                ? formatTopicLabel(brief.therapeuticFocus.primaryTopic) 
+                : null;
+              const situation = brief?.therapeuticFocus?.specificSituation 
+                ? formatTopicLabel(brief.therapeuticFocus.specificSituation) 
+                : null;
 
               return (
                 <Card
@@ -401,6 +429,34 @@ const SpecialistDraftList: React.FC = () => {
                           />
                         </Stack>
                         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" gap={1}>
+                          {topic && (
+                            <Chip
+                              label={`Topic: ${topic}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{ 
+                                fontSize: "0.75rem",
+                                height: 24,
+                                "& .MuiChip-label": {
+                                  px: 1,
+                                },
+                              }}
+                            />
+                          )}
+                          {situation && (
+                            <Chip
+                              label={`Situation: ${situation}`}
+                              size="small"
+                              variant="outlined"
+                              sx={{ 
+                                fontSize: "0.75rem",
+                                height: 24,
+                                "& .MuiChip-label": {
+                                  px: 1,
+                                },
+                              }}
+                            />
+                          )}
                           <Chip
                             label={`Age ${ageGroup}`}
                             size="small"
