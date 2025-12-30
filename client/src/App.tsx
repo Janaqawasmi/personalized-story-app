@@ -12,13 +12,14 @@ import TopicResultsPage from "./pages/TopicResultsPage";
 import AdminStoryBriefForm from "./pages/AdminStoryBriefForm";
 import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
-
+import ReviewDraftPage from "./pages/ReviewDraftPage";
+import PromptPreviewPage from "./pages/PromptPreviewPage";
 
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
 import BookReaderPage from "./pages/BookReaderPage";
-import ReviewDraftPage from "./pages/ReviewDraftPage";
-import PromptPreviewPage from "./pages/PromptPreviewPage";
+import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
+
 
 
 import { MegaSelection } from "./components/MegaMenu/types";
@@ -52,6 +53,10 @@ export default function App() {
               element={<CategoryResultsPage />}
             />
             <Route path="/stories/topic/:topicId" element={<TopicResultsPage />} />
+            <Route
+              path="/stories/:storyId/personalize"
+              element={<PersonalizeStoryPage />}
+            />
             <Route path="/stories/:storyId/read" element={<BookReaderPage />} />
 
             {/* ───────────── USER PAGES ───────────── */}

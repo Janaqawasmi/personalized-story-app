@@ -56,11 +56,34 @@ export default function BookReaderPage() {
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
 
-  // Fetch story from Firestore
+  // Check for personalization before loading story
   useEffect(() => {
     if (!storyId) {
       setError("Story ID is missing");
       setLoading(false);
+      return;
+    }
+
+    // Check if personalization session exists and is completed
+    const personalizationKey = `qosati_personalization_${storyId}`;
+    const personalizationStr = localStorage.getItem(personalizationKey);
+    
+    if (!personalizationStr) {
+      // No session - redirect to personalization
+      navigate(`/stories/${storyId}/personalize`);
+      return;
+    }
+
+    try {
+      const session = JSON.parse(personalizationStr);
+      if (session.status !== "completed") {
+        // Draft session or invalid - redirect to personalization
+        navigate(`/stories/${storyId}/personalize`);
+        return;
+      }
+    } catch {
+      // Invalid session data - redirect to personalization
+      navigate(`/stories/${storyId}/personalize`);
       return;
     }
 
@@ -115,7 +138,20 @@ export default function BookReaderPage() {
     };
 
     fetchStory();
-  }, [storyId, CURRENT_LANGUAGE]);
+  }, [storyId, CURRENT_LANGUAGE, navigate]);
+
+  // Clear personalization when component unmounts (user leaves the story)
+  // This ensures personalization is session-scoped, not persistent
+  useEffect(() => {
+    if (!storyId) return;
+
+    const personalizationKey = `qosati_personalization_${storyId}`;
+    
+    return () => {
+      // Clear personalization when user leaves the story reader
+      localStorage.removeItem(personalizationKey);
+    };
+  }, [storyId]);
 
   // Keyboard navigation
   useEffect(() => {

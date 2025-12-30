@@ -103,6 +103,9 @@ export default function Navbar({
                 },
               }}
               onClick={() => {
+                // Navigate home without clearing personalization
+                // Draft sessions are preserved for resuming
+                // Completed sessions are preserved for user choice
                 navigate("/");
                 setSearchOpen(false); // Close search overlay if open
               }}
