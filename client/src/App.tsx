@@ -12,11 +12,14 @@ import TopicResultsPage from "./pages/TopicResultsPage";
 import AdminStoryBriefForm from "./pages/AdminStoryBriefForm";
 import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
-import SpecialistDraftReview from "./pages/SpecialistDraftReview";
-import SpecialistStoryPromptPreview from "./pages/SpecialistStoryPromptPreview";
+
+
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
 import BookReaderPage from "./pages/BookReaderPage";
+import ReviewDraftPage from "./pages/ReviewDraftPage";
+import PromptPreviewPage from "./pages/PromptPreviewPage";
+
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -37,6 +40,20 @@ export default function App() {
             setSelection(sel);
           }}
         />
+
+        <Route
+          path="/specialist/drafts/:draftId"
+          element={<ReviewDraftPage />}
+        />
+        <Route
+          path="/specialist/story-briefs/:briefId/prompt-preview"
+          element={<PromptPreviewPage />}
+        />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+
 
         <Box sx={{ pt: 10 }}>
           <Routes>

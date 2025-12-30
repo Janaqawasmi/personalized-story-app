@@ -6,3 +6,7 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# macOS system files
+.DS_Store
+**/.DS_Store
+
