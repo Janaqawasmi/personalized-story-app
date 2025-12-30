@@ -1,4 +1,5 @@
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+// Use relative URLs in dev via proxy, and absolute in production via env
+const API_BASE = process.env.REACT_APP_API_BASE || "";
 
 // ---------- Existing APIs ----------
 
@@ -506,6 +507,56 @@ export async function fetchTopicTags(): Promise<string[]> {
   }
 }
 
+// ---------- Story Search API ----------
+
+export interface StorySearchResult {
+  id: string;
+  title?: string;
+  shortDescription?: string;
+  coverImage?: string;
+  ageGroup?: string;
+  targetAgeGroup?: string;
+  generationConfig?: {
+    targetAgeGroup?: string;
+  };
+  primaryTopic?: string;
+  specificSituation?: string;
+  category?: string;
+  topicKey?: string;
+  language?: string;
+  status?: string;
+  [key: string]: any; // Allow other fields
+}
+
+export interface StorySearchResponse {
+  results: StorySearchResult[];
+  matchedAgeGroup: string | null;
+}
+
+export async function searchStories(query: string): Promise<StorySearchResponse> {
+  try {
+    const res = await fetch(`${API_BASE}/api/stories/search?q=${encodeURIComponent(query)}`);
+    
+    // Defensive: Check if response is JSON, not HTML
+    const contentType = res.headers.get("content-type");
+    if (!contentType?.includes("application/json")) {
+      const text = await res.text();
+      if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+        throw new Error(
+          "API returned HTML instead of JSON. " +
+          "This usually means the backend route /api/stories/search doesn't exist " +
+          "or the proxy isn't working. Make sure the backend server is running on port 5000."
+        );
+      }
+      throw new Error(`API did not return JSON. Content-Type: ${contentType}`);
+    }
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to search stories (${res.status})`);
+    }
+    
+    return res.json();
 // ---------- Draft Suggestion APIs ----------
 
 /**

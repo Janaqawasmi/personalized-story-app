@@ -17,6 +17,7 @@ import PromptPreviewPage from "./pages/PromptPreviewPage";
 
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
+import SearchPage from "./pages/SearchPage";
 import BookReaderPage from "./pages/BookReaderPage";
 import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
 
@@ -60,15 +61,7 @@ export default function App() {
             <Route path="/stories/:storyId/read" element={<BookReaderPage />} />
 
             {/* ───────────── USER PAGES ───────────── */}
-            <Route
-              path="/search"
-              element={
-                <PlaceholderPage
-                  title="חיפוש"
-                  message="דף החיפוש יופיע כאן בקרוב"
-                />
-              }
-            />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route
               path="/cart"

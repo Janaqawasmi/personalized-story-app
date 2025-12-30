@@ -22,6 +22,7 @@ import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
 import specialistPromptRoutes from "./routes/specialistPrompt.routes";
+import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
 
 // ---------- APP ----------
@@ -33,9 +34,10 @@ app.use(cors());
 app.use(express.json());
 
 // ---------- ROUTES ----------
-// OUT OF SCOPE FOR CURRENT PHASE (review/approval/publishing)
-// app.use("/api/story-templates", templateRoutes);
-// app.use("/api/personalized-stories", personalizedStoryRoutes);
+app.use("/api/story-templates", templateRoutes);
+app.use("/api/story-drafts", storyDraftRoutes);
+app.use("/api/personalized-stories", personalizedStoryRoutes);
+app.use("/api/stories", storiesRoutes);
 
 app.use("/api/admin/story-briefs", storyBriefRouter); // Includes generate-draft endpoint
 app.use("/api/story-drafts", storyDraftRoutes); // READ-ONLY draft viewing
@@ -94,7 +96,7 @@ app.use((err: any, _req: Request, res: Response, _next: any) => {
 
 // ---------- START SERVER ----------
 const server = app.listen(port, () => {
-  console.log(`🚀 Server listening on port ${port}`);
+  console.log(`🚀 Server running on http://localhost:${port}`);
 });
 
 // ---------- SERVER ERROR ----------

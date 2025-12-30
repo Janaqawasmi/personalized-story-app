@@ -1,6 +1,19 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 
+/**
+ * Normalize age group value for comparison
+ * Converts "0-3", "0–3", "0_3" etc. to "0_3" format
+ */
+function normalizeAgeGroup(value?: string): string | null {
+  if (!value) return null;
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "") // remove spaces
+    .replace(/[–-]/g, "_"); // dash or en-dash → underscore
+}
+
 export type Story = {
   id: string;
   title: string;
@@ -146,13 +159,12 @@ export async function fetchStoriesWithFilters(filters: {
       ...(doc.data() as any),
     }));
 
-    // Filter by ageGroup in any location
+    // Filter by ageGroup in any location (normalize both sides for comparison)
+    const normalizedFilterAge = normalizeAgeGroup(filters.ageGroup);
     allStories = allStories.filter((story) => {
-      return (
-        story.ageGroup === filters.ageGroup ||
-        story.targetAgeGroup === filters.ageGroup ||
-        story.generationConfig?.targetAgeGroup === filters.ageGroup
-      );
+      const storyAge = story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup;
+      const normalizedStoryAge = normalizeAgeGroup(storyAge);
+      return normalizedStoryAge === normalizedFilterAge;
     });
 
     // Apply topic/situation filters if needed

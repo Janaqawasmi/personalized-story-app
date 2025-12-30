@@ -36,3 +36,4 @@ They are then used in the `VISUAL_STYLES` configuration array, where each style 
 
 Each visual style is represented by a static reference image selected by the user. The chosen style ID (`watercolor`, `semi_realistic`, etc.) is later injected into the generative AI prompt to ensure consistent visual output matching user expectations.
 
+
