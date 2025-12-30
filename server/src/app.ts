@@ -39,10 +39,10 @@ app.use(express.json());
 
 app.use("/api/admin/story-briefs", storyBriefRouter); // Includes generate-draft endpoint
 app.use("/api/story-drafts", storyDraftRoutes); // READ-ONLY draft viewing
+app.use("/api/specialist", specialistPromptRoutes); // Prompt preview endpoint
 
 // REVIEW/APPROVAL ENDPOINTS COMMENTED OUT
 // app.use("/api/specialist/reviews", storyReviewRoutes);
-// app.use("/api/specialist/prompts", specialistPromptRoutes);
 app.use("/api/reference-data", referenceDataRoutes);
 
 // ---------- DEBUG FIRESTORE ----------
@@ -50,7 +50,7 @@ app.use("/api/reference-data", referenceDataRoutes);
 // app.get("/api/debug/firestore", async (_req: Request, res: Response) => {
 //   try {
 //     const snap = await firestore
-//       .collection("approved_story_templates")
+//       .collection("story_templates")
 //       .limit(5)
 //       .get();
 //

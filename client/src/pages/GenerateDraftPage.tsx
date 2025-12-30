@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -346,6 +346,10 @@ type FilterTab = "all" | "ready" | "generating" | "generated";
 
 const GenerateDraftPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const briefIdFromUrl = searchParams.get("briefId");
+  const briefCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
@@ -375,6 +379,45 @@ const GenerateDraftPage: React.FC = () => {
     loadBriefs();
   }, []);
 
+  // Track the last processed briefId to allow re-processing when briefId changes
+  const lastProcessedBriefIdRef = useRef<string | null>(null);
+
+  // Scroll to specific brief if briefId is in URL
+  useEffect(() => {
+    // Reset the ref when briefId is cleared from URL (allows re-processing if user returns with same briefId)
+    if (!briefIdFromUrl) {
+      lastProcessedBriefIdRef.current = null;
+      return;
+    }
+
+    // Process if briefId exists, briefs are loaded, and this briefId hasn't been processed yet
+    if (briefs.length > 0 && briefIdFromUrl !== lastProcessedBriefIdRef.current) {
+      // Wait for briefs to be loaded and filtered
+      const timeoutId = setTimeout(() => {
+        const briefCard = briefCardRefs.current[briefIdFromUrl];
+        if (briefCard) {
+          // Mark this briefId as processed
+          lastProcessedBriefIdRef.current = briefIdFromUrl;
+          
+          briefCard.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Highlight the card briefly
+          briefCard.style.transition = "box-shadow 0.3s ease";
+          briefCard.style.boxShadow = "0 0 0 3px rgba(25, 118, 210, 0.5)";
+          setTimeout(() => {
+            briefCard.style.boxShadow = "";
+          }, 2000);
+          // Remove briefId from URL after scrolling
+          setSearchParams({});
+        }
+      }, 100);
+
+      // Cleanup: cancel timeout if dependencies change before it fires
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [briefIdFromUrl, briefs, setSearchParams]);
+
   const handleGenerateClick = (brief: StoryBrief) => {
     setBriefToGenerate(brief);
     setConfirmDialogOpen(true);
@@ -391,13 +434,34 @@ const GenerateDraftPage: React.FC = () => {
     setSuccessDraftId(null);
 
     try {
-      const result = await generateDraftFromBrief(briefId);
+      // Start the generation API call (don't await yet)
+      const resultPromise = generateDraftFromBrief(briefId);
+      
+      // The backend updates the brief status to "draft_generating" immediately
+      // in a transaction before starting the LLM call. Give it a moment to complete,
+      // then reload briefs so it appears in the "Generating" tab filter.
+      await new Promise<void>((resolve) => {
+        setTimeout(async () => {
+          try {
+            await loadBriefs();
+          } catch (err) {
+            console.error("Failed to reload briefs after generation start:", err);
+            // Don't show error to user as generation is still in progress
+          }
+          resolve();
+        }, 500);
+      });
+      
+      // Wait for generation to complete
+      const result = await resultPromise;
       setSuccess(`Draft generated successfully! You can now review it.`);
       setSuccessDraftId(result.draftId);
-      // Reload briefs to update status
+      // Reload briefs again to show final "draft_generated" status
       await loadBriefs();
     } catch (err: any) {
       setError(err.message || "Failed to generate draft");
+      // Reload briefs even on error to reset status if needed
+      await loadBriefs();
     } finally {
       setGenerating(null);
       setBriefToGenerate(null);
@@ -475,14 +539,23 @@ const GenerateDraftPage: React.FC = () => {
               Only briefs with status 'Ready' can generate drafts.
             </Typography>
           </Box>
-          <Button
-            variant="outlined"
-            startIcon={loading ? <CircularProgress size={18} /> : <Refresh />}
-            onClick={loadBriefs}
-            disabled={loading}
-          >
-            Refresh
-        </Button>
+          <Tooltip title="Refresh briefs">
+            <IconButton
+              onClick={loadBriefs}
+              disabled={loading}
+              color="primary"
+              sx={{ 
+                border: "1px solid",
+                borderColor: "divider",
+              }}
+            >
+              {loading ? (
+                <CircularProgress size={20} />
+              ) : (
+                <Refresh />
+              )}
+            </IconButton>
+          </Tooltip>
       </Stack>
 
         {/* Alerts */}
@@ -611,6 +684,11 @@ const GenerateDraftPage: React.FC = () => {
               return (
                 <Card
                   key={brief.id}
+                  ref={(el) => {
+                    if (brief.id) {
+                      briefCardRefs.current[brief.id] = el;
+                    }
+                  }}
                   variant="outlined"
                   sx={{
                     transition: "all 0.2s ease-in-out",

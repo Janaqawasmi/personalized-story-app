@@ -11,7 +11,7 @@ import admin from "firebase-admin";
 // Types
 // ============================================================================
 
-export type StoryDraftStatus = "generating" | "generated" | "failed";
+export type StoryDraftStatus = "generating" | "generated" | "failed" | "editing" | "approved";
 
 export type Language = "ar" | "he";
 
@@ -38,6 +38,7 @@ export interface DraftPage {
 
 export interface DraftError {
   message: string;
+  reason?: string;
 }
 
 export interface StoryDraft {
@@ -49,6 +50,8 @@ export interface StoryDraft {
   status: StoryDraftStatus;
   /** Version number of this draft */
   version: number;
+  /** Number of times this draft has been edited and saved (incremented on each save) */
+  revisionCount: number;
   /** Configuration used for generation */
   generationConfig: GenerationConfig;
   /** Story title (only set when status === "generated") */
@@ -61,6 +64,12 @@ export interface StoryDraft {
   updatedAt: admin.firestore.Timestamp;
   /** Error information (only set when status === "failed") */
   error?: DraftError;
+  /** Raw model output (for debugging only, not shown to users) */
+  rawModelOutput?: string;
+  /** Timestamp when draft was approved (only set when status === "approved") */
+  approvedAt?: admin.firestore.Timestamp;
+  /** ID of the user who approved this draft (only set when status === "approved") */
+  approvedBy?: string;
 }
 
 export interface GenerateDraftInput {
