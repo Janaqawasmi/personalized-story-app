@@ -16,6 +16,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "firebase": "^12.7.0",
+    "lucide-react": "^0.562.0",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "react-router-dom": "^6.30.2",

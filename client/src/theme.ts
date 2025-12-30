@@ -38,6 +38,7 @@ const theme = createTheme({
       primary: COLORS.textPrimary,
       secondary: COLORS.textSecondary,
     },
+    divider: COLORS.border,
     error: {
       main: COLORS.error,
     },

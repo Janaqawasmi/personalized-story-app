@@ -1,5 +1,6 @@
 import { Box, Typography, Card, CardActionArea } from "@mui/material";
 import { useState } from "react";
+import { COLORS } from "../../theme";
 
 const styles = [
   { key: "watercolor", label: "Watercolor 🎨" },
@@ -30,8 +31,8 @@ export default function StyleSelector() {
             sx={{
               border:
                 selected === style.key
-                  ? "2px solid #617891"
-                  : "1px solid #ddd",
+                  ? `2px solid ${COLORS.primary}`
+                  : `1px solid ${COLORS.border}`,
             }}
           >
             <CardActionArea onClick={() => setSelected(style.key)}>
