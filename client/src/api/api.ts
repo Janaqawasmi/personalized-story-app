@@ -557,6 +557,13 @@ export async function searchStories(query: string): Promise<StorySearchResponse>
     }
     
     return res.json();
+      } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
 // ---------- Draft Suggestion APIs ----------
 
 /**
