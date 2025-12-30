@@ -48,4 +48,13 @@ export function normalizeAgeGroupId(input: string): string | null {
   const exists = AGE_GROUPS.some((ag) => ag.id === normalized);
   return exists ? normalized : null;
 }
-
+/**
+ * Format age group ID for display
+ * Converts "0_3" to "0–3 years" (lowercase, readable)
+ */
+export function formatAgeGroupLabel(ageGroupId: string): string {
+  const ageGroup = AGE_GROUPS.find((ag) => ag.id === ageGroupId);
+  return ageGroup
+    ? ageGroup.label.replace(/\s*–\s*/g, "–").toLowerCase()
+    : ageGroupId;
+}
