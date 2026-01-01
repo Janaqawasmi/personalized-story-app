@@ -1,6 +1,6 @@
 import { Box, Typography, Container, Button } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
@@ -11,12 +11,26 @@ export default function CategoryResultsPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, loading } = useReferenceData();
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedAge, setSelectedAge] = useState<string | null>(
     searchParams.get("age") || null
   );
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+
+  // Reset filters when coming from MegaMenu
+  useEffect(() => {
+    if (location.state?.fromMegaMenu) {
+      // 🔥 Full reset and apply - clear all filters, then apply only the new selection
+      // This ensures previous filter state is completely cleared
+      setSelectedAge(location.state.age ?? null);
+      setSelectedTopic(null);
+      
+      // Clean up location.state to prevent re-triggering
+      window.history.replaceState({}, document.title, location.pathname + location.search);
+    }
+  }, [location.key, location.pathname, location.search]);
 
   // Get situation IDs for this category
   const situationIds = data?.situations

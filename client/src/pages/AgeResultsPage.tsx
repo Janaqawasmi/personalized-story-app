@@ -1,6 +1,6 @@
 import { Box, Typography, Container, Button } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
@@ -10,12 +10,26 @@ import type { Story } from "../api/stories";
 export default function AgeResultsPage() {
   const { ageId } = useParams<{ ageId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, loading } = useReferenceData();
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
 
   const ageGroup = AGE_GROUPS.find((a) => a.id === ageId);
+
+  // Reset filters when coming from MegaMenu
+  useEffect(() => {
+    if (location.state?.fromMegaMenu) {
+      // 🔥 Full reset and apply - clear all filters, then apply only the new selection
+      // This ensures previous filter state is completely cleared
+      setSelectedCategory(location.state.category ?? null);
+      setSelectedTopic(null);
+      
+      // Clean up location.state to prevent re-triggering
+      window.history.replaceState({}, document.title, location.pathname);
+    }
+  }, [location.key, location.pathname]);
 
   // Fetch stories when filters change
   useEffect(() => {
