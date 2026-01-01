@@ -10,7 +10,7 @@ import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
@@ -30,6 +30,7 @@ export default function Navbar({
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
+  const megaButtonRef = useRef<HTMLDivElement>(null);
 
   return (
     <>
@@ -65,6 +66,7 @@ export default function Navbar({
           >
             {/* Mega menu trigger */}
             <Box
+              ref={megaButtonRef}
               sx={{
                 display: "flex",
                 alignItems: "center",
@@ -74,7 +76,7 @@ export default function Navbar({
                 gap: 0.5,
               }}
               onClick={() => {
-                setMegaOpen((p) => !p);
+                setMegaOpen(prev => !prev); // 🔁 toggle בלבד - אין ניווט
                 setSearchOpen(false); // Close search overlay if open
               }}
             >
@@ -162,6 +164,7 @@ export default function Navbar({
           setMegaOpen(false);
         }}
         value={currentSelection}
+        triggerRef={megaButtonRef}
       />
 
       {/* Search Overlay */}

@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import React from "react";
 
 import { AgeColumn } from "./AgeColumn";
 import { CategoryColumn } from "./CategoryColumn";
@@ -14,9 +15,16 @@ type Props = {
   onClose: () => void;
   onApply: (selection: MegaSelection) => void;
   value?: MegaSelection;
+  triggerRef?: React.RefObject<HTMLDivElement | null>;
 };
 
-export function MegaMenu({ isOpen, onClose, onApply, value }: Props) {
+export function MegaMenu({
+  isOpen,
+  onClose,
+  onApply,
+  value,
+  triggerRef,
+}: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
@@ -33,17 +41,21 @@ export function MegaMenu({ isOpen, onClose, onApply, value }: Props) {
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
       if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
+        panelRef.current?.contains(target) ||
+        triggerRef?.current?.contains(target)
       ) {
-        onClose();
+        return;
       }
+
+      onClose();
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   if (!isOpen || loading || !data) return null;
 
