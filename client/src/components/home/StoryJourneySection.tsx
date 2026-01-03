@@ -368,8 +368,7 @@ export default function StoryJourneySection({ sx }: Props) {
           <Button
             variant="contained"
             onClick={() => {
-              // Navigate to home - user can click "עיון בסיפורים" in navbar to browse stories
-              navigate("/");
+              navigate("/books");
             }}
             sx={{
               backgroundColor: "#617891",
