@@ -37,7 +37,7 @@ type VisualStyle =
 
 type StoryPersonalizationData = {
   childName: string;
-  gender: "female" | "male" | "neutral";
+  gender: "female" | "male";
   photoFile?: File; // Not stored in localStorage (File objects can't be serialized)
   photoPreviewUrl: string; // REQUIRED
   visualStyle: VisualStyle;
@@ -69,10 +69,10 @@ const STEPS = [
 ];
 
 const GENDER_OPTIONS = [
-  { value: "female" as const, label: "בת", icon: "👧" },
-  { value: "male" as const, label: "בן", icon: "👦" },
-  { value: "neutral" as const, label: "ניטרלי / מעדיף לא לציין", icon: "⚪" },
+  { value: "female" as const, label: "בת" },
+  { value: "male" as const, label: "בן" },
 ];
+
 
 
 // Visual style configuration
@@ -172,7 +172,7 @@ export default function PersonalizeStoryPage() {
   const [activeStep, setActiveStep] = useState(0);
   const [personalization, setPersonalization] = useState<Partial<StoryPersonalizationData>>({
     childName: "",
-    gender: "neutral",
+    gender: undefined,
     visualStyle: "watercolor", // Default to first style
   });
   const [session, setSession] = useState<PersonalizationSession | null>(null);
@@ -376,7 +376,8 @@ export default function PersonalizeStoryPage() {
     setSession(null);
     setPersonalization({
       childName: "",
-      gender: "neutral",
+      gender: undefined,
+
       visualStyle: "watercolor",
     });
     setActiveStep(0);
@@ -390,7 +391,7 @@ export default function PersonalizeStoryPage() {
     setSession(null);
     setPersonalization({
       childName: "",
-      gender: "neutral",
+      gender: undefined,
       visualStyle: "watercolor",
     });
     setActiveStep(0);
@@ -603,12 +604,13 @@ export default function PersonalizeStoryPage() {
                         storyId,
                         {
                           childName: e.target.value,
-                          gender: personalization.gender || "neutral",
+                          gender: personalization.gender!, // ✅ must already be selected
                           photoPreviewUrl: personalization.photoPreviewUrl || "",
                           visualStyle: personalization.visualStyle || "watercolor",
                         },
                         "draft"
                       );
+                      
                     }
                   }}
                   placeholder="הכנס שם"
@@ -669,7 +671,7 @@ export default function PersonalizeStoryPage() {
                       }}
                     >
                       <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                        <Typography sx={{ fontSize: "2rem" }}>{option.icon}</Typography>
+                        
                         <Typography variant="h6">{option.label}</Typography>
                         {personalization.gender === option.value && (
                           <CheckCircleIcon
