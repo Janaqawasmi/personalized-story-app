@@ -163,7 +163,7 @@ export default function AllBooksPage() {
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
           gap: 2,
-          alignItems: { xs: "stretch", md: "flex-end" },
+          alignItems: { xs: "flex-start", md: "flex-end" },
         }}
       >
         {/* Age Filter */}
@@ -227,8 +227,14 @@ export default function AllBooksPage() {
             variant="outlined"
             onClick={handleClearFilters}
             sx={{
-              minWidth: { xs: "100%", md: "auto" },
-              whiteSpace: "nowrap",
+              minWidth: "auto",
+              height: "28px",
+              fontSize: "12px",
+              px: 1.25,
+              py: 0,
+              lineHeight: 1,
+              borderRadius: "8px",
+              alignSelf: "flex-end",
             }}
           >
             נקה מסננים

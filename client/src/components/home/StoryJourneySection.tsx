@@ -371,19 +371,15 @@ export default function StoryJourneySection({ sx }: Props) {
               navigate("/books");
             }}
             sx={{
-              backgroundColor: "#617891",
-              color: "#fff",
-              fontWeight: 600,
-              fontSize: { xs: "16px", md: "18px" },
               px: { xs: 4, md: 5 },
-              py: 1.5,
-              borderRadius: "14px",
-              letterSpacing: "0.5px",
+              py: { xs: 1.2, md: 1.5 },
+              fontSize: { xs: "16px", md: "18px" },
+              fontWeight: 500,
+              borderRadius: 6,
               textTransform: "none",
-              boxShadow: "0 4px 12px rgba(97,120,145,0.3)",
+              backgroundColor: (theme) => theme.palette.primary.main,
               "&:hover": {
-                backgroundColor: "#4f6377",
-                boxShadow: "0 6px 16px rgba(97,120,145,0.4)",
+                backgroundColor: (theme) => theme.palette.primary.dark,
               },
             }}
           >
