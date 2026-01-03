@@ -112,7 +112,7 @@ export default function Navbar({
                 setSearchOpen(false); // Close search overlay if open
               }}
             >
-              QOSATI
+              DAMMAH
             </Typography>
           </Box>
 
