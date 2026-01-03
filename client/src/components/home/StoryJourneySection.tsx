@@ -1,4 +1,4 @@
-import { Box, Container, Typography, Button } from "@mui/material";
+import { Box, Container, Typography, Button, SxProps, Theme } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 // Import images
@@ -41,20 +41,31 @@ const journeySteps: JourneyStep[] = [
   },
 ];
 
-export default function StoryJourneySection() {
+type Props = {
+  sx?: SxProps<Theme>;
+};
+
+export default function StoryJourneySection({ sx }: Props) {
   const navigate = useNavigate();
+
+  const verticalOffsets = [0, 40, 80, 120];
 
   return (
     <Box
       sx={{
         backgroundColor: "#E5DFD9",
-        py: { xs: 6, md: 8 },
+        display: "block",
+        minHeight: "unset",
+        mt: { xs: 0, md: -2 },
+        pt: { xs: 1, md: 1 },
+        pb: { xs: 5, md: 4 },
         direction: "rtl",
+        ...sx,
       }}
     >
       <Container maxWidth="lg">
         {/* Title and Subtitle */}
-        <Box sx={{ textAlign: "center", mb: { xs: 5, md: 6 } }}>
+        <Box sx={{ textAlign: "center", mb: 4, mt: 0 }}>
           <Typography
             sx={{
               fontWeight: 700,
@@ -83,11 +94,14 @@ export default function StoryJourneySection() {
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "row", md: "row" },
+            flexDirection: "row",
+            direction: "rtl",
             justifyContent: "center",
             alignItems: "flex-start",
+            minHeight: "unset",
+            transform: { md: "translateY(-30px)" },
             gap: { xs: 3, md: 4 },
-            mb: 6,
+            mb: 4,
             overflowX: { xs: "auto", md: "visible" },
             scrollSnapType: { xs: "x mandatory", md: "none" },
             scrollBehavior: { xs: "smooth", md: "auto" },
@@ -105,11 +119,19 @@ export default function StoryJourneySection() {
           }}
         >
           {journeySteps.map((step, index) => (
-            <Box key={step.id}>
+            <Box
+              key={step.id}
+              sx={{
+                transform: {
+                  xs: "none",
+                  md: `translateY(${verticalOffsets[index]}px)`,
+                },
+              }}
+            >
               <Box
                 sx={{
                   display: "flex",
-                  alignItems: "center",
+                  alignItems: "flex-start",
                   scrollSnapAlign: { xs: "start", md: "none" },
                   minWidth: { xs: "200px", md: "auto" },
                 }}
@@ -135,7 +157,10 @@ export default function StoryJourneySection() {
                         "radial-gradient(circle at top, #6f88a3 0%, #617891 70%)",
                       overflow: "hidden",
                       position: "relative",
-                      boxShadow: "0 10px 30px rgba(97,120,145,0.25)",
+                      boxShadow:
+                        index === journeySteps.length - 1
+                          ? "0 20px 50px rgba(97,120,145,0.35)"
+                          : "0 10px 30px rgba(97,120,145,0.25)",
                       transition:
                         "transform 0.3s ease, box-shadow 0.3s ease, opacity 0.6s ease",
                       cursor: "pointer",
@@ -199,7 +224,7 @@ export default function StoryJourneySection() {
                     <Typography
                       sx={{
                         fontSize: { xs: "14px", md: "16px" },
-                        fontWeight: 500,
+                        fontWeight: index === journeySteps.length - 1 ? 600 : 500,
                         color: "#617891",
                         lineHeight: 1.4,
                       }}
@@ -209,26 +234,19 @@ export default function StoryJourneySection() {
                   </Box>
                 </Box>
 
-                {/* Connecting Line */}
+                {/* Short Connector */}
                 {index < journeySteps.length - 1 && (
                   <Box
                     sx={{
-                      display: { xs: "none", md: "flex" },
-                      alignItems: "center",
-                      mx: 1,
-                      flex: "0 0 auto",
+                      width: "70px",
+                      height: "2px",
+                      background:
+                        "linear-gradient(to left, rgba(130,77,92,0.4), rgba(130,77,92,0))",
+                      alignSelf: "flex-start",
+                      mt: `${verticalOffsets[index + 1] - verticalOffsets[index]}px`,
+                      display: { xs: "none", md: "block" },
                     }}
-                  >
-                    <Box
-                      sx={{
-                        width: "40px",
-                        height: "2px",
-                        background:
-                          "linear-gradient(to left, rgba(130,77,92,0.4), rgba(130,77,92,0))",
-                        borderRadius: "2px",
-                      }}
-                    />
-                  </Box>
+                  />
                 )}
               </Box>
             </Box>
@@ -236,7 +254,13 @@ export default function StoryJourneySection() {
         </Box>
 
         {/* CTA Button */}
-        <Box sx={{ textAlign: "center" }}>
+        <Box
+          sx={{
+            textAlign: "center",
+            mt: { xs: 20, md: 18},
+            mb: { xs: 4, md: 3 },
+          }}
+        >
           <Button
             variant="contained"
             onClick={() => {
@@ -267,4 +291,3 @@ export default function StoryJourneySection() {
     </Box>
   );
 }
-
