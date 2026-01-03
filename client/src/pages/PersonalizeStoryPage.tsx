@@ -6,10 +6,6 @@ import {
   Card,
   CardContent,
   CardMedia,
-  Stepper,
-  Step,
-  StepLabel,
-  IconButton,
   useTheme,
   CircularProgress,
 } from "@mui/material";
@@ -61,11 +57,11 @@ type StoryTemplate = {
 };
 
 const STEPS = [
-  "שם הילד",
-  "מגדר ודקדוק",
-  "תמונת הילד",
-  "סגנון ויזואלי",
-  "סיכום ואישור",
+  "בואו נתחיל – איך קוראים לגיבור שלנו?",
+  "איך הסיפור ידבר אליו?",
+  "זה הרגע להכניס את הילד לסיפור",
+  "איך הסיפור ייראה?",
+  "הכל מוכן ✨",
 ];
 
 const GENDER_OPTIONS = [
@@ -452,7 +448,10 @@ export default function PersonalizeStoryPage() {
             width: "100%",
             p: 4,
             textAlign: "center",
-            borderRadius: 3,
+            borderRadius: 5,
+            boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98))",
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
@@ -478,7 +477,15 @@ export default function PersonalizeStoryPage() {
               variant="outlined"
               onClick={handleStartOver}
               fullWidth
-              sx={{ py: 1.5 }}
+              sx={{
+                py: 1.5,
+                borderColor: "#824D5C",
+                color: "#824D5C",
+                "&:hover": {
+                  borderColor: "#6f404d",
+                  backgroundColor: "rgba(130,77,92,0.08)",
+                },
+              }}
             >
               התחל מחדש
             </Button>
@@ -508,7 +515,10 @@ export default function PersonalizeStoryPage() {
             width: "100%",
             p: 4,
             textAlign: "center",
-            borderRadius: 3,
+            borderRadius: 5,
+            boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98))",
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
@@ -534,7 +544,15 @@ export default function PersonalizeStoryPage() {
               variant="outlined"
               onClick={handleUsePrevious}
               fullWidth
-              sx={{ py: 1.5 }}
+              sx={{
+                py: 1.5,
+                borderColor: "#824D5C",
+                color: "#824D5C",
+                "&:hover": {
+                  borderColor: "#6f404d",
+                  backgroundColor: "rgba(130,77,92,0.08)",
+                },
+              }}
             >
               השתמש בהתאמה הקודמת
             </Button>
@@ -550,50 +568,93 @@ export default function PersonalizeStoryPage() {
         minHeight: "100vh",
         backgroundColor: theme.palette.background.default,
         direction: "rtl",
-        py: 4,
+        display: "flex",
+        justifyContent: "center",
         px: { xs: 2, md: 4 },
+        py: { xs: 4, md: 6 },
       }}
     >
-      <Box sx={{ maxWidth: 800, mx: "auto" }}>
-        {/* Header */}
-        <Box sx={{ mb: 4, textAlign: "center" }}>
-          <Typography variant="h4" sx={{ fontWeight: 600, mb: 1 }}>
-            התאמה אישית של הסיפור
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            {story.title}
-          </Typography>
-        </Box>
-
-        {/* Progress Stepper */}
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {STEPS.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
-
-        {/* Step Content */}
+      <Box sx={{ width: "100%", maxWidth: 900 }}>
         <Card
           sx={{
-            mb: 4,
-            borderRadius: 3,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+            width: "100%",
+            maxWidth: 900,
+            borderRadius: 6,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
+            background:
+              "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,1))",
           }}
         >
-          <CardContent sx={{ p: { xs: 3, md: 5 } }}>
+          <CardContent
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              p: { xs: 3, md: 5 },
+            }}
+          >
+            {/* Header Section */}
+            <Box sx={{ textAlign: "center", mb: 4 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.9rem",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: "text.secondary",
+                  mb: 1,
+                }}
+              >
+                שלב {activeStep + 1} מתוך {STEPS.length}
+              </Typography>
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 700,
+                  mb: 1,
+                }}
+              >
+                {STEPS[activeStep]}
+              </Typography>
+              <Box
+                sx={{
+                  height: 6,
+                  width: "120px",
+                  mx: "auto",
+                  borderRadius: 99,
+                  background: "linear-gradient(90deg, #824D5C, #B07A8A)",
+                  opacity: 0.8,
+                }}
+              />
+            </Box>
+
+            {/* Content Section */}
+            <Box
+              sx={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+              }}
+            >
             {/* Step 1: Child's Name */}
             {activeStep === 0 && (
-              <Box>
-                <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-                  מה שם הילד שלך?
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  השם הזה יופיע בסיפור.
+              <Box
+                sx={{
+                  maxWidth: 420,
+                  mx: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  gap: 3,
+                }}
+              >
+                <Typography sx={{ opacity: 0.7, textAlign: "center" }}>
+                  השם הזה יופיע בסיפור
                 </Typography>
                 <TextField
                   fullWidth
+                  variant="filled"
                   value={personalization.childName || ""}
                   onChange={(e) => {
                     const updated = { ...personalization, childName: e.target.value };
@@ -616,11 +677,20 @@ export default function PersonalizeStoryPage() {
                   placeholder="הכנס שם"
                   sx={{ mb: 2 }}
                   inputProps={{ maxLength: 50 }}
+                  InputProps={{
+                    disableUnderline: true,
+                    sx: {
+                      borderRadius: 3,
+                      backgroundColor: "#F4F1EE",
+                      fontSize: "1.1rem",
+                      px: 2,
+                    },
+                  }}
                 />
                 {personalization.childName &&
                   personalization.childName.length > 0 &&
                   personalization.childName.length < 2 && (
-                    <Typography variant="caption" color="error">
+                    <Typography variant="caption" color="error" sx={{ textAlign: "center" }}>
                       השם חייב להכיל לפחות 2 תווים
                     </Typography>
                   )}
@@ -629,12 +699,18 @@ export default function PersonalizeStoryPage() {
 
             {/* Step 2: Gender */}
             {activeStep === 1 && (
-              <Box>
-                <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-                  איך הסיפור צריך לדבר על הילד שלך?
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  זה עוזר לנו ליצור שפה דקדוקית נכונה ומכבדת.
+              <Box
+                sx={{
+                  maxWidth: 420,
+                  mx: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  gap: 3,
+                }}
+              >
+                <Typography sx={{ opacity: 0.7, textAlign: "center" }}>
+                  לשפה רגישה ומדויקת
                 </Typography>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {GENDER_OPTIONS.map((option) => (
@@ -659,23 +735,33 @@ export default function PersonalizeStoryPage() {
                       }}
                       sx={{
                         cursor: "pointer",
+                        p: 2.5,
+                        borderRadius: 4,
+                        backgroundColor:
+                          personalization.gender === option.value
+                            ? "rgba(130,77,92,0.08)"
+                            : "#FAFAFA",
                         border:
                           personalization.gender === option.value
-                            ? `2px solid ${theme.palette.primary.main}`
+                            ? `2px solid #824D5C`
                             : "2px solid transparent",
                         transition: "all 0.2s ease",
                         "&:hover": {
-                          border: `2px solid ${theme.palette.primary.light}`,
+                          border: `2px solid #824D5C`,
                           transform: "translateY(-2px)",
+                          backgroundColor:
+                            personalization.gender === option.value
+                              ? "rgba(130,77,92,0.12)"
+                              : "#F5F5F5",
                         },
                       }}
                     >
-                      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: 0 }}>
                         
-                        <Typography variant="h6">{option.label}</Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>{option.label}</Typography>
                         {personalization.gender === option.value && (
                           <CheckCircleIcon
-                            sx={{ ml: "auto", color: theme.palette.primary.main }}
+                            sx={{ ml: "auto", color: "#824D5C", fontSize: 28 }}
                           />
                         )}
                       </CardContent>
@@ -687,15 +773,9 @@ export default function PersonalizeStoryPage() {
 
             {/* Step 3: Photo (REQUIRED) */}
             {activeStep === 2 && (
-              <Box>
-                <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
-                  הוסף תמונת הילד
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  תמונה נדרשת להתאמה אישית של האיורים בסיפור.
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: "0.85rem" }}>
-                  התמונה תשמש רק להתאמה אישית ולא תוצג בפומבי.
+              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <Typography sx={{ opacity: 0.7, textAlign: "center", mb: 3 }}>
+                  נשתמש בה רק כדי ליצור איורים מותאמים
                 </Typography>
 
                 {personalization.photoPreviewUrl ? (
@@ -733,20 +813,21 @@ export default function PersonalizeStoryPage() {
                     sx={{
                       border: "2px dashed",
                       borderColor: theme.palette.divider,
-                      borderRadius: 2,
+                      borderRadius: 4,
                       p: 4,
                       textAlign: "center",
                       cursor: "pointer",
                       transition: "all 0.2s ease",
+                      backgroundColor: "#FAFAFA",
                       "&:hover": {
-                        borderColor: theme.palette.primary.main,
-                        backgroundColor: theme.palette.action.hover,
+                        borderColor: "#824D5C",
+                        backgroundColor: "rgba(130,77,92,0.04)",
                       },
                     }}
                   >
-                    <PhotoCameraIcon sx={{ fontSize: 48, color: "text.secondary", mb: 2 }} />
-                    <Typography variant="body1" sx={{ mb: 1 }}>
-                      לחץ להעלאת תמונה
+                    <PhotoCameraIcon sx={{ fontSize: 48, color: "#824D5C", mb: 2, opacity: 0.7 }} />
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>
+                      בחר תמונה ברורה של הילד
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
                       עד 5MB
@@ -772,18 +853,18 @@ export default function PersonalizeStoryPage() {
 
             {/* Step 4: Visual Style */}
             {activeStep === 3 && (
-              <Box>
-                <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
-                  בחר את הסגנון הוויזואלי של הסיפור
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                  זה ישפיע על איך האיורים ייראו לאורך הספר.
+              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                <Typography sx={{ opacity: 0.7, textAlign: "center", mb: 3 }}>
+                  זה ישפיע על איך האיורים ייראו לאורך הספר
                 </Typography>
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, minmax(0, 1fr))" },
                     gap: 2.5,
+                    maxHeight: 420,
+                    overflowY: "auto",
+                    pr: 1,
                   }}
                 >
                   {VISUAL_STYLES.map((style) => {
@@ -821,7 +902,7 @@ export default function PersonalizeStoryPage() {
                           image={style.image}
                           alt={style.label}
                           sx={{
-                            height: 200,
+                            height: 140,
                             objectFit: "cover",
                             backgroundColor: theme.palette.grey[200],
                           }}
@@ -857,10 +938,7 @@ export default function PersonalizeStoryPage() {
 
             {/* Step 5: Review */}
             {activeStep === 4 && (
-              <Box>
-                <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-                  סיכום ואישור
-                </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 {showFinalError && (
                   <Box
                     sx={{
@@ -933,19 +1011,35 @@ export default function PersonalizeStoryPage() {
                 </Card>
               </Box>
             )}
-          </CardContent>
-        </Card>
+            </Box>
 
-        {/* Navigation Buttons */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+            {/* Navigation Buttons Footer */}
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 2,
+                mt: 4,
+                pt: 3,
+                borderTop: "1px solid rgba(0,0,0,0.05)",
+              }}
+            >
           <Button
             onClick={handleBack}
             disabled={activeStep === 0}
             endIcon={<ArrowForwardIcon sx={{ direction: "ltr" }} />}
             variant="outlined"
             aria-label="חזרה לעמוד הקודם"
+            sx={{
+              borderColor: "#824D5C",
+              color: "#824D5C",
+              "&:hover": {
+                borderColor: "#6f404d",
+                backgroundColor: "rgba(130,77,92,0.08)",
+              },
+            }}
           >
-            חזור
+            חזור צעד אחורה
           </Button>
           {activeStep < STEPS.length - 1 ? (
             <Button
@@ -957,7 +1051,7 @@ export default function PersonalizeStoryPage() {
                 "&:hover": { backgroundColor: "#6f404d" },
               }}
             >
-              המשך
+              המשך למסע
             </Button>
           ) : (
             <Button
@@ -968,10 +1062,12 @@ export default function PersonalizeStoryPage() {
                 "&:hover": { backgroundColor: "#6f404d" },
               }}
             >
-              התאם אישית וקרא את הסיפור
+              צור את הסיפור
             </Button>
           )}
-        </Box>
+            </Box>
+          </CardContent>
+        </Card>
       </Box>
     </Box>
   );
