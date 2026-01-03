@@ -19,25 +19,25 @@ const journeySteps: JourneyStep[] = [
   {
     id: "1",
     image: bookImg,
-    caption: "בוחרים סיפור שמתחיל ברגש",
+    caption: "בוחרים סיפור שמתחיל ברגש שהילד מרגיש עכשיו.\nקטן, עדין, ומותאם למה שעובר עליו ברגע הזה.",
     initials: "ס",
   },
   {
     id: "2",
     image: childImg,
-    caption: "הילד שלכם במרכז הסיפור",
+    caption: "הילד שלכם הופך להיות הלב של הסיפור,\nעם נוכחות שמרגישה טבעית, קרובה ומוכרת.",
     initials: "י",
   },
   {
     id: "3",
     image: customChildImg,
-    caption: "התאמה אישית עדינה ומדויקת",
+    caption: "התאמה אישית עדינה, רגישה ומדויקת,\nכזו שמכבדת את העולם הפנימי של הילד.",
     initials: "א",
   },
   {
     id: "4",
     image: childInBookImg,
-    caption: "סיפור שמרגיש שלו באמת",
+    caption: "סיפור שמרגיש שייך לו באמת,\nכזה שהוא רוצה לחזור אליו שוב ושוב.",
     initials: "ס",
   },
 ];
@@ -333,30 +333,23 @@ export default function StoryJourneySection({ sx }: Props) {
                     />
                   </Box>
 
-                  {/* Caption Card */}
-                  <Box
+                  {/* Caption Text */}
+                  <Typography
                     sx={{
                       mt: 3,
-                      background: "#ffffff",
-                      borderRadius: "16px",
-                      px: "16px",
-                      py: "10px",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                      minWidth: "140px",
+                      maxWidth: "220px",
                       textAlign: "center",
+                      fontSize: { xs: "14px", md: "15px" },
+                      fontWeight: 400,
+                      color: "#6f7f8f",
+                      lineHeight: 1.7,
+                      whiteSpace: "pre-line",
+                      opacity: 0.9,
+                      transition: "opacity 0.4s ease",
                     }}
                   >
-                    <Typography
-                      sx={{
-                        fontSize: { xs: "14px", md: "16px" },
-                        fontWeight: index === journeySteps.length - 1 ? 600 : 500,
-                        color: "#617891",
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {step.caption}
-                    </Typography>
-                  </Box>
+                    {step.caption}
+                  </Typography>
 
                 </Box>
               </Box>
