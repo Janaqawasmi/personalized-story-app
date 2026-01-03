@@ -18,26 +18,26 @@ const journeySteps: JourneyStep[] = [
   {
     id: "1",
     image: bookImg,
-    caption: "בחרו סיפור",
+    caption: "בוחרים סיפור שמתחיל ברגש",
     initials: "ס",
   },
   {
     id: "2",
     image: childImg,
-    caption: "הזינו פרטים",
-    initials: "פ",
+    caption: "הילד שלכם במרכז הסיפור",
+    initials: "י",
   },
   {
     id: "3",
     image: customChildImg,
-    caption: "התאמה אישית",
+    caption: "התאמה אישית עדינה ומדויקת",
     initials: "א",
   },
   {
     id: "4",
     image: childInBookImg,
-    caption: "קראו יחד",
-    initials: "ק",
+    caption: "סיפור שמרגיש שלו באמת",
+    initials: "ס",
   },
 ];
 
@@ -130,7 +130,7 @@ export default function StoryJourneySection() {
                       width: { xs: "84px", md: "110px" },
                       height: { xs: "84px", md: "110px" },
                       borderRadius: "50%",
-                      border: "4px solid rgba(255,255,255,0.8)",
+                      border: "4px solid white",
                       background:
                         "radial-gradient(circle at top, #6f88a3 0%, #617891 70%)",
                       overflow: "hidden",
@@ -183,56 +183,25 @@ export default function StoryJourneySection() {
                     />
                   </Box>
 
-                  {/* Check Badge */}
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      bottom: { xs: "-4px", md: "0px" },
-                      right: { xs: "8px", md: "12px" },
-                      width: "22px",
-                      height: "22px",
-                      borderRadius: "50%",
-                      backgroundColor: "#824D5C",
-                      opacity: 0.9,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "2px solid #E5DFD9",
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    }}
-                  >
-                    {/* CSS Check Mark */}
-                    <Box
-                      sx={{
-                        width: "7px",
-                        height: "11px",
-                        borderBottom: "2px solid white",
-                        borderRight: "2px solid white",
-                        transform: "rotate(45deg)",
-                        marginTop: "-2px",
-                      }}
-                    />
-                  </Box>
-
                   {/* Caption Card */}
                   <Box
                     sx={{
                       mt: 3,
-                      background:
-                        "linear-gradient(180deg, #ffffff 0%, #f9f9f9 100%)",
-                      borderRadius: "20px",
-                      px: "18px",
+                      background: "#ffffff",
+                      borderRadius: "16px",
+                      px: "16px",
                       py: "10px",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                      minWidth: "120px",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                      minWidth: "140px",
                       textAlign: "center",
                     }}
                   >
                     <Typography
                       sx={{
                         fontSize: { xs: "14px", md: "16px" },
-                        fontWeight: 600,
+                        fontWeight: 500,
                         color: "#617891",
+                        lineHeight: 1.4,
                       }}
                     >
                       {step.caption}
@@ -240,7 +209,7 @@ export default function StoryJourneySection() {
                   </Box>
                 </Box>
 
-                {/* Arrow Separator */}
+                {/* Connecting Line */}
                 {index < journeySteps.length - 1 && (
                   <Box
                     sx={{
