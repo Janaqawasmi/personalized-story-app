@@ -84,6 +84,11 @@ export function MegaMenu({
     }
   };
 
+  const handleAllBooksClick = () => {
+    navigate("/books");
+    onClose();
+  };
+
   return (
     <Box ref={panelRef} sx={s.panel}>
       <Box sx={s.container}>
@@ -97,6 +102,7 @@ export function MegaMenu({
             selectedTopicKey={null}
             onSelect={handleCategorySelect}
             lang="he"
+            onAllBooksClick={handleAllBooksClick}
           />
         </Box>
       </Box>

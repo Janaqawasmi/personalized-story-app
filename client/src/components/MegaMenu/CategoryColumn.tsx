@@ -7,6 +7,7 @@ type Props = {
   selectedTopicKey: string | null;
   onSelect: (id: string) => void;
   lang: "he" | "en" | "ar";
+  onAllBooksClick?: () => void;
 };
 
 export function CategoryColumn({
@@ -14,6 +15,7 @@ export function CategoryColumn({
   selectedTopicKey,
   onSelect,
   lang,
+  onAllBooksClick,
 }: Props) {
   // Filter only active topics
   const activeTopics = topics.filter((topic) => topic.active);
@@ -21,6 +23,19 @@ export function CategoryColumn({
   return (
     <Box sx={s.column}>
       <Box sx={s.columnHeader}>קטגוריה</Box>
+
+      {onAllBooksClick && (
+        <Box
+          component="a"
+          sx={[s.item, { fontWeight: 600 }]}
+          onClick={(e) => {
+            e.preventDefault();
+            onAllBooksClick();
+          }}
+        >
+          כל הסיפורים
+        </Box>
+      )}
 
       {activeTopics.map((topic) => (
         <Box

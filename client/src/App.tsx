@@ -20,6 +20,7 @@ import LoginPage from "./pages/LoginPage";
 import SearchPage from "./pages/SearchPage";
 import BookReaderPage from "./pages/BookReaderPage";
 import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
+import AllBooksPage from "./pages/AllBooksPage";
 
 
 
@@ -48,6 +49,7 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
 
             {/* ───────────── STORY BROWSING ───────────── */}
+            <Route path="/books" element={<AllBooksPage />} />
             <Route path="/stories/age/:ageId" element={<AgeResultsPage />} />
             <Route
               path="/stories/category/:categoryId"
