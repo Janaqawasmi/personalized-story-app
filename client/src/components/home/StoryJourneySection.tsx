@@ -216,7 +216,7 @@ export default function StoryJourneySection({ sx }: Props) {
                   stroke="#C8A3AB"
                   strokeWidth="2"
                   strokeLinecap="round"
-                  opacity={0.75}
+                  opacity={0.5}
                   markerEnd="url(#arrowHead)"
                 />
               ))}
@@ -255,9 +255,9 @@ export default function StoryJourneySection({ sx }: Props) {
                   <Typography
                     sx={{
                       position: "absolute",
-                      top: "-42px",
-                      right: "-46px",
-                      fontSize: { xs: "18px", md: "34px" },
+                      top: "-10px",
+                      right: "-10px",
+                      fontSize: { xs: "16px", md: "24px" },
                       fontWeight: 300,
                       color: "#1B1B1B",
                       opacity: 0.25,
