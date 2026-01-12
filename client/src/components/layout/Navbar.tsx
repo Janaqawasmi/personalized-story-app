@@ -13,6 +13,7 @@ import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useRef, useState } from "react";
 import { useLangNavigate } from "../../i18n/navigation";
+import { useTranslation } from "../../i18n/useTranslation";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
@@ -28,6 +29,7 @@ export default function Navbar({
   onApplyFilters,
 }: NavbarProps) {
   const navigate = useLangNavigate();
+  const t = useTranslation();
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
@@ -83,7 +85,7 @@ export default function Navbar({
                 setSearchOpen(false); // Close search overlay if open
               }}
             >
-              עיון בסיפורים
+              {t("navbar.browseStories")}
               <KeyboardArrowDownIcon fontSize="small" />
             </Box>
           </Box>

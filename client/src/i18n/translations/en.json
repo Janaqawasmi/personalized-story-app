@@ -1,0 +1,32 @@
+{
+  "navbar": {
+    "browseStories": "Browse Stories"
+  },
+  "footer": {
+    "copyright": "© DAMMAH — All rights reserved"
+  },
+  "home": {
+    "journey": {
+      "title": "How a Personalized Story Is Created",
+      "subtitle": "A gentle journey that starts with your child – and ends with a story you'll want to read together again and again",
+      "step1": {
+        "caption": "Choose a story that begins with the emotion your child is feeling right now.\nSmall, gentle, and tailored to what they're going through at this moment.",
+        "initials": "S"
+      },
+      "step2": {
+        "caption": "Your child becomes the heart of the story,\nwith a presence that feels natural, close, and familiar.",
+        "initials": "Y"
+      },
+      "step3": {
+        "caption": "Delicate, sensitive, and precise personalization,\none that respects the child's inner world.",
+        "initials": "P"
+      },
+      "step4": {
+        "caption": "A story that truly feels like theirs,\none they'll want to return to again and again.",
+        "initials": "S"
+      },
+      "cta": "Start Your Story"
+    }
+  }
+}
+
