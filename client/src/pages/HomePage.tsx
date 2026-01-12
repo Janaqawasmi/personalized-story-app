@@ -1,5 +1,5 @@
 import { Container } from "@mui/material";
-import MeaningfulStepsSection from "../components/MeaningfulStepsSection";
+import StoryJourneySection from "../components/home/StoryJourneySection";
 
 export default function HomePage() {
   return (
@@ -7,8 +7,7 @@ export default function HomePage() {
       <Container maxWidth="lg" sx={{ pb: 4 }}>
         {/* Other homepage content can go here */}
       </Container>
-      <MeaningfulStepsSection />
+      <StoryJourneySection />
     </>
   );
 }
-

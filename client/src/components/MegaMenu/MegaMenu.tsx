@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import React from "react";
 
 import { AgeColumn } from "./AgeColumn";
 import { CategoryColumn } from "./CategoryColumn";
@@ -14,56 +15,78 @@ type Props = {
   onClose: () => void;
   onApply: (selection: MegaSelection) => void;
   value?: MegaSelection;
+  triggerRef?: React.RefObject<HTMLDivElement | null>;
 };
 
-export function MegaMenu({ isOpen, onClose, onApply, value }: Props) {
+export function MegaMenu({
+  isOpen,
+  onClose,
+  onApply,
+  value,
+  triggerRef,
+}: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
   // 🔹 Firestore reference data
   const { data, loading } = useReferenceData();
 
-  const [age, setAge] = useState<AgeId | null>(value?.age ?? null);
-  const [category, setCategory] = useState<CategoryId | null>(
-    value?.category ?? null
-  );
+  // No internal state - MegaMenu is just an entry point, not a filter manager
 
   // Close on outside click
   useEffect(() => {
     if (!isOpen) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+
       if (
-        panelRef.current &&
-        !panelRef.current.contains(event.target as Node)
+        panelRef.current?.contains(target) ||
+        triggerRef?.current?.contains(target)
       ) {
-        onClose();
+        return;
       }
+
+      onClose();
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, triggerRef]);
 
   if (!isOpen || loading || !data) return null;
 
   // Handle navigation when item is selected
   const handleCategorySelect = (categoryId: string) => {
-    setCategory(categoryId);
-    navigate(`/stories/category/${categoryId}`);
+    // Navigate immediately with only current selection - no old state
+    navigate(`/stories/category/${categoryId}`, {
+      state: {
+        fromMegaMenu: true,
+        age: null, // Only current selection - no fallback to old state
+        category: categoryId,
+      },
+    });
     onClose();
   };
 
   const handleAgeSelect = (selectedAge: AgeId) => {
-    setAge(selectedAge);
     if (selectedAge) {
-      if (category) {
-        navigate(`/stories/category/${category}?age=${selectedAge}`);
-      } else {
-        navigate(`/stories/age/${selectedAge}`);
-      }
+      // Navigate immediately with only current selection - no old state
+      // Always navigate to age route (no category) since we reset state on open
+      navigate(`/stories/age/${selectedAge}`, {
+        state: {
+          fromMegaMenu: true,
+          age: selectedAge,
+          category: null, // Only current selection - no fallback to old state
+        },
+      });
       onClose();
     }
+  };
+
+  const handleAllBooksClick = () => {
+    navigate("/books");
+    onClose();
   };
 
   return (
@@ -71,14 +94,15 @@ export function MegaMenu({ isOpen, onClose, onApply, value }: Props) {
       <Box sx={s.container}>
         <Box sx={s.grid}>
           {/* Right column: Age */}
-          <AgeColumn selectedAge={age} onSelectAge={handleAgeSelect} />
+          <AgeColumn selectedAge={null} onSelectAge={handleAgeSelect} />
 
           {/* Left column: Category */}
           <CategoryColumn
             topics={data.topics}
-            selectedTopicKey={category}
+            selectedTopicKey={null}
             onSelect={handleCategorySelect}
             lang="he"
+            onAllBooksClick={handleAllBooksClick}
           />
         </Box>
       </Box>

@@ -4,13 +4,14 @@ import {
   IconButton,
   Typography,
 } from "@mui/material";
+import dammahLogo from "../../assets/brand/dammah-logo.png";
 import { useTheme } from "@mui/material/styles";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
@@ -30,29 +31,33 @@ export default function Navbar({
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
+  const megaButtonRef = useRef<HTMLDivElement>(null);
 
   return (
     <>
-      <AppBar
-        position="fixed"
-        elevation={0}
-        sx={{
-          backgroundColor: theme.palette.background.paper,
-          color: theme.palette.text.primary,
-          px: 4,
-          zIndex: 1300, // מעל ה-SearchOverlay (zIndex: 1200-1201)
-          pointerEvents: "auto", // Ensure navbar is always clickable
-        }}
-      >
-        <Box
-          sx={{
-            height: 64,
-            display: "flex",
-            alignItems: "center",
-            direction: "rtl", // RTL direction for Hebrew/Arabic
-            pointerEvents: "auto", // Ensure all navbar items are clickable
-          }}
-        >
+     <AppBar
+  position="fixed"
+  elevation={0}
+  sx={{
+    backgroundColor: theme.palette.background.paper,
+    color: theme.palette.text.primary,
+    px: 4,
+    height: { xs: 56, md: 60 }, // ✅ SOURCE OF TRUTH
+    zIndex: 1300,
+    pointerEvents: "auto",
+  }}
+>
+
+<Box
+  sx={{
+    height: "100%", // ✅ inherit from AppBar
+    display: "flex",
+    alignItems: "center",
+    direction: "rtl",
+    pointerEvents: "auto",
+  }}
+>
+
           {/* 1️⃣ RIGHT SECTION — Text Navigation Links */}
           <Box
             sx={{
@@ -65,6 +70,7 @@ export default function Navbar({
           >
             {/* Mega menu trigger */}
             <Box
+              ref={megaButtonRef}
               sx={{
                 display: "flex",
                 alignItems: "center",
@@ -74,7 +80,7 @@ export default function Navbar({
                 gap: 0.5,
               }}
               onClick={() => {
-                setMegaOpen((p) => !p);
+                setMegaOpen(prev => !prev); // 🔁 toggle בלבד - אין ניווט
                 setSearchOpen(false); // Close search overlay if open
               }}
             >
@@ -90,18 +96,23 @@ export default function Navbar({
               alignItems: "center",
               justifyContent: "center",
               flex: 1,
+              height: "100%",
             }}
           >
-            <Typography
+            <Box
+              component="img"
+              src={dammahLogo}
+              alt="DAMMAH"
               sx={{
-                fontWeight: 800,
-                fontSize: "1.2rem",
+                height: "155%", // 🔥 brand-dominant
+                maxHeight: "200%",
+                width: "auto",
+                objectFit: "contain",
                 cursor: "pointer",
+                display: "block",
                 transition: "opacity 0.2s ease",
-                "&:hover": {
-                  opacity: 0.8,
-                },
               }}
+              
               onClick={() => {
                 // Navigate home without clearing personalization
                 // Draft sessions are preserved for resuming
@@ -109,9 +120,7 @@ export default function Navbar({
                 navigate("/");
                 setSearchOpen(false); // Close search overlay if open
               }}
-            >
-              QOSATI
-            </Typography>
+            />
           </Box>
 
           {/* 3️⃣ LEFT SECTION — Utility Icons */}
@@ -162,6 +171,7 @@ export default function Navbar({
           setMegaOpen(false);
         }}
         value={currentSelection}
+        triggerRef={megaButtonRef}
       />
 
       {/* Search Overlay */}

@@ -13,7 +13,7 @@ export default function Footer() {
       }}
     >
       <Typography variant="body2">
-        © QOSATI — All rights reserved
+        © DAMMAH — All rights reserved
       </Typography>
     </Box>
   );

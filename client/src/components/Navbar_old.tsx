@@ -42,7 +42,7 @@ export default function Navbar({ currentSelection, onApplyFilters }: Props) {
       <Toolbar sx={{ justifyContent: "space-between" }}>
         {/* LOGO */}
         <Typography sx={{ fontWeight: 900, fontSize: "1.2rem" }}>
-          QOSATI
+          DAMMAH
         </Typography>
 
         {/* MAIN NAV */}
