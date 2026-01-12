@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../../i18n/navigation";
 import React from "react";
 
 import { AgeColumn } from "./AgeColumn";
@@ -26,7 +26,7 @@ export function MegaMenu({
   triggerRef,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
 
   // 🔹 Firestore reference data
   const { data, loading } = useReferenceData();

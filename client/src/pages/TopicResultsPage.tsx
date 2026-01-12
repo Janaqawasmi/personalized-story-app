@@ -1,6 +1,7 @@
 import { Box, Typography, Container, Button } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
@@ -9,7 +10,7 @@ import type { Story } from "../api/stories";
 
 export default function TopicResultsPage() {
   const { topicId } = useParams<{ topicId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const location = useLocation();
   const { data, loading } = useReferenceData();
   const [stories, setStories] = useState<Story[]>([]);

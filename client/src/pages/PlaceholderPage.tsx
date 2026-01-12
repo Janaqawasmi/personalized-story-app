@@ -1,5 +1,5 @@
 import { Box, Typography, Button, Container } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 
 type Props = {
   title: string;
@@ -7,7 +7,7 @@ type Props = {
 };
 
 export default function PlaceholderPage({ title, message }: Props) {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
 
   return (
     <Container maxWidth="md" sx={{ py: 8, textAlign: "center" }}>

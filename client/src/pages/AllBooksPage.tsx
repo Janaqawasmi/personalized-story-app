@@ -10,7 +10,7 @@ import {
   Button,
 } from "@mui/material";
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { fetchStoriesWithFilters } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
@@ -27,7 +27,7 @@ function normalizeAgeGroup(value?: string): string | null {
 }
 
 export default function AllBooksPage() {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const [allBooks, setAllBooks] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

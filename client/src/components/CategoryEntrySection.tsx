@@ -1,5 +1,5 @@
 import { Box, Typography, useTheme } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 
 const categories = [
   {
@@ -33,7 +33,7 @@ const categories = [
 ];
 
 export default function CategoryEntrySection() {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const theme = useTheme();
 
   return (

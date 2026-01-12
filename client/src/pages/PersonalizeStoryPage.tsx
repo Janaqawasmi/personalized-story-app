@@ -10,7 +10,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -160,7 +161,7 @@ function deletePersonalizationSession(storyId: string): void {
 export default function PersonalizeStoryPage() {
   const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [story, setStory] = useState<StoryTemplate | null>(null);

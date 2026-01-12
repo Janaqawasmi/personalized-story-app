@@ -10,7 +10,7 @@ import {
   import SearchIcon from "@mui/icons-material/Search";
   import CloseIcon from "@mui/icons-material/Close";
   import { useEffect, useMemo, useRef, useState } from "react";
-  import { useNavigate } from "react-router-dom";
+  import { useLangNavigate } from "../../i18n/navigation";
   import {
     collection,
     getDocs,
@@ -58,7 +58,7 @@ import {
   
   export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     const theme = useTheme();
-    const navigate = useNavigate();
+    const navigate = useLangNavigate();
     const { data: referenceData } = useReferenceData();
   
     const CURRENT_LANGUAGE = useMemo(() => getCurrentLanguage(), [isOpen]);

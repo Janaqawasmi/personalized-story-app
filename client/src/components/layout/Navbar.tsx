@@ -12,7 +12,7 @@ import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../../i18n/navigation";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
@@ -27,7 +27,7 @@ export default function Navbar({
   currentSelection,
   onApplyFilters,
 }: NavbarProps) {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const theme = useTheme();
@@ -53,7 +53,6 @@ export default function Navbar({
     height: "100%", // ✅ inherit from AppBar
     display: "flex",
     alignItems: "center",
-    direction: "rtl",
     pointerEvents: "auto",
   }}
 >

@@ -1,6 +1,7 @@
 import { Box, Typography, Container, TextField, InputAdornment, CircularProgress } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import SearchIcon from "@mui/icons-material/Search";
 import { searchStories, StorySearchResult } from "../api/api";
 import StoryGridCard from "../components/StoryGridCard";
@@ -8,7 +9,7 @@ import { formatAgeGroupLabel } from "../data/categories";
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const query = searchParams.get("q") ?? "";
   
   const [searchText, setSearchText] = useState(query);

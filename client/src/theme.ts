@@ -1,5 +1,6 @@
 // src/theme.ts
-import { createTheme } from "@mui/material/styles";
+import { createTheme, Theme } from "@mui/material/styles";
+import type { Direction } from "./i18n/context/LanguageContext";
 
 export const COLORS = {
   // Brand colors
@@ -22,45 +23,51 @@ export const COLORS = {
   error: "#E53935",
 };
 
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: COLORS.primary,
+export function createAppTheme(direction: Direction = "rtl"): Theme {
+  return createTheme({
+    direction,
+    palette: {
+      primary: {
+        main: COLORS.primary,
+      },
+      secondary: {
+        main: COLORS.secondary,
+      },
+      background: {
+        default: COLORS.background,
+        paper: COLORS.surface,
+      },
+      text: {
+        primary: COLORS.textPrimary,
+        secondary: COLORS.textSecondary,
+      },
+      divider: COLORS.border,
+      error: {
+        main: COLORS.error,
+      },
+      success: {
+        main: COLORS.success,
+      },
     },
-    secondary: {
-      main: COLORS.secondary,
-    },
-    background: {
-      default: COLORS.background,
-      paper: COLORS.surface,
-    },
-    text: {
-      primary: COLORS.textPrimary,
-      secondary: COLORS.textSecondary,
-    },
-    divider: COLORS.border,
-    error: {
-      main: COLORS.error,
-    },
-    success: {
-      main: COLORS.success,
-    },
-  },
 
-  typography: {
-    fontFamily: `"Tajawal", "Alef", "Roboto", sans-serif`,
-    h1: {
-      fontWeight: 700,
+    typography: {
+      fontFamily: `"Tajawal", "Alef", "Roboto", sans-serif`,
+      h1: {
+        fontWeight: 700,
+      },
+      button: {
+        textTransform: "none",
+        fontWeight: 600,
+      },
     },
-    button: {
-      textTransform: "none",
-      fontWeight: 600,
-    },
-  },
 
-  shape: {
-    borderRadius: 12,
-  },
-});
+    shape: {
+      borderRadius: 12,
+    },
+  });
+}
+
+// Default theme for backward compatibility (RTL)
+const theme = createAppTheme("rtl");
 
 export default theme;

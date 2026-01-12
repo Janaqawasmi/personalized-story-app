@@ -13,7 +13,6 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        direction: "rtl",
         py: 8,
         px: 3,
       }}

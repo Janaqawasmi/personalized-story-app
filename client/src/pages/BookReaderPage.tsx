@@ -1,6 +1,7 @@
 import { Box, Typography, IconButton, useTheme } from "@mui/material";
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import CloseIcon from "@mui/icons-material/Close";
@@ -41,7 +42,7 @@ function getCurrentLanguage(): string {
 export default function BookReaderPage() {
   const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -27,7 +27,8 @@ import {
   Search,
 } from "@mui/icons-material";
 import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief } from "../api/api";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import SpecialistNav from "../components/SpecialistNav";
 
 // Helper to format age group for display
@@ -86,7 +87,7 @@ const getButtonLabel = (status: string | undefined): string => {
 type FilterTab = "all" | "generated" | "editing" | "approved" | "failed";
 
 const SpecialistDraftList: React.FC = () => {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const location = useLocation();
   const [drafts, setDrafts] = useState<StoryDraftView[]>([]);
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);

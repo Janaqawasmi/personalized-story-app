@@ -1,5 +1,5 @@
 import { Box, Container, Typography, Button, SxProps, Theme } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../../i18n/navigation";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // Import images
@@ -47,7 +47,7 @@ type Props = {
 };
 
 export default function StoryJourneySection({ sx }: Props) {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
 
   const verticalOffsets = [0, 40, 80, 120];
 
@@ -119,7 +119,6 @@ export default function StoryJourneySection({ sx }: Props) {
         mt: { xs: 0, md: -2 },
         pt: { xs: 1, md: 1 },
         pb: { xs: 5, md: 4 },
-        direction: "rtl",
         ...sx,
       }}
     >
@@ -157,7 +156,6 @@ export default function StoryJourneySection({ sx }: Props) {
             position: "relative",
             display: "flex",
             flexDirection: "row",
-            direction: "rtl",
             justifyContent: "center",
             alignItems: "flex-start",
             minHeight: "unset",
