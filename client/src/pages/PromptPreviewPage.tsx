@@ -99,7 +99,7 @@ const PromptPreviewPage: React.FC = () => {
           <Button
             variant="outlined"
             startIcon={<ArrowBack />}
-            onClick={() => navigate("/specialist/generate-draft")}
+            onClick={() => navigate("generate-draft")}
           >
             Back to Generate Draft
           </Button>

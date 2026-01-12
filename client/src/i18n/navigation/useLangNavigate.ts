@@ -27,6 +27,13 @@ export function useLangNavigate() {
       return;
     }
 
+    // Handle relative paths (don't start with /) - pass through as-is
+    // React Router will resolve them relative to current route
+    if (!to.startsWith("/")) {
+      navigate(to, options);
+      return;
+    }
+
     // Handle paths that already have language prefix
     if (to.startsWith("/he/") || to.startsWith("/en/") || to.startsWith("/ar/")) {
       navigate(to, options);

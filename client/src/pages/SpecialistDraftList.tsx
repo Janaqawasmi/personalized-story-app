@@ -135,7 +135,7 @@ const SpecialistDraftList: React.FC = () => {
     }
 
     // When navigating back to this page, refresh after a small delay
-    if (location.pathname === "/specialist/drafts") {
+    if (location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) {
       const timer = setTimeout(() => {
         loadDrafts();
       }, 100);
@@ -147,7 +147,7 @@ const SpecialistDraftList: React.FC = () => {
   useEffect(() => {
     const handleFocus = () => {
       // Only refresh if we're on the drafts list page and haven't updated recently
-      if (location.pathname === "/specialist/drafts" && 
+      if ((location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) && 
           (!lastUpdated || (Date.now() - lastUpdated.getTime()) > 2000)) {
     loadDrafts();
       }
@@ -206,7 +206,7 @@ const SpecialistDraftList: React.FC = () => {
 
   const handleCardClick = (draftId: string) => {
     if (!loading) {
-      navigate(`/specialist/drafts/${draftId}`);
+      navigate(`drafts/${draftId}`);
     }
   };
 

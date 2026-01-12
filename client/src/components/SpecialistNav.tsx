@@ -1,15 +1,39 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AppBar, Box, Button, Toolbar, Typography } from "@mui/material";
 
 const SpecialistNav: React.FC = () => {
+  const navigate = useNavigate();
   const location = useLocation();
 
   const navItems = [
-    { path: "/specialist/create-brief", label: "Create Story Brief" },
-    { path: "/specialist/generate-draft", label: "Generate Draft" },
-    { path: "/specialist/drafts", label: "Review Drafts" },
+    { path: "create-brief", label: "Create Story Brief" },
+    { path: "generate-draft", label: "Generate Draft" },
+    { path: "drafts", label: "Review Drafts" },
   ];
+
+  // Check if current path matches nav item (handles both relative and absolute paths)
+  const isActive = (itemPath: string) => {
+    const currentPath = location.pathname;
+    // Match relative path (e.g., "drafts" matches "/he/specialist/drafts")
+    return currentPath.endsWith(`/specialist/${itemPath}`) || 
+           currentPath.endsWith(`/${itemPath}`) ||
+           (itemPath === "drafts" && (currentPath.endsWith("/specialist") || currentPath.endsWith("/specialist/")));
+  };
+
+  // Navigate to sibling routes using "../" to go up one level from current route
+  const handleNavClick = (itemPath: string) => {
+    // Check if we're already at the specialist index route
+    const isAtIndex = location.pathname.endsWith("/specialist") || location.pathname.endsWith("/specialist/");
+    
+    if (isAtIndex) {
+      // At index, use direct relative path
+      navigate(itemPath);
+    } else {
+      // On a sub-page, use "../" to navigate to sibling route
+      navigate(`../${itemPath}`);
+    }
+  };
 
   return (
     <AppBar position="static" sx={{ mb: 3 }}>
@@ -21,12 +45,11 @@ const SpecialistNav: React.FC = () => {
           {navItems.map((item) => (
             <Button
               key={item.path}
-              component={Link}
-              to={item.path}
+              onClick={() => handleNavClick(item.path)}
               color="inherit"
-              variant={location.pathname === item.path ? "outlined" : "text"}
+              variant={isActive(item.path) ? "outlined" : "text"}
               sx={{
-                borderColor: location.pathname === item.path ? "white" : "transparent",
+                borderColor: isActive(item.path) ? "white" : "transparent",
               }}
             >
               {item.label}

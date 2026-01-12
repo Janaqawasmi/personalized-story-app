@@ -78,14 +78,17 @@ function AppContent() {
           />
 
           {/* ───────────── SPECIALIST ───────────── */}
-          <Route path="specialist/create-brief" element={<AdminStoryBriefForm />} />
-          <Route path="specialist/generate-draft" element={<GenerateDraftPage />} />
-          <Route path="specialist/drafts" element={<SpecialistDraftList />} />
-          <Route path="specialist/drafts/:draftId" element={<ReviewDraftPage />} />
-          <Route
-            path="specialist/story-briefs/:briefId/prompt-preview"
-            element={<PromptPreviewPage />}
-          />
+          <Route path="specialist">
+            <Route index element={<SpecialistDraftList />} />
+            <Route path="create-brief" element={<AdminStoryBriefForm />} />
+            <Route path="generate-draft" element={<GenerateDraftPage />} />
+            <Route path="drafts" element={<SpecialistDraftList />} />
+            <Route path="drafts/:draftId" element={<ReviewDraftPage />} />
+            <Route
+              path="story-briefs/:briefId/prompt-preview"
+              element={<PromptPreviewPage />}
+            />
+          </Route>
 
           <Route path="*" element={<Navigate to="/he" replace />} />
         </Routes>
