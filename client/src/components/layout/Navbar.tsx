@@ -3,6 +3,8 @@ import {
   Box,
   IconButton,
   Typography,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import dammahLogo from "../../assets/brand/dammah-logo.png";
 import { useTheme } from "@mui/material/styles";
@@ -12,8 +14,10 @@ import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useRef, useState } from "react";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
+import { useLanguage } from "../../i18n/context/useLanguage";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
@@ -29,11 +33,43 @@ export default function Navbar({
   onApplyFilters,
 }: NavbarProps) {
   const navigate = useLangNavigate();
+  const navigateDirect = useNavigate();
+  const { pathname } = useLocation();
+  const { lang } = useParams<{ lang: string }>();
+  const { language, setLanguage } = useLanguage();
   const t = useTranslation();
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const megaButtonRef = useRef<HTMLDivElement>(null);
+
+  const handleLangMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLangMenuAnchor(event.currentTarget);
+  };
+
+  const handleLangMenuClose = () => {
+    setLangMenuAnchor(null);
+  };
+
+  const handleLanguageChange = (newLang: "he" | "en" | "ar") => {
+    if (newLang === language) {
+      handleLangMenuClose();
+      return;
+    }
+
+    // Replace language segment in URL
+    const currentLang = lang || language;
+    const newPath = pathname.replace(`/${currentLang}`, `/${newLang}`);
+    
+    // Update language in context (this will update localStorage and direction)
+    setLanguage(newLang);
+    
+    // Navigate to new path
+    navigateDirect(newPath);
+    
+    handleLangMenuClose();
+  };
 
   return (
     <>
@@ -156,9 +192,35 @@ export default function Navbar({
               <ShoppingBagOutlinedIcon />
             </IconButton>
 
-            <IconButton>
+            <IconButton onClick={handleLangMenuOpen}>
               <LanguageOutlinedIcon />
             </IconButton>
+            <Menu
+              anchorEl={langMenuAnchor}
+              open={Boolean(langMenuAnchor)}
+              onClose={handleLangMenuClose}
+              anchorOrigin={{
+                vertical: "bottom",
+                horizontal: "right",
+              }}
+              transformOrigin={{
+                vertical: "top",
+                horizontal: "right",
+              }}
+            >
+              <MenuItem
+                onClick={() => handleLanguageChange("he")}
+                selected={language === "he"}
+              >
+                עברית
+              </MenuItem>
+              <MenuItem
+                onClick={() => handleLanguageChange("en")}
+                selected={language === "en"}
+              >
+                English
+              </MenuItem>
+            </Menu>
           </Box>
         </Box>
       </AppBar>
