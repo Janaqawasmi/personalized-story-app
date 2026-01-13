@@ -1,6 +1,7 @@
 import { Box, Container, Typography, Button, SxProps, Theme } from "@mui/material";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
+import { useLanguage } from "../../i18n/context/useLanguage";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // Import images
@@ -23,6 +24,8 @@ type Props = {
 export default function StoryJourneySection({ sx }: Props) {
   const navigate = useLangNavigate();
   const t = useTranslation();
+  const { language } = useLanguage();
+  const isEnglish = language === "en";
 
   const journeySteps: JourneyStep[] = [
     {
@@ -74,23 +77,49 @@ export default function StoryJourneySection({ sx }: Props) {
         const a = from.getBoundingClientRect();
         const b = to.getBoundingClientRect();
 
-        // RTL: from is on the RIGHT, to is on the LEFT
-        const startX = a.left - base.left; // left edge of "from"
-        const startY = a.top - base.top + a.height / 2;
+        let startX: number;
+        let startY: number;
+        let endX: number;
+        let endY: number;
 
-        const endX = b.left - base.left + b.width; // right edge of "to"
-        const endY = b.top - base.top + b.height / 2;
+        if (isEnglish) {
+          // LTR: from is on the LEFT, to is on the RIGHT
+          // Start from right edge of "from" circle, end at left edge of "to" circle
+          startX = a.left - base.left + a.width; // right edge of "from"
+          startY = a.top - base.top + a.height / 2;
+          endX = b.left - base.left; // left edge of "to"
+          endY = b.top - base.top + b.height / 2;
+        } else {
+          // RTL: from is on the RIGHT, to is on the LEFT
+          startX = a.left - base.left; // left edge of "from"
+          startY = a.top - base.top + a.height / 2;
+          endX = b.left - base.left + b.width; // right edge of "to"
+          endY = b.top - base.top + b.height / 2;
+        }
 
         const dx = Math.max(80, Math.abs(startX - endX));
 
         // alternate curve up/down for a natural "flow"
         const curve = i % 2 === 0 ? 38 : -38;
 
-        const c1x = startX - dx * 0.35;
-        const c1y = startY + curve;
+        let c1x: number;
+        let c1y: number;
+        let c2x: number;
+        let c2y: number;
 
-        const c2x = endX + dx * 0.35;
-        const c2y = endY - curve;
+        if (isEnglish) {
+          // LTR: control points extend to the right (forward direction)
+          c1x = startX + dx * 0.35;
+          c1y = startY + curve;
+          c2x = endX - dx * 0.35;
+          c2y = endY - curve;
+        } else {
+          // RTL: control points extend to the left (backward direction)
+          c1x = startX - dx * 0.35;
+          c1y = startY + curve;
+          c2x = endX + dx * 0.35;
+          c2y = endY - curve;
+        }
 
         nextPaths.push(
           `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`
@@ -110,7 +139,7 @@ export default function StoryJourneySection({ sx }: Props) {
       ro.disconnect();
       window.removeEventListener("resize", compute);
     };
-  }, []);
+  }, [isEnglish]);
 
   return (
     <Box
