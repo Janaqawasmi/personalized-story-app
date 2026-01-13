@@ -5,6 +5,7 @@ import {
   DialogContent,
   Button,
 } from "@mui/material";
+import { useTranslation } from "../i18n/useTranslation";
 
 type Props = {
   open: boolean;
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export default function InstructionModal({ open, onClose }: Props) {
+  const t = useTranslation();
   return (
     <Dialog
       open={open}
@@ -36,7 +38,7 @@ export default function InstructionModal({ open, onClose }: Props) {
             mb: 0.5,
           }}
         >
-          טיפים לקריאה נעימה
+          {t("instructions.title")}
         </Typography>
         {/* Subtitle */}
         <Typography
@@ -47,32 +49,32 @@ export default function InstructionModal({ open, onClose }: Props) {
             mb: 3,
           }}
         >
-          כך תיהנו מהסיפור בצורה הטובה ביותר
+          {t("instructions.subtitle")}
         </Typography>
         {/* Instructions */}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <Instruction
             icon="▶"
-            title="הקראה קולית"
-            text="ניתן להאזין לסיפור בקול רגוע באמצעות כפתור ההקראה."
+            title={t("instructions.audio.title")}
+            text={t("instructions.audio.text")}
           />
 
           <Instruction
             icon="📄"
-            title="דפדוף בעמודים"
-            text="דפדפו בעזרת החיצים, לחיצה על שולי העמוד או גרירה מהפינה."
+            title={t("instructions.pages.title")}
+            text={t("instructions.pages.text")}
           />
 
           <Instruction
             icon="👆"
-            title="קריאה בקצב שלכם"
-            text="אפשר לעצור, לחזור אחורה ולקרוא מחדש בכל שלב."
+            title={t("instructions.pace.title")}
+            text={t("instructions.pace.text")}
           />
 
           <Instruction
             icon="💗"
-            title="חוויה מותאמת אישית"
-            text="הסיפור נוצר במיוחד עבור הילד שלכם, בשפה רגועה ותומכת."
+            title={t("instructions.personalized.title")}
+            text={t("instructions.personalized.text")}
           />
         </Box>
 
@@ -85,7 +87,7 @@ export default function InstructionModal({ open, onClose }: Props) {
             mt: 3,
           }}
         >
-          המלצה: מצאו מקום שקט ונעים לקריאה משותפת 💫
+          {t("instructions.recommendation")}
         </Typography>
 
         {/* Action button */}
@@ -103,7 +105,7 @@ export default function InstructionModal({ open, onClose }: Props) {
               },
             }}
           >
-            הבנתי, בואו נתחיל
+            {t("instructions.gotIt")}
           </Button>
         </Box>
       </DialogContent>
@@ -134,6 +136,7 @@ function Instruction({
     </Box>
   );
 }
+
 
 
 

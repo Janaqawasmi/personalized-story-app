@@ -10,6 +10,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
 import InstructionModal from "../components/InstructionModal";
+import { useTranslation } from "../i18n/useTranslation";
 
 type Page = {
   pageNumber: number;
@@ -43,6 +44,7 @@ export default function BookReaderPage() {
   const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useLangNavigate();
+  const t = useTranslation();
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,7 +120,7 @@ export default function BookReaderPage() {
 
         setStory({
           id: storySnap.id,
-          title: data.title || "סיפור ללא שם",
+          title: data.title || t("search.storyWithoutName"),
           pages,
           language: storyLanguage,
           status: data.status,
@@ -241,7 +243,7 @@ export default function BookReaderPage() {
         }}
       >
         <Typography sx={{ color: theme.palette.text.secondary }}>
-          טוען...
+          {t("pages.bookReader.loading")}
         </Typography>
       </Box>
     );
@@ -267,7 +269,7 @@ export default function BookReaderPage() {
             textAlign: "center",
           }}
         >
-          {error || "לא נמצא סיפור"}
+          {error || t("pages.bookReader.error")}
         </Typography>
         <IconButton onClick={() => navigate(-1)}>
           <CloseIcon />
@@ -295,7 +297,7 @@ export default function BookReaderPage() {
             textAlign: "center",
           }}
         >
-          לא נמצאו עמודים לסיפור הזה.
+          {t("pages.bookReader.noPages")}
         </Typography>
       </Box>
     );
@@ -356,7 +358,9 @@ export default function BookReaderPage() {
                   textAlign: "center",
                 }}
               >
-                הסיפור בשפה {story.language === "ar" ? "ערבית" : story.language === "he" ? "עברית" : story.language}
+                {t("pages.bookReader.storyLanguage", { 
+                  language: story.language === "ar" ? t("pages.bookReader.arabic") : story.language === "he" ? t("pages.bookReader.hebrew") : (story.language || "Unknown")
+                })}
               </Typography>
             </Box>
           )}
@@ -424,7 +428,7 @@ export default function BookReaderPage() {
                 color: theme.palette.text.secondary,
               }}
             >
-              עמוד {spreadIndex + 1} מתוך {story.pages.length}
+              {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
             </Typography>
           </Box>
 

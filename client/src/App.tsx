@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useLanguage } from "./i18n/context/useLanguage";
+import { useTranslation } from "./i18n/useTranslation";
 
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/Footer";
@@ -35,6 +36,7 @@ function AppContent() {
   });
 
   const { direction } = useLanguage();
+  const t = useTranslation();
 
   return (
     <ThemeWrapper>
@@ -71,8 +73,8 @@ function AppContent() {
             path="cart"
             element={
               <PlaceholderPage
-                title="עגלת קניות"
-                message="עגלת הקניות שלך תופיע כאן"
+                title={t("pages.cart.title")}
+                message={t("pages.cart.message")}
               />
             }
           />

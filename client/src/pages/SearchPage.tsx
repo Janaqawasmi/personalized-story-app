@@ -6,11 +6,13 @@ import SearchIcon from "@mui/icons-material/Search";
 import { searchStories, StorySearchResult } from "../api/api";
 import StoryGridCard from "../components/StoryGridCard";
 import { formatAgeGroupLabel } from "../data/categories";
+import { useTranslation } from "../i18n/useTranslation";
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const navigate = useLangNavigate();
   const query = searchParams.get("q") ?? "";
+  const t = useTranslation();
   
   const [searchText, setSearchText] = useState(query);
   const [results, setResults] = useState<StorySearchResult[]>([]);
@@ -46,7 +48,7 @@ export default function SearchPage() {
         setMatchedAgeGroup(response.matchedAgeGroup ?? null);
       } catch (err: any) {
         console.error("Search error:", err);
-        setError(err.message || "חיפוש נכשל");
+        setError(err.message || t("searchPage.searchFailed"));
         setResults([]);
       } finally {
         setIsLoading(false);
@@ -78,14 +80,14 @@ export default function SearchPage() {
       {/* Search Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 2 }}>
-          חיפוש סיפורים
+          {t("searchPage.title")}
         </Typography>
         
         {/* Search Input */}
         <form onSubmit={handleSearchSubmit}>
           <TextField
             fullWidth
-            placeholder="חפשו לפי שם, גיל או נושא (למשל: 0-3, פחד מהחושך)"
+            placeholder={t("searchPage.placeholder")}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             sx={{
@@ -109,11 +111,11 @@ export default function SearchPage() {
           <Box sx={{ mt: 2 }}>
             {matchedAgeGroup ? (
               <Typography color="text.secondary">
-                נמצאו {results.length} סיפורים לגיל {formatAgeGroupLabel(matchedAgeGroup)}
+                {t("searchPage.foundForAge", { count: results.length, age: formatAgeGroupLabel(matchedAgeGroup) })}
               </Typography>
             ) : (
               <Typography color="text.secondary">
-                נמצאו {results.length} תוצאות עבור "{query}"
+                {t("searchPage.foundForQuery", { count: results.length, query })}
               </Typography>
             )}
           </Box>
@@ -156,10 +158,10 @@ export default function SearchPage() {
                 return (
                   <StoryGridCard
                     key={story.id}
-                    title={story.title || "סיפור ללא שם"}
+                    title={story.title || t("search.storyWithoutName")}
                     description={
                       ageGroup
-                        ? `גיל: ${formatAgeGroupLabel(ageGroup)}`
+                        ? `${t("filters.age")}: ${formatAgeGroupLabel(ageGroup)}`
                         : story.shortDescription
                     }
                     imageUrl={story.coverImage}
@@ -171,10 +173,10 @@ export default function SearchPage() {
           ) : (
             <Box sx={{ textAlign: "center", py: 8 }}>
               <Typography variant="h6" color="text.secondary">
-                לא נמצאו תוצאות עבור "{query}"
+                {t("searchPage.noResults", { query })}
               </Typography>
               <Typography color="text.secondary" sx={{ mt: 1 }}>
-                נסו לחפש במילים אחרות או לפי גיל (למשל: 0-3, 3-6)
+                {t("searchPage.tryDifferent")}
               </Typography>
             </Box>
           )}
@@ -185,10 +187,10 @@ export default function SearchPage() {
       {!isLoading && !error && !query && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
-            הכנסו שאילתת חיפוש למעלה
+            {t("searchPage.enterQuery")}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            תוכלו לחפש לפי שם סיפור, גיל (0-3, 3-6 וכו'), או נושא
+            {t("searchPage.searchHint")}
           </Typography>
         </Box>
       )}

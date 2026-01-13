@@ -1,6 +1,8 @@
 import { Box, useTheme } from "@mui/material";
 import { ReferenceSituation } from "../../hooks/useReferenceData";
 import * as s from "./styles";
+import { useTranslation } from "../../i18n/useTranslation";
+import { useLanguage } from "../../i18n/context/useLanguage";
 
 type Props = {
   situations: ReferenceSituation[];
@@ -18,13 +20,25 @@ export function TopicColumn({
   lang,
 }: Props) {
   const theme = useTheme();
+  const t = useTranslation();
+  const { language } = useLanguage();
+  
+  // Get label based on current language
+  const getLabel = (situation: ReferenceSituation): string => {
+    if (language === "en") {
+      // For English, prefer label_en if available, fallback to label_he
+      return situation.label_en || situation.label_he || situation.id;
+    }
+    // For Hebrew and Arabic, use label_he
+    return situation.label_he || situation.id;
+  };
   
   if (!selectedTopicKey) {
     return (
       <Box sx={s.column}>
-        <Box sx={s.columnHeader}>נושא</Box>
+        <Box sx={s.columnHeader}>{t("megaMenu.topic")}</Box>
         <Box sx={{ fontSize: "0.875rem", color: theme.palette.text.secondary, py: 1 }}>
-          בחרו קטגוריה
+          {t("megaMenu.selectCategory")}
         </Box>
       </Box>
     );
@@ -36,7 +50,7 @@ export function TopicColumn({
 
   return (
     <Box sx={s.column}>
-      <Box sx={s.columnHeader}>נושא</Box>
+      <Box sx={s.columnHeader}>{t("megaMenu.topic")}</Box>
 
       {filtered.map((situation) => (
         <Box
@@ -51,7 +65,7 @@ export function TopicColumn({
             onSelect(situation.id);
           }}
         >
-          {situation.label_he}
+          {getLabel(situation)}
         </Box>
       ))}
     </Box>

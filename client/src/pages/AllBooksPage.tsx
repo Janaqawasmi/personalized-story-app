@@ -15,6 +15,7 @@ import { fetchStoriesWithFilters } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
+import { useTranslation } from "../i18n/useTranslation";
 
 // Normalize age group for comparison (handles "0-3", "0_3", etc.)
 function normalizeAgeGroup(value?: string): string | null {
@@ -34,6 +35,7 @@ export default function AllBooksPage() {
   const [selectedAge, setSelectedAge] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
+  const t = useTranslation();
 
   // Fetch all books once
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function AllBooksPage() {
         const results = await fetchStoriesWithFilters({});
         setAllBooks(results);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "שגיאה בטעינת הסיפורים");
+        setError(err instanceof Error ? err.message : t("pages.allBooks.error"));
       } finally {
         setLoading(false);
       }
@@ -126,7 +128,7 @@ export default function AllBooksPage() {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
         <CircularProgress />
-        <Typography sx={{ mt: 2 }}>טוען סיפורים...</Typography>
+        <Typography sx={{ mt: 2 }}>{t("pages.allBooks.loading")}</Typography>
       </Container>
     );
   }
@@ -138,7 +140,7 @@ export default function AllBooksPage() {
           {error}
         </Typography>
         <Typography color="text.secondary">
-          נסה לרענן את הדף או חזור לדף הבית
+          {t("pages.allBooks.errorMessage")}
         </Typography>
       </Container>
     );
@@ -149,10 +151,10 @@ export default function AllBooksPage() {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          כל הסיפורים
+          {t("pages.allBooks.title")}
         </Typography>
         <Typography color="text.secondary">
-          {filteredBooks.length} סיפורים נמצאו
+          {t("pages.allBooks.storiesFound", { count: filteredBooks.length })}
         </Typography>
       </Box>
 
@@ -168,13 +170,13 @@ export default function AllBooksPage() {
       >
         {/* Age Filter */}
         <FormControl sx={{ minWidth: { xs: "100%", md: 180 }, direction: "rtl" }}>
-          <InputLabel>גיל</InputLabel>
+          <InputLabel>{t("filters.age")}</InputLabel>
           <Select
             value={selectedAge}
-            label="גיל"
+            label={t("filters.age")}
             onChange={(e) => setSelectedAge(e.target.value)}
           >
-            <MenuItem value="">כל הגילאים</MenuItem>
+            <MenuItem value="">{t("filters.allAges")}</MenuItem>
             {AGE_GROUPS.map((age) => (
               <MenuItem key={age.id} value={age.id || ""}>
                 {age.label}
@@ -185,17 +187,17 @@ export default function AllBooksPage() {
 
         {/* Category Filter */}
         <FormControl sx={{ minWidth: { xs: "100%", md: 180 }, direction: "rtl" }}>
-          <InputLabel>קטגוריה</InputLabel>
+          <InputLabel>{t("filters.category")}</InputLabel>
           <Select
             value={selectedCategory}
-            label="קטגוריה"
+            label={t("filters.category")}
             onChange={(e) => {
               setSelectedCategory(e.target.value);
               // Clear topic when category changes
               setSelectedTopic("");
             }}
           >
-            <MenuItem value="">כל הקטגוריות</MenuItem>
+            <MenuItem value="">{t("filters.allCategories")}</MenuItem>
             {availableCategories.map((cat) => (
               <MenuItem key={cat} value={cat}>
                 {cat}
@@ -206,13 +208,13 @@ export default function AllBooksPage() {
 
         {/* Topic Filter */}
         <FormControl sx={{ minWidth: { xs: "100%", md: 180 }, direction: "rtl" }}>
-          <InputLabel>נושא</InputLabel>
+          <InputLabel>{t("filters.topic")}</InputLabel>
           <Select
             value={selectedTopic}
-            label="נושא"
+            label={t("filters.topic")}
             onChange={(e) => setSelectedTopic(e.target.value)}
           >
-            <MenuItem value="">כל הנושאים</MenuItem>
+            <MenuItem value="">{t("filters.allTopics")}</MenuItem>
             {availableTopics.map((topic) => (
               <MenuItem key={topic} value={topic}>
                 {topic}
@@ -237,7 +239,7 @@ export default function AllBooksPage() {
               alignSelf: "flex-end",
             }}
           >
-            נקה מסננים
+            {t("filters.clearFilters")}
           </Button>
         )}
       </Box>
@@ -258,7 +260,7 @@ export default function AllBooksPage() {
           {filteredBooks.map((story) => (
             <StoryGridCard
               key={story.id}
-              title={story.title || "סיפור ללא שם"}
+              title={story.title || t("search.storyWithoutName")}
               description={story.shortDescription}
               imageUrl={story.coverImage}
               onClick={() => {
@@ -270,7 +272,7 @@ export default function AllBooksPage() {
       ) : (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
-            לא נמצאו סיפורים
+            {t("pages.allBooks.noStories")}
           </Typography>
         </Box>
       )}

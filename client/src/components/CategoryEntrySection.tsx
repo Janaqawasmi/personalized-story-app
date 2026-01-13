@@ -1,32 +1,25 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { useLangNavigate } from "../i18n/navigation";
+import { useTranslation } from "../i18n/useTranslation";
 
 const categories = [
   {
     id: "emotional",
-    title: "רגשי",
-    subtitle: "פחדים, חרדה, ביטוי רגשי",
     image: "/images/categories/emotional.jpg",
     color: "#E6F4F1",
   },
   {
     id: "family",
-    title: "משפחתי",
-    subtitle: "אחים, גירושין, שינויים",
     image: "/images/categories/family.jpg",
     color: "#F3EFEA",
   },
   {
     id: "social",
-    title: "חברתי",
-    subtitle: "חברות, שייכות, ביטחון",
     image: "/images/categories/social.jpg",
     color: "#EEF2F8",
   },
   {
     id: "educational",
-    title: "לימודי",
-    subtitle: "גן, בית ספר, למידה",
     image: "/images/categories/educational.jpg",
     color: "#F6F3FF",
   },
@@ -35,6 +28,7 @@ const categories = [
 export default function CategoryEntrySection() {
   const navigate = useLangNavigate();
   const theme = useTheme();
+  const t = useTranslation();
 
   return (
     <Box sx={{ py: 10 }}>
@@ -44,14 +38,14 @@ export default function CategoryEntrySection() {
         textAlign="center"
         sx={{ fontWeight: 800, mb: 1 }}
       >
-        עיון לפי קטגוריה
+        {t("home.categories.title")}
       </Typography>
 
       <Typography
         textAlign="center"
         sx={{ color: theme.palette.text.secondary, mb: 6 }}
       >
-        התחילו מהעולם שמתאים לילד שלכם
+        {t("home.categories.subtitle")}
       </Typography>
 
       {/* Cards */}
@@ -95,11 +89,11 @@ export default function CategoryEntrySection() {
             {/* Text */}
             <Box sx={{ p: 3, textAlign: "right" }}>
               <Typography sx={{ fontWeight: 800, fontSize: "1.1rem" }}>
-                {cat.title}
+                {t(`home.categories.${cat.id}.title`)}
               </Typography>
 
               <Typography sx={{ color: theme.palette.text.secondary, fontSize: "0.9rem" }}>
-                {cat.subtitle}
+                {t(`home.categories.${cat.id}.subtitle`)}
               </Typography>
             </Box>
           </Box>

@@ -1,5 +1,6 @@
 import { Box, Typography, Button, Container } from "@mui/material";
 import { useLangNavigate } from "../i18n/navigation";
+import { useTranslation } from "../i18n/useTranslation";
 
 type Props = {
   title: string;
@@ -8,6 +9,7 @@ type Props = {
 
 export default function PlaceholderPage({ title, message }: Props) {
   const navigate = useLangNavigate();
+  const t = useTranslation();
 
   return (
     <Container maxWidth="md" sx={{ py: 8, textAlign: "center" }}>
@@ -20,7 +22,7 @@ export default function PlaceholderPage({ title, message }: Props) {
         </Typography>
       )}
       <Button variant="contained" onClick={() => navigate("/")}>
-        חזרה לדף הבית
+        {t("pages.placeholder.backToHome")}
       </Button>
     </Container>
   );

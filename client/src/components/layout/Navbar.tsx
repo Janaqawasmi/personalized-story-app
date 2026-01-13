@@ -212,13 +212,13 @@ export default function Navbar({
                 onClick={() => handleLanguageChange("he")}
                 selected={language === "he"}
               >
-                עברית
+                {t("navbar.hebrew")}
               </MenuItem>
               <MenuItem
                 onClick={() => handleLanguageChange("en")}
                 selected={language === "en"}
               >
-                English
+                {t("navbar.english")}
               </MenuItem>
             </Menu>
           </Box>

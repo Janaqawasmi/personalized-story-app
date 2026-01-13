@@ -1,6 +1,8 @@
 {
   "navbar": {
-    "browseStories": "עיון בסיפורים"
+    "browseStories": "עיון בסיפורים",
+    "hebrew": "עברית",
+    "english": "English"
   },
   "footer": {
     "copyright": "© DAMMAH — All rights reserved"
@@ -26,7 +28,250 @@
         "initials": "ס"
       },
       "cta": "התחילו את הסיפור שלכם"
+    },
+    "categories": {
+      "title": "עיון לפי קטגוריה",
+      "subtitle": "התחילו מהעולם שמתאים לילד שלכם",
+      "emotional": {
+        "title": "רגשי",
+        "subtitle": "פחדים, חרדה, ביטוי רגשי"
+      },
+      "family": {
+        "title": "משפחתי",
+        "subtitle": "אחים, גירושין, שינויים"
+      },
+      "social": {
+        "title": "חברתי",
+        "subtitle": "חברות, שייכות, ביטחון"
+      },
+      "educational": {
+        "title": "לימודי",
+        "subtitle": "גן, בית ספר, למידה"
+      },
+      "therapeutic": {
+        "title": "טיפולי",
+        "subtitle": "ADHD, אוטיזם, פוביות, ויסות רגשי"
+      }
     }
+  },
+  "megaMenu": {
+    "age": "גיל",
+    "category": "קטגוריה",
+    "topic": "נושא",
+    "selectCategory": "בחרו קטגוריה",
+    "allStories": "כל הסיפורים"
+  },
+  "search": {
+    "title": "חפשו סיפור שמתאים לילד שלכם",
+    "subtitle": "חפשו לפי רגש, גיל או מצב (למשל: פחד מהחושך)",
+    "placeholder": "חפשו לפי רגש, גיל או מצב (למשל: פחד מהחושך)",
+    "loading": "טוען...",
+    "searching": "מחפש...",
+    "noResults": "לא נמצאו תוצאות",
+    "suggestedSearches": "חיפושים מוצעים",
+    "notSure": "לא בטוחים מה לחפש? אנחנו כאן כדי לעזור",
+    "popularStories": "סיפורים אהובים",
+    "noPopularStories": "עדיין אין סיפורים פופולריים – נסו לבחור חיפוש מוצע.",
+    "storyWithoutName": "סיפור ללא שם",
+    "forAge": "לגיל"
+  },
+  "searchPage": {
+    "title": "חיפוש סיפורים",
+    "placeholder": "חפשו לפי שם, גיל או נושא (למשל: 0-3, פחד מהחושך)",
+    "foundForAge": "נמצאו {count} סיפורים לגיל {age}",
+    "foundForQuery": "נמצאו {count} תוצאות עבור \"{query}\"",
+    "noResults": "לא נמצאו תוצאות עבור \"{query}\"",
+    "tryDifferent": "נסו לחפש במילים אחרות או לפי גיל (למשל: 0-3, 3-6)",
+    "enterQuery": "הכנסו שאילתת חיפוש למעלה",
+    "searchHint": "תוכלו לחפש לפי שם סיפור, גיל (0-3, 3-6 וכו'), או נושא",
+    "searchFailed": "חיפוש נכשל"
+  },
+  "filters": {
+    "age": "גיל",
+    "category": "קטגוריה",
+    "topic": "נושא",
+    "optional": "אופציונלי",
+    "all": "הכל",
+    "allAges": "כל הגילאים",
+    "allCategories": "כל הקטגוריות",
+    "allTopics": "כל הנושאים",
+    "clearFilters": "נקה מסננים"
+  },
+  "pages": {
+    "ageResults": {
+      "title": "סיפורים לגיל {age}",
+      "storiesFound": "{count} סיפורים נמצאו",
+      "ageNotFound": "גיל לא נמצא",
+      "noStories": "לא נמצאו סיפורים"
+    },
+    "categoryResults": {
+      "storiesFound": "{count} סיפורים נמצאו",
+      "categoryNotFound": "קטגוריה לא נמצאה",
+      "noStories": "לא נמצאו סיפורים",
+      "loading": "טוען..."
+    },
+    "topicResults": {
+      "storiesFound": "{count} סיפורים נמצאו",
+      "topicNotFound": "נושא לא נמצא",
+      "noStories": "לא נמצאו סיפורים",
+      "loading": "טוען..."
+    },
+    "allBooks": {
+      "title": "כל הסיפורים",
+      "storiesFound": "{count} סיפורים נמצאו",
+      "loading": "טוען סיפורים...",
+      "error": "שגיאה בטעינת הסיפורים",
+      "errorMessage": "נסה לרענן את הדף או חזור לדף הבית",
+      "noStories": "לא נמצאו סיפורים"
+    },
+    "bookReader": {
+      "loading": "טוען...",
+      "error": "לא נמצא סיפור",
+      "noPages": "לא נמצאו עמודים לסיפור הזה.",
+      "storyLanguage": "הסיפור בשפה {language}",
+      "pageOf": "עמוד {current} מתוך {total}",
+      "hebrew": "עברית",
+      "arabic": "ערבית"
+    },
+    "placeholder": {
+      "backToHome": "חזרה לדף הבית"
+    },
+    "cart": {
+      "title": "עגלת קניות",
+      "message": "עגלת הקניות שלך תופיע כאן"
+    }
+  },
+  "book": {
+    "startReading": "התחילו לקרוא",
+    "audioReading": "הקראה קולית",
+    "imageComingSoon": "תמונה תופיע כאן בקרוב"
+  },
+  "instructions": {
+    "title": "טיפים לקריאה נעימה",
+    "subtitle": "כך תיהנו מהסיפור בצורה הטובה ביותר",
+    "audio": {
+      "title": "הקראה קולית",
+      "text": "ניתן להאזין לסיפור בקול רגוע באמצעות כפתור ההקראה."
+    },
+    "pages": {
+      "title": "דפדוף בעמודים",
+      "text": "דפדפו בעזרת החיצים, לחיצה על שולי העמוד או גרירה מהפינה."
+    },
+    "pace": {
+      "title": "קריאה בקצב שלכם",
+      "text": "אפשר לעצור, לחזור אחורה ולקרוא מחדש בכל שלב."
+    },
+    "personalized": {
+      "title": "חוויה מותאמת אישית",
+      "text": "הסיפור נוצר במיוחד עבור הילד שלכם, בשפה רגועה ותומכת."
+    },
+    "recommendation": "המלצה: מצאו מקום שקט ונעים לקריאה משותפת 💫",
+    "gotIt": "הבנתי, בואו נתחיל"
+  },
+  "personalize": {
+    "steps": {
+      "step1": "בואו נתחיל – איך קוראים לגיבור שלנו?",
+      "step2": "איך הסיפור ידבר אליו?",
+      "step3": "זה הרגע להכניס את הילד לסיפור",
+      "step4": "איך הסיפור ייראה?",
+      "step5": "הכל מוכן ✨"
+    },
+    "gender": {
+      "female": "בת",
+      "male": "בן"
+    },
+    "visualStyles": {
+      "watercolor": {
+        "label": "צבעי מים",
+        "description": "איורים רכים, חלומיים, צבועים ביד"
+      },
+      "semi_realistic": {
+        "label": "חצי-ריאליסטי",
+        "description": "ריאליזם עדין עם עומק רגשי"
+      },
+      "flat_cartoon": {
+        "label": "קריקטורה דיגיטלית שטוחה",
+        "description": "צורות נקיות וצבעים דיגיטליים בהירים"
+      },
+      "paper_craft": {
+        "label": "ספר ילדים מלאכת יד",
+        "description": "מרקמי נייר בשכבות, מלאכת יד"
+      },
+      "vintage_1950s_little_golden": {
+        "label": "וינטג' שנות ה-50 · ספר זהב",
+        "description": "אסתטיקה קלאסית של ספרי הזהב משנות ה-50"
+      }
+    },
+    "continue": "המשך התאמה אישית",
+    "alreadyStarted": "התחלת להתאים את הסיפור הזה. מה תרצה לעשות?",
+    "resume": "המשך מהמקום שעצרת",
+    "restart": "התחל מחדש",
+    "alreadyCompleted": "כבר התאמת את הסיפור הזה",
+    "whatToDo": "מה תרצה לעשות?",
+    "newPersonalization": "התחל התאמה אישית חדשה",
+    "usePrevious": "השתמש בהתאמה הקודמת",
+    "stepOf": "שלב {current} מתוך {total}",
+    "childName": "השם הזה יופיע בסיפור",
+    "enterName": "הכנס שם",
+    "nameMinLength": "השם חייב להכיל לפחות 2 תווים",
+    "sensitiveLanguage": "לשפה רגישה ומדויקת",
+    "photoUsage": "נשתמש בה רק כדי ליצור איורים מותאמים",
+    "childPhoto": "תמונת הילד",
+    "replacePhoto": "החלף תמונה",
+    "selectPhoto": "בחר תמונה ברורה של הילד",
+    "maxSize": "עד 5MB",
+    "photoRequired": "יש להעלות תמונה כדי להמשיך",
+    "affectsIllustrations": "זה ישפיע על איך האיורים ייראו לאורך הספר",
+    "fillAllFields": "אנא מלא את כל השדות הנדרשים לפני שתסיים",
+    "requiredFields": {
+      "childName": "שם הילד",
+      "gender": "מגדר",
+      "ageRange": "טווח גיל (מהסיפור)",
+      "childPhoto": "תמונת הילד",
+      "visualStyle": "סגנון ויזואלי"
+    },
+    "back": "חזור צעד אחורה",
+    "continueJourney": "המשך למסע",
+    "createStory": "צור את הסיפור",
+    "imageTooLarge": "התמונה גדולה מדי. אנא בחר תמונה קטנה מ-5MB",
+    "story": "סיפור"
+  },
+  "discovery": {
+    "category": "קטגוריה",
+    "age": "גיל",
+    "topic": "נושא",
+    "topics": {
+      "emotional": {
+        "fears": "פחדים",
+        "anxiety": "חרדה",
+        "emotions": "רגשות",
+        "self_confidence": "ביטחון עצמי"
+      },
+      "family": {
+        "new_baby": "תינוק חדש",
+        "divorce": "גירושין",
+        "sibling_jealousy": "קנאה בין אחים",
+        "home_change": "שינוי בבית"
+      },
+      "social": {
+        "friendship": "חברות",
+        "bullying": "חרם",
+        "shyness": "ביישנות",
+        "boundaries": "גבולות"
+      },
+      "therapeutic": {
+        "adhd": "ADHD",
+        "autism": "אוטיזם",
+        "phobias": "פוביות",
+        "emotional_regulation": "ויסות רגשי"
+      }
+    }
+  },
+  "login": {
+    "title": "בואו נתחבר",
+    "email": "התחברות עם אימייל",
+    "google": "התחברות עם Google",
+    "notRegistered": "לא רשומה עדיין?",
+    "goToSignup": "לעבור להרשמה"
   }
 }
-

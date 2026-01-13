@@ -7,6 +7,8 @@ import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
+import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 
 export default function CategoryResultsPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -19,6 +21,8 @@ export default function CategoryResultsPage() {
     searchParams.get("age") || null
   );
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const t = useTranslation();
+  const { language } = useLanguage();
 
   // Reset filters when coming from MegaMenu
   useEffect(() => {
@@ -51,7 +55,7 @@ export default function CategoryResultsPage() {
       setStories(
         results.map((s) => ({
           id: s.id,
-          title: s.title ?? "סיפור ללא שם",
+          title: s.title ?? t("search.storyWithoutName"),
         }))
       );
     });
@@ -60,7 +64,7 @@ export default function CategoryResultsPage() {
   if (loading || !data) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
-        <Typography>טוען...</Typography>
+        <Typography>{t("pages.categoryResults.loading")}</Typography>
       </Container>
     );
   }
@@ -70,9 +74,9 @@ export default function CategoryResultsPage() {
   if (!category) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
-        <Typography variant="h5">קטגוריה לא נמצאה</Typography>
+        <Typography variant="h5">{t("pages.categoryResults.categoryNotFound")}</Typography>
         <Button onClick={() => navigate("/")} sx={{ mt: 2 }}>
-          חזרה לדף הבית
+          {t("pages.placeholder.backToHome")}
         </Button>
       </Container>
     );
@@ -88,10 +92,10 @@ export default function CategoryResultsPage() {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          {category.label_he}
+          {language === "en" ? (category.label_en || category.label_he) : category.label_he}
         </Typography>
         <Typography color="text.secondary">
-          {stories.length} סיפורים נמצאו
+          {t("pages.categoryResults.storiesFound", { count: stories.length })}
         </Typography>
       </Box>
 
@@ -100,7 +104,7 @@ export default function CategoryResultsPage() {
         {/* Age Filter */}
         <Box sx={{ mb: 3 }}>
           <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            גיל (אופציונלי)
+            {t("filters.age")} ({t("filters.optional")})
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             <Button
@@ -108,7 +112,7 @@ export default function CategoryResultsPage() {
               size="small"
               onClick={() => setSelectedAge(null)}
             >
-              כל הגילאים
+              {t("filters.allAges")}
             </Button>
             {AGE_GROUPS.map((age) => (
               <Button
@@ -127,7 +131,7 @@ export default function CategoryResultsPage() {
         {availableTopics.length > 0 && (
           <Box sx={{ mb: 3 }}>
             <Typography sx={{ fontWeight: 600, mb: 2 }}>
-              נושא (אופציונלי)
+              {t("filters.topic")} ({t("filters.optional")})
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Button
@@ -135,7 +139,7 @@ export default function CategoryResultsPage() {
                 size="small"
                 onClick={() => setSelectedTopic(null)}
               >
-                הכל
+                {t("filters.all")}
               </Button>
               {availableTopics.map((topic) => (
                 <Button
@@ -144,7 +148,7 @@ export default function CategoryResultsPage() {
                   size="small"
                   onClick={() => setSelectedTopic(topic.id)}
                 >
-                  {topic.label_he}
+                  {language === "en" ? (topic.label_en || topic.label_he) : topic.label_he}
                 </Button>
               ))}
             </Box>
@@ -180,7 +184,7 @@ export default function CategoryResultsPage() {
       ) : (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
-            לא נמצאו סיפורים
+            {t("pages.categoryResults.noStories")}
           </Typography>
         </Box>
       )}

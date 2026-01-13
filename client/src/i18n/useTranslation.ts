@@ -24,16 +24,17 @@ function getNestedValue(obj: any, path: string): string | undefined {
 
 /**
  * Translation hook
- * Returns a function to translate keys
+ * Returns a function to translate keys with optional interpolation
  * 
  * @example
  * const t = useTranslation();
  * t("navbar.browseStories") → "עיון בסיפורים" (if Hebrew) or "Browse Stories" (if English)
+ * t("pages.ageResults.title", { age: "3-6" }) → "סיפורים לגיל 3-6"
  */
 export function useTranslation() {
   const { language } = useLanguage();
 
-  const t = (key: TranslationKey): string => {
+  const t = (key: TranslationKey, params?: Record<string, string | number>): string => {
     const currentTranslations = translations[language];
     
     // Try to get translation for current language
@@ -45,9 +46,19 @@ export function useTranslation() {
     }
     
     // If still not found, return the key itself (helps with debugging)
-    return value || key;
+    if (!value) return key;
+    
+    // Interpolate parameters if provided
+    if (params) {
+      return value.replace(/\{(\w+)\}/g, (match, paramKey) => {
+        return params[paramKey]?.toString() || match;
+      });
+    }
+    
+    return value;
   };
 
   return t;
 }
 
+;

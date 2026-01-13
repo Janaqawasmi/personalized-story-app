@@ -9,7 +9,7 @@ import {
   useTheme,
   CircularProgress,
 } from "@mui/material";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -17,6 +17,8 @@ import { db } from "../firebase";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 
 // Import style images
 import watercolorImg from "../assets/story-styles/watercolor.jpeg";
@@ -57,18 +59,7 @@ type StoryTemplate = {
   };
 };
 
-const STEPS = [
-  "בואו נתחיל – איך קוראים לגיבור שלנו?",
-  "איך הסיפור ידבר אליו?",
-  "זה הרגע להכניס את הילד לסיפור",
-  "איך הסיפור ייראה?",
-  "הכל מוכן ✨",
-];
-
-const GENDER_OPTIONS = [
-  { value: "female" as const, label: "בת" },
-  { value: "male" as const, label: "בן" },
-];
+// STEPS and GENDER_OPTIONS are now loaded dynamically using translations
 
 
 
@@ -78,42 +69,22 @@ const GENDER_OPTIONS = [
 const VISUAL_STYLES = [
   {
     id: "watercolor" as const,
-    label: "Watercolour",
-    labelHebrew: "צבעי מים",
-    description: "Soft, dreamy, hand-painted illustrations",
-    descriptionHebrew: "איורים רכים, חלומיים, צבועים ביד",
     image: watercolorImg,
   },
   {
     id: "semi_realistic" as const,
-    label: "Semi-Realistic",
-    labelHebrew: "חצי-ריאליסטי",
-    description: "Gentle realism with emotional depth",
-    descriptionHebrew: "ריאליזם עדין עם עומק רגשי",
     image: semiRealisticImg,
   },
   {
     id: "flat_cartoon" as const,
-    label: "Flat Digital Cartoon",
-    labelHebrew: "קריקטורה דיגיטלית שטוחה",
-    description: "Clean shapes and bright digital colors",
-    descriptionHebrew: "צורות נקיות וצבעים דיגיטליים בהירים",
     image: flatCartoonImg,
   },
   {
     id: "paper_craft" as const,
-    label: "Paper-Craft Children's Book",
-    labelHebrew: "ספר ילדים מלאכת יד",
-    description: "Layered, handcrafted paper textures",
-    descriptionHebrew: "מרקמי נייר בשכבות, מלאכת יד",
     image: paperCraftImg,
   },
   {
     id: "vintage_1950s_little_golden" as const,
-    label: "Vintage 1950s Little Golden Storybook",
-    labelHebrew: "וינטג' שנות ה-50 · ספר זהב",
-    description: "Classic 1950s Little Golden Books aesthetic",
-    descriptionHebrew: "אסתטיקה קלאסית של ספרי הזהב משנות ה-50",
     image: vintageGoldenImg,
   },
 ];
@@ -163,6 +134,22 @@ export default function PersonalizeStoryPage() {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useLangNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslation();
+  const { language } = useLanguage();
+  
+  // Load steps and options dynamically based on language - memoized based on language to prevent recreation
+  const STEPS = useMemo(() => [
+    t("personalize.steps.step1"),
+    t("personalize.steps.step2"),
+    t("personalize.steps.step3"),
+    t("personalize.steps.step4"),
+    t("personalize.steps.step5"),
+  ], [t, language]); // Include language to update when language changes
+  
+  const GENDER_OPTIONS = useMemo(() => [
+    { value: "female" as const, label: t("personalize.gender.female") },
+    { value: "male" as const, label: t("personalize.gender.male") },
+  ], [t, language]); // Include language to update when language changes
 
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,9 +164,19 @@ export default function PersonalizeStoryPage() {
   const [showCompletedScreen, setShowCompletedScreen] = useState(false);
   const [showFinalError, setShowFinalError] = useState(false);
 
-  const isRTL = true; // Hebrew/Arabic
+  // Diagnostic: Log mount/unmount and state changes
+  useEffect(() => {
+    console.log("[PersonalizeStoryPage] MOUNTED - lang:", language, "storyId:", storyId, "activeStep:", activeStep);
+    return () => {
+      console.log("[PersonalizeStoryPage] UNMOUNTED - lang:", language, "storyId:", storyId);
+    };
+  }, []); // Only on mount/unmount
 
-  // Load story template
+  useEffect(() => {
+    console.log("[PersonalizeStoryPage] State update - activeStep:", activeStep, "childName:", personalization.childName, "lang:", language);
+  }, [activeStep, personalization.childName, language]);
+
+  // Load story template - ONLY when storyId changes, NOT on every render
   useEffect(() => {
     if (!storyId) {
       navigate("/");
@@ -199,7 +196,7 @@ export default function PersonalizeStoryPage() {
         const data = storySnap.data();
         setStory({
           id: storySnap.id,
-          title: data.title || "סיפור",
+          title: data.title || t("personalize.story"),
           language: data.language || data.generationConfig?.language,
           ageGroup: data.ageGroup || data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
           targetAgeGroup: data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
@@ -228,7 +225,8 @@ export default function PersonalizeStoryPage() {
     };
 
     fetchStory();
-  }, [storyId, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyId]); // Only depend on storyId - navigate and t are stable
 
   // Step-specific validation (only validates current step)
   const validateCurrentStep = (step: number): boolean => {
@@ -292,7 +290,7 @@ export default function PersonalizeStoryPage() {
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      alert("התמונה גדולה מדי. אנא בחר תמונה קטנה מ-5MB");
+      alert(t("personalize.imageTooLarge"));
       return;
     }
 
@@ -456,10 +454,10 @@ export default function PersonalizeStoryPage() {
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-            המשך התאמה אישית
+            {t("personalize.continue")}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            התחלת להתאים את הסיפור הזה. מה תרצה לעשות?
+            {t("personalize.alreadyStarted")}
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Button
@@ -472,7 +470,7 @@ export default function PersonalizeStoryPage() {
                 py: 1.5,
               }}
             >
-              המשך מהמקום שעצרת
+              {t("personalize.resume")}
             </Button>
             <Button
               variant="outlined"
@@ -488,7 +486,7 @@ export default function PersonalizeStoryPage() {
                 },
               }}
             >
-              התחל מחדש
+              {t("personalize.restart")}
             </Button>
           </Box>
         </Card>
@@ -523,10 +521,10 @@ export default function PersonalizeStoryPage() {
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-            כבר התאמת את הסיפור הזה
+            {t("personalize.alreadyCompleted")}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            מה תרצה לעשות?
+            {t("personalize.whatToDo")}
           </Typography>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <Button
@@ -539,7 +537,7 @@ export default function PersonalizeStoryPage() {
                 py: 1.5,
               }}
             >
-              התחל התאמה אישית חדשה
+              {t("personalize.newPersonalization")}
             </Button>
             <Button
               variant="outlined"
@@ -555,7 +553,7 @@ export default function PersonalizeStoryPage() {
                 },
               }}
             >
-              השתמש בהתאמה הקודמת
+              {t("personalize.usePrevious")}
             </Button>
           </Box>
         </Card>
@@ -606,7 +604,7 @@ export default function PersonalizeStoryPage() {
                   mb: 1,
                 }}
               >
-                שלב {activeStep + 1} מתוך {STEPS.length}
+                {t("personalize.stepOf", { current: activeStep + 1, total: STEPS.length })}
               </Typography>
               <Typography
                 variant="h4"
@@ -651,31 +649,40 @@ export default function PersonalizeStoryPage() {
                 }}
               >
                 <Typography sx={{ opacity: 0.7, textAlign: "center" }}>
-                  השם הזה יופיע בסיפור
+                  {t("personalize.childName")}
                 </Typography>
                 <TextField
+                  key="child-name-input"
                   fullWidth
                   variant="filled"
                   value={personalization.childName || ""}
                   onChange={(e) => {
-                    const updated = { ...personalization, childName: e.target.value };
-                    setPersonalization(updated);
-                    // Auto-save draft on change
-                    if (storyId && e.target.value.trim().length >= 2) {
-                      savePersonalizationSession(
-                        storyId,
-                        {
-                          childName: e.target.value,
-                          gender: personalization.gender!, // ✅ must already be selected
-                          photoPreviewUrl: personalization.photoPreviewUrl || "",
-                          visualStyle: personalization.visualStyle || "watercolor",
-                        },
-                        "draft"
-                      );
+                    const newValue = e.target.value;
+                    console.log("[Step1] onChange - newValue:", newValue, "current state:", personalization.childName, "timestamp:", Date.now());
+                    // Use functional update to ensure we have the latest state
+                    setPersonalization((prev) => {
+                      const updated = { ...prev, childName: newValue };
+                      console.log("[Step1] setPersonalization - prev:", prev.childName, "updated:", updated.childName);
                       
-                    }
+                      // Auto-save draft on change (only if we have both name and gender)
+                      // This ensures we have valid data for StoryPersonalizationData type
+                      if (storyId && newValue.trim().length >= 2 && prev.gender) {
+                        savePersonalizationSession(
+                          storyId,
+                          {
+                            childName: newValue,
+                            gender: prev.gender,
+                            photoPreviewUrl: prev.photoPreviewUrl || "",
+                            visualStyle: prev.visualStyle || "watercolor",
+                          },
+                          "draft"
+                        );
+                      }
+                      
+                      return updated;
+                    });
                   }}
-                  placeholder="הכנס שם"
+                  placeholder={t("personalize.enterName")}
                   sx={{ mb: 2 }}
                   inputProps={{ maxLength: 50 }}
                   InputProps={{
@@ -692,7 +699,7 @@ export default function PersonalizeStoryPage() {
                   personalization.childName.length > 0 &&
                   personalization.childName.length < 2 && (
                     <Typography variant="caption" color="error" sx={{ textAlign: "center" }}>
-                      השם חייב להכיל לפחות 2 תווים
+                      {t("personalize.nameMinLength")}
                     </Typography>
                   )}
               </Box>
@@ -711,7 +718,7 @@ export default function PersonalizeStoryPage() {
                 }}
               >
                 <Typography sx={{ opacity: 0.7, textAlign: "center" }}>
-                  לשפה רגישה ומדויקת
+                  {t("personalize.sensitiveLanguage")}
                 </Typography>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {GENDER_OPTIONS.map((option) => (
@@ -776,7 +783,7 @@ export default function PersonalizeStoryPage() {
             {activeStep === 2 && (
               <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <Typography sx={{ opacity: 0.7, textAlign: "center", mb: 3 }}>
-                  נשתמש בה רק כדי ליצור איורים מותאמים
+                  {t("personalize.photoUsage")}
                 </Typography>
 
                 {personalization.photoPreviewUrl ? (
@@ -784,7 +791,7 @@ export default function PersonalizeStoryPage() {
                     <Box
                       component="img"
                       src={personalization.photoPreviewUrl}
-                      alt="תמונת הילד"
+                      alt={t("personalize.childPhoto")}
                       sx={{
                         maxWidth: "100%",
                         maxHeight: 300,
@@ -805,7 +812,7 @@ export default function PersonalizeStoryPage() {
                         }
                       }}
                     >
-                      החלף תמונה
+                      {t("personalize.replacePhoto")}
                     </Button>
                   </Box>
                 ) : (
@@ -828,10 +835,10 @@ export default function PersonalizeStoryPage() {
                   >
                     <PhotoCameraIcon sx={{ fontSize: 48, color: "#824D5C", mb: 2, opacity: 0.7 }} />
                     <Typography sx={{ fontWeight: 600, mb: 1 }}>
-                      בחר תמונה ברורה של הילד
+                      {t("personalize.selectPhoto")}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      עד 5MB
+                      {t("personalize.maxSize")}
                     </Typography>
                   </Box>
                 )}
@@ -846,7 +853,7 @@ export default function PersonalizeStoryPage() {
 
                 {!personalization.photoPreviewUrl && (
                   <Typography variant="caption" color="error" sx={{ display: "block", mt: 2, textAlign: "center" }}>
-                    יש להעלות תמונה כדי להמשיך
+                    {t("personalize.photoRequired")}
                   </Typography>
                 )}
               </Box>
@@ -856,7 +863,7 @@ export default function PersonalizeStoryPage() {
             {activeStep === 3 && (
               <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
                 <Typography sx={{ opacity: 0.7, textAlign: "center", mb: 3 }}>
-                  זה ישפיע על איך האיורים ייראו לאורך הספר
+                  {t("personalize.affectsIllustrations")}
                 </Typography>
                 <Box
                   sx={{
@@ -901,7 +908,7 @@ export default function PersonalizeStoryPage() {
                         <CardMedia
                           component="img"
                           image={style.image}
-                          alt={style.label}
+                          alt={t(`personalize.visualStyles.${style.id}.label`)}
                           sx={{
                             height: 140,
                             objectFit: "cover",
@@ -910,10 +917,10 @@ export default function PersonalizeStoryPage() {
                         />
                         <CardContent sx={{ position: "relative", pb: 2 }}>
                           <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
-                            {style.labelHebrew}
+                            {t(`personalize.visualStyles.${style.id}.label`)}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
-                            {style.descriptionHebrew}
+                            {t(`personalize.visualStyles.${style.id}.description`)}
                           </Typography>
                           {isSelected && (
                             <CheckCircleIcon
@@ -951,7 +958,7 @@ export default function PersonalizeStoryPage() {
                     }}
                   >
                     <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
-                      אנא מלא את כל השדות הנדרשים לפני שתסיים
+                      {t("personalize.fillAllFields")}
                     </Typography>
                   </Box>
                 )}
@@ -959,7 +966,7 @@ export default function PersonalizeStoryPage() {
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
-                        שם הילד
+                        {t("personalize.requiredFields.childName")}
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
                         {personalization.childName || ""}
@@ -967,7 +974,7 @@ export default function PersonalizeStoryPage() {
                     </Box>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
-                        מגדר
+                        {t("personalize.requiredFields.gender")}
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
                         {GENDER_OPTIONS.find((g) => g.value === personalization.gender)?.label || ""}
@@ -976,7 +983,7 @@ export default function PersonalizeStoryPage() {
                     {story && (story.ageGroup || story.targetAgeGroup) && (
                       <Box>
                         <Typography variant="caption" color="text.secondary">
-                          טווח גיל (מהסיפור)
+                          {t("personalize.requiredFields.ageRange")}
                         </Typography>
                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
                           {story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup}
@@ -986,12 +993,12 @@ export default function PersonalizeStoryPage() {
                     {personalization.photoPreviewUrl && (
                       <Box>
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                          תמונת הילד
+                          {t("personalize.requiredFields.childPhoto")}
                         </Typography>
                         <Box
                           component="img"
                           src={personalization.photoPreviewUrl}
-                          alt="תמונת הילד"
+                          alt={t("personalize.childPhoto")}
                           sx={{
                             maxWidth: 150,
                             maxHeight: 150,
@@ -1002,10 +1009,10 @@ export default function PersonalizeStoryPage() {
                     )}
                     <Box>
                       <Typography variant="caption" color="text.secondary">
-                        סגנון ויזואלי
+                        {t("personalize.requiredFields.visualStyle")}
                       </Typography>
                       <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {VISUAL_STYLES.find((s) => s.id === personalization.visualStyle)?.labelHebrew || ""}
+                        {personalization.visualStyle ? t(`personalize.visualStyles.${personalization.visualStyle}.label`) : ""}
                       </Typography>
                     </Box>
                   </Box>
@@ -1030,7 +1037,7 @@ export default function PersonalizeStoryPage() {
             disabled={activeStep === 0}
             endIcon={<ArrowForwardIcon sx={{ direction: "ltr" }} />}
             variant="outlined"
-            aria-label="חזרה לעמוד הקודם"
+            aria-label={t("personalize.back")}
             sx={{
               borderColor: "#824D5C",
               color: "#824D5C",
@@ -1040,7 +1047,7 @@ export default function PersonalizeStoryPage() {
               },
             }}
           >
-            חזור צעד אחורה
+            {t("personalize.back")}
           </Button>
           {activeStep < STEPS.length - 1 ? (
             <Button
@@ -1052,7 +1059,7 @@ export default function PersonalizeStoryPage() {
                 "&:hover": { backgroundColor: "#6f404d" },
               }}
             >
-              המשך למסע
+              {t("personalize.continueJourney")}
             </Button>
           ) : (
             <Button
@@ -1063,7 +1070,7 @@ export default function PersonalizeStoryPage() {
                 "&:hover": { backgroundColor: "#6f404d" },
               }}
             >
-              צור את הסיפור
+              {t("personalize.createStory")}
             </Button>
           )}
             </Box>
