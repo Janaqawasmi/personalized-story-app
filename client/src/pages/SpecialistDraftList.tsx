@@ -206,7 +206,8 @@ const SpecialistDraftList: React.FC = () => {
 
   const handleCardClick = (draftId: string) => {
     if (!loading) {
-      navigate(`drafts/${draftId}`);
+      // Use absolute path so useLangNavigate can properly prefix with language
+      navigate(`/specialist/drafts/${draftId}`);
     }
   };
 

@@ -579,13 +579,13 @@ const GenerateDraftPage: React.FC = () => {
                 <Button 
                   color="inherit" 
                   size="small" 
-                  onClick={() => navigate(`drafts/${successDraftId}`)}
+                  onClick={() => navigate(`/specialist/drafts/${successDraftId}`)}
                   startIcon={<Launch />}
                 >
                   View Draft
                 </Button>
               ) : (
-                <Button color="inherit" size="small" onClick={() => navigate("drafts")}>
+                <Button color="inherit" size="small" onClick={() => navigate("/specialist/drafts")}>
                   View Drafts
                 </Button>
               )
@@ -745,7 +745,7 @@ const GenerateDraftPage: React.FC = () => {
                         variant="outlined"
                             size="small"
                             startIcon={<Visibility />}
-                        onClick={() => navigate(`story-briefs/${brief.id}/prompt-preview`)}
+                        onClick={() => navigate(`/specialist/story-briefs/${brief.id}/prompt-preview`)}
                       >
                             View Prompt
                       </Button>
@@ -754,7 +754,7 @@ const GenerateDraftPage: React.FC = () => {
                         variant="contained"
                               color="success"
                               startIcon={<Launch />}
-                              onClick={() => navigate(`drafts/${brief.lockedByDraftId}`)}
+                              onClick={() => navigate(`/specialist/drafts/${brief.lockedByDraftId}`)}
                             >
                               View Draft
                             </Button>

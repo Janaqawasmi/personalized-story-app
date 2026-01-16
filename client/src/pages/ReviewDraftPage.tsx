@@ -511,7 +511,7 @@ const ReviewDraftPage: React.FC = () => {
       setApproveDialogOpen(false);
       setApproving(false);
       // Redirect to drafts list
-      navigate("drafts");
+      navigate("/specialist/drafts");
     } catch (err: any) {
       setError(err.message || "Failed to approve draft");
       setApproving(false);
@@ -590,7 +590,7 @@ const ReviewDraftPage: React.FC = () => {
               variant="outlined" 
               startIcon={<ArrowBack />}
               onClick={() => {
-                navigate("drafts");
+                navigate("/specialist/drafts");
               }}
               disabled={saving || approving}
             >
@@ -710,7 +710,7 @@ const ReviewDraftPage: React.FC = () => {
                         variant="text"
                         size="small"
                         startIcon={<Description />}
-                        onClick={() => navigate(`generate-draft?briefId=${draft.briefId}`)}
+                        onClick={() => navigate(`/specialist/generate-draft?briefId=${draft.briefId}`)}
                         sx={{ textTransform: "none", p: 0, minWidth: "auto" }}
                       >
                         View full story brief for complete context
