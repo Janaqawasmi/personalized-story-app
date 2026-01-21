@@ -10,7 +10,7 @@ import {
   import SearchIcon from "@mui/icons-material/Search";
   import CloseIcon from "@mui/icons-material/Close";
   import { useEffect, useMemo, useRef, useState } from "react";
-  import { useNavigate } from "react-router-dom";
+  import { useLangNavigate } from "../../i18n/navigation";
   import {
     collection,
     getDocs,
@@ -19,6 +19,8 @@ import {
   } from "firebase/firestore";
   import { db } from "../../firebase";
   import { useReferenceData } from "../../hooks/useReferenceData";
+  import { useTranslation } from "../../i18n/useTranslation";
+  import { useLanguage } from "../../i18n/context/useLanguage";
   
   type SearchOverlayProps = {
     isOpen: boolean;
@@ -58,8 +60,10 @@ import {
   
   export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     const theme = useTheme();
-    const navigate = useNavigate();
+    const navigate = useLangNavigate();
     const { data: referenceData } = useReferenceData();
+    const t = useTranslation();
+    const { language } = useLanguage();
   
     const CURRENT_LANGUAGE = useMemo(() => getCurrentLanguage(), [isOpen]);
   
@@ -104,11 +108,11 @@ import {
       if (normalized.startsWith("0_") || normalized.match(/^\d+_\d+$/)) {
         const parts = normalized.split("_");
         if (parts.length === 2) {
-          return `לגיל ${parts[0]}–${parts[1]}`;
+          return `${t("search.forAge")} ${parts[0]}–${parts[1]}`;
         }
       }
       // Fallback: try to format other patterns
-      return `לגיל ${ageGroup.replace(/_/g, "–")}`;
+      return `${t("search.forAge")} ${ageGroup.replace(/_/g, "–")}`;
     };
 
     /**
@@ -217,21 +221,15 @@ import {
             label: getLabel(s.id, s.type),
           }));
   
-          const safeDefaults: Suggestion[] = [
-            { label: "אח חדש", type: "situation", id: "new_sibling" },
-            { label: "שינויים במשפחה", type: "topic", id: "family_changes" },
-            { label: "פחד מהחושך", type: "situation", id: "fear_dark" },
-            { label: "חרדת פרידה", type: "situation", id: "separation_anxiety" },
-          ];
+          // Note: Safe defaults are now loaded from reference data
+          // If reference data is not available, suggestions will be empty
+          const safeDefaults: Suggestion[] = [];
   
           setSuggestedSearches(
             upgraded.length > 0 ? upgraded.slice(0, 8) : safeDefaults
           );
         } catch (e) {
-          setSuggestedSearches([
-            { label: "אח חדש", type: "situation", id: "new_sibling" },
-            { label: "שינויים במשפחה", type: "topic", id: "family_changes" },
-          ]);
+          setSuggestedSearches([]);
           setPopularStories([]);
           console.error("[SearchOverlay] Initial data error:", e);
         } finally {
@@ -468,7 +466,7 @@ import {
                 textAlign: "right",
               }}
             >
-              חפשו סיפור שמתאים לילד שלכם
+              {t("search.title")}
             </Typography>
             <Typography
               sx={{
@@ -478,14 +476,14 @@ import {
                 textAlign: "right",
               }}
             >
-              חפשו לפי רגש, גיל או מצב (למשל: פחד מהחושך)
+              {t("search.subtitle")}
             </Typography>
   
             <Box sx={{ position: "relative", mb: 4 }}>
               <TextField
                 inputRef={inputRef}
                 fullWidth
-                placeholder="חפשו לפי רגש, גיל או מצב (למשל: פחד מהחושך)"
+                placeholder={t("search.placeholder")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -537,7 +535,7 @@ import {
   
             {isLoadingInitial ? (
               <Typography sx={{ color: theme.palette.text.secondary, textAlign: "center", py: 4 }}>
-                טוען...
+                {t("search.loading")}
               </Typography>
             ) : showSuggestions ? (
               <>
@@ -551,7 +549,7 @@ import {
                       textAlign: "right",
                     }}
                   >
-                    חיפושים מוצעים
+                    {t("search.suggestedSearches")}
                   </Typography>
   
                   <Box
@@ -591,7 +589,7 @@ import {
                       textAlign: "right",
                     }}
                   >
-                    לא בטוחים מה לחפש? אנחנו כאן כדי לעזור
+                    {t("search.notSure")}
                   </Typography>
                 </Box>
   
@@ -605,12 +603,12 @@ import {
                       textAlign: "right",
                     }}
                   >
-                    סיפורים אהובים
+                    {t("search.popularStories")}
                   </Typography>
   
                   {popularStories.length === 0 ? (
                     <Typography sx={{ color: theme.palette.text.secondary, textAlign: "right" }}>
-                      עדיין אין סיפורים פופולריים – נסו לבחור חיפוש מוצע.
+                      {t("search.noPopularStories")}
                     </Typography>
                   ) : (
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -643,7 +641,7 @@ import {
                             }}
                           >
                             <Typography sx={{ fontSize: "1rem", fontWeight: 500, mb: 0.4 }}>
-                              {story.title || "סיפור ללא שם"}
+                              {story.title || t("search.storyWithoutName")}
                             </Typography>
                             <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
                               {formatAgeGroup(age)}
@@ -661,11 +659,11 @@ import {
               <Box>
                 {isSearching ? (
                   <Typography sx={{ color: theme.palette.text.secondary, textAlign: "center", py: 4 }}>
-                    מחפש...
+                    {t("search.searching")}
                   </Typography>
                 ) : searchResults.length === 0 ? (
                   <Typography sx={{ color: theme.palette.text.secondary, textAlign: "center", py: 4 }}>
-                    לא נמצאו תוצאות
+                    {t("search.noResults")}
                   </Typography>
                 ) : (
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -698,7 +696,7 @@ import {
                           }}
                         >
                           <Typography sx={{ fontSize: "1rem", fontWeight: 500, mb: 0.4 }}>
-                            {story.title || "סיפור ללא שם"}
+                            {story.title || t("search.storyWithoutName")}
                           </Typography>
                           <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
                             {formatAgeGroup(age)}

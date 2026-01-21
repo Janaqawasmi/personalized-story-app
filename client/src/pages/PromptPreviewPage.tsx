@@ -1,6 +1,7 @@
 // client/src/pages/PromptPreviewPage.tsx
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import {
   Alert,
   Box,
@@ -26,7 +27,7 @@ import SpecialistNav from "../components/SpecialistNav";
 
 const PromptPreviewPage: React.FC = () => {
   const { briefId } = useParams<{ briefId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const [promptPreview, setPromptPreview] = useState<string | null>(null);
   const [ragSources, setRagSources] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);

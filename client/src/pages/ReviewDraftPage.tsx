@@ -33,7 +33,8 @@ import {
   Warning,
   Psychology,
 } from "@mui/icons-material";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { 
   fetchDraftById, 
   StoryDraftView, 
@@ -56,7 +57,7 @@ import ImagePromptSuggestionCard from "../components/ImagePromptSuggestionCard";
 
 const ReviewDraftPage: React.FC = () => {
   const { draftId } = useParams<{ draftId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const [draft, setDraft] = useState<StoryDraftView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,19 +1,24 @@
 import { Box, Typography, Container, Button } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
+import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 
 export default function TopicResultsPage() {
   const { topicId } = useParams<{ topicId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const location = useLocation();
   const { data, loading } = useReferenceData();
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedAge, setSelectedAge] = useState<string | null>(null);
+  const t = useTranslation();
+  const { language } = useLanguage();
 
   // Reset filters when coming from MegaMenu
   useEffect(() => {
@@ -38,7 +43,7 @@ export default function TopicResultsPage() {
       setStories(
         results.map((s) => ({
           id: s.id,
-          title: s.title ?? "סיפור ללא שם",
+          title: s.title ?? t("search.storyWithoutName"),
         }))
       );
     });
@@ -47,7 +52,7 @@ export default function TopicResultsPage() {
   if (loading || !data) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
-        <Typography>טוען...</Typography>
+        <Typography>{t("pages.topicResults.loading")}</Typography>
       </Container>
     );
   }
@@ -57,9 +62,9 @@ export default function TopicResultsPage() {
   if (!topic) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
-        <Typography variant="h5">נושא לא נמצא</Typography>
+        <Typography variant="h5">{t("pages.topicResults.topicNotFound")}</Typography>
         <Button onClick={() => navigate("/")} sx={{ mt: 2 }}>
-          חזרה לדף הבית
+          {t("pages.placeholder.backToHome")}
         </Button>
       </Container>
     );
@@ -70,17 +75,17 @@ export default function TopicResultsPage() {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          {topic.label_he}
+          {language === "en" ? (topic.label_en || topic.label_he) : topic.label_he}
         </Typography>
         <Typography color="text.secondary">
-          {stories.length} סיפורים נמצאו
+          {t("pages.topicResults.storiesFound", { count: stories.length })}
         </Typography>
       </Box>
 
       {/* Age Filter */}
       <Box sx={{ mb: 4 }}>
         <Typography sx={{ fontWeight: 600, mb: 2 }}>
-          גיל (אופציונלי)
+          {t("filters.age")} ({t("filters.optional")})
         </Typography>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
           <Button
@@ -88,7 +93,7 @@ export default function TopicResultsPage() {
             size="small"
             onClick={() => setSelectedAge(null)}
           >
-            כל הגילאים
+            {t("filters.allAges")}
           </Button>
           {AGE_GROUPS.map((age) => (
             <Button
@@ -131,7 +136,7 @@ export default function TopicResultsPage() {
       ) : (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
-            לא נמצאו סיפורים
+            {t("pages.topicResults.noStories")}
           </Typography>
         </Box>
       )}

@@ -1,0 +1,277 @@
+{
+  "navbar": {
+    "browseStories": "Browse Stories",
+    "hebrew": "עברית",
+    "english": "English"
+  },
+  "footer": {
+    "copyright": "© DAMMAH — All rights reserved"
+  },
+  "home": {
+    "journey": {
+      "title": "How a Personalized Story Is Created",
+      "subtitle": "A gentle journey that starts with your child – and ends with a story you'll want to read together again and again",
+      "step1": {
+        "caption": "Choose a story that begins with the emotion your child is feeling right now.\nSmall, gentle, and tailored to what they're going through at this moment.",
+        "initials": "S"
+      },
+      "step2": {
+        "caption": "Your child becomes the heart of the story,\nwith a presence that feels natural, close, and familiar.",
+        "initials": "Y"
+      },
+      "step3": {
+        "caption": "Delicate, sensitive, and precise personalization,\none that respects the child's inner world.",
+        "initials": "P"
+      },
+      "step4": {
+        "caption": "A story that truly feels like theirs,\none they'll want to return to again and again.",
+        "initials": "S"
+      },
+      "cta": "Start Your Story"
+    },
+    "categories": {
+      "title": "Browse by Category",
+      "subtitle": "Start with the world that fits your child",
+      "emotional": {
+        "title": "Emotional",
+        "subtitle": "Fears, anxiety, emotional expression"
+      },
+      "family": {
+        "title": "Family",
+        "subtitle": "Siblings, divorce, changes"
+      },
+      "social": {
+        "title": "Social",
+        "subtitle": "Friendship, belonging, confidence"
+      },
+      "educational": {
+        "title": "Educational",
+        "subtitle": "Kindergarten, school, learning"
+      },
+      "therapeutic": {
+        "title": "Therapeutic",
+        "subtitle": "ADHD, autism, phobias, emotional regulation"
+      }
+    }
+  },
+  "megaMenu": {
+    "age": "Age",
+    "category": "Category",
+    "topic": "Topic",
+    "selectCategory": "Select a category",
+    "allStories": "All Stories"
+  },
+  "search": {
+    "title": "Find a story that fits your child",
+    "subtitle": "Search by emotion, age, or situation (e.g., fear of the dark)",
+    "placeholder": "Search by emotion, age, or situation (e.g., fear of the dark)",
+    "loading": "Loading...",
+    "searching": "Searching...",
+    "noResults": "No results found",
+    "suggestedSearches": "Suggested Searches",
+    "notSure": "Not sure what to search? We're here to help",
+    "popularStories": "Popular Stories",
+    "noPopularStories": "No popular stories yet – try selecting a suggested search.",
+    "storyWithoutName": "Untitled Story",
+    "forAge": "For age"
+  },
+  "searchPage": {
+    "title": "Search Stories",
+    "placeholder": "Search by name, age, or topic (e.g., 0-3, fear of the dark)",
+    "foundForAge": "Found {count} stories for age {age}",
+    "foundForQuery": "Found {count} results for \"{query}\"",
+    "noResults": "No results found for \"{query}\"",
+    "tryDifferent": "Try searching with different words or by age (e.g., 0-3, 3-6)",
+    "enterQuery": "Enter a search query above",
+    "searchHint": "You can search by story name, age (0-3, 3-6, etc.), or topic",
+    "searchFailed": "Search failed"
+  },
+  "filters": {
+    "age": "Age",
+    "category": "Category",
+    "topic": "Topic",
+    "optional": "Optional",
+    "all": "All",
+    "allAges": "All Ages",
+    "allCategories": "All Categories",
+    "allTopics": "All Topics",
+    "clearFilters": "Clear Filters"
+  },
+  "pages": {
+    "ageResults": {
+      "title": "Stories for age {age}",
+      "storiesFound": "{count} stories found",
+      "ageNotFound": "Age not found",
+      "noStories": "No stories found"
+    },
+    "categoryResults": {
+      "storiesFound": "{count} stories found",
+      "categoryNotFound": "Category not found",
+      "noStories": "No stories found",
+      "loading": "Loading..."
+    },
+    "topicResults": {
+      "storiesFound": "{count} stories found",
+      "topicNotFound": "Topic not found",
+      "noStories": "No stories found",
+      "loading": "Loading..."
+    },
+    "allBooks": {
+      "title": "All Stories",
+      "storiesFound": "{count} stories found",
+      "loading": "Loading stories...",
+      "error": "Error loading stories",
+      "errorMessage": "Try refreshing the page or return to the home page",
+      "noStories": "No stories found"
+    },
+    "bookReader": {
+      "loading": "Loading...",
+      "error": "Story not found",
+      "noPages": "No pages found for this story.",
+      "storyLanguage": "Story in {language}",
+      "pageOf": "Page {current} of {total}",
+      "hebrew": "Hebrew",
+      "arabic": "Arabic"
+    },
+    "placeholder": {
+      "backToHome": "Back to Home"
+    },
+    "cart": {
+      "title": "Shopping Cart",
+      "message": "Your shopping cart will appear here"
+    }
+  },
+  "book": {
+    "startReading": "Start Reading",
+    "audioReading": "Audio Reading",
+    "imageComingSoon": "Image will appear here soon"
+  },
+  "instructions": {
+    "title": "Tips for a Pleasant Reading Experience",
+    "subtitle": "How to enjoy the story to the fullest",
+    "audio": {
+      "title": "Audio Reading",
+      "text": "You can listen to the story in a calm voice using the audio button."
+    },
+    "pages": {
+      "title": "Page Navigation",
+      "text": "Navigate using the arrows, clicking on page edges, or dragging from the corner."
+    },
+    "pace": {
+      "title": "Read at Your Own Pace",
+      "text": "You can pause, go back, and reread at any stage."
+    },
+    "personalized": {
+      "title": "Personalized Experience",
+      "text": "The story is created especially for your child, in a calm and supportive language."
+    },
+    "recommendation": "Recommendation: Find a quiet and pleasant place for shared reading 💫",
+    "gotIt": "Got it, let's start"
+  },
+  "personalize": {
+    "steps": {
+      "step1": "Let's start – what's our hero's name?",
+      "step2": "How will the story speak to them?",
+      "step3": "This is the moment to bring your child into the story",
+      "step4": "How will the story look?",
+      "step5": "Everything is ready ✨"
+    },
+    "gender": {
+      "female": "Girl",
+      "male": "Boy"
+    },
+    "visualStyles": {
+      "watercolor": {
+        "label": "Watercolor",
+        "description": "Soft, dreamy, hand-painted illustrations"
+      },
+      "semi_realistic": {
+        "label": "Semi-Realistic",
+        "description": "Gentle realism with emotional depth"
+      },
+      "flat_cartoon": {
+        "label": "Flat Digital Cartoon",
+        "description": "Clean shapes and bright digital colors"
+      },
+      "paper_craft": {
+        "label": "Paper-Craft Children's Book",
+        "description": "Layered, handcrafted paper textures"
+      },
+      "vintage_1950s_little_golden": {
+        "label": "Vintage 1950s Little Golden Storybook",
+        "description": "Classic 1950s Little Golden Books aesthetic"
+      }
+    },
+    "continue": "Continue Personalization",
+    "alreadyStarted": "You've started personalizing this story. What would you like to do?",
+    "resume": "Resume where you left off",
+    "restart": "Start over",
+    "alreadyCompleted": "You've already personalized this story",
+    "whatToDo": "What would you like to do?",
+    "newPersonalization": "Start a new personalization",
+    "usePrevious": "Use previous personalization",
+    "stepOf": "Step {current} of {total}",
+    "childName": "This name will appear in the story",
+    "enterName": "Enter name",
+    "nameMinLength": "Name must contain at least 2 characters",
+    "sensitiveLanguage": "For sensitive and precise language",
+    "photoUsage": "We'll only use it to create personalized illustrations",
+    "childPhoto": "Child's Photo",
+    "replacePhoto": "Replace photo",
+    "selectPhoto": "Select a clear photo of the child",
+    "maxSize": "Up to 5MB",
+    "photoRequired": "Please upload a photo to continue",
+    "affectsIllustrations": "This will affect how the illustrations look throughout the book",
+    "fillAllFields": "Please fill in all required fields before finishing",
+    "requiredFields": {
+      "childName": "Child's name",
+      "gender": "Gender",
+      "ageRange": "Age range (from story)",
+      "childPhoto": "Child's photo",
+      "visualStyle": "Visual style"
+    },
+    "back": "Go back one step",
+    "continueJourney": "Continue to journey",
+    "createStory": "Create the story",
+    "imageTooLarge": "Image is too large. Please select an image smaller than 5MB",
+    "story": "Story"
+  },
+  "discovery": {
+    "category": "Category",
+    "age": "Age",
+    "topic": "Topic",
+    "topics": {
+      "emotional": {
+        "fears": "Fears",
+        "anxiety": "Anxiety",
+        "emotions": "Emotions",
+        "self_confidence": "Self-Confidence"
+      },
+      "family": {
+        "new_baby": "New Baby",
+        "divorce": "Divorce",
+        "sibling_jealousy": "Sibling Jealousy",
+        "home_change": "Home Change"
+      },
+      "social": {
+        "friendship": "Friendship",
+        "bullying": "Bullying",
+        "shyness": "Shyness",
+        "boundaries": "Boundaries"
+      },
+      "therapeutic": {
+        "adhd": "ADHD",
+        "autism": "Autism",
+        "phobias": "Phobias",
+        "emotional_regulation": "Emotional Regulation"
+      }
+    }
+  },
+  "login": {
+    "title": "Let's Sign In",
+    "email": "Sign in with Email",
+    "google": "Sign in with Google",
+    "notRegistered": "Not registered yet?",
+    "goToSignup": "Go to Sign Up"
+  }
+}

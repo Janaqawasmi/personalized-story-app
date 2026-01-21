@@ -1,7 +1,9 @@
 import { Box, Typography, useTheme } from "@mui/material";
+import { useTranslation } from "../i18n/useTranslation";
 
 export default function Footer() {
   const theme = useTheme();
+  const t = useTranslation();
   
   return (
     <Box 
@@ -13,7 +15,7 @@ export default function Footer() {
       }}
     >
       <Typography variant="body2">
-        © DAMMAH — All rights reserved
+        {t("footer.copyright")}
       </Typography>
     </Box>
   );

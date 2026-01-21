@@ -1,20 +1,25 @@
 import { Box, Typography, Container, Button } from "@mui/material";
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
+import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 
 export default function AgeResultsPage() {
   const { ageId } = useParams<{ ageId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const location = useLocation();
   const { data, loading } = useReferenceData();
   const [stories, setStories] = useState<Story[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const t = useTranslation();
+  const { language } = useLanguage();
 
   const ageGroup = AGE_GROUPS.find((a) => a.id === ageId);
 
@@ -51,7 +56,7 @@ export default function AgeResultsPage() {
       setStories(
         results.map((s) => ({
           id: s.id,
-          title: s.title ?? "סיפור ללא שם",
+          title: s.title ?? t("search.storyWithoutName"),
         }))
       );
     });
@@ -60,9 +65,9 @@ export default function AgeResultsPage() {
   if (!ageGroup) {
     return (
       <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
-        <Typography variant="h5">גיל לא נמצא</Typography>
+        <Typography variant="h5">{t("pages.ageResults.ageNotFound")}</Typography>
         <Button onClick={() => navigate("/")} sx={{ mt: 2 }}>
-          חזרה לדף הבית
+          {t("pages.placeholder.backToHome")}
         </Button>
       </Container>
     );
@@ -78,10 +83,10 @@ export default function AgeResultsPage() {
       {/* Header */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          סיפורים לגיל {ageGroup.label}
+          {t("pages.ageResults.title", { age: ageGroup.label })}
         </Typography>
         <Typography color="text.secondary">
-          {stories.length} סיפורים נמצאו
+          {t("pages.ageResults.storiesFound", { count: stories.length })}
         </Typography>
       </Box>
 
@@ -90,7 +95,7 @@ export default function AgeResultsPage() {
         {/* Category Filter */}
         <Box sx={{ mb: 3 }}>
           <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            קטגוריה (אופציונלי)
+            {t("filters.category")} ({t("filters.optional")})
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
             <Button
@@ -101,7 +106,7 @@ export default function AgeResultsPage() {
                 setSelectedTopic(null);
               }}
             >
-              הכל
+              {t("filters.all")}
             </Button>
             {availableCategories.map((cat) => (
               <Button
@@ -113,7 +118,7 @@ export default function AgeResultsPage() {
                   setSelectedTopic(null);
                 }}
               >
-                {cat.label_he}
+                {language === "en" ? (cat.label_en || cat.label_he) : cat.label_he}
               </Button>
             ))}
           </Box>
@@ -123,7 +128,7 @@ export default function AgeResultsPage() {
         {selectedCategory && (
           <Box sx={{ mb: 3 }}>
             <Typography sx={{ fontWeight: 600, mb: 2 }}>
-              נושא (אופציונלי)
+              {t("filters.topic")} ({t("filters.optional")})
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
               <Button
@@ -131,7 +136,7 @@ export default function AgeResultsPage() {
                 size="small"
                 onClick={() => setSelectedTopic(null)}
               >
-                הכל
+                {t("filters.all")}
               </Button>
               {availableTopics.map((topic) => (
                 <Button
@@ -140,7 +145,7 @@ export default function AgeResultsPage() {
                   size="small"
                   onClick={() => setSelectedTopic(topic.id)}
                 >
-                  {topic.label_he}
+                  {language === "en" ? (topic.label_en || topic.label_he) : topic.label_he}
                 </Button>
               ))}
             </Box>
@@ -176,7 +181,7 @@ export default function AgeResultsPage() {
       ) : (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
-            לא נמצאו סיפורים
+            {t("pages.ageResults.noStories")}
           </Typography>
         </Box>
       )}

@@ -1,9 +1,11 @@
 import { Box, Typography, Button, Link, useTheme } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import GoogleIcon from "@mui/icons-material/Google";
+import { useTranslation } from "../i18n/useTranslation";
 
 export default function LoginPage() {
   const theme = useTheme();
+  const t = useTranslation();
   
   return (
     <Box
@@ -13,7 +15,6 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        direction: "rtl",
         py: 8,
         px: 3,
       }}
@@ -49,7 +50,7 @@ export default function LoginPage() {
             letterSpacing: "-0.01em",
           }}
         >
-          בואו נתחבר
+          {t("login.title")}
         </Typography>
 
         {/* Login Buttons - Grouped action area */}
@@ -87,7 +88,7 @@ export default function LoginPage() {
             }}
           >
             <EmailIcon sx={{ fontSize: "1.2rem" }} />
-            התחברות עם אימייל
+            {t("login.email")}
           </Button>
 
           {/* Google Login Button - Secondary */}
@@ -117,7 +118,7 @@ export default function LoginPage() {
             }}
           >
             <GoogleIcon sx={{ fontSize: "1.2rem", color: theme.palette.primary.main }} />
-            התחברות עם Google
+            {t("login.google")}
           </Button>
         </Box>
 
@@ -137,7 +138,7 @@ export default function LoginPage() {
               color: theme.palette.text.secondary,
             }}
           >
-            לא רשומה עדיין?
+            {t("login.notRegistered")}
           </Typography>
           <Link
             href="#"
@@ -152,7 +153,7 @@ export default function LoginPage() {
               },
             }}
           >
-            לעבור להרשמה
+            {t("login.goToSignup")}
           </Link>
         </Box>
       </Box>

@@ -1,5 +1,6 @@
 import { Box, Typography, useTheme } from "@mui/material";
 import { useRef, useEffect, useState } from "react";
+import { useTranslation } from "../../i18n/useTranslation";
 
 type Page = {
   pageNumber: number;
@@ -30,6 +31,7 @@ export default function BookSpread({
   canGoNext,
   canGoPrev,
 }: BookSpreadProps) {
+  const t = useTranslation();
   const theme = useTheme();
 
   // Drag tracking state
@@ -314,7 +316,7 @@ export default function BookSpread({
               whiteSpace: "nowrap",
             }}
           >
-            הקראה קולית
+            {t("book.audioReading")}
           </Box>
         </Box>
 
@@ -529,7 +531,7 @@ export default function BookSpread({
                 px: 3,
               }}
             >
-              {page.imagePromptTemplate || "תמונה תופיע כאן בקרוב"}
+              {page.imagePromptTemplate || t("book.imageComingSoon")}
             </Typography>
           </Box>
         )}

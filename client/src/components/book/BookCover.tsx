@@ -1,5 +1,6 @@
 import { Box, Typography, Button, useTheme } from "@mui/material";
 import { useMemo } from "react";
+import { useTranslation } from "../../i18n/useTranslation";
 
 type BookCoverProps = {
   title: string;
@@ -9,8 +10,9 @@ type BookCoverProps = {
 
 export default function BookCover({ title, onStart, language = "he" }: BookCoverProps) {
   const theme = useTheme();
+  const t = useTranslation();
   const isRTL = language === "he" || language === "ar";
-  const startText = language === "ar" ? "ابدأ القراءة" : "התחילו לקרוא";
+  const startText = language === "ar" ? "ابدأ القراءة" : t("book.startReading");
 
   return (
     <Box
@@ -100,6 +102,7 @@ export default function BookCover({ title, onStart, language = "he" }: BookCover
     </Box>
   );
 }
+
 
 
 

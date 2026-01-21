@@ -1,6 +1,8 @@
 import { Box } from "@mui/material";
 import { ReferenceTopic } from "../../hooks/useReferenceData";
 import * as s from "./styles";
+import { useTranslation } from "../../i18n/useTranslation";
+import { useLanguage } from "../../i18n/context/useLanguage";
 
 type Props = {
   topics: ReferenceTopic[];
@@ -17,12 +19,25 @@ export function CategoryColumn({
   lang,
   onAllBooksClick,
 }: Props) {
+  const t = useTranslation();
+  const { language } = useLanguage();
+  
   // Filter only active topics
   const activeTopics = topics.filter((topic) => topic.active);
 
+  // Get label based on current language
+  const getLabel = (topic: ReferenceTopic): string => {
+    if (language === "en") {
+      // For English, prefer label_en if available, fallback to label_he
+      return topic.label_en || topic.label_he || topic.id;
+    }
+    // For Hebrew and Arabic, use label_he
+    return topic.label_he || topic.id;
+  };
+
   return (
     <Box sx={s.column}>
-      <Box sx={s.columnHeader}>קטגוריה</Box>
+      <Box sx={s.columnHeader}>{t("megaMenu.category")}</Box>
 
       {onAllBooksClick && (
         <Box
@@ -33,7 +48,7 @@ export function CategoryColumn({
             onAllBooksClick();
           }}
         >
-          כל הסיפורים
+          {t("megaMenu.allStories")}
         </Box>
       )}
 
@@ -50,7 +65,7 @@ export function CategoryColumn({
             onSelect(topic.id);
           }}
         >
-          {topic.label_he}
+          {getLabel(topic)}
         </Box>
       ))}
     </Box>

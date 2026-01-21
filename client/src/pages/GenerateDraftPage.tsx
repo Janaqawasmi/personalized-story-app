@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import {
   Alert,
   Box,
@@ -345,7 +346,7 @@ const BriefCardSkeleton: React.FC = () => (
 type FilterTab = "all" | "ready" | "generating" | "generated";
 
 const GenerateDraftPage: React.FC = () => {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId");
   const briefCardRefs = useRef<Record<string, HTMLDivElement | null>>({});

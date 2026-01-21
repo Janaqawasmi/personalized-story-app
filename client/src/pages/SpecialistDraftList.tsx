@@ -27,7 +27,8 @@ import {
   Search,
 } from "@mui/icons-material";
 import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief } from "../api/api";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useLangNavigate } from "../i18n/navigation";
 import SpecialistNav from "../components/SpecialistNav";
 
 // Helper to format age group for display
@@ -86,7 +87,7 @@ const getButtonLabel = (status: string | undefined): string => {
 type FilterTab = "all" | "generated" | "editing" | "approved" | "failed";
 
 const SpecialistDraftList: React.FC = () => {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   const location = useLocation();
   const [drafts, setDrafts] = useState<StoryDraftView[]>([]);
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);
@@ -134,7 +135,7 @@ const SpecialistDraftList: React.FC = () => {
     }
 
     // When navigating back to this page, refresh after a small delay
-    if (location.pathname === "/specialist/drafts") {
+    if (location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) {
       const timer = setTimeout(() => {
         loadDrafts();
       }, 100);
@@ -146,7 +147,7 @@ const SpecialistDraftList: React.FC = () => {
   useEffect(() => {
     const handleFocus = () => {
       // Only refresh if we're on the drafts list page and haven't updated recently
-      if (location.pathname === "/specialist/drafts" && 
+      if ((location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) && 
           (!lastUpdated || (Date.now() - lastUpdated.getTime()) > 2000)) {
     loadDrafts();
       }
@@ -205,6 +206,7 @@ const SpecialistDraftList: React.FC = () => {
 
   const handleCardClick = (draftId: string) => {
     if (!loading) {
+      // Use absolute path so useLangNavigate can properly prefix with language
       navigate(`/specialist/drafts/${draftId}`);
     }
   };

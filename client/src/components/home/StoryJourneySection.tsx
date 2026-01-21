@@ -1,5 +1,7 @@
 import { Box, Container, Typography, Button, SxProps, Theme } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useLangNavigate } from "../../i18n/navigation";
+import { useTranslation } from "../../i18n/useTranslation";
+import { useLanguage } from "../../i18n/context/useLanguage";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 // Import images
@@ -11,43 +13,46 @@ import childInBookImg from "../../assets/journey/journey-child-in-book.png";
 type JourneyStep = {
   id: string;
   image: string;
-  caption: string;
-  initials: string;
+  captionKey: string;
+  initialsKey: string;
 };
-
-const journeySteps: JourneyStep[] = [
-  {
-    id: "1",
-    image: bookImg,
-    caption: "בוחרים סיפור שמתחיל ברגש שהילד מרגיש עכשיו.\nקטן, עדין, ומותאם למה שעובר עליו ברגע הזה.",
-    initials: "ס",
-  },
-  {
-    id: "2",
-    image: childImg,
-    caption: "הילד שלכם הופך להיות הלב של הסיפור,\nעם נוכחות שמרגישה טבעית, קרובה ומוכרת.",
-    initials: "י",
-  },
-  {
-    id: "3",
-    image: customChildImg,
-    caption: "התאמה אישית עדינה, רגישה ומדויקת,\nכזו שמכבדת את העולם הפנימי של הילד.",
-    initials: "א",
-  },
-  {
-    id: "4",
-    image: childInBookImg,
-    caption: "סיפור שמרגיש שייך לו באמת,\nכזה שהוא רוצה לחזור אליו שוב ושוב.",
-    initials: "ס",
-  },
-];
 
 type Props = {
   sx?: SxProps<Theme>;
 };
 
 export default function StoryJourneySection({ sx }: Props) {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
+  const t = useTranslation();
+  const { language } = useLanguage();
+  const isEnglish = language === "en";
+
+  const journeySteps: JourneyStep[] = [
+    {
+      id: "1",
+      image: bookImg,
+      captionKey: "home.journey.step1.caption",
+      initialsKey: "home.journey.step1.initials",
+    },
+    {
+      id: "2",
+      image: childImg,
+      captionKey: "home.journey.step2.caption",
+      initialsKey: "home.journey.step2.initials",
+    },
+    {
+      id: "3",
+      image: customChildImg,
+      captionKey: "home.journey.step3.caption",
+      initialsKey: "home.journey.step3.initials",
+    },
+    {
+      id: "4",
+      image: childInBookImg,
+      captionKey: "home.journey.step4.caption",
+      initialsKey: "home.journey.step4.initials",
+    },
+  ];
 
   const verticalOffsets = [0, 40, 80, 120];
 
@@ -72,23 +77,49 @@ export default function StoryJourneySection({ sx }: Props) {
         const a = from.getBoundingClientRect();
         const b = to.getBoundingClientRect();
 
-        // RTL: from is on the RIGHT, to is on the LEFT
-        const startX = a.left - base.left; // left edge of "from"
-        const startY = a.top - base.top + a.height / 2;
+        let startX: number;
+        let startY: number;
+        let endX: number;
+        let endY: number;
 
-        const endX = b.left - base.left + b.width; // right edge of "to"
-        const endY = b.top - base.top + b.height / 2;
+        if (isEnglish) {
+          // LTR: from is on the LEFT, to is on the RIGHT
+          // Start from right edge of "from" circle, end at left edge of "to" circle
+          startX = a.left - base.left + a.width; // right edge of "from"
+          startY = a.top - base.top + a.height / 2;
+          endX = b.left - base.left; // left edge of "to"
+          endY = b.top - base.top + b.height / 2;
+        } else {
+          // RTL: from is on the RIGHT, to is on the LEFT
+          startX = a.left - base.left; // left edge of "from"
+          startY = a.top - base.top + a.height / 2;
+          endX = b.left - base.left + b.width; // right edge of "to"
+          endY = b.top - base.top + b.height / 2;
+        }
 
         const dx = Math.max(80, Math.abs(startX - endX));
 
         // alternate curve up/down for a natural "flow"
         const curve = i % 2 === 0 ? 38 : -38;
 
-        const c1x = startX - dx * 0.35;
-        const c1y = startY + curve;
+        let c1x: number;
+        let c1y: number;
+        let c2x: number;
+        let c2y: number;
 
-        const c2x = endX + dx * 0.35;
-        const c2y = endY - curve;
+        if (isEnglish) {
+          // LTR: control points extend to the right (forward direction)
+          c1x = startX + dx * 0.35;
+          c1y = startY + curve;
+          c2x = endX - dx * 0.35;
+          c2y = endY - curve;
+        } else {
+          // RTL: control points extend to the left (backward direction)
+          c1x = startX - dx * 0.35;
+          c1y = startY + curve;
+          c2x = endX + dx * 0.35;
+          c2y = endY - curve;
+        }
 
         nextPaths.push(
           `M ${startX} ${startY} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${endX} ${endY}`
@@ -108,7 +139,7 @@ export default function StoryJourneySection({ sx }: Props) {
       ro.disconnect();
       window.removeEventListener("resize", compute);
     };
-  }, []);
+  }, [isEnglish]);
 
   return (
     <Box
@@ -119,7 +150,6 @@ export default function StoryJourneySection({ sx }: Props) {
         mt: { xs: 0, md: -2 },
         pt: { xs: 1, md: 1 },
         pb: { xs: 5, md: 4 },
-        direction: "rtl",
         ...sx,
       }}
     >
@@ -135,7 +165,7 @@ export default function StoryJourneySection({ sx }: Props) {
               mb: 1,
             }}
           >
-            כך נוצר סיפור אישי
+            {t("home.journey.title")}
           </Typography>
           <Typography
             sx={{
@@ -146,7 +176,7 @@ export default function StoryJourneySection({ sx }: Props) {
               lineHeight: 1.7,
             }}
           >
-            מסע עדין שמתחיל בילד שלכם – ומסתיים בסיפור שתרצו לקרוא יחד שוב ושוב
+            {t("home.journey.subtitle")}
           </Typography>
         </Box>
 
@@ -157,7 +187,6 @@ export default function StoryJourneySection({ sx }: Props) {
             position: "relative",
             display: "flex",
             flexDirection: "row",
-            direction: "rtl",
             justifyContent: "center",
             alignItems: "flex-start",
             minHeight: "unset",
@@ -309,13 +338,13 @@ export default function StoryJourneySection({ sx }: Props) {
                         zIndex: 1,
                       }}
                     >
-                      {step.initials}
+                      {t(step.initialsKey)}
                     </Typography>
                     {/* Image - overlays initials if loaded successfully */}
                     <Box
                       component="img"
                       src={step.image}
-                      alt={step.caption}
+                      alt={t(step.captionKey)}
                       onError={(e) => {
                         // Hide image on error - fallback initials will show
                         const target = e.target as HTMLImageElement;
@@ -348,7 +377,7 @@ export default function StoryJourneySection({ sx }: Props) {
                       transition: "opacity 0.4s ease",
                     }}
                   >
-                    {step.caption}
+                    {t(step.captionKey)}
                   </Typography>
 
                 </Box>
@@ -383,7 +412,7 @@ export default function StoryJourneySection({ sx }: Props) {
               },
             }}
           >
-            התחילו את הסיפור שלכם
+            {t("home.journey.cta")}
           </Button>
         </Box>
       </Container>
