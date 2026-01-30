@@ -6,6 +6,10 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Firebase Functions
+functions/lib
+functions/node_modules
+
 # macOS system files
 .DS_Store
 **/.DS_Store

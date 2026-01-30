@@ -1,5 +1,6 @@
 // client/src/services/referenceData.service.ts
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+// Use same API_BASE as main API to ensure consistent behavior
+import { API_BASE } from "../api/api";
 
 export interface ReferenceDataItem {
   key: string;
@@ -19,6 +20,11 @@ export interface SituationReferenceItem extends ReferenceDataItem {
 export async function loadReferenceItems(
   category: "topics" | "emotionalGoals" | "exclusions"
 ): Promise<ReferenceDataItem[]> {
+  // Guard: Return empty array if backend is not configured (empty string in production)
+  if (!API_BASE) {
+    return [];
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/reference-data/${category}`);
     if (!res.ok) {
@@ -39,6 +45,11 @@ export async function loadReferenceItems(
  * Load situations filtered by topic key
  */
 export async function loadSituationsByTopic(topicKey: string): Promise<SituationReferenceItem[]> {
+  // Guard: Return empty array if backend is not configured (empty string in production)
+  if (!API_BASE) {
+    return [];
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/reference-data/situations?topicKey=${encodeURIComponent(topicKey)}`);
     if (!res.ok) {

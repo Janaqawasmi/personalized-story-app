@@ -1,5 +1,5 @@
 // Use relative URLs in dev via proxy, and absolute in production via env
-const API_BASE = process.env.REACT_APP_API_BASE || "";
+export const API_BASE = process.env.REACT_APP_API_BASE || "";
 
 // ---------- Existing APIs ----------
 
@@ -108,6 +108,11 @@ export interface StoryDraft {
 }
 
 export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
+  // Guard: Return empty array if backend is not configured
+  if (!API_BASE) {
+    return [];
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/story-drafts`);
     if (!res.ok) {
@@ -341,6 +346,11 @@ export interface StoryBrief {
 }
 
 export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
+  // Guard: Return empty array if backend is not configured
+  if (!API_BASE) {
+    return [];
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/admin/story-briefs`);
     if (!res.ok) {

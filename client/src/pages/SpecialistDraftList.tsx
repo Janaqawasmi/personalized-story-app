@@ -26,7 +26,7 @@ import {
   Inbox,
   Search,
 } from "@mui/icons-material";
-import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief } from "../api/api";
+import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief, API_BASE } from "../api/api";
 import { useLocation } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import SpecialistNav from "../components/SpecialistNav";
@@ -98,6 +98,14 @@ const SpecialistDraftList: React.FC = () => {
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
 
   const loadDrafts = useCallback(async () => {
+    // Guard: Skip API calls if backend is not configured
+    if (!API_BASE) {
+      setLoading(false);
+      setDrafts([]);
+      setBriefs([]);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -127,6 +135,11 @@ const SpecialistDraftList: React.FC = () => {
 
   // Load drafts on mount and when navigating back to this page
   useEffect(() => {
+    // Guard: Skip all API calls if backend is not configured
+    if (!API_BASE) {
+      return;
+    }
+
     // On initial mount, load immediately
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -145,6 +158,11 @@ const SpecialistDraftList: React.FC = () => {
 
   // Refresh when window regains focus (user returns to tab/window)
   useEffect(() => {
+    // Guard: Skip all API calls if backend is not configured
+    if (!API_BASE) {
+      return;
+    }
+
     const handleFocus = () => {
       // Only refresh if we're on the drafts list page and haven't updated recently
       if ((location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) && 
@@ -223,6 +241,33 @@ const SpecialistDraftList: React.FC = () => {
     const days = Math.floor(hours / 24);
     return `${days} day${days > 1 ? "s" : ""} ago`;
   };
+
+  // Show demo message if backend API is not configured
+  if (!API_BASE) {
+    return (
+      <>
+        <SpecialistNav />
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Paper
+            sx={{
+              p: 6,
+              textAlign: "center",
+              bgcolor: "grey.50",
+            }}
+          >
+            <Inbox sx={{ fontSize: 64, color: "text.secondary", mb: 2, opacity: 0.5 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              Backend API Not Configured
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              The specialist portal requires a backend API server to be configured.
+              Please set the REACT_APP_API_BASE environment variable to enable this feature.
+            </Typography>
+          </Paper>
+        </Container>
+      </>
+    );
+  }
 
   return (
     <>

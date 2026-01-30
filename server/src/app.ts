@@ -94,31 +94,34 @@ app.use((err: any, _req: Request, res: Response, _next: any) => {
   });
 });
 
-// ---------- START SERVER ----------
-const server = app.listen(port, () => {
-  console.log(`🚀 Server running on http://localhost:${port}`);
-});
-
-// ---------- SERVER ERROR ----------
-server.on("error", (error: any) => {
-  console.error("Server error:", error);
-});
-
-// ---------- GRACEFUL SHUTDOWN ----------
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down gracefully");
-  server.close(() => {
-    console.log("Server closed");
-    process.exit(0);
+// ---------- START SERVER (only in development) ----------
+// Firebase Functions will handle the server in production
+if (process.env.NODE_ENV !== "production" && require.main === module) {
+  const server = app.listen(port, () => {
+    console.log(`🚀 Server running on http://localhost:${port}`);
   });
-});
 
-process.on("SIGINT", () => {
-  console.log("SIGINT received, shutting down gracefully");
-  server.close(() => {
-    console.log("Server closed");
-    process.exit(0);
+  // ---------- SERVER ERROR ----------
+  server.on("error", (error: any) => {
+    console.error("Server error:", error);
   });
-});
+
+  // ---------- GRACEFUL SHUTDOWN ----------
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, shutting down gracefully");
+    server.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
+  });
+
+  process.on("SIGINT", () => {
+    console.log("SIGINT received, shutting down gracefully");
+    server.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
+  });
+}
 
 export default app;
