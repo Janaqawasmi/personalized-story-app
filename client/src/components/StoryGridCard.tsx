@@ -5,6 +5,7 @@ import {
   Button,
   useTheme,
 } from "@mui/material";
+import { useLanguage } from "../i18n/context/useLanguage";
 
 type Props = {
   title: string;
@@ -20,6 +21,9 @@ export default function StoryGridCard({
   onClick,
 }: Props) {
   const theme = useTheme();
+  const { language } = useLanguage();
+  
+  const buttonText = language === "en" ? "Personalize" : "התאמה אישית";
 
   return (
     <Card
@@ -114,7 +118,7 @@ export default function StoryGridCard({
             },
           }}
         >
-          Personalize
+          {buttonText}
         </Button>
       </Box>
     </Card>
