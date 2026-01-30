@@ -12,6 +12,7 @@ import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
@@ -190,6 +191,15 @@ export default function Navbar({
               }}
             >
               <ShoppingBagOutlinedIcon />
+            </IconButton>
+
+            <IconButton
+              onClick={() => {
+                navigate("/specialist");
+                setSearchOpen(false); // Close search overlay if open
+              }}
+            >
+              <VerifiedUserIcon />
             </IconButton>
 
             <IconButton onClick={handleLangMenuOpen}>
