@@ -1038,12 +1038,15 @@ export default function PersonalizeStoryPage() {
           <Button
             onClick={handleBack}
             disabled={activeStep === 0}
-            {...(isRTL ? { endIcon: <ArrowForwardIcon /> } : { startIcon: <ArrowForwardIcon sx={{ transform: "rotate(180deg)" }} /> })}
+            startIcon={<ArrowForwardIcon sx={{ transform: isRTL ? "none" : "rotate(180deg)" }} />}
             variant="outlined"
             aria-label={t("personalize.back")}
             sx={{
               borderColor: "#824D5C",
               color: "#824D5C",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
               "&:hover": {
                 borderColor: "#6f404d",
                 backgroundColor: "rgba(130,77,92,0.08)",
