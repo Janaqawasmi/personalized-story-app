@@ -53,7 +53,6 @@ export default function BookReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [showLanguageNotice, setShowLanguageNotice] = useState(false);
   const [showInstructions, setShowInstructions] = useState(false);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
@@ -125,13 +124,6 @@ export default function BookReaderPage() {
           language: storyLanguage,
           status: data.status,
         });
-
-        // Show soft notice if languages differ (non-blocking)
-        if (storyLanguage && storyLanguage !== CURRENT_LANGUAGE) {
-          setShowLanguageNotice(true);
-          // Auto-hide after 5 seconds
-          setTimeout(() => setShowLanguageNotice(false), 5000);
-        }
       } catch (err: any) {
         console.error("Error fetching story:", err);
         setError(err.message || "Failed to load story");
@@ -331,40 +323,6 @@ export default function BookReaderPage() {
         ) : (
           !showInstructions && (
             <>
-          {/* Language Notice (soft, non-blocking) */}
-          {showLanguageNotice && story && (
-            <Box
-              sx={{
-                position: "fixed",
-                top: 64,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 999,
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${theme.palette.divider}`,
-                borderRadius: 1,
-                px: 2,
-                py: 1,
-                boxShadow: `0 2px 8px ${theme.palette.divider}`,
-                opacity: showLanguageNotice ? 1 : 0,
-                transition: "opacity 0.3s ease",
-                maxWidth: "90%",
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: "0.85rem",
-                  color: theme.palette.text.secondary,
-                  textAlign: "center",
-                }}
-              >
-                {t("pages.bookReader.storyLanguage", { 
-                  language: story.language === "ar" ? t("pages.bookReader.arabic") : story.language === "he" ? t("pages.bookReader.hebrew") : (story.language || "Unknown")
-                })}
-              </Typography>
-            </Box>
-          )}
-
           {/* Top Controls */}
           <Box
             sx={{

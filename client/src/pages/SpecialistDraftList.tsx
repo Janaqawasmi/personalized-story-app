@@ -471,20 +471,6 @@ const SpecialistDraftList: React.FC = () => {
                               },
                             }}
                           />
-                          {draft.generationConfig?.language && (
-                            <Chip
-                              label={draft.generationConfig.language.toUpperCase()}
-                              size="small"
-                              variant="outlined"
-                              sx={{ 
-                                fontSize: "0.75rem",
-                                height: 24,
-                                "& .MuiChip-label": {
-                                  px: 1,
-                                },
-                              }}
-                            />
-                          )}
                           {draft.revisionCount !== undefined && draft.revisionCount > 0 && (
                             <Typography variant="caption" color="text.secondary">
                               {draft.revisionCount} revision{draft.revisionCount !== 1 ? "s" : ""}

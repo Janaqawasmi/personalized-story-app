@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "cross-env PORT=5000 ts-node src/app.ts",
+    "dev": "cross-env PORT=5000 ALLOW_UNAUTHENTICATED_REQUESTS=true ts-node src/app.ts",
     "build": "tsc",
-    "start": "cross-env PORT=5000 node dist/app.js",
+    "start": "cross-env PORT=5000 ALLOW_UNAUTHENTICATED_REQUESTS=true node dist/app.js",
     "seed:rag": "ts-node scripts/seedRag.ts",
     "seed:reference": "ts-node scripts/seedReferenceData.ts",
     "test": "echo \"Error: no test specified\" && exit 1"

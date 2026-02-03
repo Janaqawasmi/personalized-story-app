@@ -14,13 +14,8 @@ function formatDisplayText(text: string): string {
  * Helper: Derive page count from age group (default heuristic)
  */
 function derivePageCount(ageGroup: string): number {
-  const ageGroupMap: Record<string, number> = {
-    "0_3": 4,  // Very short for youngest children
-    "3_6": 6,  // Short stories
-    "6_9": 8,  // Medium stories
-    "9_12": 10, // Longer stories
-  };
-  return ageGroupMap[ageGroup] || 8; // Default to 8 pages
+  // Always return 10 pages for all stories
+  return 10;
 }
 
 /**
@@ -116,11 +111,11 @@ export function buildStoryDraftPrompt(
   sections.push("");
   sections.push("2. JSON Structure:");
   sections.push("   {");
-  sections.push('     "title": "string (Arabic only, 2-6 words, no punctuation, no emojis, no subtitles)",');
+  sections.push('     "title": "string (English only, 2-6 words, no punctuation, no emojis, no subtitles)",');
   sections.push('     "pages": [');
   sections.push("       {");
   sections.push('         "pageNumber": number (1-based, sequential),');
-  sections.push('         "text": "string (Arabic only, use {{child_name}} placeholder)",');
+  sections.push('         "text": "string (English only, use {{child_name}} placeholder)",');
   sections.push('         "emotionalTone": "string (MUST be exactly one of: gentle | reassuring | calm - no other values allowed)",');
   sections.push('         "imagePrompt": "string (English allowed for image generation)"');
   sections.push("       }");
@@ -128,11 +123,10 @@ export function buildStoryDraftPrompt(
   sections.push("   }");
   sections.push("");
   sections.push("IMPORTANT CONSTRAINTS:");
-  sections.push("- Title: Arabic only, 2-6 words, no punctuation, no emojis, no subtitles");
+  sections.push("- Title: English only, 2-6 words, no punctuation, no emojis, no subtitles");
   sections.push("- emotionalTone: MUST be exactly one of: gentle | reassuring | calm");
   sections.push("  DO NOT invent new emotionalTone values. Use only the three values listed above.");
-  sections.push("- Story length is derived from age group only.");
-  sections.push("  GenerationConfig.length is reserved for future use and must be ignored.");
+  sections.push("- All stories are exactly 10 pages.");
   sections.push("");
   sections.push(`3. EXACT PAGE COUNT: ${pageCount} pages (no more, no less).`);
   sections.push("");
@@ -140,7 +134,7 @@ export function buildStoryDraftPrompt(
   sections.push(`   - Total pages: ${pageCount}`);
   sections.push("   - Each page MUST include: pageNumber, text, emotionalTone, imagePrompt");
   sections.push("   - Use {{child_name}} placeholder in text (never actual names)");
-  sections.push("   - All story text MUST be in Arabic (no English words in story text)");
+  sections.push("   - All story text MUST be in English");
   sections.push("");
   sections.push("IMAGE PROMPT RULES:");
   sections.push("   - Must visually match the emotional tone of the page");
@@ -162,14 +156,14 @@ export function buildStoryDraftPrompt(
   }
   sections.push("");
   sections.push("7. LANGUAGE CONSTRAINTS:");
-  sections.push("   - Story text: Arabic ONLY");
-  sections.push("   - Title: Arabic ONLY");
-  sections.push("   - Use Modern Standard Arabic (MSA) suitable for young children");
-  sections.push("   - Avoid regional dialects, slang, or colloquial expressions");
-  sections.push("   - Image prompts: English allowed (for technical clarity)");
+  sections.push("   - Story text: English ONLY");
+  sections.push("   - Title: English ONLY");
+  sections.push("   - Use clear, simple English suitable for young children");
+  sections.push("   - Use standard English, avoid complex vocabulary or overly formal language");
+  sections.push("   - Image prompts: English (for technical clarity)");
   sections.push("");
   sections.push("CRITICAL LANGUAGE RULE:");
-  sections.push("If English appears, revise silently and re-output once.");
+  sections.push("If Arabic or other languages appear, revise silently and re-output once.");
   sections.push("Repeat self-verification and revise silently until ALL checks pass.");
   sections.push("");
 
@@ -225,9 +219,9 @@ export function buildStoryDraftPrompt(
   sections.push(`  - Exactly ${pageCount} pages in the output`);
   sections.push("  - Valid JSON structure");
   sections.push("  - All required fields present (pageNumber, text, emotionalTone, imagePrompt)");
-  sections.push("  - Title: Arabic only, 2-6 words, no punctuation, no emojis, no subtitles");
+  sections.push("  - Title: English only, 2-6 words, no punctuation, no emojis, no subtitles");
   sections.push("  - emotionalTone values are ONLY: gentle, reassuring, or calm (no other values)");
-  sections.push("  - Story text is Arabic only");
+  sections.push("  - Story text is English only");
   sections.push("  - {{child_name}} placeholders used (no actual names)");
   sections.push("");
   sections.push("IF ANY CHECK FAILS:");
