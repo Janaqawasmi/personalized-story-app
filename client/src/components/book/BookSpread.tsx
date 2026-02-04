@@ -34,6 +34,10 @@ export default function BookSpread({
   const t = useTranslation();
   const theme = useTheme();
 
+  // Fixed page dimensions - both pages use these
+  const PAGE_WIDTH = 600; // Half of maxWidth 1200
+  const PAGE_HEIGHT = 640; // Matches parent minHeight on desktop
+
   // Drag tracking state
   const dragStartX = useRef<number | null>(null);
   const dragSide = useRef<"left" | "right" | null>(null);
@@ -195,10 +199,21 @@ export default function BookSpread({
           pointerEvents: "none",
         }}
       />
+      {/* Fixed-size wrapper for both pages */}
+      <Box
+        sx={{
+          width: "100%",
+          height: { xs: "70vh", md: 640 },
+          display: "flex",
+          flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
+          position: "relative",
+        }}
+      >
       {/* Left Page - Text */}
       <Box
         sx={{
-          flex: 1,
+          width: { xs: "100%", md: "50%" },
+          height: "100%",
           zIndex: 2,
           backgroundColor: "#fbfbfb",
           // Paper grain (subtle dots)
@@ -216,7 +231,8 @@ export default function BookSpread({
           display: "flex",
           flexDirection: "column",
           position: "relative",
-          minHeight: { xs: "50vh", md: "70vh" },
+          overflow: "hidden",
+          boxSizing: "border-box",
           cursor: canGoNext ? "pointer" : "default",
           transform:
             curlSide === "left"
@@ -401,33 +417,11 @@ export default function BookSpread({
         )}
       </Box>
 
-      {/* Page stack - right edge */}
-      <Box
-        sx={{
-          position: "absolute",
-          top: 14,
-          bottom: 14,
-          right: 12,
-          width: 18,
-          zIndex: 1,
-          pointerEvents: "none",
-          display: { xs: "none", md: "block" },
-          opacity: 0.75,
-          background:
-            "repeating-linear-gradient(to bottom," +
-            "rgba(0,0,0,0.08) 0px," +
-            "rgba(0,0,0,0.08) 1px," +
-            "rgba(255,255,255,0.00) 4px," +
-            "rgba(255,255,255,0.00) 7px)",
-          filter: "blur(0.6px)",
-          maskImage:
-            "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
-        }}
-      />
       {/* Right Page - Image */}
       <Box
         sx={{
-          flex: 1,
+          width: { xs: "100%", md: "50%" },
+          height: "100%",
           zIndex: 3,
           // Inner shadow toward the spine (makes pages "bend inward")
           boxShadow: isRTL
@@ -436,7 +430,6 @@ export default function BookSpread({
           // Slight edge line
           borderLeft: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
           borderRight: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
-          minHeight: "70vh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -564,6 +557,32 @@ export default function BookSpread({
           />
         )}
       </Box>
+      </Box>
+      {/* End of fixed-size wrapper */}
+
+      {/* Page stack - right edge */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 14,
+          bottom: 14,
+          right: 12,
+          width: 18,
+          zIndex: 1,
+          pointerEvents: "none",
+          display: { xs: "none", md: "block" },
+          opacity: 0.75,
+          background:
+            "repeating-linear-gradient(to bottom," +
+            "rgba(0,0,0,0.08) 0px," +
+            "rgba(0,0,0,0.08) 1px," +
+            "rgba(255,255,255,0.00) 4px," +
+            "rgba(255,255,255,0.00) 7px)",
+          filter: "blur(0.6px)",
+          maskImage:
+            "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
+        }}
+      />
 
       {/* Full-page turn overlay */}
       {isTurning && (
