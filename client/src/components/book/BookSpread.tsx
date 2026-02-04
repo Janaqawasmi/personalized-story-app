@@ -73,15 +73,15 @@ export default function BookSpread({
     }, 420); // must match animation duration
   };
 
-  // Keyframes for page turn animation
+  // Keyframes for page turn animation (RTL: next flips right to left)
   const pageTurnStyles = {
     "@keyframes pageTurnNext": {
       from: { transform: "translateX(0%)" },
-      to: { transform: "translateX(100%)" },
+      to: { transform: "translateX(-100%)" }, // RTL: flip right to left
     },
     "@keyframes pageTurnPrev": {
       from: { transform: "translateX(0%)" },
-      to: { transform: "translateX(-100%)" },
+      to: { transform: "translateX(100%)" }, // RTL: flip left to right
     },
   };
 
@@ -120,14 +120,15 @@ export default function BookSpread({
 
       const deltaX = e.clientX - dragStartX.current;
 
-      if (dragSide.current === "left" && deltaX > DRAG_THRESHOLD) {
-        hasFlippedRef.current = true;
-        startPageTurn("next");
-      }
-
+      // RTL: dragging right side to left = next, dragging left side to right = prev
       if (dragSide.current === "right" && deltaX < -DRAG_THRESHOLD) {
         hasFlippedRef.current = true;
-        startPageTurn("prev");
+        startPageTurn("next"); // RTL: right to left = next
+      }
+
+      if (dragSide.current === "left" && deltaX > DRAG_THRESHOLD) {
+        hasFlippedRef.current = true;
+        startPageTurn("prev"); // RTL: left to right = prev
       }
 
       dragStartX.current = null;
@@ -209,38 +210,37 @@ export default function BookSpread({
           position: "relative",
         }}
       >
-      {/* Left Page - Text */}
+      {/* Left Page - Image */}
       <Box
         sx={{
           width: { xs: "100%", md: "50%" },
           height: "100%",
-          zIndex: 2,
-          backgroundColor: "#fbfbfb",
-          // Paper grain (subtle dots)
-          backgroundImage:
-            "radial-gradient(rgba(0,0,0,0.025) 1px, transparent 1px)",
-          backgroundSize: "3px 3px",
+          zIndex: 3,
           // Inner shadow toward the spine (makes pages "bend inward")
           boxShadow: isRTL
-            ? "inset -30px 0 30px rgba(0,0,0,0.12)"
-            : "inset 30px 0 30px rgba(0,0,0,0.12)",
+            ? "inset 30px 0 30px rgba(0,0,0,0.12)"
+            : "inset -30px 0 30px rgba(0,0,0,0.12)",
           // Slight edge line
-          borderRight: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
-          borderLeft: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
-          p: { xs: 3, md: 6 },
+          borderLeft: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
+          borderRight: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
           display: "flex",
-          flexDirection: "column",
-          position: "relative",
+          alignItems: "center",
+          justifyContent: "center",
           overflow: "hidden",
-          boxSizing: "border-box",
-          cursor: canGoNext ? "pointer" : "default",
+          position: "relative",
+          backgroundImage: page.imageUrl
+            ? `url(${page.imageUrl})`
+            : `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}08 100%)`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          cursor: canGoPrev ? "pointer" : "default",
           transform:
             curlSide === "left"
               ? `translateX(${curlProgress * 12}px)`
               : undefined,
           transition: isDragging.current ? "none" : "transform 0.35s ease",
           pointerEvents: isTurning ? "none" : "auto",
-          "&:hover": canGoNext && !isDragging.current
+          "&:hover": canGoPrev && !isDragging.current
             ? {
                 transform: "scale(1.01)",
               }
@@ -263,12 +263,154 @@ export default function BookSpread({
           const inLeftCorner =
             x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
 
-          if (!inLeftCorner || !canGoNext) return;
+          if (!inLeftCorner || !canGoPrev) return;
 
           hasFlippedRef.current = false;
           didDragRef.current = false;
           dragStartX.current = e.clientX;
           dragSide.current = "left";
+          isDragging.current = true;
+        }}
+        onClick={() => {
+          if (didDragRef.current) return;
+          if (canGoPrev) {
+            startPageTurn("prev");
+          }
+        }}
+      >
+        {/* Page Flip Corner (on hover) */}
+        {canGoPrev && (
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              [isRTL ? "right" : "left"]: 0,
+              width: 80,
+              height: 80,
+              background: `linear-gradient(${isRTL ? "135deg" : "225deg"}, ${theme.palette.divider}40 0%, transparent 60%)`,
+              borderRadius: isRTL ? "0 0 0 100%" : "0 0 100% 0",
+              opacity: 0,
+              transition: "opacity 0.2s ease",
+              "&:hover": {
+                opacity: 0.4,
+              },
+              pointerEvents: "none",
+            }}
+          />
+        )}
+        {!page.imageUrl && (
+          <Box
+            sx={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: theme.palette.background.default,
+            }}
+          >
+            <Typography
+              sx={{
+                color: theme.palette.text.secondary,
+                fontSize: "0.85rem",
+                textAlign: "center",
+                px: 3,
+              }}
+            >
+              {page.imagePromptTemplate || t("book.imageComingSoon")}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Curl Overlay - Left Page */}
+        {curlSide === "left" && (
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              width: `${curlProgress * 220}px`,
+              height: `${curlProgress * 220}px`,
+              background: `
+                linear-gradient(
+                  135deg,
+                  #ffffff 0%,
+                  #f2f2f2 40%,
+                  #d6d6d6 100%
+                )
+              `,
+              clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+              boxShadow: `
+                ${curlProgress * 8}px ${curlProgress * -8}px
+                ${curlProgress * 16}px rgba(0,0,0,0.25)
+              `,
+              transition: isDragging.current ? "none" : "all 0.35s ease",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </Box>
+
+      {/* Right Page - Text */}
+      <Box
+        sx={{
+          width: { xs: "100%", md: "50%" },
+          height: "100%",
+          zIndex: 2,
+          backgroundColor: "#fbfbfb",
+          // Paper grain (subtle dots)
+          backgroundImage:
+            "radial-gradient(rgba(0,0,0,0.025) 1px, transparent 1px)",
+          backgroundSize: "3px 3px",
+          // Inner shadow toward the spine (makes pages "bend inward")"
+          boxShadow: isRTL
+            ? "inset -30px 0 30px rgba(0,0,0,0.12)"
+            : "inset 30px 0 30px rgba(0,0,0,0.12)",
+          // Slight edge line
+          borderRight: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
+          borderLeft: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
+          p: { xs: 3, md: 6 },
+          display: "flex",
+          flexDirection: "column",
+          position: "relative",
+          overflow: "hidden",
+          boxSizing: "border-box",
+          cursor: canGoNext ? "pointer" : "default",
+          transform:
+            curlSide === "right"
+              ? `translateX(-${curlProgress * 12}px)`
+              : undefined,
+          transition: isDragging.current ? "none" : "transform 0.35s ease",
+          pointerEvents: isTurning ? "none" : "auto",
+          "&:hover": canGoNext && !isDragging.current
+            ? {
+                transform: "scale(1.01)",
+              }
+            : {},
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            borderRadius: { xs: 4, md: 0 }, // on desktop pages are flush; mobile can be rounded
+            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55)",
+            opacity: 0.7,
+          },
+        }}
+        onPointerDown={(e) => {
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const x = rect.width - (e.clientX - rect.left);
+          const y = e.clientY - rect.top;
+
+          const inRightCorner =
+            x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
+
+          if (!inRightCorner || !canGoNext) return;
+
+          hasFlippedRef.current = false;
+          didDragRef.current = false;
+          dragStartX.current = e.clientX;
+          dragSide.current = "right";
           isDragging.current = true;
         }}
         onClick={() => {
@@ -388,147 +530,6 @@ export default function BookSpread({
           {page.pageNumber}
         </Typography>
 
-        {/* Curl Overlay - Left Page */}
-        {curlSide === "left" && (
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              width: `${curlProgress * 220}px`,
-              height: `${curlProgress * 220}px`,
-              background: `
-                linear-gradient(
-                  135deg,
-                  #ffffff 0%,
-                  #f2f2f2 40%,
-                  #d6d6d6 100%
-                )
-              `,
-              clipPath: "polygon(0 100%, 100% 100%, 0 0)",
-              boxShadow: `
-                ${curlProgress * 8}px ${curlProgress * -8}px
-                ${curlProgress * 16}px rgba(0,0,0,0.25)
-              `,
-              transition: isDragging.current ? "none" : "all 0.35s ease",
-              pointerEvents: "none",
-            }}
-          />
-        )}
-      </Box>
-
-      {/* Right Page - Image */}
-      <Box
-        sx={{
-          width: { xs: "100%", md: "50%" },
-          height: "100%",
-          zIndex: 3,
-          // Inner shadow toward the spine (makes pages "bend inward")
-          boxShadow: isRTL
-            ? "inset 30px 0 30px rgba(0,0,0,0.12)"
-            : "inset -30px 0 30px rgba(0,0,0,0.12)",
-          // Slight edge line
-          borderLeft: { xs: "none", md: isRTL ? "none" : "1px solid rgba(0,0,0,0.07)" },
-          borderRight: { xs: "none", md: isRTL ? "1px solid rgba(0,0,0,0.07)" : "none" },
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          position: "relative",
-          backgroundImage: page.imageUrl
-            ? `url(${page.imageUrl})`
-            : `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}08 100%)`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          cursor: canGoPrev ? "pointer" : "default",
-          transform:
-            curlSide === "right"
-              ? `translateX(-${curlProgress * 12}px)`
-              : undefined,
-          transition: isDragging.current ? "none" : "transform 0.35s ease",
-          pointerEvents: isTurning ? "none" : "auto",
-          "&:hover": canGoPrev && !isDragging.current
-            ? {
-                transform: "scale(1.01)",
-              }
-            : {},
-          "&::after": {
-            content: '""',
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "none",
-            borderRadius: { xs: 4, md: 0 }, // on desktop pages are flush; mobile can be rounded
-            boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.55)",
-            opacity: 0.7,
-          },
-        }}
-        onPointerDown={(e) => {
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          const x = rect.width - (e.clientX - rect.left);
-          const y = e.clientY - rect.top;
-
-          const inRightCorner =
-            x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
-
-          if (!inRightCorner || !canGoPrev) return;
-
-          hasFlippedRef.current = false;
-          didDragRef.current = false;
-          dragStartX.current = e.clientX;
-          dragSide.current = "right";
-          isDragging.current = true;
-        }}
-        onClick={() => {
-          if (didDragRef.current) return;
-          if (canGoPrev) {
-            startPageTurn("prev");
-          }
-        }}
-      >
-        {/* Page Flip Corner (on hover) */}
-        {canGoNext && (
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              [isRTL ? "left" : "right"]: 0,
-              width: 80,
-              height: 80,
-              background: `linear-gradient(${isRTL ? "225deg" : "135deg"}, ${theme.palette.divider}40 0%, transparent 60%)`,
-              borderRadius: isRTL ? "0 0 100% 0" : "0 0 0 100%",
-              opacity: 0,
-              transition: "opacity 0.2s ease",
-              "&:hover": {
-                opacity: 0.4,
-              },
-              pointerEvents: "none",
-            }}
-          />
-        )}
-        {!page.imageUrl && (
-          <Box
-            sx={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: theme.palette.background.default,
-            }}
-          >
-            <Typography
-              sx={{
-                color: theme.palette.text.secondary,
-                fontSize: "0.85rem",
-                textAlign: "center",
-                px: 3,
-              }}
-            >
-              {page.imagePromptTemplate || t("book.imageComingSoon")}
-            </Typography>
-          </Box>
-        )}
-
         {/* Curl Overlay - Right Page */}
         {curlSide === "right" && (
           <Box
@@ -591,7 +592,7 @@ export default function BookSpread({
             position: "absolute",
             top: 0,
             bottom: 0,
-            left: turnDirection === "next" ? "0%" : "50%",
+            left: turnDirection === "next" ? "50%" : "0%", // RTL: next starts from right (50%)
             width: "50%",
             background:
               "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,245,245,0.96))",
@@ -627,10 +628,10 @@ export default function BookSpread({
         {page.pageNumber} / {totalPages}
       </Typography>
 
-      {/* LEFT EDGE TAB — Next */}
-      {canGoNext && (
+      {/* LEFT EDGE TAB — Prev */}
+      {canGoPrev && (
         <Box
-          onClick={() => startPageTurn("next")}
+          onClick={() => startPageTurn("prev")}
           sx={{
             position: "absolute",
             top: "50%",
@@ -664,10 +665,10 @@ export default function BookSpread({
         </Box>
       )}
 
-      {/* RIGHT EDGE TAB — Prev */}
-      {canGoPrev && (
+      {/* RIGHT EDGE TAB — Next */}
+      {canGoNext && (
         <Box
-          onClick={() => startPageTurn("prev")}
+          onClick={() => startPageTurn("next")}
           sx={{
             position: "absolute",
             top: "50%",
