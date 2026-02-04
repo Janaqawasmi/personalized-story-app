@@ -135,7 +135,7 @@ export default function PersonalizeStoryPage() {
   const navigate = useLangNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslation();
-  const { language } = useLanguage();
+  const { language, direction, isRTL } = useLanguage();
   
   // Load steps and options dynamically based on language - memoized based on language to prevent recreation
   const STEPS = useMemo(() => [
@@ -434,7 +434,7 @@ export default function PersonalizeStoryPage() {
         sx={{
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
-          direction: "rtl",
+          direction: direction,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -501,7 +501,7 @@ export default function PersonalizeStoryPage() {
         sx={{
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
-          direction: "rtl",
+          direction: direction,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -566,7 +566,7 @@ export default function PersonalizeStoryPage() {
       sx={{
         minHeight: "100vh",
         backgroundColor: theme.palette.background.default,
-        direction: "rtl",
+        direction: direction,
         display: "flex",
         justifyContent: "center",
         px: { xs: 2, md: 4 },
@@ -692,6 +692,8 @@ export default function PersonalizeStoryPage() {
                       backgroundColor: "#F4F1EE",
                       fontSize: "1.1rem",
                       px: 2,
+                      direction: direction,
+                      textAlign: isRTL ? "right" : "left",
                     },
                   }}
                 />
@@ -769,7 +771,7 @@ export default function PersonalizeStoryPage() {
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>{option.label}</Typography>
                         {personalization.gender === option.value && (
                           <CheckCircleIcon
-                            sx={{ ml: "auto", color: "#824D5C", fontSize: 28 }}
+                            sx={{ [isRTL ? "mr" : "ml"]: "auto", color: "#824D5C", fontSize: 28 }}
                           />
                         )}
                       </CardContent>
@@ -927,7 +929,7 @@ export default function PersonalizeStoryPage() {
                               sx={{
                                 position: "absolute",
                                 top: 8,
-                                right: 8,
+                                [isRTL ? "left" : "right"]: 8,
                                 color: "#824D5C",
                                 fontSize: 28,
                                 backgroundColor: "rgba(255, 255, 255, 0.9)",
@@ -1023,6 +1025,7 @@ export default function PersonalizeStoryPage() {
 
             {/* Navigation Buttons Footer */}
             <Box
+              dir={direction}
               sx={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1035,12 +1038,15 @@ export default function PersonalizeStoryPage() {
           <Button
             onClick={handleBack}
             disabled={activeStep === 0}
-            endIcon={<ArrowForwardIcon sx={{ direction: "ltr" }} />}
+            startIcon={<ArrowForwardIcon sx={{ transform: isRTL ? "none" : "rotate(180deg)" }} />}
             variant="outlined"
             aria-label={t("personalize.back")}
             sx={{
               borderColor: "#824D5C",
               color: "#824D5C",
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
               "&:hover": {
                 borderColor: "#6f404d",
                 backgroundColor: "rgba(130,77,92,0.08)",

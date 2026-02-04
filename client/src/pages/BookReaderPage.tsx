@@ -115,7 +115,11 @@ export default function BookReaderPage() {
         // Sort pages by pageNumber
         const pages = (data.pages || []).sort(
           (a: Page, b: Page) => a.pageNumber - b.pageNumber
-        );
+        ).map((page: Page) => ({
+          ...page,
+          // Add temporary placeholder image URL based on page number
+          imageUrl: `/story-images/placeholders/${page.pageNumber}.jpg`,
+        }));
 
         setStory({
           id: storySnap.id,

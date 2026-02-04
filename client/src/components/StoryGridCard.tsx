@@ -36,6 +36,8 @@ export default function StoryGridCard({
         height: "100%",
         minHeight: 380,                // 🔹 smaller card
         overflow: "hidden",
+        border: `1px solid ${theme.palette.divider}`,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
         transition: "all 0.3s ease",
         "&:hover": {
           transform: "translateY(-4px)",
@@ -46,9 +48,12 @@ export default function StoryGridCard({
       {/* Image */}
       <Box
         sx={{
-          height: 190,                  // 🔹 shorter image
-          backgroundImage: `url(${imageUrl || "/book-placeholder.png"})`,
-          backgroundSize: "cover",
+          height: 240,                  // 🔹 taller to better match book cover aspect ratio
+          width: "100%",
+          backgroundColor: theme.palette.grey[100], // Subtle background to fill space
+          backgroundImage: `url(${imageUrl || "/book-placeholder.jpg"})`,
+          backgroundSize: "100% auto",  // Fill width completely, height scales proportionally
+          backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
         }}
       />
