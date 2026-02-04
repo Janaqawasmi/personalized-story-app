@@ -28,7 +28,7 @@ export default function BookCover({ title, onStart, language = "he" }: BookCover
         position: "relative",
       }}
     >
-      {/* Cover Image Placeholder */}
+      {/* Book Container with Intro Image */}
       <Box
         sx={{
           width: "100%",
@@ -41,17 +41,20 @@ export default function BookCover({ title, onStart, language = "he" }: BookCover
           justifyContent: "center",
           mb: 4,
           border: `1px solid ${theme.palette.divider}`,
-          backgroundImage: `linear-gradient(135deg, ${theme.palette.primary.main}15 0%, ${theme.palette.secondary.main}15 100%)`,
+          overflow: "hidden",
+          px: 2,
+          py: 2,
         }}
       >
-        <Typography
-          sx={{
-            color: theme.palette.text.secondary,
-            fontSize: "0.9rem",
+        <img
+          src="/story-images/placeholders/book-intro-placeholder.jpg"
+          alt="Story introduction"
+          style={{
+            width: "100%",
+            maxHeight: "100%",
+            objectFit: "contain",
           }}
-        >
-          {title}
-        </Typography>
+        />
       </Box>
 
       {/* Title Overlay */}

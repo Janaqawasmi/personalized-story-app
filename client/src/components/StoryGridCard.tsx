@@ -36,6 +36,8 @@ export default function StoryGridCard({
         height: "100%",
         minHeight: 380,                // 🔹 smaller card
         overflow: "hidden",
+        border: `1px solid ${theme.palette.divider}`,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
         transition: "all 0.3s ease",
         "&:hover": {
           transform: "translateY(-4px)",
