@@ -1,5 +1,4 @@
-import { Box, Typography, Button, useTheme } from "@mui/material";
-import { useMemo } from "react";
+import { Box, Button } from "@mui/material";
 import { useTranslation } from "../../i18n/useTranslation";
 
 type BookCoverProps = {
@@ -13,7 +12,6 @@ export default function BookCover({
   onStart,
   language = "he"
 }: BookCoverProps) {
-  const theme = useTheme();
   const t = useTranslation();
 
   const isRTL = language === "he" || language === "ar";
@@ -50,6 +48,37 @@ export default function BookCover({
           }
         }}
       >
+        {/* Solid Hardcover Spine – Connected & Color-Matched */}
+        <Box
+          sx={{
+            position: "absolute",
+            left: "-18px",        // tighter → connected
+            top: 0,
+            bottom: 0,
+            width: "18px",
+
+            // Same family as cover, slightly darker
+            background: `
+              linear-gradient(
+                to right,
+                #e8dfc8 0%,
+                #d8ceb2 35%,
+                #cfc4a5 100%
+              )
+            `,
+
+            borderRadius: "6px 0 0 6px",
+
+            // IMPORTANT: inset shadow = glued seam
+            boxShadow: `
+              inset -2px 0 4px rgba(0,0,0,0.18),
+              inset 1px 0 1px rgba(255,255,255,0.4)
+            `,
+
+            zIndex: 300
+          }}
+        />
+
         {/* Paper Pages - Right Edge (Visible Thickness) */}
         {[...Array(12)].map((_, i) => {
           // Create natural unevenness in page edges
@@ -112,9 +141,7 @@ export default function BookCover({
                   rgba(0,0,0,0.04) 100%)`,
                 borderRadius: "0 0 2px 2px",
                 boxShadow: "inset 0 -1px 2px rgba(0,0,0,0.04)",
-                zIndex: 100 - i,
-                // Match width of the book cover container
-                width: "100%"
+                zIndex: 100 - i
               }}
             />
           );
@@ -125,6 +152,7 @@ export default function BookCover({
           sx={{
             position: "relative",
             width: "100%",
+            height: "100%",
             borderRadius: "8px",
             overflow: "hidden",
             background: "#fff",
@@ -134,10 +162,7 @@ export default function BookCover({
               inset 0 -1px 0 rgba(0,0,0,0.05),
               0 2px 4px rgba(0,0,0,0.08)
             `,
-            zIndex: 200,
-            // Container adapts to image aspect ratio
-            display: "flex",
-            flexDirection: "column"
+            zIndex: 200
           }}
         >
           {/* Cover Image */}
@@ -147,83 +172,13 @@ export default function BookCover({
             alt={title}
             sx={{
               width: "100%",
-              height: "auto",
+              height: "100%",
+              objectFit: "cover",
               display: "block",
-              // Show full image, no cropping or padding
-              objectFit: "contain",
-              // Matte finish (no gloss)
               filter: "contrast(0.98) saturate(1.05)"
             }}
           />
-
-          {/* Title Band Overlay - Semi-transparent paper label effect */}
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              left: 0,
-              right: 0,
-              padding: { xs: 2.5, sm: 3, md: 3.5 },
-              background: "linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.92) 100%)",
-              backdropFilter: "blur(8px)",
-              borderTop: "1px solid rgba(0,0,0,0.06)",
-              boxShadow: "0 -4px 12px rgba(0,0,0,0.05)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0.5
-            }}
-          >
-            {/* Book Title */}
-            <Typography
-              variant="h4"
-              sx={{
-                fontFamily: "'Crimson Text', 'Georgia', 'Times New Roman', serif",
-                fontWeight: 600,
-                fontSize: { xs: "1.5rem", sm: "1.75rem", md: "2rem" },
-                color: "#2c2416",
-                textAlign: "center",
-                lineHeight: 1.3,
-                letterSpacing: "0.02em",
-                direction: isRTL ? "rtl" : "ltr",
-                // Subtle text shadow for depth
-                textShadow: "0 1px 2px rgba(0,0,0,0.08)"
-              }}
-            >
-              {title}
-            </Typography>
-
-            {/* Author Name - Placeholder */}
-            <Typography
-              variant="subtitle1"
-              sx={{
-                fontFamily: "'Crimson Text', 'Georgia', serif",
-                fontWeight: 400,
-                fontSize: { xs: "0.95rem", sm: "1rem" },
-                color: "#6b5d4f",
-                fontStyle: "italic",
-                textAlign: "center",
-                direction: isRTL ? "rtl" : "ltr"
-              }}
-            >
-              {/* You can add author name here if available */}
-            </Typography>
-          </Box>
         </Box>
-
-        {/* Spine Thickness - Left Edge */}
-        <Box
-          sx={{
-            position: "absolute",
-            left: -8,
-            top: 4,
-            bottom: 4,
-            width: "8px",
-            background: "linear-gradient(to right, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.08) 100%)",
-            borderRadius: "4px 0 0 4px",
-            zIndex: 50
-          }}
-        />
       </Box>
 
       {/* Start Reading Button */}
