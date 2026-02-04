@@ -186,25 +186,14 @@ export default function BookCover({
         variant="contained"
         onClick={onStart}
         sx={{
-          fontSize: { xs: "1.1rem", sm: "1.25rem" },
-          fontWeight: 600,
-          padding: { xs: "14px 40px", sm: "16px 48px" },
-          borderRadius: "12px",
-          textTransform: "none",
-          fontFamily: isRTL ? "'Rubik', sans-serif" : "'Nunito', sans-serif",
+          px: 4,
+          py: 1.2,
+          borderRadius: 999,
           direction: isRTL ? "rtl" : "ltr",
-          background: "linear-gradient(135deg, #ff6b9d 0%, #ff8fab 100%)",
-          color: "#fff",
-          boxShadow: "0 4px 14px rgba(255, 107, 157, 0.4)",
-          transition: "all 0.3s ease",
+          backgroundColor: "#824D5C",
           "&:hover": {
-            background: "linear-gradient(135deg, #ff5a8d 0%, #ff7a9b 100%)",
-            boxShadow: "0 6px 20px rgba(255, 107, 157, 0.5)",
-            transform: "translateY(-2px)"
+            backgroundColor: "#6f404d",
           },
-          "&:active": {
-            transform: "translateY(0)"
-          }
         }}
       >
         {startText}
