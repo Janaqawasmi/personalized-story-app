@@ -46,9 +46,12 @@ export default function StoryGridCard({
       {/* Image */}
       <Box
         sx={{
-          height: 190,                  // 🔹 shorter image
+          height: 240,                  // 🔹 taller to better match book cover aspect ratio
+          width: "100%",
+          backgroundColor: theme.palette.grey[100], // Subtle background to fill space
           backgroundImage: `url(${imageUrl || "/book-placeholder.jpg"})`,
-          backgroundSize: "cover",
+          backgroundSize: "100% auto",  // Fill width completely, height scales proportionally
+          backgroundRepeat: "no-repeat",
           backgroundPosition: "center",
         }}
       />
