@@ -830,6 +830,22 @@ const ReviewDraftPage: React.FC = () => {
 
                           <Divider />
 
+                          {/* Page Image */}
+                          <Box sx={{ mb: 2 }}>
+                            <img
+                              src={`/story-images/placeholders/${page.pageNumber}.jpg`}
+                              alt={`Page ${page.pageNumber} illustration`}
+                              style={{
+                                width: "100%",
+                                maxWidth: "600px",
+                                height: "auto",
+                                borderRadius: "4px",
+                                display: "block",
+                                margin: "0 auto",
+                              }}
+                            />
+                          </Box>
+
                           {/* Story Text (Editable if in edit mode) */}
                           <Box>
                             <Typography variant="caption" color="text.secondary" gutterBottom display="block">

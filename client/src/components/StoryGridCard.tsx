@@ -47,7 +47,7 @@ export default function StoryGridCard({
       <Box
         sx={{
           height: 190,                  // 🔹 shorter image
-          backgroundImage: `url(${imageUrl || "/book-placeholder.png"})`,
+          backgroundImage: `url(${imageUrl || "/book-placeholder.jpg"})`,
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

@@ -30,7 +30,6 @@ import {
   CheckCircle,
   RadioButtonUnchecked,
   Autorenew,
-  Visibility,
   Refresh,
   Search,
   Launch,
@@ -741,14 +740,6 @@ const GenerateDraftPage: React.FC = () => {
                       </Stack>
                     </Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
-                      <Button
-                        variant="outlined"
-                            size="small"
-                            startIcon={<Visibility />}
-                        onClick={() => navigate(`/specialist/story-briefs/${brief.id}/prompt-preview`)}
-                      >
-                            View Prompt
-                      </Button>
                           {isGenerated && brief.lockedByDraftId ? (
                       <Button
                         variant="contained"
