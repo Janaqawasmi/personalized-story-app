@@ -15,7 +15,7 @@ export default function BookCover({
   const t = useTranslation();
 
   const isRTL = language === "he" || language === "ar";
-  const startText = language === "ar" ? "ابدأ القراءة" : t("book.startReading");
+  const startText = t("book.startReading");
 
   return (
     <Box

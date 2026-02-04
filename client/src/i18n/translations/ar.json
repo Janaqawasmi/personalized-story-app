@@ -1,0 +1,15 @@
+{
+  "navbar": {
+    "browseStories": "تصفح القصص",
+    "hebrew": "עברית",
+    "english": "English"
+  },
+  "footer": {
+    "copyright": "© DAMMAH — All rights reserved"
+  },
+  "book": {
+    "startReading": "ابدأ القراءة",
+    "audioReading": "القراءة الصوتية",
+    "imageComingSoon": "ستظهر الصورة هنا قريباً"
+  }
+}
