@@ -51,6 +51,8 @@ export default function BookSpread({
 
   // Hover curl preview (before dragging)
   const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null);
+  // Hover corner (top/bottom) so the fold appears in the correct corner
+  const [hoverCorner, setHoverCorner] = useState<"top" | "bottom">("bottom");
   const HOVER_PREVIEW_PROGRESS = 0.55; // stronger preview
 
   // Page turn animation state
@@ -165,6 +167,7 @@ export default function BookSpread({
       setCurlProgress(0);
       setCurlSide(null);
       setHoverSide(null); // Clear hover state after drag
+      setHoverCorner("bottom"); // Reset corner
     };
 
     window.addEventListener("pointerup", handlePointerUp);
@@ -293,12 +296,28 @@ export default function BookSpread({
         }}
         onPointerMove={(e) => {
           if (isDragging.current || isTurning) return;
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          const inside = isInCornerZone(rect, e.clientX, e.clientY, "left");
-          setHoverSide(inside && canGoPrev ? "left" : null);
+
+          const el = e.currentTarget as HTMLElement;
+          const rect = el.getBoundingClientRect();
+
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+
+          const inZone = isInCornerZone(rect, e.clientX, e.clientY, "left");
+          const corner: "top" | "bottom" = y < rect.height / 2 ? "top" : "bottom";
+
+          if (inZone && canGoPrev) {
+            setHoverSide("left");
+            setHoverCorner(corner);
+          } else {
+            setHoverSide(null);
+          }
         }}
         onPointerLeave={() => {
-          if (!isDragging.current) setHoverSide(null);
+          if (!isDragging.current) {
+            setHoverSide(null);
+            setHoverCorner("bottom");
+          }
         }}
         onPointerDown={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -319,6 +338,7 @@ export default function BookSpread({
           dragSide.current = "left";
           isDragging.current = true;
           setHoverSide(null); // Clear hover when dragging starts
+          setHoverCorner("bottom"); // Reset corner
         }}
         onClick={() => {
           if (didDragRef.current) return;
@@ -356,60 +376,92 @@ export default function BookSpread({
           <Box
             sx={{
               position: "absolute",
-              bottom: 0,
               left: 0,
+              ...(hoverSide === "left" && hoverCorner === "top"
+                ? { top: 0 }
+                : { bottom: 0 }),
 
-              // Bigger + stronger
-              width: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
-              height: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
+              width: `${
+                (curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260
+              }px`,
+              height: `${
+                (curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260
+              }px`,
 
-              // Paper fold gradient (top face + underside vibe)
-              background: `
-                linear-gradient(
-                  135deg,
-                  rgba(255,255,255,0.95) 0%,
-                  rgba(245,245,245,0.92) 35%,
-                  rgba(210,210,210,0.95) 100%
-                )
-              `,
+              // Triangle shape depends on which corner we are in
+              clipPath:
+                hoverSide === "left" && hoverCorner === "top"
+                  ? "polygon(0 0, 100% 0, 0 100%)" // top-left
+                  : "polygon(0 100%, 100% 100%, 0 0)", // bottom-left
 
-              // Triangle shape
-              clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+              // Gradient depends on corner (makes it feel lifted)
+              background:
+                hoverSide === "left" && hoverCorner === "top"
+                  ? `
+                    linear-gradient(
+                      315deg,
+                      rgba(255,255,255,0.96) 0%,
+                      rgba(245,245,245,0.92) 35%,
+                      rgba(210,210,210,0.96) 100%
+                    )
+                  `
+                  : `
+                    linear-gradient(
+                      135deg,
+                      rgba(255,255,255,0.96) 0%,
+                      rgba(245,245,245,0.92) 35%,
+                      rgba(210,210,210,0.96) 100%
+                    )
+                  `,
 
-              // Physical shadow (more realistic)
-              boxShadow: `
-                10px -10px 22px rgba(0,0,0,0.25),
-                0px 0px 0px rgba(0,0,0,0)
-              `,
+              boxShadow:
+                hoverSide === "left" && hoverCorner === "top"
+                  ? "10px 10px 22px rgba(0,0,0,0.22)"
+                  : "10px -10px 22px rgba(0,0,0,0.22)",
 
-              // Slight lift/tilt makes it feel "grab me"
-              transform: `translate(-2px, 2px) rotate(-1.5deg)`,
-              transformOrigin: "bottom left",
+              transform:
+                hoverSide === "left" && hoverCorner === "top"
+                  ? "translate(-2px, -2px) rotate(1.2deg)"
+                  : "translate(-2px, 2px) rotate(-1.2deg)",
 
-              // Smooth in, instant out feeling
-              transition: isDragging.current ? "none" : "opacity 40ms linear, transform 120ms ease",
+              transformOrigin:
+                hoverSide === "left" && hoverCorner === "top"
+                  ? "top left"
+                  : "bottom left",
+
+              transition: isDragging.current
+                ? "none"
+                : "opacity 60ms linear, transform 140ms ease",
               opacity: 1,
               pointerEvents: "none",
 
-              // ✅ Add a bright fold edge line (this is what makes it POP)
               "&::after": {
                 content: '""',
                 position: "absolute",
                 inset: 0,
-                clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+                clipPath:
+                  hoverSide === "left" && hoverCorner === "top"
+                    ? "polygon(0 0, 100% 0, 0 100%)"
+                    : "polygon(0 100%, 100% 100%, 0 0)",
                 background:
-                  "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 55%)",
-                opacity: 0.9,
+                  hoverSide === "left" && hoverCorner === "top"
+                    ? "linear-gradient(315deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 55%)"
+                    : "linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 55%)",
+                opacity: 0.95,
               },
 
-              // ✅ Add underside shadow depth (makes it physical)
               "&::before": {
                 content: '""',
                 position: "absolute",
                 inset: 0,
-                clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+                clipPath:
+                  hoverSide === "left" && hoverCorner === "top"
+                    ? "polygon(0 0, 100% 0, 0 100%)"
+                    : "polygon(0 100%, 100% 100%, 0 0)",
                 background:
-                  "radial-gradient(circle at 0% 100%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)",
+                  hoverSide === "left" && hoverCorner === "top"
+                    ? "radial-gradient(circle at 0% 0%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)"
+                    : "radial-gradient(circle at 0% 100%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)",
                 opacity: 0.9,
               },
             }}
@@ -474,12 +526,28 @@ export default function BookSpread({
         }}
         onPointerMove={(e) => {
           if (isDragging.current || isTurning) return;
-          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-          const inside = isInCornerZone(rect, e.clientX, e.clientY, "right");
-          setHoverSide(inside && canGoNext ? "right" : null);
+
+          const el = e.currentTarget as HTMLElement;
+          const rect = el.getBoundingClientRect();
+
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+
+          const inZone = isInCornerZone(rect, e.clientX, e.clientY, "right");
+          const corner: "top" | "bottom" = y < rect.height / 2 ? "top" : "bottom";
+
+          if (inZone && canGoNext) {
+            setHoverSide("right");
+            setHoverCorner(corner);
+          } else {
+            setHoverSide(null);
+          }
         }}
         onPointerLeave={() => {
-          if (!isDragging.current) setHoverSide(null);
+          if (!isDragging.current) {
+            setHoverSide(null);
+            setHoverCorner("bottom");
+          }
         }}
         onPointerDown={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -500,6 +568,7 @@ export default function BookSpread({
           dragSide.current = "right";
           isDragging.current = true;
           setHoverSide(null); // Clear hover when dragging starts
+          setHoverCorner("bottom"); // Reset corner
         }}
         onClick={() => {
           if (didDragRef.current) return;
@@ -623,32 +692,60 @@ export default function BookSpread({
           <Box
             sx={{
               position: "absolute",
-              bottom: 0,
               right: 0,
+              ...(hoverSide === "right" && hoverCorner === "top"
+                ? { top: 0 }
+                : { bottom: 0 }),
 
-              width: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
-              height: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
+              width: `${
+                (curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260
+              }px`,
+              height: `${
+                (curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260
+              }px`,
 
-              background: `
-                linear-gradient(
-                  225deg,
-                  rgba(255,255,255,0.95) 0%,
-                  rgba(245,245,245,0.92) 35%,
-                  rgba(210,210,210,0.95) 100%
-                )
-              `,
+              clipPath:
+                hoverSide === "right" && hoverCorner === "top"
+                  ? "polygon(100% 0, 0 0, 100% 100%)" // top-right
+                  : "polygon(100% 100%, 100% 0, 0 100%)", // bottom-right
 
-              clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+              background:
+                hoverSide === "right" && hoverCorner === "top"
+                  ? `
+                    linear-gradient(
+                      225deg,
+                      rgba(255,255,255,0.96) 0%,
+                      rgba(245,245,245,0.92) 35%,
+                      rgba(210,210,210,0.96) 100%
+                    )
+                  `
+                  : `
+                    linear-gradient(
+                      225deg,
+                      rgba(255,255,255,0.96) 0%,
+                      rgba(245,245,245,0.92) 35%,
+                      rgba(210,210,210,0.96) 100%
+                    )
+                  `,
 
-              boxShadow: `
-                -10px -10px 22px rgba(0,0,0,0.25),
-                0px 0px 0px rgba(0,0,0,0)
-              `,
+              boxShadow:
+                hoverSide === "right" && hoverCorner === "top"
+                  ? "-10px 10px 22px rgba(0,0,0,0.22)"
+                  : "-10px -10px 22px rgba(0,0,0,0.22)",
 
-              transform: `translate(2px, 2px) rotate(1.5deg)`,
-              transformOrigin: "bottom right",
+              transform:
+                hoverSide === "right" && hoverCorner === "top"
+                  ? "translate(2px, -2px) rotate(-1.2deg)"
+                  : "translate(2px, 2px) rotate(1.2deg)",
 
-              transition: isDragging.current ? "none" : "opacity 40ms linear, transform 120ms ease",
+              transformOrigin:
+                hoverSide === "right" && hoverCorner === "top"
+                  ? "top right"
+                  : "bottom right",
+
+              transition: isDragging.current
+                ? "none"
+                : "opacity 60ms linear, transform 140ms ease",
               opacity: 1,
               pointerEvents: "none",
 
@@ -656,19 +753,29 @@ export default function BookSpread({
                 content: '""',
                 position: "absolute",
                 inset: 0,
-                clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+                clipPath:
+                  hoverSide === "right" && hoverCorner === "top"
+                    ? "polygon(100% 0, 0 0, 100% 100%)"
+                    : "polygon(100% 100%, 100% 0, 0 100%)",
                 background:
-                  "linear-gradient(225deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 55%)",
-                opacity: 0.9,
+                  hoverSide === "right" && hoverCorner === "top"
+                    ? "linear-gradient(225deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 55%)"
+                    : "linear-gradient(225deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0) 55%)",
+                opacity: 0.95,
               },
 
               "&::before": {
                 content: '""',
                 position: "absolute",
                 inset: 0,
-                clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+                clipPath:
+                  hoverSide === "right" && hoverCorner === "top"
+                    ? "polygon(100% 0, 0 0, 100% 100%)"
+                    : "polygon(100% 100%, 100% 0, 0 100%)",
                 background:
-                  "radial-gradient(circle at 100% 100%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)",
+                  hoverSide === "right" && hoverCorner === "top"
+                    ? "radial-gradient(circle at 100% 0%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)"
+                    : "radial-gradient(circle at 100% 100%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)",
                 opacity: 0.9,
               },
             }}
