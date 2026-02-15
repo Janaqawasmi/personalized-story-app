@@ -1,0 +1,63 @@
+@startuml Activity Diagram - Story Generation
+
+!theme plain
+skinparam activityStyle rectangle
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam arrowThickness 1.5
+
+title Personalized Story Application - Activity Diagram: Story Generation
+
+|Specialist|
+start
+:Create Story Brief;
+
+|#LightBlue|Backend|
+:Save brief to Firestore;
+
+|Specialist|
+:Generate Draft;
+
+|#LightBlue|Backend|
+:Load story brief from Firestore;
+
+:Retrieve RAG context;
+note right
+  Therapeutic principles
+  Writing rules
+  Topic-specific knowledge
+end note
+
+:Build generation prompt;
+
+|#LightCoral|AI / External Services|
+:Call OpenAI API;
+
+if (Generation successful?) then (yes)
+  |#LightBlue|Backend|
+  :Parse JSON response;
+  :Validate draft structure;
+  :Save draft to Firestore;
+  :Update brief status;
+  
+  |Specialist|
+  :Review draft;
+  if (Approved?) then (yes)
+    |#LightBlue|Backend|
+    :Approve draft;
+    :Publish as template;
+    stop
+  else (no)
+    |Specialist|
+    :Request revisions;
+  endif
+else (no)
+  |#LightBlue|Backend|
+  :Log error;
+  :Update draft status to failed;
+  stop
+endif
+
+@enduml

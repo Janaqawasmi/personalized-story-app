@@ -1,0 +1,132 @@
+@startuml Database Tables Diagram
+
+!theme plain
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam arrowThickness 1.5
+
+title Personalized Story Application - Database Tables Diagram
+
+' ============================================
+' COLLECTIONS (TABLES)
+' ============================================
+
+entity "story_templates" {
+  * id : string <<PK>>
+  --
+  * title : string
+  * status : string
+  * language : string
+  * ageGroup : string
+  * primaryTopic : string
+  * specificSituation : string
+  * content : object
+  * generationConfig : object
+  * createdAt : timestamp
+  * updatedAt : timestamp
+}
+
+entity "personalized_stories" {
+  * id : string <<PK>>
+  --
+  * templateId : string <<FK>>
+  * childName : string
+  * gender : string
+  * personalizedContent : object
+  * createdAt : timestamp
+}
+
+entity "storyDrafts" {
+  * id : string <<PK>>
+  --
+  * briefId : string <<FK>>
+  * createdBy : string
+  * status : string
+  * version : number
+  * revisionCount : number
+  * title : string
+  * pages : array
+  * generationConfig : object
+  * createdAt : timestamp
+  * updatedAt : timestamp
+  * approvedAt : timestamp
+  * approvedBy : string
+}
+
+entity "specialist_story_briefs" {
+  * id : string <<PK>>
+  --
+  * createdBy : string
+  * status : string
+  * primaryTopic : string
+  * specificSituation : string
+  * ageGroup : string
+  * emotionalSensitivity : string
+  * emotionalGoals : array
+  * exclusions : array
+  * keyMessage : string
+  * complexity : string
+  * emotionalTone : string
+  * caregiverPresence : string
+  * endingStyle : string
+  * createdAt : timestamp
+  * updatedAt : timestamp
+  * version : number
+}
+
+entity "referenceData/topics" {
+  * topicKey : string <<PK>>
+  --
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+entity "referenceData/situations" {
+  * situationKey : string <<PK>>
+  --
+  * topicKey : string <<FK>>
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+entity "referenceData/emotionalGoals" {
+  * goalKey : string <<PK>>
+  --
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+entity "referenceData/exclusions" {
+  * exclusionKey : string <<PK>>
+  --
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+referenceData/situations }o--|| referenceData/topics
+
+story_templates }o--|| referenceData/topics
+story_templates }o--|| referenceData/situations
+
+specialist_story_briefs }o--|| referenceData/topics
+specialist_story_briefs }o--|| referenceData/situations
+
+storyDrafts }o--|| specialist_story_briefs
+
+personalized_stories }o--|| story_templates
+
+@enduml

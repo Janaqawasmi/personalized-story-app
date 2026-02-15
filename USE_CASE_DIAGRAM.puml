@@ -1,0 +1,156 @@
+@startuml Use Case Diagram
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle stickman
+skinparam shadowing false
+skinparam linetype ortho
+skinparam noteBackgroundColor #FFF9C4
+skinparam noteBorderColor #BDBDBD
+skinparam padding 20
+skinparam usecase {
+  BackgroundColor White
+  BorderColor Black
+}
+
+actor "Visitor" as Visitor
+actor "Specialist" as Specialist
+actor "Admin" as Admin
+
+rectangle "Personalized Therapeutic Story Platform" {
+  package "Visitor Area" {
+    usecase "Browse Stories" as V_Browse
+    usecase "Search Stories" as V_Search
+    usecase "View Story Details" as V_View
+    usecase "Read Story Samples" as V_ReadSamples
+    usecase "Log In / Register" as V_Login
+    usecase "Personalize Story" as V_Personalize
+    usecase "Resume Personalization" as V_Resume
+    usecase "Start New Personalization" as V_StartNew
+    usecase "Purchase Story" as V_Purchase
+    usecase "View Purchased Stories" as V_Library
+    usecase "Download Story as PDF" as V_DownloadPDF
+    usecase "Listen to Story" as V_Listen
+    usecase "Add Story to Favorites" as V_Favorite
+    usecase "View Favorite Stories" as V_Favorites
+    usecase "Share Story" as V_Share
+    usecase "Send Request to Admin" as V_Request
+  }
+
+  package "Specialist Area" {
+    usecase "Login (Specialist)" as S_Login
+    usecase "List All Drafts" as S_List
+    usecase "Create Story Brief" as S_Brief
+    usecase "Generate Story Draft" as S_Generate
+    usecase "Review Story Draft" as S_Review
+    usecase "Edit Draft" as S_Edit
+    usecase "Approve Draft" as S_Approve
+  }
+
+  package "Admin Area" {
+    usecase "Login (Admin)" as A_Login
+    usecase "Manage Users" as A_Users
+    usecase "Manage Specialists" as A_Specialists
+    usecase "Manage Payments" as A_Payments
+    usecase "Moderate Content" as A_Moderate
+    usecase "Review Reports" as A_Reports
+    usecase "Review Visitor Requests" as A_Requests
+  }
+}
+
+actor "AI Service\n(OpenAI)" as AIService
+actor "Payment Gateway" as PaymentGateway
+actor "Storage Service" as StorageService
+
+AIService -[hidden]down- PaymentGateway
+PaymentGateway -[hidden]down- StorageService
+
+Visitor --> V_Browse
+Visitor --> V_Search
+Visitor --> V_View
+Visitor --> V_ReadSamples
+Visitor --> V_Login
+Visitor --> V_Personalize
+Visitor --> V_Purchase
+Visitor --> V_Library
+Visitor --> V_DownloadPDF
+Visitor --> V_Listen
+Visitor --> V_Favorite
+Visitor --> V_Favorites
+Visitor --> V_Share
+Visitor --> V_Request
+
+Specialist --> S_Login
+Specialist --> S_List
+Specialist --> S_Brief
+Specialist --> S_Generate
+Specialist --> S_Review
+Specialist --> S_Edit
+Specialist --> S_Approve
+
+Admin --> A_Login
+Admin --> A_Users
+Admin --> A_Specialists
+Admin --> A_Payments
+Admin --> A_Moderate
+Admin --> A_Reports
+Admin --> A_Requests
+Admin --> S_List
+Admin --> S_Review
+Admin --> S_Approve
+
+V_Personalize <.. V_Resume : <<extend>>
+V_Personalize <.. V_StartNew : <<extend>>
+V_Library ..> V_DownloadPDF : <<include>>
+V_Library ..> V_Listen : <<include>>
+V_Library ..> V_Share : <<include>>
+V_Favorite ..> V_Favorites : <<include>>
+S_Brief ..> S_Generate : <<include>>
+S_Generate ..> S_Review : <<include>>
+S_Review ..> S_Edit : <<extend>>
+S_Review ..> S_Approve : <<extend>>
+
+S_Generate --> AIService
+V_Personalize --> AIService
+V_Purchase --> PaymentGateway
+A_Payments --> PaymentGateway
+V_DownloadPDF --> StorageService
+V_Listen --> StorageService
+V_Share --> StorageService
+S_Generate --> StorageService
+
+note top of Visitor
+  <b>Preconditions:</b>
+  Auth required for:
+  Personalize, Purchase,
+  Favorites, Download, Share
+end note
+
+note right of Specialist
+  <b>Preconditions:</b>
+  Must be authenticated
+  Access only own drafts
+end note
+
+note top of Admin
+  <b>Preconditions:</b>
+  Must be authenticated
+  Access all functions
+end note
+
+note right of AIService
+  AI story generation
+  Personalized images
+end note
+
+note right of PaymentGateway
+  Payment processing
+  Transaction management
+end note
+
+note right of StorageService
+  Content storage
+  File downloads
+end note
+
+@enduml

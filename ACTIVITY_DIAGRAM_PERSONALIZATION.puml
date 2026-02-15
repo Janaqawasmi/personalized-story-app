@@ -1,0 +1,73 @@
+@startuml Activity Diagram - Story Personalization
+
+!theme plain
+skinparam activityStyle rectangle
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam arrowThickness 1.5
+
+title Personalized Story Application - Activity Diagram: Story Personalization
+
+|Visitor|
+start
+:Browse/Search Stories;
+
+if (Search by text?) then (yes)
+  |#LightBlue|Backend|
+  :Match against reference data;
+  if (Match found?) then (yes)
+    :Query by situation/topic;
+  else (no)
+    :Query all stories;
+    :Filter by title;
+  endif
+else (no)
+  |#LightBlue|Backend|
+  :Filter by age/topic/category;
+endif
+
+|Visitor|
+:Display story results;
+
+:User selects story;
+
+|#LightBlue|Backend|
+:Load story template from Firestore;
+
+|Visitor|
+:Enter child information;
+
+:Upload child image;
+
+:Select story style;
+
+:Preview personalized story;
+
+if (User confirms?) then (yes)
+  |#LightBlue|Backend|
+  :Call personalization API;
+  :Personalize template content;
+  
+  |#LightCoral|AI / External Services|
+  :Generate story images;
+  note right
+    Use child image
+    Generate images for each page
+    Match story style
+  end note
+  
+  |#LightBlue|Backend|
+  :Save personalized story to Firestore;
+  :Save generated images;
+  
+  |Visitor|
+  :Display personalized story;
+  stop
+else (no)
+  |Visitor|
+  :Return to edit;
+endif
+
+@enduml
