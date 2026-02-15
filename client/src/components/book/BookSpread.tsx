@@ -49,12 +49,30 @@ export default function BookSpread({
   const [curlProgress, setCurlProgress] = useState(0); // 0 → 1
   const [curlSide, setCurlSide] = useState<"left" | "right" | null>(null);
 
+  // Hover curl preview (before dragging)
+  const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null);
+  const HOVER_PREVIEW_PROGRESS = 0.35; // how big the curl looks on hover
+
   // Page turn animation state
   const [isTurning, setIsTurning] = useState(false);
   const [turnDirection, setTurnDirection] = useState<"next" | "prev" | null>(null);
 
   const DRAG_THRESHOLD = 80; // px
   const CORNER_SIZE = 120; // px
+
+  // Helper function to detect if pointer is in corner zone
+  const isInCornerZone = (rect: DOMRect, clientX: number, clientY: number, side: "left" | "right") => {
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    if (side === "left") {
+      return x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
+    }
+
+    // right side
+    const fromRight = rect.width - x;
+    return fromRight < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
+  };
 
   // Page turn trigger function
   const startPageTurn = (direction: "next" | "prev") => {
@@ -138,6 +156,7 @@ export default function BookSpread({
       // Reset curl animation
       setCurlProgress(0);
       setCurlSide(null);
+      setHoverSide(null); // Clear hover state after drag
     };
 
     window.addEventListener("pointerup", handlePointerUp);
@@ -255,6 +274,15 @@ export default function BookSpread({
             opacity: 0.7,
           },
         }}
+        onPointerMove={(e) => {
+          if (isDragging.current || isTurning) return;
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const inside = isInCornerZone(rect, e.clientX, e.clientY, "left");
+          setHoverSide(inside && canGoPrev ? "left" : null);
+        }}
+        onPointerLeave={() => {
+          if (!isDragging.current) setHoverSide(null);
+        }}
         onPointerDown={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           const x = e.clientX - rect.left;
@@ -270,6 +298,7 @@ export default function BookSpread({
           dragStartX.current = e.clientX;
           dragSide.current = "left";
           isDragging.current = true;
+          setHoverSide(null); // Clear hover when dragging starts
         }}
         onClick={() => {
           if (didDragRef.current) return;
@@ -289,11 +318,8 @@ export default function BookSpread({
               height: 80,
               background: `linear-gradient(${isRTL ? "135deg" : "225deg"}, ${theme.palette.divider}40 0%, transparent 60%)`,
               borderRadius: isRTL ? "0 0 0 100%" : "0 0 100% 0",
-              opacity: 0,
-              transition: "opacity 0.2s ease",
-              "&:hover": {
-                opacity: 0.4,
-              },
+              opacity: hoverSide === "left" ? 0.5 : 0,
+              transition: "opacity 0.18s ease",
               pointerEvents: "none",
             }}
           />
@@ -323,14 +349,14 @@ export default function BookSpread({
         )}
 
         {/* Curl Overlay - Left Page */}
-        {curlSide === "left" && (
+        {(curlSide === "left" || hoverSide === "left") && (
           <Box
             sx={{
               position: "absolute",
               bottom: 0,
               left: 0,
-              width: `${curlProgress * 220}px`,
-              height: `${curlProgress * 220}px`,
+              width: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
+              height: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
               background: `
                 linear-gradient(
                   135deg,
@@ -341,11 +367,14 @@ export default function BookSpread({
               `,
               clipPath: "polygon(0 100%, 100% 100%, 0 0)",
               boxShadow: `
-                ${curlProgress * 8}px ${curlProgress * -8}px
-                ${curlProgress * 16}px rgba(0,0,0,0.25)
+                ${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 8}px
+                ${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * -8}px
+                ${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 16}px
+                rgba(0,0,0,0.25)
               `,
-              transition: isDragging.current ? "none" : "all 0.35s ease",
+              transition: isDragging.current ? "none" : "all 0.18s ease",
               pointerEvents: "none",
+              opacity: curlSide === "left" ? 1 : 0.9,
             }}
           />
         )}
@@ -397,6 +426,15 @@ export default function BookSpread({
             opacity: 0.7,
           },
         }}
+        onPointerMove={(e) => {
+          if (isDragging.current || isTurning) return;
+          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+          const inside = isInCornerZone(rect, e.clientX, e.clientY, "right");
+          setHoverSide(inside && canGoNext ? "right" : null);
+        }}
+        onPointerLeave={() => {
+          if (!isDragging.current) setHoverSide(null);
+        }}
         onPointerDown={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           const x = rect.width - (e.clientX - rect.left);
@@ -412,6 +450,7 @@ export default function BookSpread({
           dragStartX.current = e.clientX;
           dragSide.current = "right";
           isDragging.current = true;
+          setHoverSide(null); // Clear hover when dragging starts
         }}
         onClick={() => {
           if (didDragRef.current) return;
@@ -531,14 +570,14 @@ export default function BookSpread({
         </Typography>
 
         {/* Curl Overlay - Right Page */}
-        {curlSide === "right" && (
+        {(curlSide === "right" || hoverSide === "right") && (
           <Box
             sx={{
               position: "absolute",
               bottom: 0,
               right: 0,
-              width: `${curlProgress * 220}px`,
-              height: `${curlProgress * 220}px`,
+              width: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
+              height: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
               background: `
                 linear-gradient(
                   225deg,
@@ -549,11 +588,14 @@ export default function BookSpread({
               `,
               clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
               boxShadow: `
-                ${curlProgress * -8}px ${curlProgress * -8}px
-                ${curlProgress * 16}px rgba(0,0,0,0.25)
+                ${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * -8}px
+                ${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * -8}px
+                ${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 16}px
+                rgba(0,0,0,0.25)
               `,
-              transition: isDragging.current ? "none" : "all 0.35s ease",
+              transition: isDragging.current ? "none" : "all 0.18s ease",
               pointerEvents: "none",
+              opacity: curlSide === "right" ? 1 : 0.9,
             }}
           />
         )}
