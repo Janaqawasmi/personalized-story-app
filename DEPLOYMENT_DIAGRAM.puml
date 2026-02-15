@@ -1,0 +1,61 @@
+@startuml Deployment Diagram
+
+!theme plain
+skinparam nodeStyle rectangle
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam arrowThickness 1.5
+skinparam maxMessageSize 60
+skinparam wrapWidth 200
+
+title Personalized Story Application - Deployment Diagram
+
+left to right direction
+
+skinparam packagePadding 20
+skinparam packageStyle rectangle
+
+' ============================================
+' DEPLOYMENT NODES
+' ============================================
+
+node "Client" #E3F2FD {
+  [Web Browser] as Browser
+  [React Application] as ReactApp
+}
+
+node "Web Server" #C8E6C9 {
+  [Static Hosting] as StaticHost
+}
+
+node "Application Server" #A5D6A7 {
+  [Node.js Runtime] as NodeRuntime
+  [Express.js Server] as ExpressServer
+}
+
+node "Database" #FFF9C4 {
+  database [Firestore] as Firestore
+}
+
+node "External Services" #F3E5F5 {
+  cloud [OpenAI API] as OpenAI
+  cloud [Firebase Services] as FirebaseServices
+}
+
+' ============================================
+' DEPLOYMENT CONNECTIONS
+' ============================================
+
+Browser --> StaticHost : HTTPS
+Browser --> ExpressServer : REST
+Browser --> FirebaseServices : Auth
+
+StaticHost --> ReactApp
+
+ExpressServer --> Firestore
+ExpressServer --> OpenAI
+
+@enduml

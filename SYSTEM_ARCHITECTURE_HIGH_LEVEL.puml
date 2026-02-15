@@ -1,0 +1,127 @@
+@startuml System Architecture Diagram - Academic
+
+!theme plain
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam packageStyle rectangle
+skinparam arrowThickness 1.5
+skinparam maxMessageSize 60
+
+title Personalized Story Application - System Architecture Diagram
+
+left to right direction
+
+' ============================================
+' LAYER DEFINITIONS
+' ============================================
+
+package "Presentation Layer" #E3F2FD {
+  [React Frontend\nTypeScript + Material-UI] as Frontend
+  [Firebase Client SDK] as FirebaseClient
+}
+
+package "Application Layer" #C8E6C9 {
+  [Express.js REST API\nPort: 5000] as BackendAPI
+  
+  package "Services" #A5D6A7 {
+    [Story Generator] as StoryGen
+    [Personalization] as Personalization
+    [RAG Service] as RAGService
+    [Template Service] as TemplateService
+    [Reference Data] as RefDataService
+  }
+  
+  [LLM Client\nOpenAI] as LLMClient
+}
+
+package "Data Layer" #FFF9C4 {
+  database "Firestore Database" as Firestore {
+    [story_templates] as Templates
+    [personalized_stories] as Personalized
+    [storyDrafts] as Drafts
+    [specialist_story_briefs] as Briefs
+    [referenceData] as RefData
+    [rag_collections] as RAGCollections
+  }
+}
+
+package "External Services" #F3E5F5 {
+  cloud "OpenAI API" as OpenAI
+  cloud "Firebase Services" as FirebaseServices
+}
+
+' ============================================
+' CONNECTIONS - Clean Layout
+' ============================================
+Frontend --> FirebaseClient
+Frontend --> BackendAPI : REST API
+Frontend --> FirebaseServices : Auth
+
+BackendAPI --> StoryGen
+BackendAPI --> Personalization
+BackendAPI --> TemplateService
+BackendAPI --> RefDataService
+BackendAPI --> RAGService
+BackendAPI --> Firestore : Admin SDK
+
+StoryGen --> LLMClient
+StoryGen --> RAGService
+StoryGen --> Briefs
+StoryGen --> Drafts
+
+Personalization --> Templates
+Personalization --> Personalized
+
+TemplateService --> Templates
+RefDataService --> RefData
+RAGService --> RAGCollections
+RAGService --> RefData
+
+LLMClient --> OpenAI : HTTPS
+
+FirebaseClient --> Templates
+FirebaseClient --> Personalized
+FirebaseClient --> RefData
+
+' ============================================
+' KEY INFORMATION NOTES
+' ============================================
+
+note right of Frontend
+  <b>User Functions:</b>
+  • Browse & Search
+  • Personalize Stories
+  • Read Stories
+  • Admin: Create Briefs
+end note
+
+note right of BackendAPI
+  <b>Endpoints:</b>
+  • /api/personalized-stories
+  • /api/story-templates
+  • /api/story-drafts
+  • /api/reference-data
+end note
+
+note bottom of StoryGen
+  <b>Process:</b>
+  1. Receive Brief
+  2. Get RAG Context
+  3. Build Prompt
+  4. Call OpenAI
+  5. Save Draft
+end note
+
+note bottom of Firestore
+  <b>Collections:</b>
+  • story_templates
+  • personalized_stories
+  • storyDrafts
+  • referenceData
+  • rag_* collections
+end note
+
+@enduml

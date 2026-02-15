@@ -1,0 +1,262 @@
+@startuml Code Structure / Modules Diagram
+
+!theme plain
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 10
+skinparam arrowThickness 1.5
+
+title Personalized Story Application - Code Structure / Modules Diagram
+
+left to right direction
+
+' ============================================
+' CLIENT MODULES
+' ============================================
+
+package "client/src" #E3F2FD {
+  
+  package "pages" #BBDEFB {
+    [App.tsx] as App
+    [HomePage.tsx] as HomePage
+    [SearchPage.tsx] as SearchPage
+    [PersonalizeStoryPage.tsx] as PersonalizePage
+    [BookReaderPage.tsx] as BookReaderPage
+    [AdminStoryBriefForm.tsx] as AdminForm
+    [AgeResultsPage.tsx] as AgeResults
+    [CategoryResultsPage.tsx] as CategoryResults
+    [TopicResultsPage.tsx] as TopicResults
+  }
+  
+  package "components" #90CAF9 {
+    package "layout" {
+      [Navbar.tsx] as Navbar
+      [SearchOverlay.tsx] as SearchOverlay
+    }
+    package "personalization" {
+      [ChildInfoForm.tsx] as ChildForm
+      [StyleSelector.tsx] as StyleSelector
+      [PreviewCard.tsx] as PreviewCard
+    }
+    package "book" {
+      [BookCover.tsx] as BookCover
+      [BookSpread.tsx] as BookSpread
+    }
+    [StoryCard.tsx] as StoryCard
+    [StoryGridCard.tsx] as StoryGridCard
+    [MegaMenu] as MegaMenu
+    [Hero.tsx] as Hero
+    [Footer.tsx] as Footer
+  }
+  
+  package "api" #64B5F6 {
+    [api.ts] as APIModule
+    [stories.ts] as StoriesAPI
+    [referenceData.ts] as RefDataAPI
+  }
+  
+  package "services" #42A5F5 {
+    [referenceData.service.ts] as RefDataService
+  }
+  
+  package "hooks" #1E88E5 {
+    [useReferenceData.ts] as UseRefData
+  }
+  
+  package "types" #1565C0 {
+    [referenceData.ts] as RefDataTypes
+  }
+  
+  package "constants" #0D47A1 {
+    [topicMap.ts] as TopicMap
+  }
+  
+  [firebase.ts] as FirebaseConfig
+  [theme.ts] as Theme
+  [index.tsx] as Index
+}
+
+' ============================================
+' SERVER MODULES
+' ============================================
+
+package "server/src" #C8E6C9 {
+  
+  [app.ts] as ServerApp
+  
+  package "routes" #A5D6A7 {
+    [template.routes.ts] as TemplateRoutes
+    [personalizedStory.routes.ts] as PersonalizedRoutes
+    [storyDraft.routes.ts] as DraftRoutes
+    [storyBrief.routes.ts] as BriefRoutes
+    [referenceData.routes.ts] as RefDataRoutes
+    [stories.routes.ts] as StoriesRoutes
+  }
+  
+  package "controllers" #81C784 {
+    [template.controller.ts] as TemplateController
+    [personalizedStory.controller.ts] as PersonalizedController
+    [storyDraft.controller.ts] as DraftController
+    [storyBrief.controller.ts] as BriefController
+    [referenceData.controller.ts] as RefDataController
+  }
+  
+  package "services" #66BB6A {
+    [storyGenerator.service.ts] as StoryGenService
+    [personalization.service.ts] as PersonalizationService
+    [rag.service.ts] as RAGService
+    [template.service.ts] as TemplateService
+    [referenceData.service.ts] as RefDataService
+    [llmClient.service.ts] as LLMClient
+    [storyPromptBuilder.ts] as PromptBuilder
+    [ragWritingRules.service.ts] as RAGRules
+  }
+  
+  package "models" #4CAF50 {
+    [storyBrief.model.ts] as BriefModel
+    [storyDraft.model.ts] as DraftModel
+    [draftSuggestion.model.ts] as DraftSuggestionModel
+  }
+  
+  package "config" #43A047 {
+    [firebase.ts] as FirebaseAdminConfig
+  }
+  
+  package "middleware" #388E3C {
+    [requireAuth.ts] as AuthMiddleware
+  }
+}
+
+' ============================================
+' MODULE DEPENDENCIES - CLIENT
+' ============================================
+
+Index --> App
+App --> HomePage
+App --> SearchPage
+App --> PersonalizePage
+App --> BookReaderPage
+App --> AdminForm
+App --> Navbar
+App --> Footer
+
+HomePage --> Hero
+HomePage --> StoryCard
+HomePage --> MegaMenu
+
+SearchPage --> SearchOverlay
+SearchPage --> StoryGridCard
+SearchPage --> APIModule
+
+PersonalizePage --> ChildForm
+PersonalizePage --> StyleSelector
+PersonalizePage --> PreviewCard
+PersonalizePage --> APIModule
+
+BookReaderPage --> BookCover
+BookReaderPage --> BookSpread
+
+HomePage --> StoriesAPI
+AgeResults --> StoriesAPI
+CategoryResults --> StoriesAPI
+TopicResults --> StoriesAPI
+
+APIModule --> StoriesAPI
+APIModule --> RefDataAPI
+
+StoriesAPI --> RefDataService
+RefDataAPI --> RefDataService
+
+RefDataService --> UseRefData
+UseRefData --> RefDataTypes
+
+SearchOverlay --> RefDataTypes
+MegaMenu --> RefDataTypes
+MegaMenu --> TopicMap
+
+HomePage --> FirebaseConfig
+SearchPage --> FirebaseConfig
+PersonalizePage --> FirebaseConfig
+
+App --> Theme
+
+' ============================================
+' MODULE DEPENDENCIES - SERVER
+' ============================================
+
+ServerApp --> TemplateRoutes
+ServerApp --> PersonalizedRoutes
+ServerApp --> DraftRoutes
+ServerApp --> BriefRoutes
+ServerApp --> RefDataRoutes
+ServerApp --> StoriesRoutes
+ServerApp --> AuthMiddleware
+ServerApp --> FirebaseAdminConfig
+
+TemplateRoutes --> TemplateController
+PersonalizedRoutes --> PersonalizedController
+DraftRoutes --> DraftController
+BriefRoutes --> BriefController
+RefDataRoutes --> RefDataController
+
+TemplateRoutes --> AuthMiddleware
+BriefRoutes --> AuthMiddleware
+DraftRoutes --> AuthMiddleware
+
+TemplateController --> TemplateService
+PersonalizedController --> PersonalizationService
+DraftController --> StoryGenService
+BriefController --> StoryGenService
+RefDataController --> RefDataService
+
+StoryGenService --> LLMClient
+StoryGenService --> RAGService
+StoryGenService --> PromptBuilder
+StoryGenService --> BriefModel
+StoryGenService --> DraftModel
+
+RAGService --> RAGRules
+RAGService --> RefDataService
+
+PersonalizationService --> TemplateService
+
+TemplateService --> FirebaseAdminConfig
+PersonalizationService --> FirebaseAdminConfig
+StoryGenService --> FirebaseAdminConfig
+RefDataService --> FirebaseAdminConfig
+
+' ============================================
+' CROSS-CUTTING CONCERNS
+' ============================================
+
+note right of FirebaseConfig
+  <b>Client Firebase Config:</b>
+  • Firestore Client SDK
+  • Authentication
+end note
+
+note right of FirebaseAdminConfig
+  <b>Server Firebase Config:</b>
+  • Firebase Admin SDK
+  • Service Account
+end note
+
+note bottom of APIModule
+  <b>API Client Module:</b>
+  • HTTP Requests
+  • REST API Calls
+  • Error Handling
+end note
+
+note bottom of StoryGenService
+  <b>Story Generation:</b>
+  • RAG Context Retrieval
+  • Prompt Building
+  • OpenAI Integration
+  • Draft Creation
+end note
+
+@enduml

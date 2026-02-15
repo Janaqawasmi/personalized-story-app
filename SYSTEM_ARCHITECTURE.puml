@@ -1,0 +1,147 @@
+@startuml System Architecture Diagram
+
+!define RECTANGLE class
+
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+title Personalized Story App - System Architecture
+
+' ============================================
+' LAYERS
+' ============================================
+
+package "Client Layer" {
+  [React Frontend] as Frontend
+  [Material-UI Components] as MUI
+  [React Router] as Router
+  [Firebase SDK] as FirebaseSDK
+}
+
+package "API Layer" {
+  [Express.js Server] as Server
+  [REST API Routes] as Routes
+  [Controllers] as Controllers
+  [Middleware] as Middleware
+}
+
+package "Service Layer" {
+  [Story Generator Service] as StoryGen
+  [Personalization Service] as Personalization
+  [RAG Service] as RAG
+  [Template Service] as Template
+  [Reference Data Service] as RefData
+  [LLM Client Service] as LLMClient
+}
+
+package "Data Layer" {
+  database "Firestore Database" {
+    [story_templates] as Templates
+    [personalized_stories] as Personalized
+    [storyDrafts] as Drafts
+    [specialist_story_briefs] as Briefs
+    [referenceData/topics] as Topics
+    [referenceData/situations] as SituationsSub
+    [referenceData/emotionalGoals] as Goals
+    [referenceData/exclusions] as Exclusions
+    [rag_* collections] as RAGCollections
+  }
+}
+
+package "External Services" {
+  [OpenAI API] as OpenAI
+  [Firebase Auth] as FirebaseAuth
+}
+
+' ============================================
+' CLIENT LAYER CONNECTIONS
+' ============================================
+Frontend --> MUI : uses
+Frontend --> Router : uses
+Frontend --> FirebaseSDK : uses
+FirebaseSDK --> Templates : queries
+FirebaseSDK --> Personalized : queries
+FirebaseSDK --> Topics : queries
+FirebaseSDK --> SituationsSub : queries
+FirebaseSDK --> Goals : queries
+FirebaseSDK --> Exclusions : queries
+Frontend --> Server : HTTP requests
+
+' ============================================
+' API LAYER CONNECTIONS
+' ============================================
+Server --> Routes : routes to
+Routes --> Controllers : delegates to
+Server --> Middleware : uses
+Controllers --> StoryGen : calls
+Controllers --> Personalization : calls
+Controllers --> Template : calls
+Controllers --> RefData : calls
+Controllers --> RAG : calls
+
+' ============================================
+' SERVICE LAYER CONNECTIONS
+' ============================================
+StoryGen --> LLMClient : uses
+StoryGen --> RAG : retrieves context
+StoryGen --> Briefs : reads
+StoryGen --> Drafts : writes
+Personalization --> Templates : reads
+Personalization --> Personalized : writes
+Template --> Templates : CRUD
+RefData --> Topics : CRUD
+RefData --> SituationsSub : CRUD
+RefData --> Goals : CRUD
+RefData --> Exclusions : CRUD
+RAG --> RAGCollections : queries
+RAG --> Topics : queries
+RAG --> SituationsSub : queries
+LLMClient --> OpenAI : API calls
+
+' ============================================
+' DATA LAYER CONNECTIONS
+' ============================================
+Controllers --> Templates : Firebase Admin SDK
+Controllers --> Personalized : Firebase Admin SDK
+Controllers --> Drafts : Firebase Admin SDK
+Controllers --> Briefs : Firebase Admin SDK
+Controllers --> Topics : Firebase Admin SDK
+Controllers --> SituationsSub : Firebase Admin SDK
+Controllers --> Goals : Firebase Admin SDK
+Controllers --> Exclusions : Firebase Admin SDK
+Controllers --> RAGCollections : Firebase Admin SDK
+
+' ============================================
+' EXTERNAL SERVICES CONNECTIONS
+' ============================================
+Frontend --> FirebaseAuth : authentication
+Server --> FirebaseAuth : admin auth
+
+' ============================================
+' KEY FLOWS
+' ============================================
+
+note right of Frontend
+  **User Flows:**
+  1. Browse/Search Stories
+  2. Personalize Story
+  3. Read Personalized Story
+end note
+
+note right of Server
+  **Admin Flows:**
+  1. Create Story Brief
+  2. Generate Draft (with RAG)
+  3. Review & Approve
+  4. Publish Template
+end note
+
+note bottom of RAG
+  **RAG Retrieval:**
+  - Therapeutic principles
+  - Writing rules
+  - Style policies
+  - Topic-specific knowledge
+end note
+
+@enduml

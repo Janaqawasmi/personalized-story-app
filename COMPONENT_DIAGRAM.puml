@@ -1,0 +1,88 @@
+@startuml Component Diagram
+
+!theme plain
+skinparam componentStyle rectangle
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 12
+skinparam arrowThickness 1.5
+
+title Personalized Story Application - Component Diagram
+
+left to right direction
+
+' ============================================
+' MAIN COMPONENTS
+' ============================================
+
+component [Frontend Application] as Frontend
+
+component [Backend API Server] as Backend
+
+component [Story Generator Service] as StoryGen
+
+component [Personalization Service] as Personalization
+
+component [RAG Service] as RAG
+
+component [Template Service] as TemplateService
+
+component [Reference Data Service] as RefDataService
+
+component [LLM Client Service] as LLMClient
+
+database [Firestore Database] as Firestore
+
+cloud [OpenAI API] as OpenAI
+
+cloud [Firebase Services] as FirebaseServices
+
+' ============================================
+' INTERFACES
+' ============================================
+
+interface "REST API" as RESTInterface
+interface "Firestore SDK" as FirestoreInterface
+interface "OpenAI API" as OpenAIInterface
+
+' ============================================
+' COMPONENT DEPENDENCIES
+' ============================================
+
+Frontend --> Backend : uses
+Frontend --> FirebaseServices : uses
+
+Backend --> StoryGen : uses
+Backend --> Personalization : uses
+Backend --> TemplateService : uses
+Backend --> RefDataService : uses
+Backend --> RAG : uses
+Backend --> Firestore : uses
+
+StoryGen --> LLMClient : uses
+StoryGen --> RAG : uses
+StoryGen --> Firestore : uses
+
+Personalization --> TemplateService : uses
+Personalization --> Firestore : uses
+
+TemplateService --> Firestore : uses
+RefDataService --> Firestore : uses
+RAG --> Firestore : uses
+
+LLMClient --> OpenAI : uses
+
+' ============================================
+' INTERFACE REALIZATIONS
+' ============================================
+
+Frontend ..> RESTInterface : requires
+Backend ..> RESTInterface : provides
+
+Frontend ..> FirestoreInterface : uses
+Backend ..> FirestoreInterface : uses
+
+LLMClient ..> OpenAIInterface : uses
+
+@enduml

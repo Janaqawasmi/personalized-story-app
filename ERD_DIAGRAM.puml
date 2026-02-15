@@ -1,0 +1,134 @@
+@startuml Entity Relationship Diagram
+
+!theme plain
+skinparam linetype ortho
+skinparam roundcorner 10
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam arrowThickness 1.5
+
+title Personalized Story Application - Entity Relationship Diagram
+
+' ============================================
+' ENTITIES
+' ============================================
+
+entity "StoryTemplate" as StoryTemplate {
+  * id : string <<PK>>
+  --
+  * title : string
+  * status : string
+  * language : string
+  * ageGroup : string
+  * primaryTopic : string <<FK>>
+  * specificSituation : string <<FK>>
+  * content : object
+  * generationConfig : object
+  * createdAt : timestamp
+  * updatedAt : timestamp
+}
+
+entity "PersonalizedStory" as PersonalizedStory {
+  * id : string <<PK>>
+  --
+  * templateId : string <<FK>>
+  * childName : string
+  * gender : string
+  * personalizedContent : object
+  * createdAt : timestamp
+}
+
+entity "StoryBrief" as StoryBrief {
+  * id : string <<PK>>
+  --
+  * createdBy : string
+  * status : string
+  * primaryTopic : string <<FK>>
+  * specificSituation : string <<FK>>
+  * ageGroup : string
+  * emotionalSensitivity : string
+  * emotionalGoals : string[] <<FK>>
+  * exclusions : string[] <<FK>>
+  * keyMessage : string
+  * complexity : string
+  * emotionalTone : string
+  * caregiverPresence : string
+  * endingStyle : string
+  * createdAt : timestamp
+  * updatedAt : timestamp
+  * version : number
+}
+
+entity "StoryDraft" as StoryDraft {
+  * id : string <<PK>>
+  --
+  * briefId : string <<FK>>
+  * createdBy : string
+  * status : string
+  * version : number
+  * revisionCount : number
+  * title : string
+  * pages : array
+  * generationConfig : object
+  * createdAt : timestamp
+  * updatedAt : timestamp
+  * approvedAt : timestamp
+  * approvedBy : string
+}
+
+entity "Topic" as Topic {
+  * topicKey : string <<PK>>
+  --
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+entity "Situation" as Situation {
+  * situationKey : string <<PK>>
+  --
+  * topicKey : string <<FK>>
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+entity "EmotionalGoal" as EmotionalGoal {
+  * goalKey : string <<PK>>
+  --
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+entity "Exclusion" as Exclusion {
+  * exclusionKey : string <<PK>>
+  --
+  * label_en : string
+  * label_ar : string
+  * label_he : string
+  * active : boolean
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+Situation }o--|| Topic : "belongs to\n(topicKey)"
+
+StoryTemplate }o--|| Topic : "references\n(primaryTopic)"
+StoryTemplate }o--|| Situation : "references\n(specificSituation)"
+
+StoryBrief }o--|| Topic : "references\n(primaryTopic)"
+StoryBrief }o--|| Situation : "references\n(specificSituation)"
+StoryBrief }o--o{ EmotionalGoal : "has many\n(emotionalGoals)"
+StoryBrief }o--o{ Exclusion : "has many\n(exclusions)"
+
+StoryDraft }o--|| StoryBrief : "generated from\n(briefId)"
+
+PersonalizedStory }o--|| StoryTemplate : "based on\n(templateId)"
+
+@enduml
