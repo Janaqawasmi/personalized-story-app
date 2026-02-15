@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { LanguageProvider } from "./i18n/context/LanguageContext";
+import { ReaderProvider } from "./contexts/ReaderContext";
 
 // Get initial language from URL or localStorage
 const getInitialLanguage = (): "he" | "en" | "ar" => {
@@ -29,6 +30,8 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <LanguageProvider initialLanguage={initialLanguage}>
+    <ReaderProvider>
     <App />
+    </ReaderProvider>
   </LanguageProvider>
 );

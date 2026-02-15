@@ -131,7 +131,9 @@
       "storyLanguage": "הסיפור בשפה {language}",
       "pageOf": "עמוד {current} מתוך {total}",
       "hebrew": "עברית",
-      "arabic": "ערבית"
+      "arabic": "ערבית",
+      "fullScreen": "מסך מלא",
+      "exitFullScreen": "יציאה ממסך מלא"
     },
     "placeholder": {
       "backToHome": "חזרה לדף הבית"

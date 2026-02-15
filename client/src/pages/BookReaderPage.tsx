@@ -1,4 +1,4 @@
-import { Box, Typography, IconButton, useTheme } from "@mui/material";
+import { Box, Typography, IconButton, useTheme, Tooltip } from "@mui/material";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
@@ -7,10 +7,13 @@ import { db } from "../firebase";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import FullscreenIcon from "@mui/icons-material/Fullscreen";
+import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
 import InstructionModal from "../components/InstructionModal";
 import { useTranslation } from "../i18n/useTranslation";
+import { useReader } from "../contexts/ReaderContext";
 
 type Page = {
   pageNumber: number;
@@ -54,6 +57,7 @@ export default function BookReaderPage() {
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showInstructions, setShowInstructions] = useState(false);
+  const { isFullScreen, toggleFullScreen } = useReader();
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
@@ -152,9 +156,48 @@ export default function BookReaderPage() {
     };
   }, [storyId]);
 
+  // Lock scroll when full screen is enabled
+  // ✅ Only lock scroll in fullscreen
+  useEffect(() => {
+    if (!isFullScreen) {
+      // Restore scroll when exiting fullscreen
+      document.documentElement.style.overflow = "";
+      document.body.style.overflow = "";
+      return;
+    }
+
+    // Lock scroll when entering fullscreen
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, [isFullScreen]);
+
+  // ESC to exit full screen (with priority)
+  useEffect(() => {
+    if (!isFullScreen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFullScreen();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown, true); // Use capture phase for priority
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [isFullScreen, toggleFullScreen]);
+
   // Keyboard navigation
   useEffect(() => {
-    if (loading || showCover) return;
+    if (loading || showCover || isFullScreen) return; // Don't handle navigation in fullscreen
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -180,7 +223,7 @@ export default function BookReaderPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [spreadIndex, story, showCover, loading, isRTL, navigate]);
+  }, [spreadIndex, story, showCover, loading, isRTL, navigate, isFullScreen]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -410,6 +453,36 @@ export default function BookReaderPage() {
                 transition: "opacity 0.4s ease, transform 0.4s ease",
               }}
             >
+              {/* Controls ABOVE the book */}
+              <Box
+                sx={{
+                  maxWidth: isFullScreen ? 1320 : 1200,
+                  mx: "auto",
+                  mb: 1.5,
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  px: { xs: 1, md: 0 },
+                }}
+              >
+                <Tooltip
+                  title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")}
+                  arrow
+                >
+                  <IconButton
+                    onClick={toggleFullScreen}
+                    sx={{
+                      background: "rgba(255,255,255,0.7)",
+                      border: "1px solid rgba(0,0,0,0.10)",
+                      backdropFilter: "blur(6px)",
+                      "&:hover": { background: "rgba(255,255,255,0.9)" },
+                    }}
+                  >
+                    {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
+
               {/* Wrapper for book and arrows */}
               <Box
                 sx={{
@@ -428,6 +501,7 @@ export default function BookReaderPage() {
                   onPrev={handlePrev}
                   canGoNext={canGoNext}
                   canGoPrev={canGoPrev}
+                  isFullScreen={isFullScreen}
                 />
 
                 {/* LEFT ARROW — NEXT PAGE (RTL) or PREVIOUS PAGE (LTR) */}

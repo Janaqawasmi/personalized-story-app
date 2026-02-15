@@ -131,7 +131,9 @@
       "storyLanguage": "Story in {language}",
       "pageOf": "Page {current} of {total}",
       "hebrew": "Hebrew",
-      "arabic": "Arabic"
+      "arabic": "Arabic",
+      "fullScreen": "Full screen",
+      "exitFullScreen": "Exit full screen"
     },
     "placeholder": {
       "backToHome": "Back to Home"

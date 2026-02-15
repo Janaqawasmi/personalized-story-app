@@ -19,6 +19,7 @@ type BookSpreadProps = {
   onPrev?: () => void;
   canGoNext?: boolean;
   canGoPrev?: boolean;
+  isFullScreen?: boolean;
 };
 
 export default function BookSpread({
@@ -30,13 +31,14 @@ export default function BookSpread({
   onPrev,
   canGoNext,
   canGoPrev,
+  isFullScreen = false,
 }: BookSpreadProps) {
   const t = useTranslation();
   const theme = useTheme();
 
   // Fixed page dimensions - both pages use these
-  const PAGE_WIDTH = 600; // Half of maxWidth 1200
-  const PAGE_HEIGHT = 640; // Matches parent minHeight on desktop
+  const PAGE_WIDTH = isFullScreen ? 660 : 600; // Half of maxWidth 1200
+  const PAGE_HEIGHT = isFullScreen ? 720 : 640; // Matches parent minHeight on desktop
 
   // Drag tracking state
   const dragStartX = useRef<number | null>(null);
@@ -181,9 +183,9 @@ export default function BookSpread({
         position: "relative",
         // Book shell frame
         width: "100%",
-        maxWidth: 1200,
+        maxWidth: isFullScreen ? 1320 : 1200,
         mx: "auto",
-        minHeight: { xs: "70vh", md: 640 },
+        minHeight: { xs: "70vh", md: isFullScreen ? 720 : 640 },
         borderRadius: { xs: 4, md: 8 },
         overflowX: "visible",
         overflowY: "hidden",
@@ -234,7 +236,7 @@ export default function BookSpread({
       <Box
         sx={{
           width: "100%",
-          height: { xs: "70vh", md: 640 },
+          height: { xs: "70vh", md: isFullScreen ? 720 : 640 },
           display: "flex",
           flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
           position: "relative",
