@@ -51,14 +51,17 @@ export default function BookSpread({
 
   // Hover curl preview (before dragging)
   const [hoverSide, setHoverSide] = useState<"left" | "right" | null>(null);
-  const HOVER_PREVIEW_PROGRESS = 0.35; // how big the curl looks on hover
+  const HOVER_PREVIEW_PROGRESS = 0.55; // stronger preview
 
   // Page turn animation state
   const [isTurning, setIsTurning] = useState(false);
   const [turnDirection, setTurnDirection] = useState<"next" | "prev" | null>(null);
 
   const DRAG_THRESHOLD = 80; // px
-  const CORNER_SIZE = 120; // px
+  const CORNER_SIZE = 140; // px - easier to trigger
+
+  // Helper function to prevent native drag behavior
+  const preventNativeDrag = (e: React.DragEvent) => e.preventDefault();
 
   // Helper function to detect if pointer is in corner zone
   const isInCornerZone = (rect: DOMRect, clientX: number, clientY: number, side: "left" | "right") => {
@@ -153,6 +156,11 @@ export default function BookSpread({
       dragSide.current = null;
       isDragging.current = false;
 
+      // Release pointer capture
+      if (e.target instanceof HTMLElement) {
+        e.target.releasePointerCapture(e.pointerId);
+      }
+
       // Reset curl animation
       setCurlProgress(0);
       setCurlSide(null);
@@ -231,6 +239,8 @@ export default function BookSpread({
       >
       {/* Left Page - Image */}
       <Box
+        draggable={false}
+        onDragStart={preventNativeDrag}
         sx={{
           width: { xs: "100%", md: "50%" },
           height: "100%",
@@ -252,7 +262,14 @@ export default function BookSpread({
             : `linear-gradient(135deg, ${theme.palette.primary.main}08 0%, ${theme.palette.secondary.main}08 100%)`,
           backgroundSize: "cover",
           backgroundPosition: "center",
-          cursor: canGoPrev ? "pointer" : "default",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitUserDrag: "none",
+          touchAction: "none",
+          cursor:
+            canGoPrev && hoverSide === "left"
+              ? (isDragging.current ? "grabbing" : "grab")
+              : "default",
           transform:
             curlSide === "left"
               ? `translateX(${curlProgress * 12}px)`
@@ -293,6 +310,9 @@ export default function BookSpread({
 
           if (!inLeftCorner || !canGoPrev) return;
 
+          // ✅ capture pointer so browser doesn't "block drag"
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
           hasFlippedRef.current = false;
           didDragRef.current = false;
           dragStartX.current = e.clientX;
@@ -307,23 +327,6 @@ export default function BookSpread({
           }
         }}
       >
-        {/* Page Flip Corner (on hover) */}
-        {canGoPrev && (
-          <Box
-            sx={{
-              position: "absolute",
-              bottom: 0,
-              [isRTL ? "right" : "left"]: 0,
-              width: 80,
-              height: 80,
-              background: `linear-gradient(${isRTL ? "135deg" : "225deg"}, ${theme.palette.divider}40 0%, transparent 60%)`,
-              borderRadius: isRTL ? "0 0 0 100%" : "0 0 100% 0",
-              opacity: hoverSide === "left" ? 0.5 : 0,
-              transition: "opacity 0.18s ease",
-              pointerEvents: "none",
-            }}
-          />
-        )}
         {!page.imageUrl && (
           <Box
             sx={{
@@ -355,26 +358,60 @@ export default function BookSpread({
               position: "absolute",
               bottom: 0,
               left: 0,
-              width: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
-              height: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
+
+              // Bigger + stronger
+              width: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
+              height: `${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
+
+              // Paper fold gradient (top face + underside vibe)
               background: `
                 linear-gradient(
                   135deg,
-                  #ffffff 0%,
-                  #f2f2f2 40%,
-                  #d6d6d6 100%
+                  rgba(255,255,255,0.95) 0%,
+                  rgba(245,245,245,0.92) 35%,
+                  rgba(210,210,210,0.95) 100%
                 )
               `,
+
+              // Triangle shape
               clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+
+              // Physical shadow (more realistic)
               boxShadow: `
-                ${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 8}px
-                ${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * -8}px
-                ${(curlSide === "left" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 16}px
-                rgba(0,0,0,0.25)
+                10px -10px 22px rgba(0,0,0,0.25),
+                0px 0px 0px rgba(0,0,0,0)
               `,
-              transition: isDragging.current ? "none" : "all 0.18s ease",
+
+              // Slight lift/tilt makes it feel "grab me"
+              transform: `translate(-2px, 2px) rotate(-1.5deg)`,
+              transformOrigin: "bottom left",
+
+              // Smooth in, instant out feeling
+              transition: isDragging.current ? "none" : "opacity 40ms linear, transform 120ms ease",
+              opacity: 1,
               pointerEvents: "none",
-              opacity: curlSide === "left" ? 1 : 0.9,
+
+              // ✅ Add a bright fold edge line (this is what makes it POP)
+              "&::after": {
+                content: '""',
+                position: "absolute",
+                inset: 0,
+                clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+                background:
+                  "linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 55%)",
+                opacity: 0.9,
+              },
+
+              // ✅ Add underside shadow depth (makes it physical)
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                inset: 0,
+                clipPath: "polygon(0 100%, 100% 100%, 0 0)",
+                background:
+                  "radial-gradient(circle at 0% 100%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)",
+                opacity: 0.9,
+              },
             }}
           />
         )}
@@ -382,6 +419,8 @@ export default function BookSpread({
 
       {/* Right Page - Text */}
       <Box
+        draggable={false}
+        onDragStart={preventNativeDrag}
         sx={{
           width: { xs: "100%", md: "50%" },
           height: "100%",
@@ -404,7 +443,14 @@ export default function BookSpread({
           position: "relative",
           overflow: "hidden",
           boxSizing: "border-box",
-          cursor: canGoNext ? "pointer" : "default",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitUserDrag: "none",
+          touchAction: "none",
+          cursor:
+            canGoNext && hoverSide === "right"
+              ? (isDragging.current ? "grabbing" : "grab")
+              : "default",
           transform:
             curlSide === "right"
               ? `translateX(-${curlProgress * 12}px)`
@@ -444,6 +490,9 @@ export default function BookSpread({
             x < CORNER_SIZE && (y < CORNER_SIZE || y > rect.height - CORNER_SIZE);
 
           if (!inRightCorner || !canGoNext) return;
+
+          // ✅ capture pointer so browser doesn't "block drag"
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
 
           hasFlippedRef.current = false;
           didDragRef.current = false;
@@ -576,26 +625,52 @@ export default function BookSpread({
               position: "absolute",
               bottom: 0,
               right: 0,
-              width: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
-              height: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 220}px`,
+
+              width: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
+              height: `${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 260}px`,
+
               background: `
                 linear-gradient(
                   225deg,
-                  #ffffff 0%,
-                  #f2f2f2 40%,
-                  #d6d6d6 100%
+                  rgba(255,255,255,0.95) 0%,
+                  rgba(245,245,245,0.92) 35%,
+                  rgba(210,210,210,0.95) 100%
                 )
               `,
+
               clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+
               boxShadow: `
-                ${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * -8}px
-                ${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * -8}px
-                ${(curlSide === "right" ? curlProgress : HOVER_PREVIEW_PROGRESS) * 16}px
-                rgba(0,0,0,0.25)
+                -10px -10px 22px rgba(0,0,0,0.25),
+                0px 0px 0px rgba(0,0,0,0)
               `,
-              transition: isDragging.current ? "none" : "all 0.18s ease",
+
+              transform: `translate(2px, 2px) rotate(1.5deg)`,
+              transformOrigin: "bottom right",
+
+              transition: isDragging.current ? "none" : "opacity 40ms linear, transform 120ms ease",
+              opacity: 1,
               pointerEvents: "none",
-              opacity: curlSide === "right" ? 1 : 0.9,
+
+              "&::after": {
+                content: '""',
+                position: "absolute",
+                inset: 0,
+                clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+                background:
+                  "linear-gradient(225deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 55%)",
+                opacity: 0.9,
+              },
+
+              "&::before": {
+                content: '""',
+                position: "absolute",
+                inset: 0,
+                clipPath: "polygon(100% 100%, 100% 0, 0 100%)",
+                background:
+                  "radial-gradient(circle at 100% 100%, rgba(0,0,0,0.22), rgba(0,0,0,0) 55%)",
+                opacity: 0.9,
+              },
             }}
           />
         )}
