@@ -156,7 +156,7 @@ export default function BookReaderPage() {
     };
   }, [storyId]);
 
-  // Lock scroll when full screen is enabled
+  // Lock scroll when full screen is enabled and scroll to top
   // ✅ Only lock scroll in fullscreen
   useEffect(() => {
     if (!isFullScreen) {
@@ -165,6 +165,13 @@ export default function BookReaderPage() {
       document.body.style.overflow = "";
       return;
     }
+
+    // Scroll to top when entering fullscreen (before locking scroll)
+    // Note: "auto" provides instant scrolling (no animation), which is what "instant" would do
+    window.scrollTo({ top: 0, behavior: "auto" });
+    // Also force html/body scrollTop to 0 (covers Safari / edge cases)
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
 
     // Lock scroll when entering fullscreen
     const prevHtml = document.documentElement.style.overflow;
@@ -385,9 +392,10 @@ export default function BookReaderPage() {
               justifyContent: "space-between",
               px: 3,
               zIndex: 1000,
-              opacity: controlsVisible ? 1 : 0,
+              // Always visible in fullscreen, otherwise fade based on mouse movement
+              opacity: isFullScreen ? 1 : (controlsVisible ? 1 : 0),
               transition: "opacity 0.3s ease",
-              pointerEvents: controlsVisible ? "auto" : "none",
+              pointerEvents: isFullScreen ? "auto" : (controlsVisible ? "auto" : "none"),
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -427,20 +435,36 @@ export default function BookReaderPage() {
               </IconButton>
             </Box>
 
-            <Typography
-              sx={{
-                fontSize: "0.85rem",
-                color: theme.palette.text.secondary,
-              }}
-            >
-              {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Typography
+                sx={{
+                  fontSize: "0.85rem",
+                  color: theme.palette.text.secondary,
+                }}
+              >
+                {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
+              </Typography>
+
+              <Tooltip
+                title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")}
+                arrow
+              >
+                <IconButton
+                  onClick={toggleFullScreen}
+                  sx={{
+                    color: theme.palette.text.primary,
+                  }}
+                >
+                  {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+                </IconButton>
+              </Tooltip>
+            </Box>
           </Box>
 
           {/* Book Content */}
           <Box
             sx={{
-              pt: 12,
+              pt: isFullScreen ? 4 : 12, // Very minimal top padding in full-screen mode for tighter spacing
               pb: 6,
               px: 3,
               position: "relative",
@@ -453,35 +477,37 @@ export default function BookReaderPage() {
                 transition: "opacity 0.4s ease, transform 0.4s ease",
               }}
             >
-              {/* Controls ABOVE the book */}
-              <Box
-                sx={{
-                  maxWidth: isFullScreen ? 1320 : 1200,
-                  mx: "auto",
-                  mb: 1.5,
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  px: { xs: 1, md: 0 },
-                }}
-              >
-                <Tooltip
-                  title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")}
-                  arrow
+              {/* Fullscreen button - always visible in normal mode */}
+              {!isFullScreen && (
+                <Box
+                  sx={{
+                    maxWidth: 1200,
+                    mx: "auto",
+                    mb: 1.5,
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    alignItems: "center",
+                    px: { xs: 1, md: 0 },
+                  }}
                 >
-                  <IconButton
-                    onClick={toggleFullScreen}
-                    sx={{
-                      background: "rgba(255,255,255,0.7)",
-                      border: "1px solid rgba(0,0,0,0.10)",
-                      backdropFilter: "blur(6px)",
-                      "&:hover": { background: "rgba(255,255,255,0.9)" },
-                    }}
+                  <Tooltip
+                    title={t("pages.bookReader.fullScreen")}
+                    arrow
                   >
-                    {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-                  </IconButton>
-                </Tooltip>
-              </Box>
+                    <IconButton
+                      onClick={toggleFullScreen}
+                      sx={{
+                        background: "rgba(255,255,255,0.7)",
+                        border: "1px solid rgba(0,0,0,0.10)",
+                        backdropFilter: "blur(6px)",
+                        "&:hover": { background: "rgba(255,255,255,0.9)" },
+                      }}
+                    >
+                      <FullscreenIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
 
               {/* Wrapper for book and arrows */}
               <Box
