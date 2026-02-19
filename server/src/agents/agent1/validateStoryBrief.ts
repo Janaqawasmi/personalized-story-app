@@ -1,5 +1,6 @@
 // server/src/agents/agent1/validateStoryBrief.ts
-import { firestore } from "../../config/firebase";
+import { db } from "../../config/firebase";
+import admin from "firebase-admin";
 import {
   checkReferenceItem,
   getSituationItem,
@@ -103,14 +104,39 @@ function normalizeString(value: any): string {
   return value.trim();
 }
 
+/**
+ * Normalizes an array of strings: filters non-strings, trims, and removes empty values.
+ * Does NOT lowercase - callers should lowercase if needed for Firestore lookups.
+ * 
+ * @param value - The value to normalize
+ * @returns Array of trimmed, non-empty strings
+ */
 function normalizeArray(value: any): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
   return value
     .filter((item) => typeof item === "string")
-    .map((item) => item.trim().toLowerCase())
+    .map((item) => item.trim())
     .filter((item) => item.length > 0);
+}
+
+/**
+ * Deduplicates an array while preserving order (first occurrence wins)
+ * 
+ * @param arr - Array to deduplicate
+ * @returns Deduplicated array
+ */
+function deduplicateArray(arr: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const item of arr) {
+    if (!seen.has(item)) {
+      seen.add(item);
+      result.push(item);
+    }
+  }
+  return result;
 }
 
 // ============================================================================
@@ -126,11 +152,11 @@ function normalizeArray(value: any): string[] {
  */
 export async function validateStoryBriefInput(
   brief: any,
-  deps?: { firestore?: typeof firestore }
+  deps?: { firestore?: admin.firestore.Firestore }
 ): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
-  const fs = deps?.firestore || firestore;
+  const fs = deps?.firestore ?? db;
 
   // Normalize the brief
   const normalized: any = {};
@@ -179,6 +205,8 @@ export async function validateStoryBriefInput(
       );
     } else {
       isPrimaryTopicValid = true;
+      // Lowercase for Firestore lookup: reference data is stored in lowercase
+      // (createStoryBrief also lowercases before storage)
       normalizedPrimaryTopic = primaryTopic.toLowerCase();
     }
 
@@ -191,6 +219,8 @@ export async function validateStoryBriefInput(
       );
     } else {
       isSpecificSituationValid = true;
+      // Lowercase for Firestore lookup: reference data is stored in lowercase
+      // (createStoryBrief also lowercases before storage)
       normalizedSpecificSituation = specificSituation.toLowerCase();
     }
 
@@ -272,7 +302,12 @@ export async function validateStoryBriefInput(
       "therapeuticIntent is required"
     );
   } else {
-    const emotionalGoals = normalizeArray(brief.therapeuticIntent.emotionalGoals);
+    let emotionalGoals = normalizeArray(brief.therapeuticIntent.emotionalGoals);
+    // Lowercase for Firestore lookup: reference data is stored in lowercase
+    // (createStoryBrief also lowercases before storage)
+    emotionalGoals = emotionalGoals.map((goal) => goal.toLowerCase());
+    // Deduplicate goals while preserving order
+    emotionalGoals = deduplicateArray(emotionalGoals);
     
     // Validate keyMessage type if provided
     let keyMessage: string | undefined = undefined;
@@ -381,6 +416,7 @@ export async function validateStoryBriefInput(
   }
 
   // safetyConstraints
+  // safetyConstraints object is required, but exclusions array can be empty
   if (!brief?.safetyConstraints) {
     addError(
       errors,
@@ -389,7 +425,15 @@ export async function validateStoryBriefInput(
       "safetyConstraints is required"
     );
   } else {
-    const exclusions = normalizeArray(brief.safetyConstraints.exclusions);
+    let exclusions: string[] = [];
+    if (brief.safetyConstraints.exclusions !== undefined) {
+      exclusions = normalizeArray(brief.safetyConstraints.exclusions);
+      // Lowercase for Firestore lookup: reference data is stored in lowercase
+      // (createStoryBrief also lowercases before storage)
+      exclusions = exclusions.map((exclusion) => exclusion.toLowerCase());
+      // Deduplicate exclusions while preserving order
+      exclusions = deduplicateArray(exclusions);
+    }
     normalized.safetyConstraints = {
       exclusions,
     };
@@ -547,12 +591,30 @@ export async function validateStoryBriefInput(
     }
   }
 
-  if (normalized.therapeuticIntent?.emotionalGoals) {
-    for (const goal of normalized.therapeuticIntent.emotionalGoals) {
-      try {
-        const goalCheck = await checkReferenceItem("emotionalGoals", goal, fs);
+  // Parallelize Firestore checks for emotional goals
+  if (normalized.therapeuticIntent?.emotionalGoals && normalized.therapeuticIntent.emotionalGoals.length > 0) {
+    try {
+      const goalChecks = await Promise.all(
+        normalized.therapeuticIntent.emotionalGoals.map((goal: string) =>
+          checkReferenceItem("emotionalGoals", goal, fs).catch((error: any) => ({
+            goal,
+            error: error.message,
+            exists: false,
+            active: false,
+          }))
+        )
+      );
 
-        if (!goalCheck.exists) {
+      goalChecks.forEach((goalCheck, index) => {
+        const goal = normalized.therapeuticIntent!.emotionalGoals[index];
+        if ("error" in goalCheck) {
+          addError(
+            errors,
+            ERROR_CODES.GOAL_NOT_FOUND_OR_INACTIVE,
+            "therapeuticIntent.emotionalGoals",
+            `Failed to verify emotional goal "${goal}": ${goalCheck.error}`
+          );
+        } else if (!goalCheck.exists) {
           addError(
             errors,
             ERROR_CODES.GOAL_NOT_FOUND_OR_INACTIVE,
@@ -567,23 +629,42 @@ export async function validateStoryBriefInput(
             `Emotional goal "${goal}" exists but is inactive`
           );
         }
-      } catch (error: any) {
-        addError(
-          errors,
-          ERROR_CODES.GOAL_NOT_FOUND_OR_INACTIVE,
-          "therapeuticIntent.emotionalGoals",
-          `Failed to verify emotional goal "${goal}": ${error.message}`
-        );
-      }
+      });
+    } catch (error: any) {
+      // Fallback error if Promise.all fails completely
+      addError(
+        errors,
+        ERROR_CODES.GOAL_NOT_FOUND_OR_INACTIVE,
+        "therapeuticIntent.emotionalGoals",
+        `Failed to verify emotional goals: ${error.message}`
+      );
     }
   }
 
-  if (normalized.safetyConstraints?.exclusions) {
-    for (const exclusion of normalized.safetyConstraints.exclusions) {
-      try {
-        const exclusionCheck = await checkReferenceItem("exclusions", exclusion, fs);
+  // Parallelize Firestore checks for exclusions
+  if (normalized.safetyConstraints?.exclusions && normalized.safetyConstraints.exclusions.length > 0) {
+    try {
+      const exclusionChecks = await Promise.all(
+        normalized.safetyConstraints.exclusions.map((exclusion: string) =>
+          checkReferenceItem("exclusions", exclusion, fs).catch((error: any) => ({
+            exclusion,
+            error: error.message,
+            exists: false,
+            active: false,
+          }))
+        )
+      );
 
-        if (!exclusionCheck.exists) {
+      exclusionChecks.forEach((exclusionCheck, index) => {
+        const exclusion = normalized.safetyConstraints!.exclusions[index];
+        if ("error" in exclusionCheck) {
+          addError(
+            errors,
+            ERROR_CODES.EXCLUSION_NOT_FOUND_OR_INACTIVE,
+            "safetyConstraints.exclusions",
+            `Failed to verify exclusion "${exclusion}": ${exclusionCheck.error}`
+          );
+        } else if (!exclusionCheck.exists) {
           addError(
             errors,
             ERROR_CODES.EXCLUSION_NOT_FOUND_OR_INACTIVE,
@@ -598,14 +679,15 @@ export async function validateStoryBriefInput(
             `Exclusion "${exclusion}" exists but is inactive`
           );
         }
-      } catch (error: any) {
-        addError(
-          errors,
-          ERROR_CODES.EXCLUSION_NOT_FOUND_OR_INACTIVE,
-          "safetyConstraints.exclusions",
-          `Failed to verify exclusion "${exclusion}": ${error.message}`
-        );
-      }
+      });
+    } catch (error: any) {
+      // Fallback error if Promise.all fails completely
+      addError(
+        errors,
+        ERROR_CODES.EXCLUSION_NOT_FOUND_OR_INACTIVE,
+        "safetyConstraints.exclusions",
+        `Failed to verify exclusions: ${error.message}`
+      );
     }
   }
 
