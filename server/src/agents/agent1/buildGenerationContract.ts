@@ -22,7 +22,6 @@ import {
 
 const ERROR_CODES = {
   BRIEF_NOT_FOUND: "BRIEF_NOT_FOUND",
-  BRIEF_VALIDATION_FAILED: "BRIEF_VALIDATION_FAILED",
   MISSING_AGE_RULE: "MISSING_AGE_RULE",
   MISSING_GOAL_MAPPING: "MISSING_GOAL_MAPPING",
   MISSING_SENSITIVITY_RULE: "MISSING_SENSITIVITY_RULE",
@@ -73,12 +72,12 @@ export async function buildGenerationContractFromBriefId(
   const briefDoc = await fs.collection("storyBriefs").doc(briefId).get();
 
   if (!briefDoc.exists) {
-    throw new Error(`Story brief "${briefId}" not found`);
+    throw new Error(`Story brief "${briefId}" not found (${ERROR_CODES.BRIEF_NOT_FOUND})`);
   }
 
   const briefRaw = briefDoc.data();
   if (!briefRaw) {
-    throw new Error(`Story brief "${briefId}" has no data`);
+    throw new Error(`Story brief "${briefId}" has no data (${ERROR_CODES.BRIEF_NOT_FOUND})`);
   }
 
   return buildGenerationContract(briefId, briefRaw, deps);
@@ -273,7 +272,22 @@ export async function buildGenerationContract(
   const requiresSafeClosure =
     (sensitivityRule?.forceSafeClosure ?? false) || anyGoalRequiresClosure;
 
-  // (D) Ending rules
+  // (D) Exclusions - apply before building endingContract
+  for (const exclusionId of exclusions) {
+    const exclusionRule = rules.exclusions[exclusionId];
+    if (!exclusionRule) {
+      addWarning(
+        warnings,
+        WARNING_CODES.UNKNOWN_EXCLUSION_RULE,
+        `Exclusion rule not found for exclusion "${exclusionId}", treating as empty banned list`
+      );
+      continue;
+    }
+
+    mustAvoid = mergeAndDeduplicateArrays(mustAvoid, exclusionRule.banned);
+  }
+
+  // (E) Ending rules - mustAvoid already includes exclusions
   const endingRule = rules.endingRules[endingStyle];
   if (!endingRule) {
     addError(
@@ -303,27 +317,6 @@ export async function buildGenerationContract(
         requiresSuccessMoment: false,
         requiresSafeClosure,
       };
-
-  // (E) Exclusions
-  for (const exclusionId of exclusions) {
-    const exclusionRule = rules.exclusions[exclusionId];
-    if (!exclusionRule) {
-      addWarning(
-        warnings,
-        WARNING_CODES.UNKNOWN_EXCLUSION_RULE,
-        `Exclusion rule not found for exclusion "${exclusionId}", treating as empty banned list`
-      );
-      continue;
-    }
-
-    mustAvoid = mergeAndDeduplicateArrays(mustAvoid, exclusionRule.banned);
-  }
-
-  // Update endingContract.mustAvoid with final mustAvoid
-  endingContract.mustAvoid = mergeAndDeduplicateArrays(
-    endingContract.mustAvoid,
-    mustAvoid
-  );
 
   // (F) Coping tools filtering
   let filteredCopingTools: string[] = [];
@@ -363,8 +356,7 @@ export async function buildGenerationContract(
 
     if (
       overrideTool &&
-      overrideTool.allowedAges.includes(ageBand) &&
-      originalCopingTools.includes(overrideToolId)
+      overrideTool.allowedAges.includes(ageBand)
     ) {
       overrideUsed = true;
       filteredCopingTools = [overrideToolId];
@@ -407,9 +399,12 @@ export async function buildGenerationContract(
     },
   };
 
-  // Conditionally add overrideDetails only if defined (for exactOptionalPropertyTypes)
+  // Conditionally add optional fields only if defined (for exactOptionalPropertyTypes)
   if (overrideDetails !== undefined) {
     contract.overrideDetails = overrideDetails;
+  }
+  if (keyMessage !== undefined && keyMessage !== "") {
+    contract.keyMessage = keyMessage;
   }
 
   // 7. Save to Firestore

@@ -55,6 +55,7 @@ export interface GenerationContract {
   endingContract: EndingContract;
   overrideUsed: boolean;
   overrideDetails?: Record<string, unknown>;
+  keyMessage?: string;
   warnings: ContractWarning[];
   errors: ContractError[];
   createdAt: FieldValue | Timestamp | string;
