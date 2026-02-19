@@ -9,11 +9,23 @@ import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import PauseIcon from "@mui/icons-material/Pause";
+import StopIcon from "@mui/icons-material/Stop";
+import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
 import InstructionModal from "../components/InstructionModal";
 import { useTranslation } from "../i18n/useTranslation";
 import { useReader } from "../contexts/ReaderContext";
+import {
+  ttsSpeak,
+  ttsPause,
+  ttsResume,
+  ttsStop,
+  ttsIsSpeaking,
+  ttsIsPaused,
+} from "../utils/tts";
 
 type Page = {
   pageNumber: number;
@@ -58,9 +70,15 @@ export default function BookReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const { isFullScreen, toggleFullScreen } = useReader();
+  const [isReading, setIsReading] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [autoRead, setAutoRead] = useState(false);
+  const autoReadRef = useRef(autoRead);
+  const spreadIndexRef = useRef(spreadIndex);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
+  const ttsLang = CURRENT_LANGUAGE === "ar" ? "ar-SA" : CURRENT_LANGUAGE === "he" ? "he-IL" : "en-US";
 
   // Check for personalization before loading story
   useEffect(() => {
@@ -155,6 +173,22 @@ export default function BookReaderPage() {
       localStorage.removeItem(personalizationKey);
     };
   }, [storyId]);
+
+  // IMPORTANT: stop reading when leaving the page
+  useEffect(() => {
+    return () => {
+      ttsStop();
+    };
+  }, []);
+
+  // Sync refs with state
+  useEffect(() => {
+    autoReadRef.current = autoRead;
+  }, [autoRead]);
+
+  useEffect(() => {
+    spreadIndexRef.current = spreadIndex;
+  }, [spreadIndex]);
 
   // Lock scroll when full screen is enabled and scroll to top
   // ✅ Only lock scroll in fullscreen
@@ -265,13 +299,106 @@ export default function BookReaderPage() {
     setSpreadIndex(0);
   };
 
+  const readCurrentPage = () => {
+    const currentIndex = spreadIndexRef.current;
+    const currentPage = story?.pages[currentIndex];
+    const textToRead = currentPage?.textTemplate || "";
+    if (!textToRead.trim()) return;
+
+    setIsReading(true);
+    setIsPaused(false);
+
+    ttsSpeak({
+      text: textToRead,
+      lang: ttsLang,
+      rate: 0.9,
+      pitch: 1,
+      onEnd: () => {
+        // If auto-read is OFF → stop here
+        if (!autoReadRef.current) {
+          setIsReading(false);
+          setIsPaused(false);
+          return;
+        }
+
+        // Get latest values from refs
+        const latestIndex = spreadIndexRef.current;
+        const latestStory = story;
+
+        // If no next page → stop
+        if (!(latestStory && latestIndex < latestStory.pages.length - 1)) {
+          setIsReading(false);
+          setIsPaused(false);
+          return;
+        }
+
+        // Move to next page directly (bypass handleNext to avoid stopping)
+        setSpreadIndex(latestIndex + 1);
+
+        // Wait a moment for the next page state to load, then read again
+        setTimeout(() => {
+          readNextPageAfterFlip();
+        }, 150);
+      },
+    });
+  };
+
+  const readNextPageAfterFlip = () => {
+    // page will be updated after onNext; readCurrentPage will read new page text
+    const currentIndex = spreadIndexRef.current;
+    const currentPage = story?.pages[currentIndex];
+    const nextText = currentPage?.textTemplate || "";
+    if (!nextText.trim()) {
+      // If the page text didn't update yet, try once more shortly
+      setTimeout(() => {
+        const retryIndex = spreadIndexRef.current;
+        const retryPage = story?.pages[retryIndex];
+        const retryText = retryPage?.textTemplate || "";
+        if (retryText.trim()) readCurrentPage();
+        else {
+          setIsReading(false);
+          setIsPaused(false);
+        }
+      }, 200);
+      return;
+    }
+
+    readCurrentPage();
+  };
+
+  const handleReadStory = () => {
+    readCurrentPage();
+  };
+
+  const handlePauseResume = () => {
+    if (!ttsIsSpeaking() && !isReading) return;
+
+    if (ttsIsPaused() || isPaused) {
+      ttsResume();
+      setIsPaused(false);
+    } else {
+      ttsPause();
+      setIsPaused(true);
+    }
+  };
+
+  const handleStopReading = () => {
+    ttsStop();
+    setIsReading(false);
+    setIsPaused(false);
+  };
+
   const handlePrev = () => {
+    // if user manually clicks Prev, stop reading
+    if (!autoRead) handleStopReading();
     if (spreadIndex > 0) {
       setSpreadIndex(spreadIndex - 1);
     }
   };
 
   const handleNext = () => {
+    // if user manually clicks Next, stop reading
+    if (!autoRead) handleStopReading();
     if (story && spreadIndex < story.pages.length - 1) {
       setSpreadIndex(spreadIndex + 1);
     }
@@ -444,6 +571,59 @@ export default function BookReaderPage() {
               >
                 {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
               </Typography>
+
+              <Tooltip title="Read story" arrow>
+                <span>
+                  <IconButton
+                    onClick={handleReadStory}
+                    disabled={isReading}
+                    sx={{
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    <VolumeUpIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title={isPaused ? "Resume" : "Pause"} arrow>
+                <span>
+                  <IconButton
+                    onClick={handlePauseResume}
+                    disabled={!isReading}
+                    sx={{
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    <PauseIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title="Stop" arrow>
+                <span>
+                  <IconButton
+                    onClick={handleStopReading}
+                    disabled={!isReading}
+                    sx={{
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    <StopIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+
+              <Tooltip title={autoRead ? "Auto-read: ON" : "Auto-read: OFF"} arrow>
+                <IconButton
+                  onClick={() => setAutoRead((p) => !p)}
+                  sx={{
+                    color: autoRead ? theme.palette.primary.main : theme.palette.text.primary,
+                  }}
+                >
+                  <AutoplayIcon />
+                </IconButton>
+              </Tooltip>
 
               <Tooltip
                 title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")}
