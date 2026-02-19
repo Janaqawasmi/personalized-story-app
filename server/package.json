@@ -9,6 +9,7 @@
     "seed:rag": "ts-node scripts/seedRag.ts",
     "seed:reference": "ts-node scripts/seedReferenceData.ts",
     "seed:clinicalRules": "ts-node scripts/seedClinicalRules.ts",
+    "test:agent1": "ts-node scripts/testAgent1.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
