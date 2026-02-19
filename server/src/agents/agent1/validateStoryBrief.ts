@@ -58,6 +58,7 @@ const ERROR_CODES = {
   INVALID_GOALS_COUNT: "INVALID_GOALS_COUNT",
   KEY_MESSAGE_INVALID_TYPE: "KEY_MESSAGE_INVALID_TYPE",
   KEY_MESSAGE_TOO_LONG: "KEY_MESSAGE_TOO_LONG",
+  EXCLUSIONS_INVALID_TYPE: "EXCLUSIONS_INVALID_TYPE",
   TOPIC_NOT_FOUND_OR_INACTIVE: "TOPIC_NOT_FOUND_OR_INACTIVE",
   SITUATION_NOT_FOUND_OR_INACTIVE: "SITUATION_NOT_FOUND_OR_INACTIVE",
   SITUATION_TOPIC_MISMATCH: "SITUATION_TOPIC_MISMATCH",
@@ -427,12 +428,22 @@ export async function validateStoryBriefInput(
   } else {
     let exclusions: string[] = [];
     if (brief.safetyConstraints.exclusions !== undefined) {
-      exclusions = normalizeArray(brief.safetyConstraints.exclusions);
-      // Lowercase for Firestore lookup: reference data is stored in lowercase
-      // (createStoryBrief also lowercases before storage)
-      exclusions = exclusions.map((exclusion) => exclusion.toLowerCase());
-      // Deduplicate exclusions while preserving order
-      exclusions = deduplicateArray(exclusions);
+      // Validate that exclusions is an array if provided
+      if (!Array.isArray(brief.safetyConstraints.exclusions)) {
+        addError(
+          errors,
+          ERROR_CODES.EXCLUSIONS_INVALID_TYPE,
+          "safetyConstraints.exclusions",
+          "safetyConstraints.exclusions must be an array if provided"
+        );
+      } else {
+        exclusions = normalizeArray(brief.safetyConstraints.exclusions);
+        // Lowercase for Firestore lookup: reference data is stored in lowercase
+        // (createStoryBrief also lowercases before storage)
+        exclusions = exclusions.map((exclusion) => exclusion.toLowerCase());
+        // Deduplicate exclusions while preserving order
+        exclusions = deduplicateArray(exclusions);
+      }
     }
     normalized.safetyConstraints = {
       exclusions,
@@ -713,12 +724,17 @@ export async function validateStoryBriefInput(
 
   const isValid = errors.length === 0;
 
-  return {
+  const result: ValidationResult = {
     isValid,
     errors,
     warnings,
-    normalizedBrief: isValid ? (normalized as StoryBriefInput) : undefined,
   };
+
+  if (isValid) {
+    result.normalizedBrief = normalized as StoryBriefInput;
+  }
+
+  return result;
 }
 
 // ============================================================================
