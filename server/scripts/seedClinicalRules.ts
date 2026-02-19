@@ -196,55 +196,51 @@ async function seedClinicalRules() {
   });
   console.log("✅ settings/rules");
 
-  // 2. Create clinicalRules/versions/v1 document
-  const versionRef = db
-    .collection("clinicalRules")
-    .doc("versions")
-    .collection("versions")
-    .doc("v1");
+  // 2. Create clinicalRulesVersions/v1 document
+  const versionRef = db.collection("clinicalRulesVersions").doc("v1");
   batch.set(versionRef, clinicalRulesV1.version);
-  console.log("✅ clinicalRules/versions/v1");
+  console.log("✅ clinicalRulesVersions/v1");
 
   // 3. Seed ageRules subcollection
   for (const [ageBand, rule] of Object.entries(clinicalRulesV1.ageRules)) {
     const ageRuleRef = versionRef.collection("ageRules").doc(ageBand);
     batch.set(ageRuleRef, rule);
-    console.log(`✅ clinicalRules/versions/v1/ageRules/${ageBand}`);
+    console.log(`✅ clinicalRulesVersions/v1/ageRules/${ageBand}`);
   }
 
   // 4. Seed goalMappings subcollection
   for (const [goalId, mapping] of Object.entries(clinicalRulesV1.goalMappings)) {
     const goalMappingRef = versionRef.collection("goalMappings").doc(goalId);
     batch.set(goalMappingRef, mapping);
-    console.log(`✅ clinicalRules/versions/v1/goalMappings/${goalId}`);
+    console.log(`✅ clinicalRulesVersions/v1/goalMappings/${goalId}`);
   }
 
   // 5. Seed copingTools subcollection
   for (const [toolId, tool] of Object.entries(clinicalRulesV1.copingTools)) {
     const copingToolRef = versionRef.collection("copingTools").doc(toolId);
     batch.set(copingToolRef, tool);
-    console.log(`✅ clinicalRules/versions/v1/copingTools/${toolId}`);
+    console.log(`✅ clinicalRulesVersions/v1/copingTools/${toolId}`);
   }
 
   // 6. Seed endingRules subcollection
   for (const [endingStyle, rule] of Object.entries(clinicalRulesV1.endingRules)) {
     const endingRuleRef = versionRef.collection("endingRules").doc(endingStyle);
     batch.set(endingRuleRef, rule);
-    console.log(`✅ clinicalRules/versions/v1/endingRules/${endingStyle}`);
+    console.log(`✅ clinicalRulesVersions/v1/endingRules/${endingStyle}`);
   }
 
   // 7. Seed exclusions subcollection
   for (const [exclusionId, exclusion] of Object.entries(clinicalRulesV1.exclusions)) {
     const exclusionRef = versionRef.collection("exclusions").doc(exclusionId);
     batch.set(exclusionRef, exclusion);
-    console.log(`✅ clinicalRules/versions/v1/exclusions/${exclusionId}`);
+    console.log(`✅ clinicalRulesVersions/v1/exclusions/${exclusionId}`);
   }
 
   // 8. Seed sensitivityRules subcollection
   for (const [level, rule] of Object.entries(clinicalRulesV1.sensitivityRules)) {
     const sensitivityRuleRef = versionRef.collection("sensitivityRules").doc(level);
     batch.set(sensitivityRuleRef, rule);
-    console.log(`✅ clinicalRules/versions/v1/sensitivityRules/${level}`);
+    console.log(`✅ clinicalRulesVersions/v1/sensitivityRules/${level}`);
   }
 
   // Commit all writes

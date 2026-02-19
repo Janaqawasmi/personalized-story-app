@@ -1,6 +1,6 @@
 // server/src/agents/agent1/validateStoryBrief.ts
 import { db } from "../../config/firebase";
-import admin from "firebase-admin";
+import type { Firestore } from "firebase-admin/firestore";
 import {
   checkReferenceItem,
   getSituationItem,
@@ -153,7 +153,7 @@ function deduplicateArray(arr: string[]): string[] {
  */
 export async function validateStoryBriefInput(
   brief: any,
-  deps?: { firestore?: admin.firestore.Firestore }
+  deps?: { firestore?: Firestore }
 ): Promise<ValidationResult> {
   const errors: ValidationError[] = [];
   const warnings: ValidationWarning[] = [];
@@ -417,38 +417,29 @@ export async function validateStoryBriefInput(
   }
 
   // safetyConstraints
-  // safetyConstraints object is required, but exclusions array can be empty
-  if (!brief?.safetyConstraints) {
-    addError(
-      errors,
-      ERROR_CODES.REQUIRED_FIELD_MISSING,
-      "safetyConstraints",
-      "safetyConstraints is required"
-    );
-  } else {
-    let exclusions: string[] = [];
-    if (brief.safetyConstraints.exclusions !== undefined) {
-      // Validate that exclusions is an array if provided
-      if (!Array.isArray(brief.safetyConstraints.exclusions)) {
-        addError(
-          errors,
-          ERROR_CODES.EXCLUSIONS_INVALID_TYPE,
-          "safetyConstraints.exclusions",
-          "safetyConstraints.exclusions must be an array if provided"
-        );
-      } else {
-        exclusions = normalizeArray(brief.safetyConstraints.exclusions);
-        // Lowercase for Firestore lookup: reference data is stored in lowercase
-        // (createStoryBrief also lowercases before storage)
-        exclusions = exclusions.map((exclusion) => exclusion.toLowerCase());
-        // Deduplicate exclusions while preserving order
-        exclusions = deduplicateArray(exclusions);
-      }
+  // safetyConstraints is optional - always normalize to an object with exclusions array (default empty)
+  let exclusions: string[] = [];
+  if (brief?.safetyConstraints?.exclusions !== undefined) {
+    // Validate that exclusions is an array if provided
+    if (!Array.isArray(brief.safetyConstraints.exclusions)) {
+      addError(
+        errors,
+        ERROR_CODES.EXCLUSIONS_INVALID_TYPE,
+        "safetyConstraints.exclusions",
+        "safetyConstraints.exclusions must be an array if provided"
+      );
+    } else {
+      exclusions = normalizeArray(brief.safetyConstraints.exclusions);
+      // Lowercase for Firestore lookup: reference data is stored in lowercase
+      // (createStoryBrief also lowercases before storage)
+      exclusions = exclusions.map((exclusion) => exclusion.toLowerCase());
+      // Deduplicate exclusions while preserving order
+      exclusions = deduplicateArray(exclusions);
     }
-    normalized.safetyConstraints = {
-      exclusions,
-    };
   }
+  normalized.safetyConstraints = {
+    exclusions,
+  };
 
   // storyPreferences
   if (!brief?.storyPreferences) {

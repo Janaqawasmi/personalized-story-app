@@ -1,6 +1,6 @@
 // server/src/services/clinicalRules.service.ts
 import { db } from "../config/firebase";
-import admin from "firebase-admin";
+import type { Firestore } from "firebase-admin/firestore";
 
 // ============================================================================
 // Type Definitions
@@ -86,7 +86,7 @@ function isCacheValid(entry: CacheEntry): boolean {
  * @returns Default version string (e.g., "v1")
  */
 export async function getDefaultRulesVersion(
-  fs?: admin.firestore.Firestore
+  fs?: Firestore
 ): Promise<string> {
   const firestore = fs ?? db;
   
@@ -120,7 +120,7 @@ export async function getDefaultRulesVersion(
  */
 export async function loadClinicalRules(
   version?: string,
-  fs?: admin.firestore.Firestore
+  fs?: Firestore
 ): Promise<ClinicalRules> {
   const firestore = fs ?? db;
   
@@ -135,10 +135,9 @@ export async function loadClinicalRules(
   
   try {
     // Verify version document exists
+    // Path: clinicalRulesVersions/{version}
     const versionDoc = await firestore
-      .collection("clinicalRules")
-      .doc("versions")
-      .collection("versions")
+      .collection("clinicalRulesVersions")
       .doc(rulesVersion)
       .get();
     
@@ -152,11 +151,9 @@ export async function loadClinicalRules(
     }
     
     // Load all subcollections in parallel
-    // Path: clinicalRules/versions/versions/{version}/subcollections
+    // Path: clinicalRulesVersions/{version}/subcollections
     const versionRef = firestore
-      .collection("clinicalRules")
-      .doc("versions")
-      .collection("versions")
+      .collection("clinicalRulesVersions")
       .doc(rulesVersion);
     
     const [
@@ -245,12 +242,12 @@ export async function loadClinicalRules(
     });
     
     // Validate that we have at least some rules
+    // Note: exclusions is optional and may be empty
     if (
       Object.keys(ageRules).length === 0 ||
       Object.keys(goalMappings).length === 0 ||
       Object.keys(copingTools).length === 0 ||
       Object.keys(endingRules).length === 0 ||
-      Object.keys(exclusions).length === 0 ||
       Object.keys(sensitivityRules).length === 0
     ) {
       throw new Error(
