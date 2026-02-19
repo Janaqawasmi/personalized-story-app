@@ -18,6 +18,7 @@ import { admin, firestore } from "./config/firebase";
 
 import storyDraftRoutes from "./routes/storyDraft.routes";
 import storyBriefRouter from "./routes/storyBrief.routes";
+import agent1Routes from "./routes/agent1.routes";
 import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
@@ -40,6 +41,7 @@ app.use("/api/personalized-stories", personalizedStoryRoutes);
 app.use("/api/stories", storiesRoutes);
 
 app.use("/api/admin/story-briefs", storyBriefRouter); // Includes generate-draft endpoint
+app.use("/api/agent1", agent1Routes); // Agent 1 contract endpoints
 app.use("/api/story-drafts", storyDraftRoutes); // READ-ONLY draft viewing
 app.use("/api/specialist", specialistPromptRoutes); // Prompt preview endpoint
 

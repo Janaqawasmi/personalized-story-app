@@ -18,6 +18,7 @@ import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
 import ReviewDraftPage from "./pages/ReviewDraftPage";
 import PromptPreviewPage from "./pages/PromptPreviewPage";
+import AdminContractReviewPage from "./pages/AdminContractReviewPage";
 
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
@@ -89,6 +90,10 @@ function AppContent() {
             <Route
               path="story-briefs/:briefId/prompt-preview"
               element={<PromptPreviewPage />}
+            />
+            <Route
+              path="story-briefs/:briefId/contract"
+              element={<AdminContractReviewPage />}
             />
           </Route>
 

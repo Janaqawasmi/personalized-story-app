@@ -357,6 +357,31 @@ export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
   }
 }
 
+/**
+ * Fetch a single story brief by ID
+ */
+export async function fetchStoryBriefById(briefId: string): Promise<StoryBrief> {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Story brief "${briefId}" not found (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
 export async function generateDraftFromBrief(
   briefId: string,
   options?: { length?: "short" | "medium" | "long"; tone?: string; emphasis?: string }
@@ -377,6 +402,109 @@ export async function generateDraftFromBrief(
     throw new Error(errorData.error || errorData.details || `Failed to generate draft (${res.status})`);
   }
   return res.json();
+}
+
+// ---------- Generation Contract APIs ----------
+
+export interface GenerationContract {
+  briefId: string;
+  rulesVersionUsed: string;
+  topic: string;
+  situation: string;
+  ageBand: string;
+  caregiverPresence: string;
+  emotionalSensitivity: string;
+  lengthBudget: {
+    minScenes: number;
+    maxScenes: number;
+    maxWords: number;
+    targetWords?: number;
+  };
+  styleRules: {
+    maxSentenceWords: number;
+    dialoguePolicy: "none" | "minimal" | "allowed";
+    abstractConcepts: "no" | "limited" | "yes";
+    emotionalTone: string;
+    languageComplexity: string;
+  };
+  requiredElements: string[];
+  allowedCopingTools: string[];
+  mustAvoid: string[];
+  endingContract: {
+    endingStyle: string;
+    mustInclude: string[];
+    mustAvoid: string[];
+    requiresEmotionalStability: boolean;
+    requiresSuccessMoment: boolean;
+    requiresSafeClosure: boolean;
+  };
+  overrideUsed: boolean;
+  overrideDetails?: Record<string, unknown>;
+  keyMessage?: string;
+  warnings: Array<{ code: string; message: string }>;
+  errors: Array<{ code: string; message: string }>;
+  createdAt: any;
+  updatedAt?: any;
+  status?: "valid" | "invalid";
+  validationSummary?: {
+    errorCount: number;
+    warningCount: number;
+  };
+}
+
+/**
+ * Preview a generation contract from a brief object
+ */
+export async function previewContract(brief: any, briefId?: string): Promise<GenerationContract> {
+  try {
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/preview`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ brief, briefId }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to preview contract (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Apply override to a story brief and regenerate contract
+ */
+export async function applyContractOverride(
+  briefId: string,
+  override: { copingToolId: string; reason?: string }
+): Promise<GenerationContract> {
+  try {
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/override`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(override),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to apply override (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
 }
 
 // ---------- Story Prompt Preview API ----------

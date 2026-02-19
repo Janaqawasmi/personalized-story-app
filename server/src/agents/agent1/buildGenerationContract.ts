@@ -61,10 +61,15 @@ function addWarning(
 
 /**
  * Builds a generation contract from a brief ID by loading the brief from Firestore
+ * 
+ * @param briefId - The brief ID
+ * @param deps - Optional dependencies (firestore instance)
+ * @param options - Optional configuration (skipSave: if true, don't save to Firestore)
  */
 export async function buildGenerationContractFromBriefId(
   briefId: string,
-  deps?: { firestore?: Firestore }
+  deps?: { firestore?: Firestore },
+  options?: { skipSave?: boolean; rulesVersion?: string }
 ): Promise<GenerationContract> {
   const fs = deps?.firestore ?? db;
 
@@ -80,16 +85,22 @@ export async function buildGenerationContractFromBriefId(
     throw new Error(`Story brief "${briefId}" has no data (${ERROR_CODES.BRIEF_NOT_FOUND})`);
   }
 
-  return buildGenerationContract(briefId, briefRaw, deps);
+  return buildGenerationContract(briefId, briefRaw, deps, options);
 }
 
 /**
  * Builds a generation contract from a raw brief object
+ * 
+ * @param briefId - The brief ID
+ * @param briefRaw - The raw brief object
+ * @param deps - Optional dependencies (firestore instance)
+ * @param options - Optional configuration (skipSave: if true, don't save to Firestore)
  */
 export async function buildGenerationContract(
   briefId: string,
   briefRaw: any,
-  deps?: { firestore?: Firestore }
+  deps?: { firestore?: Firestore },
+  options?: { skipSave?: boolean; rulesVersion?: string }
 ): Promise<GenerationContract> {
   const fs = deps?.firestore ?? db;
   const errors: ContractError[] = [];
@@ -150,16 +161,21 @@ export async function buildGenerationContract(
       },
     };
 
-    // Save invalid contract for debugging
-    await saveContractToFirestore(contract, fs);
+    // Save invalid contract for debugging (unless skipSave is true)
+    if (!options?.skipSave) {
+      await saveContractToFirestore(contract, fs);
+    }
     return contract;
   }
 
   const normalized = validationResult.normalizedBrief;
 
   // 2. Decide rules version
+  // Priority: options.rulesVersion > briefRaw.rulesVersion > default version
   const rulesVersion =
-    briefRaw.rulesVersion ?? (await getDefaultRulesVersion(fs));
+    options?.rulesVersion ??
+    briefRaw.rulesVersion ??
+    (await getDefaultRulesVersion(fs));
 
   // 3. Load clinical rules
   const rules = await loadClinicalRules(rulesVersion, fs);
@@ -359,10 +375,13 @@ export async function buildGenerationContract(
       overrideTool.allowedAges.includes(ageBand)
     ) {
       overrideUsed = true;
-      filteredCopingTools = [overrideToolId];
+      // Add override tool to the list if not already present, but keep all other valid tools
+      if (!filteredCopingTools.includes(overrideToolId)) {
+        filteredCopingTools.push(overrideToolId);
+      }
       overrideDetails = {
         copingToolId: overrideToolId,
-        reason: "user_override",
+        reason: briefRaw.overrides.reason || "user_override",
       };
     } else {
       addWarning(
@@ -395,7 +414,7 @@ export async function buildGenerationContract(
     status: errors.length === 0 ? "valid" : "invalid",
     validationSummary: {
       errorCount: errors.length,
-      warningCount: warnings.length + validationResult.warnings.length,
+      warningCount: validationResult.warnings.length + warnings.length, // Count matches merged array
     },
   };
 
@@ -407,8 +426,10 @@ export async function buildGenerationContract(
     contract.keyMessage = keyMessage;
   }
 
-  // 7. Save to Firestore
-  await saveContractToFirestore(contract, fs);
+  // 7. Save to Firestore (unless skipSave is true)
+  if (!options?.skipSave) {
+    await saveContractToFirestore(contract, fs);
+  }
 
   return contract;
 }
