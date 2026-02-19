@@ -161,3 +161,78 @@ export async function loadAllReferenceData() {
   }
 }
 
+/**
+ * Check if a reference data item exists and is active
+ * 
+ * @param category - The subcollection category
+ * @param key - The document ID (key) to check
+ * @param firestore - Optional Firestore instance (defaults to db)
+ * @returns Object with exists and active status
+ */
+export async function checkReferenceItem(
+  category: ReferenceDataCategory,
+  key: string,
+  firestore?: FirebaseFirestore.Firestore
+): Promise<{ exists: boolean; active: boolean }> {
+  const fs = firestore || db;
+  try {
+    const doc = await fs
+      .collection("referenceData")
+      .doc(category)
+      .collection("items")
+      .doc(key)
+      .get();
+
+    if (!doc.exists) {
+      return { exists: false, active: false };
+    }
+
+    const data = doc.data();
+    return {
+      exists: true,
+      active: data?.active === true,
+    };
+  } catch (error: any) {
+    console.error(`Error checking reference item "${category}/${key}":`, error);
+    throw new Error(`Failed to check ${category}/${key}: ${error.message}`);
+  }
+}
+
+/**
+ * Get a situation item with its topicKey
+ * 
+ * @param situationKey - The situation document ID (key)
+ * @param firestore - Optional Firestore instance (defaults to db)
+ * @returns Situation item with topicKey, or null if not found
+ */
+export async function getSituationItem(
+  situationKey: string,
+  firestore?: FirebaseFirestore.Firestore
+): Promise<SituationReferenceItem | null> {
+  const fs = firestore || db;
+  try {
+    const doc = await fs
+      .collection("referenceData")
+      .doc("situations")
+      .collection("items")
+      .doc(situationKey)
+      .get();
+
+    if (!doc.exists) {
+      return null;
+    }
+
+    const data = doc.data();
+    return {
+      key: doc.id,
+      label_en: data?.label_en || "",
+      label_ar: data?.label_ar || "",
+      label_he: data?.label_he || "",
+      active: data?.active === true,
+      topicKey: data?.topicKey || "",
+    };
+  } catch (error: any) {
+    console.error(`Error getting situation "${situationKey}":`, error);
+    throw new Error(`Failed to get situation ${situationKey}: ${error.message}`);
+  }
+}
