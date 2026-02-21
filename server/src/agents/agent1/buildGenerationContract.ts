@@ -381,7 +381,7 @@ export async function buildGenerationContract(
       }
       overrideDetails = {
         copingToolId: overrideToolId,
-        reason: briefRaw.overrides.reason || "user_override",
+        reason: briefRaw.overrides.reason ?? "user_override",
       };
     } else {
       addWarning(

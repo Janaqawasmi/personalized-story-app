@@ -300,7 +300,9 @@ const AdminStoryBriefForm: React.FC = () => {
       const briefId = response.data.id;
       
       if (!briefId) {
-        throw new Error('Failed to get brief ID from response');
+        // Fallback: navigate to generate draft page if ID is missing
+        navigate('/specialist/generate-draft');
+        return;
       }
       
       // Navigate to contract review page
