@@ -1,5 +1,6 @@
 // client/src/pages/AdminStoryBriefForm.tsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -23,6 +24,7 @@ import {
   Tab,
 } from '@mui/material';
 import { createStoryBrief, StoryBriefInput } from '../api/api';
+import { normalizeStoryBriefInput } from '../utils/briefNormalize';
 import SpecialistNav from '../components/SpecialistNav';
 import { AGE_GROUPS } from '../data/categories';
 import {
@@ -61,6 +63,8 @@ function TabPanel(props: TabPanelProps) {
 
 
 const AdminStoryBriefForm: React.FC = () => {
+  const navigate = useNavigate();
+  
   // Reference data state
   const [topics, setTopics] = useState<ReferenceDataItem[]>([]);
   const [situations, setSituations] = useState<SituationReferenceItem[]>([]);
@@ -261,8 +265,8 @@ const AdminStoryBriefForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const payload: StoryBriefInput = {
-        createdBy: createdBy.trim(),
+      const rawPayload: StoryBriefInput = {
+        createdBy: createdBy,
         therapeuticFocus: {
           primaryTopic: selectedTopicKey,
           specificSituation: selectedSituationKey,
@@ -273,7 +277,7 @@ const AdminStoryBriefForm: React.FC = () => {
         },
         therapeuticIntent: {
           emotionalGoals: selectedEmotionalGoals,
-          ...(keyMessage.trim() && { keyMessage: keyMessage.trim() }),
+          ...(keyMessage && { keyMessage: keyMessage }),
         },
         languageTone: {
           complexity: selectedComplexity,
@@ -288,27 +292,19 @@ const AdminStoryBriefForm: React.FC = () => {
         },
       };
 
+      // Normalize the input (trim + lowercase where appropriate)
+      const payload = normalizeStoryBriefInput(rawPayload);
       const response = await createStoryBrief(payload);
 
-      if (response.success) {
-        setSuccess('Story brief created successfully. You can now generate a draft from this brief.');
-        // Reset form
-        setSelectedTopicKey('');
-        setSelectedSituationKey('');
-        setSelectedAgeGroup('');
-        setSelectedEmotionalSensitivity("medium");
-        setSelectedEmotionalGoals([]);
-        setKeyMessage('');
-        setSelectedComplexity("simple");
-        setSelectedEmotionalTone("calm");
-        setSelectedExclusions([]);
-        setSelectedCaregiverPresence("included");
-        setSelectedEndingStyle("calm_resolution");
-        setCreatedBy('');
-        setActiveStep(0);
-      } else {
-        setError(response.error || 'Failed to create story brief');
+      // If we get here, response.success is always true (errors are thrown)
+      const briefId = response.data.id;
+      
+      if (!briefId) {
+        throw new Error('Failed to get brief ID from response');
       }
+      
+      // Navigate to contract review page
+      navigate(`/specialist/story-briefs/${briefId}/contract`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

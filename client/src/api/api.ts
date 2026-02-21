@@ -12,6 +12,20 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
   return res.json();
 }
 
+// Type aliases for StoryBrief fields
+export type AgeGroup = "0_3" | "3_6" | "6_9" | "9_12";
+export type EmotionalSensitivity = "low" | "medium" | "high";
+export type Complexity = "very_simple" | "simple" | "moderate";
+export type EmotionalTone = "very_gentle" | "calm" | "encouraging";
+export type CaregiverPresence = "included" | "self_guided";
+export type EndingStyle = "calm_resolution" | "open_ended" | "empowering";
+
+// Firestore Timestamp JSON representation
+export interface FirestoreTimestampJson {
+  _seconds: number;
+  _nanoseconds: number;
+}
+
 export interface StoryBriefInput {
   createdBy: string;
   therapeuticFocus: {
@@ -19,64 +33,62 @@ export interface StoryBriefInput {
     specificSituation: string;
   };
   childProfile: {
-    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
-    emotionalSensitivity: "low" | "medium" | "high";
+    ageGroup: AgeGroup;
+    emotionalSensitivity: EmotionalSensitivity;
   };
   therapeuticIntent: {
     emotionalGoals: string[];
     keyMessage?: string;
   };
   languageTone: {
-    complexity: "very_simple" | "simple" | "moderate";
-    emotionalTone: "very_gentle" | "calm" | "encouraging";
+    complexity: Complexity;
+    emotionalTone: EmotionalTone;
   };
   safetyConstraints: {
     exclusions: string[];
   };
   storyPreferences: {
-    caregiverPresence: "included" | "self_guided";
-    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+    caregiverPresence: CaregiverPresence;
+    endingStyle: EndingStyle;
   };
 }
 
-export interface StoryBriefResponse {
-  success: boolean;
-  id?: string;
-  data?: {
-    id: string;
-    topicKey: string;
-    targetAgeGroup: string;
-    topicTags: string[];
-    therapeuticIntent: string[];
-    constraints?: {
-      avoidMetaphors?: string[];
-      avoidLanguage?: string[];
-    };
-    status: "draft" | "generated" | "reviewed" | "approved";
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-  };
-  error?: string;
+// API Response types
+export interface CreateStoryBriefResponse {
+  success: true;
+  data: StoryBrief;
 }
 
-export async function createStoryBrief(data: StoryBriefInput): Promise<StoryBriefResponse> {
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
+  details?: string;
+}
+
+export async function createStoryBrief(
+  data: StoryBriefInput
+): Promise<CreateStoryBriefResponse> {
   try {
     const res = await fetch(`${API_BASE}/api/admin/story-briefs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    
+
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      const errorMessage = errorData.details || errorData.error || `Failed to create story brief (${res.status})`;
+      const errorData: Partial<ApiErrorResponse> = await res
+        .json()
+        .catch(() => ({ error: `Request failed with status ${res.status}` }));
+
+      const errorMessage =
+        errorData.details ||
+        errorData.error ||
+        `Failed to create story brief (${res.status})`;
+
       throw new Error(errorMessage);
     }
-    
-    return res.json();
+
+    return (await res.json()) as CreateStoryBriefResponse;
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
@@ -292,33 +304,39 @@ export async function approveDraft(draftId: string): Promise<{ success: boolean;
 
 export interface StoryBrief {
   id: string;
-  createdAt: {
-    seconds: number;
-    nanoseconds: number;
-  } | string | Date;
-  updatedAt: {
-    seconds: number;
-    nanoseconds: number;
-  } | string | Date;
+
+  // Metadata
+  createdAt: FirestoreTimestampJson;
+  updatedAt: FirestoreTimestampJson;
   createdBy: string;
   status: "created" | "draft_generating" | "draft_generated" | "archived";
   version: number;
+
+  // Therapeutic Focus
   therapeuticFocus: {
     primaryTopic: string;
     specificSituation: string;
   };
+
+  // Child Profile
   childProfile: {
-    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
-    emotionalSensitivity: "low" | "medium" | "high";
+    ageGroup: AgeGroup;
+    emotionalSensitivity: EmotionalSensitivity;
   };
+
+  // Therapeutic Intent
   therapeuticIntent: {
     emotionalGoals: string[];
     keyMessage?: string;
   };
+
+  // Language & Tone
   languageTone: {
-    complexity: "very_simple" | "simple" | "moderate";
-    emotionalTone: "very_gentle" | "calm" | "encouraging";
+    complexity: Complexity;
+    emotionalTone: EmotionalTone;
   };
+
+  // Safety Constraints
   safetyConstraints: {
     enforced: {
       noThreateningImagery: true;
@@ -329,15 +347,22 @@ export interface StoryBrief {
     };
     exclusions: string[];
   };
+
+  // Story Preferences
   storyPreferences: {
-    caregiverPresence: "included" | "self_guided";
-    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+    caregiverPresence: CaregiverPresence;
+    endingStyle: EndingStyle;
   };
-  lockedAt?: {
-    seconds: number;
-    nanoseconds: number;
-  } | string | Date;
+
+  // Optional fields added later
+  overrides?: {
+    copingToolId: string;
+    reason: string;
+    updatedAt: FirestoreTimestampJson;
+  };
+  lockedAt?: FirestoreTimestampJson;
   lockedByDraftId?: string;
+  rulesVersion?: string;
 }
 
 export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
