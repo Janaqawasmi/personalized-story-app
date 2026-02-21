@@ -1,4 +1,4 @@
-import { Box, Typography, IconButton, useTheme, Tooltip } from "@mui/material";
+import { Box, Typography, IconButton, useTheme, Tooltip, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
@@ -25,6 +25,7 @@ import {
   ttsStop,
   ttsIsSpeaking,
   ttsIsPaused,
+  ttsGetVoices,
 } from "../utils/tts";
 
 type Page = {
@@ -75,10 +76,20 @@ export default function BookReaderPage() {
   const [autoRead, setAutoRead] = useState(false);
   const autoReadRef = useRef(autoRead);
   const spreadIndexRef = useRef(spreadIndex);
+  const shouldClearPersonalizationRef = useRef(true);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
   const ttsLang = CURRENT_LANGUAGE === "ar" ? "ar-SA" : CURRENT_LANGUAGE === "he" ? "he-IL" : "en-US";
+
+  // Filter voices for current language (so dropdown isn't huge)
+  const voicesForCurrentLang = voices.filter((v) => {
+    const vLang = (v.lang || "").toLowerCase();
+    const target = (ttsLang || "").toLowerCase();
+    return vLang === target || vLang.startsWith(target.split("-")[0]);
+  });
 
   // Check for personalization before loading story
   useEffect(() => {
@@ -169,7 +180,7 @@ export default function BookReaderPage() {
     const personalizationKey = `qosati_personalization_${storyId}`;
     
     return () => {
-      // Clear personalization when user leaves the story reader
+      if (!shouldClearPersonalizationRef.current) return;
       localStorage.removeItem(personalizationKey);
     };
   }, [storyId]);
@@ -189,6 +200,14 @@ export default function BookReaderPage() {
   useEffect(() => {
     spreadIndexRef.current = spreadIndex;
   }, [spreadIndex]);
+
+  // Load voices once
+  useEffect(() => {
+    (async () => {
+      const v = await ttsGetVoices();
+      setVoices(v);
+    })();
+  }, []);
 
   // Lock scroll when full screen is enabled and scroll to top
   // ✅ Only lock scroll in fullscreen
@@ -313,6 +332,7 @@ export default function BookReaderPage() {
       lang: ttsLang,
       rate: 0.9,
       pitch: 1,
+      voiceName: selectedVoiceName || undefined,
       onEnd: () => {
         // If auto-read is OFF → stop here
         if (!autoReadRef.current) {
@@ -386,6 +406,15 @@ export default function BookReaderPage() {
     ttsStop();
     setIsReading(false);
     setIsPaused(false);
+  };
+
+  const handleClose = () => {
+    handleStopReading();
+
+    // IMPORTANT: don't clear personalization when going back to personalize page
+    shouldClearPersonalizationRef.current = false;
+
+    navigate(`/stories/${storyId}/personalize`);
   };
 
   const handlePrev = () => {
@@ -527,7 +556,7 @@ export default function BookReaderPage() {
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
               <IconButton
-                onClick={() => navigate(-1)}
+                onClick={handleClose}
                 sx={{
                   color: theme.palette.text.primary,
                 }}
@@ -624,6 +653,25 @@ export default function BookReaderPage() {
                   <AutoplayIcon />
                 </IconButton>
               </Tooltip>
+
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Voice</InputLabel>
+                <Select
+                  label="Voice"
+                  value={selectedVoiceName}
+                  onChange={(e) => setSelectedVoiceName(e.target.value)}
+                >
+                  <MenuItem value="">
+                    Auto (best)
+                  </MenuItem>
+
+                  {voicesForCurrentLang.map((v) => (
+                    <MenuItem key={v.name} value={v.name}>
+                      {v.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <Tooltip
                 title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")}
