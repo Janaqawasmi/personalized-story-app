@@ -1,6 +1,6 @@
 // client/src/pages/AdminStoryBriefForm.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLangNavigate } from '../i18n/navigation';
 import {
   Box,
   Button,
@@ -63,7 +63,7 @@ function TabPanel(props: TabPanelProps) {
 
 
 const AdminStoryBriefForm: React.FC = () => {
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
   
   // Reference data state
   const [topics, setTopics] = useState<ReferenceDataItem[]>([]);
