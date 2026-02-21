@@ -533,27 +533,26 @@ export default function BookReaderPage() {
         ) : (
           !showInstructions && (
             <>
-          {/* Top Controls */}
-          <Box
-            sx={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: 64,
-              backgroundColor: theme.palette.background.paper,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              px: 3,
-              zIndex: 1000,
-              // Always visible in fullscreen, otherwise fade based on mouse movement
-              opacity: isFullScreen ? 1 : (controlsVisible ? 1 : 0),
-              transition: "opacity 0.3s ease",
-              pointerEvents: isFullScreen ? "auto" : (controlsVisible ? "auto" : "none"),
-            }}
-          >
+          {/* Top Controls - Fixed, only in fullscreen mode */}
+          {isFullScreen && (
+            <Box
+              sx={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 64,
+                backgroundColor: theme.palette.background.paper,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 3,
+                zIndex: 1300,
+                opacity: 1,
+                pointerEvents: "auto",
+              }}
+            >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
               <IconButton
                 onClick={handleClose}
@@ -688,11 +687,12 @@ export default function BookReaderPage() {
               </Tooltip>
             </Box>
           </Box>
+          )}
 
           {/* Book Content */}
           <Box
             sx={{
-              pt: isFullScreen ? 4 : 12, // Very minimal top padding in full-screen mode for tighter spacing
+              pt: isFullScreen ? 4 : 4, // Minimal top padding in both modes
               pb: 6,
               px: 3,
               position: "relative",
@@ -705,35 +705,133 @@ export default function BookReaderPage() {
                 transition: "opacity 0.4s ease, transform 0.4s ease",
               }}
             >
-              {/* Fullscreen button - always visible in normal mode */}
+              {/* ReaderControls - Sticky bar in regular mode (under site navbar) */}
               {!isFullScreen && (
                 <Box
                   sx={{
+                    position: "sticky",
+                    top: 64, // Exactly site navbar height
+                    zIndex: 10,
                     maxWidth: 1200,
                     mx: "auto",
-                    mb: 1.5,
+                    mt: 2,
+                    mb: 2,
+                    px: { xs: 2, md: 0 },
+                    py: 1,
                     display: "flex",
-                    justifyContent: "flex-end",
                     alignItems: "center",
-                    px: { xs: 1, md: 0 },
+                    justifyContent: "space-between",
+                    gap: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backdropFilter: "blur(8px)",
                   }}
                 >
-                  <Tooltip
-                    title={t("pages.bookReader.fullScreen")}
-                    arrow
-                  >
+                  {/* Left side: Prev/Next + page */}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <IconButton
-                      onClick={toggleFullScreen}
+                      onClick={handlePrev}
+                      disabled={!canGoPrev}
                       sx={{
-                        background: "rgba(255,255,255,0.7)",
-                        border: "1px solid rgba(0,0,0,0.10)",
-                        backdropFilter: "blur(6px)",
-                        "&:hover": { background: "rgba(255,255,255,0.9)" },
+                        color: theme.palette.text.primary,
+                        "&:disabled": {
+                          color: theme.palette.text.secondary,
+                        },
                       }}
                     >
-                      <FullscreenIcon />
+                      <ArrowBackIosNewIcon />
                     </IconButton>
-                  </Tooltip>
+
+                    <IconButton
+                      onClick={handleNext}
+                      disabled={!canGoNext}
+                      sx={{
+                        color: theme.palette.text.primary,
+                        "&:disabled": {
+                          color: theme.palette.text.secondary,
+                        },
+                      }}
+                    >
+                      <ArrowForwardIosIcon />
+                    </IconButton>
+
+                    <Typography
+                      sx={{
+                        fontSize: "0.85rem",
+                        color: theme.palette.text.secondary,
+                      }}
+                    >
+                      {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
+                    </Typography>
+                  </Box>
+
+                  {/* Right side: Sound + fullscreen */}
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Tooltip title="Read story" arrow>
+                      <span>
+                        <IconButton
+                          onClick={handleReadStory}
+                          disabled={isReading}
+                          sx={{
+                            color: theme.palette.text.primary,
+                          }}
+                        >
+                          <VolumeUpIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+
+                    <Tooltip title={isPaused ? "Resume" : "Pause"} arrow>
+                      <span>
+                        <IconButton
+                          onClick={handlePauseResume}
+                          disabled={!isReading}
+                          sx={{
+                            color: theme.palette.text.primary,
+                          }}
+                        >
+                          <PauseIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+
+                    <Tooltip title="Stop" arrow>
+                      <span>
+                        <IconButton
+                          onClick={handleStopReading}
+                          disabled={!isReading}
+                          sx={{
+                            color: theme.palette.text.primary,
+                          }}
+                        >
+                          <StopIcon />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+
+                    <Tooltip title={autoRead ? "Auto-read: ON" : "Auto-read: OFF"} arrow>
+                      <IconButton
+                        onClick={() => setAutoRead((p) => !p)}
+                        sx={{
+                          color: autoRead ? theme.palette.primary.main : theme.palette.text.primary,
+                        }}
+                      >
+                        <AutoplayIcon />
+                      </IconButton>
+                    </Tooltip>
+
+                    <Tooltip title={t("pages.bookReader.fullScreen")} arrow>
+                      <IconButton
+                        onClick={toggleFullScreen}
+                        sx={{
+                          color: theme.palette.text.primary,
+                        }}
+                      >
+                        <FullscreenIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
                 </Box>
               )}
 
