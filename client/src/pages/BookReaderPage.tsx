@@ -705,13 +705,10 @@ export default function BookReaderPage() {
                 transition: "opacity 0.4s ease, transform 0.4s ease",
               }}
             >
-              {/* ReaderControls - Sticky bar in regular mode (under site navbar) */}
+              {/* ReaderControls - Regular mode (scrolls with content) */}
               {!isFullScreen && (
                 <Box
                   sx={{
-                    position: "sticky",
-                    top: 64, // Exactly site navbar height
-                    zIndex: 10,
                     maxWidth: 1200,
                     mx: "auto",
                     mt: 2,
