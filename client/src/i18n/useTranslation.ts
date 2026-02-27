@@ -1,15 +1,17 @@
 import { useLanguage } from "./context/useLanguage";
 import heTranslations from "./translations/he.json";
 import enTranslations from "./translations/en.json";
+import arTranslations from "./translations/ar.json";
 
 type TranslationKey = string;
 type Translations = typeof heTranslations;
 
 // Load translations based on language
+// Arabic translations are partial - missing keys will fallback to Hebrew
 const translations: Record<"he" | "en" | "ar", Translations> = {
   he: heTranslations,
   en: enTranslations,
-  ar: heTranslations, // Fallback to Hebrew for Arabic (not implemented yet)
+  ar: arTranslations as Translations, // Type assertion: partial translations with fallback
 };
 
 /**

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { useLanguage } from "./i18n/context/useLanguage";
 import { useTranslation } from "./i18n/useTranslation";
+import { useReader } from "./contexts/ReaderContext";
 
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/Footer";
@@ -37,17 +38,20 @@ function AppContent() {
 
   const { direction } = useLanguage();
   const t = useTranslation();
+  const { isFullScreen } = useReader();
 
   return (
     <ThemeWrapper>
       <Box dir={direction}>
-      <Navbar
-        currentSelection={selection}
-        onApplyFilters={(sel: MegaSelection) => {
-          setSelection(sel);
-        }}
-      />
-      <Box sx={{ pt: 10 }}>
+      {!isFullScreen && (
+        <Navbar
+          currentSelection={selection}
+          onApplyFilters={(sel: MegaSelection) => {
+            setSelection(sel);
+          }}
+        />
+      )}
+      <Box sx={{ pt: isFullScreen ? 0 : 10 }}>
         <Routes>
           {/* ───────────── HOME ───────────── */}
           <Route index element={<HomePage />} />
@@ -96,9 +100,11 @@ function AppContent() {
         </Routes>
       </Box>
 
-      <Box sx={{ mt: 10 }}>
-        <Footer />
-      </Box>
+      {!isFullScreen && (
+        <Box sx={{ mt: 10 }}>
+          <Footer />
+        </Box>
+      )}
     </Box>
     </ThemeWrapper>
   );

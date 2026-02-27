@@ -18,13 +18,14 @@ import { AGE_GROUPS } from "../components/MegaMenu/data";
 import { useTranslation } from "../i18n/useTranslation";
 
 // Normalize age group for comparison (handles "0-3", "0_3", etc.)
+// Converts to "0_3" format to match database storage format
 function normalizeAgeGroup(value?: string): string | null {
   if (!value) return null;
   return value
     .toLowerCase()
     .trim()
     .replace(/\s+/g, "") // remove spaces
-    .replace(/[–-]/g, "-"); // dash or en-dash → hyphen (AGE_GROUPS uses "0-3" format)
+    .replace(/[–-]/g, "_"); // dash or en-dash → underscore (database uses "0_3" format)
 }
 
 export default function AllBooksPage() {
