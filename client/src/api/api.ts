@@ -543,11 +543,10 @@ export async function applyContractOverride(
  */
 export async function fetchGenerationContract(briefId: string): Promise<GenerationContract> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -568,11 +567,10 @@ export async function fetchGenerationContract(briefId: string): Promise<Generati
  */
 export async function buildContractFromBrief(briefId: string): Promise<GenerationContract> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/build-contract`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -597,11 +595,10 @@ export async function submitContractReview(
   reviewNotes?: string
 ): Promise<{ success: boolean; data: { reviewId: string; decision: string; reviewStatus: string; briefStatus: string } }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/agent2/contracts/${briefId}/review`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ decision, reviewNotes }),
     });
     if (!res.ok) {
@@ -610,6 +607,50 @@ export async function submitContractReview(
     }
     const data = await res.json();
     return data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+// ---------- Contract Review History API (Agent 2) ----------
+
+export type ReviewDecision = "approved" | "needs_changes" | "rejected";
+
+export interface ClientReviewRecord {
+  id: string;
+  briefId: string;
+  contractId: string;
+  rulesVersionUsed: string;
+  decision: ReviewDecision;
+  reviewerId: string;
+  reviewNotes?: string;
+  overrideApplied: boolean;
+  overrideDetails?: {
+    copingToolId: string;
+    reason?: string;
+  };
+  createdAt: FirestoreTimestampJson | string;
+}
+
+/**
+ * Fetch the append-only review history (audit trail) for a generation contract
+ */
+export async function fetchReviewHistory(briefId: string): Promise<ClientReviewRecord[]> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/agent2/contracts/${briefId}/reviews`, {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to fetch review history (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data ?? [];
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');

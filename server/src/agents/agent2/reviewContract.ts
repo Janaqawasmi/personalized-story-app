@@ -5,6 +5,63 @@ import type { GenerationContract } from "../../models/generationContract.model";
 import type { ReviewDecisionPayload, ReviewRecord } from "./types";
 
 /**
+ * Agent 2 — Get Review History
+ *
+ * GET /api/agent2/contracts/:briefId/reviews
+ *
+ * Returns the append-only review history (audit trail) for a generation contract.
+ */
+export const getReviewHistory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { briefId } = req.params;
+
+    if (!briefId) {
+      res.status(400).json({
+        success: false,
+        error: "briefId parameter is required",
+      });
+      return;
+    }
+
+    // Verify contract exists
+    const contractRef = firestore.collection("generationContracts").doc(briefId);
+    const contractDoc = await contractRef.get();
+
+    if (!contractDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: "CONTRACT_NOT_FOUND",
+        message: `Generation contract for brief "${briefId}" not found.`,
+      });
+      return;
+    }
+
+    // Fetch reviews subcollection ordered by createdAt descending (newest first)
+    const reviewsSnapshot = await contractRef
+      .collection("reviews")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const reviews = reviewsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json({
+      success: true,
+      data: reviews,
+    });
+  } catch (error: any) {
+    console.error("Error fetching review history:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch review history",
+      details: error.message,
+    });
+  }
+};
+
+/**
  * Agent 2 — Specialist Contract Review & Approval Gate
  *
  * POST /api/agent2/contracts/:briefId/review

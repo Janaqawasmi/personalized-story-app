@@ -27,8 +27,10 @@ import {
   buildContractFromBrief,
   applyContractOverride,
   submitContractReview,
+  fetchReviewHistory,
   StoryBrief,
   GenerationContract,
+  ClientReviewRecord,
 } from "../api/api";
 
 // Helper function to format text for display
@@ -80,6 +82,7 @@ const AdminContractReviewPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [applyingOverride, setApplyingOverride] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
 
   // Override UI state
   const [selectedCopingTool, setSelectedCopingTool] = useState<string>("");
@@ -88,6 +91,10 @@ const AdminContractReviewPage: React.FC = () => {
   // Review decision UI state
   const [reviewNotes, setReviewNotes] = useState<string>("");
   const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
+
+  // Review history
+  const [reviewHistory, setReviewHistory] = useState<ClientReviewRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   // Load contract data (persisted, or build if not found)
   const loadContractData = useCallback(async () => {
@@ -124,6 +131,18 @@ const AdminContractReviewPage: React.FC = () => {
         setSelectedCopingTool(contractData.overrideDetails.copingToolId as string);
       } else if (contractData.allowedCopingTools.length > 0) {
         setSelectedCopingTool(contractData.allowedCopingTools[0]);
+      }
+
+      // Fetch review history in parallel (non-blocking)
+      try {
+        setHistoryLoading(true);
+        const history = await fetchReviewHistory(briefId);
+        setReviewHistory(history);
+      } catch {
+        // Review history is non-critical; silently ignore
+        setReviewHistory([]);
+      } finally {
+        setHistoryLoading(false);
       }
     } catch (err: any) {
       setError(err.message || "Failed to load contract");
@@ -179,14 +198,21 @@ const AdminContractReviewPage: React.FC = () => {
       setError(null);
       setReviewSuccess(null);
 
-      const result = await submitContractReview(briefId, decision, reviewNotes || undefined);
+      await submitContractReview(briefId, decision, reviewNotes || undefined);
 
-      // Refresh contract and brief to reflect updated state
+      // Refresh contract, brief, and review history to reflect updated state
       const updatedContract = await fetchGenerationContract(briefId);
       setContract(updatedContract);
 
       const updatedBrief = await fetchStoryBriefById(briefId);
       setBrief(updatedBrief);
+
+      try {
+        const history = await fetchReviewHistory(briefId);
+        setReviewHistory(history);
+      } catch {
+        // non-critical
+      }
 
       setReviewNotes(""); // Clear notes after submission
       setReviewSuccess(
@@ -203,6 +229,44 @@ const AdminContractReviewPage: React.FC = () => {
     navigate(`/specialist/generate-draft?briefId=${briefId}`);
   };
 
+  const handleRebuildContract = async () => {
+    if (!briefId) return;
+
+    try {
+      setRebuilding(true);
+      setError(null);
+      setReviewSuccess(null);
+
+      const newContract = await buildContractFromBrief(briefId);
+      setContract(newContract);
+
+      // Refresh brief (status changes to pending_review)
+      const updatedBrief = await fetchStoryBriefById(briefId);
+      setBrief(updatedBrief);
+
+      // Refresh review history
+      try {
+        const history = await fetchReviewHistory(briefId);
+        setReviewHistory(history);
+      } catch {
+        // non-critical
+      }
+
+      // Sync coping tool selection
+      if (newContract.overrideUsed && newContract.overrideDetails?.copingToolId) {
+        setSelectedCopingTool(newContract.overrideDetails.copingToolId as string);
+      } else if (newContract.allowedCopingTools.length > 0) {
+        setSelectedCopingTool(newContract.allowedCopingTools[0]);
+      }
+
+      setReviewSuccess("Contract rebuilt successfully. Ready for review.");
+    } catch (err: any) {
+      setError(err.message || "Failed to rebuild contract");
+    } finally {
+      setRebuilding(false);
+    }
+  };
+
   // Extract override tool ID for type safety
   const overrideToolId =
     contract?.overrideUsed && contract.overrideDetails?.copingToolId
@@ -216,6 +280,8 @@ const AdminContractReviewPage: React.FC = () => {
     contract?.status === "valid" && (!contract.errors || contract.errors.length === 0);
   const canContinueToGeneration =
     contract?.status === "valid" && contract?.reviewStatus === "approved";
+  const showRebuild =
+    contract?.reviewStatus === "needs_changes" || contract?.reviewStatus === "rejected";
 
   if (loading) {
     return (
@@ -288,6 +354,28 @@ const AdminContractReviewPage: React.FC = () => {
               <li key={idx}>{warn.message}</li>
             ))}
           </ul>
+        </Alert>
+      )}
+
+      {/* Workflow Guidance Banner */}
+      {contract.reviewStatus === "pending_review" && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <strong>Awaiting Review</strong> — This contract is waiting for your decision. Review the details below, then approve, request changes, or reject.
+        </Alert>
+      )}
+      {contract.reviewStatus === "approved" && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          <strong>Approved</strong> — This contract has been approved and is ready for story generation. Use the "Continue to Generation" button below.
+        </Alert>
+      )}
+      {contract.reviewStatus === "needs_changes" && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <strong>Changes Requested</strong> — This contract was marked as needing changes. Use the override tool or rebuild the contract, then submit a new review.
+        </Alert>
+      )}
+      {contract.reviewStatus === "rejected" && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <strong>Rejected</strong> — This contract was rejected. You can rebuild the contract to start a new review cycle.
         </Alert>
       )}
 
@@ -512,6 +600,29 @@ const AdminContractReviewPage: React.FC = () => {
           </Paper>
         </Box>
 
+        {/* Rebuild Contract (visible when needs_changes or rejected) */}
+        {showRebuild && (
+          <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+            <Paper sx={{ p: 3, borderLeft: "4px solid", borderLeftColor: "warning.main" }}>
+              <Typography variant="h6" gutterBottom>
+                Rebuild Contract
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Rebuild the generation contract to apply changes and start a new review cycle.
+              </Typography>
+              <Button
+                variant="contained"
+                color="warning"
+                onClick={handleRebuildContract}
+                disabled={rebuilding}
+                startIcon={rebuilding ? <CircularProgress size={16} /> : undefined}
+              >
+                {rebuilding ? "Rebuilding..." : "Rebuild Contract"}
+              </Button>
+            </Paper>
+          </Box>
+        )}
+
         {/* Decision Controls (Agent 2) */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Paper sx={{ p: 3 }}>
@@ -522,6 +633,12 @@ const AdminContractReviewPage: React.FC = () => {
               Approve, request changes, or reject this generation contract
             </Typography>
 
+            {contract.reviewStatus === "approved" && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                This contract is already approved. To make a new decision, rebuild the contract first.
+              </Alert>
+            )}
+
             <TextField
               label="Review Notes (optional)"
               value={reviewNotes}
@@ -531,6 +648,7 @@ const AdminContractReviewPage: React.FC = () => {
               rows={2}
               fullWidth
               sx={{ mb: 2 }}
+              disabled={contract.reviewStatus === "approved"}
             />
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -538,7 +656,7 @@ const AdminContractReviewPage: React.FC = () => {
                 variant="contained"
                 color="success"
                 onClick={() => handleReviewDecision("approved")}
-                disabled={submittingReview || !canApprove}
+                disabled={submittingReview || !canApprove || contract.reviewStatus === "approved"}
               >
                 {submittingReview ? <CircularProgress size={20} /> : "Approve"}
               </Button>
@@ -546,7 +664,7 @@ const AdminContractReviewPage: React.FC = () => {
                 variant="outlined"
                 color="warning"
                 onClick={() => handleReviewDecision("needs_changes")}
-                disabled={submittingReview}
+                disabled={submittingReview || contract.reviewStatus === "approved"}
               >
                 {submittingReview ? <CircularProgress size={20} /> : "Needs Changes"}
               </Button>
@@ -554,17 +672,85 @@ const AdminContractReviewPage: React.FC = () => {
                 variant="outlined"
                 color="error"
                 onClick={() => handleReviewDecision("rejected")}
-                disabled={submittingReview}
+                disabled={submittingReview || contract.reviewStatus === "approved"}
               >
                 {submittingReview ? <CircularProgress size={20} /> : "Reject"}
               </Button>
             </Stack>
 
-            {!canApprove && (
+            {!canApprove && contract.reviewStatus !== "approved" && (
               <Alert severity="info" sx={{ mt: 2 }}>
                 Approve is disabled because the contract is invalid or has errors.
                 You can still request changes or reject.
               </Alert>
+            )}
+          </Paper>
+        </Box>
+
+        {/* Review History (Audit Trail) */}
+        <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Review History
+            </Typography>
+            {historyLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : reviewHistory.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No review decisions have been recorded yet.
+              </Typography>
+            ) : (
+              <Stack spacing={2}>
+                {reviewHistory.map((record) => {
+                  const decisionColor = getReviewStatusColor(record.decision);
+                  const createdAt =
+                    typeof record.createdAt === "object" && record.createdAt !== null
+                      ? "_seconds" in record.createdAt
+                        ? new Date((record.createdAt as any)._seconds * 1000).toLocaleString()
+                        : "seconds" in record.createdAt
+                          ? new Date((record.createdAt as any).seconds * 1000).toLocaleString()
+                          : "—"
+                      : typeof record.createdAt === "string"
+                        ? new Date(record.createdAt).toLocaleString()
+                        : "—";
+
+                  return (
+                    <Card key={record.id} variant="outlined" sx={{ borderLeft: "3px solid", borderLeftColor: `${decisionColor}.main` }}>
+                      <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
+                          <Chip
+                            label={formatDisplayText(record.decision)}
+                            size="small"
+                            color={decisionColor}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            by {record.reviewerId}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            · {createdAt}
+                          </Typography>
+                          {record.overrideApplied && (
+                            <Chip label="Override Applied" size="small" variant="outlined" color="info" />
+                          )}
+                        </Stack>
+                        {record.reviewNotes && (
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            {record.reviewNotes}
+                          </Typography>
+                        )}
+                        {record.overrideDetails && (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                            Override: {formatDisplayText(record.overrideDetails.copingToolId)}
+                            {record.overrideDetails.reason && ` — ${record.overrideDetails.reason}`}
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </Stack>
             )}
           </Paper>
         </Box>

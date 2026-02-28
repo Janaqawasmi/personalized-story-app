@@ -36,6 +36,10 @@ import {
   ExpandMore,
   ExpandLess,
   Check,
+  RateReview,
+  ThumbUp,
+  EditNote,
+  Block,
 } from "@mui/icons-material";
 import { fetchStoryBriefs, generateDraftFromBrief, StoryBrief } from "../api/api";
 import SpecialistNav from "../components/SpecialistNav";
@@ -155,14 +159,22 @@ function formatTimestamp(ts: any): string {
 // Get status icon and color
 function getStatusConfig(status: string) {
   switch (status) {
-    case "draft_generated":
-      return { icon: <CheckCircle />, color: "success" as const, label: "Draft Ready" };
+    case "created":
+      return { icon: <RadioButtonUnchecked />, color: "default" as const, label: "New Brief" };
+    case "pending_review":
+      return { icon: <RateReview />, color: "info" as const, label: "Pending Review" };
+    case "approved":
+      return { icon: <ThumbUp />, color: "success" as const, label: "Approved" };
+    case "needs_changes":
+      return { icon: <EditNote />, color: "warning" as const, label: "Needs Changes" };
+    case "rejected":
+      return { icon: <Block />, color: "error" as const, label: "Rejected" };
     case "draft_generating":
       return { icon: <Autorenew />, color: "info" as const, label: "Generating" };
-    case "created":
-      return { icon: <RadioButtonUnchecked />, color: "default" as const, label: "Ready to Generate" };
+    case "draft_generated":
+      return { icon: <CheckCircle />, color: "success" as const, label: "Draft Ready" };
     default:
-      return { icon: null, color: "default" as const, label: status };
+      return { icon: null, color: "default" as const, label: formatDisplayText(status) };
   }
 }
 
@@ -342,13 +354,16 @@ const BriefCardSkeleton: React.FC = () => (
   </Card>
 );
 
-type FilterTab = "all" | "ready" | "generating" | "generated";
+type FilterTab = "all" | "ready" | "in_review" | "approved" | "generating" | "generated";
 
 const GenerateDraftPage: React.FC = () => {
   const navigate = useLangNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId");
+  const tabFromUrl = searchParams.get("tab") as FilterTab | null;
   const briefCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  
+  const validTabs: FilterTab[] = ["all", "ready", "in_review", "approved", "generating", "generated"];
   
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);
   const [loading, setLoading] = useState(false);
@@ -357,7 +372,9 @@ const GenerateDraftPage: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [successDraftId, setSuccessDraftId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterTab, setFilterTab] = useState<FilterTab>("all");
+  const [filterTab, setFilterTab] = useState<FilterTab>(
+    tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : "all"
+  );
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [briefToGenerate, setBriefToGenerate] = useState<StoryBrief | null>(null);
 
@@ -480,6 +497,10 @@ const GenerateDraftPage: React.FC = () => {
     // Filter by status tab
     if (filterTab === "ready") {
       filtered = filtered.filter((b) => b.status === "created");
+    } else if (filterTab === "in_review") {
+      filtered = filtered.filter((b) => b.status === "pending_review" || b.status === "needs_changes");
+    } else if (filterTab === "approved") {
+      filtered = filtered.filter((b) => b.status === "approved");
     } else if (filterTab === "generating") {
       filtered = filtered.filter((b) => b.status === "draft_generating");
     } else if (filterTab === "generated") {
@@ -506,6 +527,8 @@ const GenerateDraftPage: React.FC = () => {
     return {
       all: briefs.length,
       ready: briefs.filter((b) => b.status === "created").length,
+      in_review: briefs.filter((b) => b.status === "pending_review" || b.status === "needs_changes").length,
+      approved: briefs.filter((b) => b.status === "approved").length,
       generating: briefs.filter((b) => b.status === "draft_generating").length,
       generated: briefs.filter((b) => b.status === "draft_generated").length,
     };
@@ -518,6 +541,18 @@ const GenerateDraftPage: React.FC = () => {
     }
     if (brief.status === "draft_generating") {
       return "Draft is currently generating";
+    }
+    if (brief.status === "created") {
+      return "Build and review a contract before generating";
+    }
+    if (brief.status === "pending_review") {
+      return "Contract must be approved before generating";
+    }
+    if (brief.status === "needs_changes") {
+      return "Contract needs changes before it can be approved";
+    }
+    if (brief.status === "rejected") {
+      return "Contract was rejected";
     }
     return "";
   };
@@ -536,7 +571,7 @@ const GenerateDraftPage: React.FC = () => {
               Select a story brief to generate a draft from
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-              Only briefs with status 'Ready' can generate drafts.
+              Briefs must be reviewed and approved before drafts can be generated.
             </Typography>
           </Box>
           <Tooltip title="Refresh briefs">
@@ -632,7 +667,9 @@ const GenerateDraftPage: React.FC = () => {
                 scrollButtons="auto"
               >
                 <Tab label={`All (${statusCounts.all})`} value="all" />
-                <Tab label={`Ready (${statusCounts.ready})`} value="ready" />
+                <Tab label={`New (${statusCounts.ready})`} value="ready" />
+                <Tab label={`In Review (${statusCounts.in_review})`} value="in_review" />
+                <Tab label={`Approved (${statusCounts.approved})`} value="approved" />
                 <Tab label={`Generating (${statusCounts.generating})`} value="generating" />
                 <Tab label={`Generated (${statusCounts.generated})`} value="generated" />
               </Tabs>
@@ -677,9 +714,23 @@ const GenerateDraftPage: React.FC = () => {
               const statusConfig = getStatusConfig(brief.status);
               const isGenerating = generating === brief.id || brief.status === "draft_generating";
               const isGenerated = brief.status === "draft_generated";
-              const isReady = brief.status === "created";
-              const isDisabled = isGenerating || isGenerated || !isReady;
-              const tooltipText = isDisabled ? getGenerateButtonTooltip(brief) : "";
+              const isApprovedForGeneration = brief.status === "approved";
+              const isInReview = brief.status === "pending_review" || brief.status === "needs_changes";
+              const isRejected = brief.status === "rejected";
+              const isNew = brief.status === "created";
+              const canGenerate = isApprovedForGeneration && !isGenerating;
+              const tooltipText = !canGenerate ? getGenerateButtonTooltip(brief) : "";
+
+              // Determine left border color based on status
+              const getBorderColor = () => {
+                if (isGenerated) return "success.main";
+                if (isGenerating) return "info.main";
+                if (isApprovedForGeneration) return "success.light";
+                if (isInReview) return "warning.main";
+                if (isRejected) return "error.main";
+                return undefined;
+              };
+              const borderColor = getBorderColor();
 
               return (
                 <Card
@@ -696,13 +747,9 @@ const GenerateDraftPage: React.FC = () => {
                       boxShadow: 3,
                       transform: "translateY(-2px)",
                     },
-                    ...(isGenerated && {
+                    ...(borderColor && {
                       borderLeft: "4px solid",
-                      borderLeftColor: "success.main",
-                    }),
-                    ...(isGenerating && {
-                      borderLeft: "4px solid",
-                      borderLeftColor: "info.main",
+                      borderLeftColor: borderColor,
                     }),
                   }}
                 >
@@ -726,7 +773,7 @@ const GenerateDraftPage: React.FC = () => {
                                 label={statusConfig.label}
                                 size="small"
                                 color={statusConfig.color}
-                                variant={isGenerated ? "filled" : "outlined"}
+                                variant={isGenerated || isApprovedForGeneration ? "filled" : "outlined"}
                               />
                             )}
                           </Stack>
@@ -740,6 +787,7 @@ const GenerateDraftPage: React.FC = () => {
                       </Stack>
                     </Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap">
+                          {/* View Draft button for generated briefs */}
                           {isGenerated && brief.lockedByDraftId ? (
                       <Button
                         variant="contained"
@@ -749,13 +797,61 @@ const GenerateDraftPage: React.FC = () => {
                             >
                               View Draft
                             </Button>
-                          ) : (
-                            <Tooltip title={tooltipText} disableHoverListener={!isDisabled}>
+                          ) : isNew ? (
+                            /* Build Contract button for new briefs */
+                            <Button
+                              variant="contained"
+                              color="primary"
+                              startIcon={<RateReview />}
+                              onClick={() => navigate(`/specialist/story-briefs/${brief.id}/contract`)}
+                            >
+                              Build Contract
+                            </Button>
+                          ) : isInReview ? (
+                            /* Review Contract button for briefs in review */
+                            <Button
+                              variant="contained"
+                              color="warning"
+                              startIcon={<RateReview />}
+                              onClick={() => navigate(`/specialist/story-briefs/${brief.id}/contract`)}
+                            >
+                              Review Contract
+                            </Button>
+                          ) : isRejected ? (
+                            /* View Contract button for rejected briefs */
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              startIcon={<RateReview />}
+                              onClick={() => navigate(`/specialist/story-briefs/${brief.id}/contract`)}
+                            >
+                              View Contract
+                            </Button>
+                          ) : isApprovedForGeneration ? (
+                            /* Generate Draft button for approved briefs */
+                            <Tooltip title={tooltipText} disableHoverListener={canGenerate}>
                               <span>
                                 <Button
                                   variant="contained"
                                   onClick={() => handleGenerateClick(brief)}
-                                  disabled={isDisabled}
+                                  disabled={!canGenerate}
+                                  startIcon={
+                                    isGenerating ? (
+                                      <CircularProgress size={16} />
+                                    ) : null
+                                  }
+                                >
+                                  {isGenerating ? "Generating..." : "Generate Draft"}
+                                </Button>
+                              </span>
+                            </Tooltip>
+                          ) : (
+                            /* Fallback: generating state */
+                            <Tooltip title={tooltipText} disableHoverListener={!tooltipText}>
+                              <span>
+                                <Button
+                                  variant="contained"
+                                  disabled
                                   startIcon={
                                     isGenerating ? (
                                       <CircularProgress size={16} />
