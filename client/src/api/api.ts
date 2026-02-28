@@ -309,7 +309,7 @@ export interface StoryBrief {
   createdAt: FirestoreTimestampJson;
   updatedAt: FirestoreTimestampJson;
   createdBy: string;
-  status: "created" | "pending_review" | "approved" | "needs_changes" | "rejected" | "draft_generating" | "draft_generated" | "archived";
+  status: "created" | "approved" | "draft_generating" | "draft_generated" | "archived";
   version: number;
 
   // Therapeutic Focus
@@ -354,12 +354,8 @@ export interface StoryBrief {
     endingStyle: EndingStyle;
   };
 
-  // Optional fields added later
-  overrides?: {
-    copingToolId: string;
-    reason: string;
-    updatedAt: FirestoreTimestampJson;
-  };
+  // Specialist overrides (applied via Contract Editor)
+  overrides?: SpecialistOverrides;
   lockedAt?: FirestoreTimestampJson;
   lockedByDraftId?: string;
   rulesVersion?: string;
@@ -431,6 +427,27 @@ export async function generateDraftFromBrief(
 
 // ---------- Generation Contract APIs ----------
 
+/**
+ * Specialist overrides — delta-based adjustments a clinician can apply to the
+ * auto-generated contract before approving it.
+ */
+export interface SpecialistOverrides {
+  copingToolId?: string;
+  addRequiredElements?: string[];
+  removeRequiredElements?: string[];
+  addMustAvoid?: string[];
+  removeMustAvoid?: string[];
+  emotionalSensitivity?: "low" | "medium" | "high";
+  endingStyle?: "calm_resolution" | "open_ended" | "empowering";
+  caregiverPresence?: "included" | "self_guided";
+  keyMessage?: string;
+  minScenes?: number;
+  maxScenes?: number;
+  /** Max total words. If omitted and scenes are overridden, auto-scales proportionally. */
+  maxWords?: number;
+  reason?: string;
+}
+
 export interface GenerationContract {
   briefId: string;
   rulesVersionUsed: string;
@@ -464,7 +481,8 @@ export interface GenerationContract {
     requiresSafeClosure: boolean;
   };
   overrideUsed: boolean;
-  overrideDetails?: Record<string, unknown>;
+  /** Snapshot of all specialist overrides applied to this contract */
+  specialistOverrides?: SpecialistOverrides;
   keyMessage?: string;
   warnings: Array<{ code: string; message: string }>;
   errors: Array<{ code: string; message: string }>;
@@ -475,12 +493,10 @@ export interface GenerationContract {
     errorCount: number;
     warningCount: number;
   };
-  // Review state fields (managed by Agent 2)
-  reviewStatus: "pending_review" | "approved" | "needs_changes" | "rejected";
+  // Review state (auto-approved on every save)
+  reviewStatus: "approved";
   reviewedBy?: string;
   reviewedAt?: any;
-  reviewNotes?: string;
-  approvedContractVersionHash?: string;
 }
 
 /**
@@ -510,23 +526,47 @@ export async function previewContract(brief: any, briefId?: string): Promise<Gen
 }
 
 /**
- * Apply override to a story brief and regenerate contract
+ * Apply specialist overrides to a story brief and regenerate the contract.
+ * Accepts the full SpecialistOverrides payload.
  */
 export async function applyContractOverride(
   briefId: string,
-  override: { copingToolId: string; reason?: string }
+  overrides: SpecialistOverrides
 ): Promise<GenerationContract> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/override`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(override),
+      headers,
+      body: JSON.stringify(overrides),
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      throw new Error(errorData.error || errorData.details || `Failed to apply override (${res.status})`);
+      throw new Error(errorData.error || errorData.details || `Failed to apply overrides (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Reset all specialist overrides and regenerate a clean contract from clinical rules.
+ */
+export async function resetContractOverrides(briefId: string): Promise<GenerationContract> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/override`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to reset overrides (${res.status})`);
     }
     const data = await res.json();
     return data.data;
@@ -586,68 +626,33 @@ export async function buildContractFromBrief(briefId: string): Promise<Generatio
   }
 }
 
-/**
- * Submit a specialist review decision for a generation contract (Agent 2)
- */
-export async function submitContractReview(
-  briefId: string,
-  decision: "approved" | "needs_changes" | "rejected",
-  reviewNotes?: string
-): Promise<{ success: boolean; data: { reviewId: string; decision: string; reviewStatus: string; briefStatus: string } }> {
-  try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/api/agent2/contracts/${briefId}/review`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ decision, reviewNotes }),
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      throw new Error(errorData.error || errorData.message || errorData.details || `Failed to submit review (${res.status})`);
-    }
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
-    }
-    throw err;
-  }
-}
-
-// ---------- Contract Review History API (Agent 2) ----------
-
-export type ReviewDecision = "approved" | "needs_changes" | "rejected";
+// ---------- Contract Audit Trail API ----------
 
 export interface ClientReviewRecord {
   id: string;
   briefId: string;
   contractId: string;
   rulesVersionUsed: string;
-  decision: ReviewDecision;
   reviewerId: string;
-  reviewNotes?: string;
+  clinicalRationale?: string;
   overrideApplied: boolean;
-  overrideDetails?: {
-    copingToolId: string;
-    reason?: string;
-  };
+  specialistOverrides?: SpecialistOverrides;
   createdAt: FirestoreTimestampJson | string;
 }
 
 /**
- * Fetch the append-only review history (audit trail) for a generation contract
+ * Fetch the append-only audit trail for a generation contract
  */
 export async function fetchReviewHistory(briefId: string): Promise<ClientReviewRecord[]> {
   try {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/api/agent2/contracts/${briefId}/reviews`, {
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/reviews`, {
       method: 'GET',
       headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      throw new Error(errorData.error || errorData.details || `Failed to fetch review history (${res.status})`);
+      throw new Error(errorData.error || errorData.details || `Failed to fetch audit trail (${res.status})`);
     }
     const data = await res.json();
     return data.data ?? [];

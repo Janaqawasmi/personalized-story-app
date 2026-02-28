@@ -39,6 +39,44 @@ export interface ContractError {
   message: string;
 }
 
+// ============================================================================
+// Specialist Overrides (Contract Editor)
+// ============================================================================
+
+/**
+ * Delta-based overrides a specialist can apply to the auto-generated contract.
+ * Stored on the StoryBrief document under `overrides`.
+ * Applied by Agent 1 after all automatic rules in buildGenerationContract.
+ */
+export interface SpecialistOverrides {
+  // Coping tool selection
+  copingToolId?: string;
+
+  // Required elements: add or remove from the auto-generated list
+  addRequiredElements?: string[];
+  removeRequiredElements?: string[];
+
+  // Must-avoid items: add or remove from the auto-generated list
+  addMustAvoid?: string[];
+  removeMustAvoid?: string[];
+
+  // Direct field overrides
+  emotionalSensitivity?: "low" | "medium" | "high";
+  endingStyle?: "calm_resolution" | "open_ended" | "empowering";
+  caregiverPresence?: "included" | "self_guided";
+  keyMessage?: string;
+
+  // Length adjustment
+  minScenes?: number;
+  maxScenes?: number;
+  /** Max total words. If omitted and scenes are overridden, auto-scales proportionally. */
+  maxWords?: number;
+
+  // Audit
+  reason?: string;
+  updatedAt?: FieldValue | Timestamp | string;
+}
+
 export interface GenerationContract {
   briefId: string;
   rulesVersionUsed: string;
@@ -54,7 +92,10 @@ export interface GenerationContract {
   mustAvoid: string[];
   endingContract: EndingContract;
   overrideUsed: boolean;
+  /** @deprecated Use specialistOverrides instead. Kept for backward compat with old Firestore docs. */
   overrideDetails?: Record<string, unknown>;
+  /** Snapshot of all specialist overrides applied to this contract */
+  specialistOverrides?: SpecialistOverrides;
   keyMessage?: string;
   warnings: ContractWarning[];
   errors: ContractError[];
@@ -69,12 +110,41 @@ export interface GenerationContract {
     warningCount: number;
   };
 
-  // --- Review state fields (managed by Agent 2) ---
-  reviewStatus: "pending_review" | "approved" | "needs_changes" | "rejected";
+  // --- Review state (auto-approved on every save by Agent 1) ---
+  reviewStatus: "approved";
   reviewedBy?: string;
   reviewedAt?: FieldValue | Timestamp | string;
-  reviewNotes?: string;
-  approvedContractVersionHash?: string;
+}
+
+// ============================================================================
+// Audit Trail — Review Record
+// ============================================================================
+
+/**
+ * Context passed by callers (controllers) to attach metadata to audit records.
+ */
+export interface AuditContext {
+  reviewerId?: string;
+  clinicalRationale?: string;
+}
+
+/**
+ * Append-only audit record written on every contract save/regeneration.
+ * Stored at: generationContracts/{briefId}/reviews/{reviewId}
+ */
+export interface ReviewRecord {
+  briefId: string;
+  contractId: string; // same as briefId
+  rulesVersionUsed: string;
+  reviewerId: string;
+  overrideApplied: boolean;
+  specialistOverrides?: SpecialistOverrides;
+  clinicalRationale?: string;
+  contractSnapshot?: Omit<
+    GenerationContract,
+    "createdAt" | "updatedAt" | "reviewStatus" | "reviewedBy" | "reviewedAt"
+  >;
+  createdAt: FieldValue | Timestamp | string;
 }
 
 // ============================================================================

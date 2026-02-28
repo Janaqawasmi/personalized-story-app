@@ -9,7 +9,6 @@ const SpecialistNav: React.FC = () => {
 
   const navItems = [
     { path: "create-brief", label: "Create Story Brief" },
-    { path: "generate-draft?tab=in_review", label: "Contract Reviews" },
     { path: "generate-draft", label: "Generate Draft" },
     { path: "drafts", label: "Review Drafts" },
   ];

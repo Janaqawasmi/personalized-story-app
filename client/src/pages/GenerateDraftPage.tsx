@@ -161,14 +161,8 @@ function getStatusConfig(status: string) {
   switch (status) {
     case "created":
       return { icon: <RadioButtonUnchecked />, color: "default" as const, label: "New Brief" };
-    case "pending_review":
-      return { icon: <RateReview />, color: "info" as const, label: "Pending Review" };
     case "approved":
-      return { icon: <ThumbUp />, color: "success" as const, label: "Approved" };
-    case "needs_changes":
-      return { icon: <EditNote />, color: "warning" as const, label: "Needs Changes" };
-    case "rejected":
-      return { icon: <Block />, color: "error" as const, label: "Rejected" };
+      return { icon: <ThumbUp />, color: "success" as const, label: "Ready" };
     case "draft_generating":
       return { icon: <Autorenew />, color: "info" as const, label: "Generating" };
     case "draft_generated":
@@ -354,7 +348,7 @@ const BriefCardSkeleton: React.FC = () => (
   </Card>
 );
 
-type FilterTab = "all" | "ready" | "in_review" | "approved" | "generating" | "generated";
+type FilterTab = "all" | "ready" | "approved" | "generating" | "generated";
 
 const GenerateDraftPage: React.FC = () => {
   const navigate = useLangNavigate();
@@ -363,7 +357,7 @@ const GenerateDraftPage: React.FC = () => {
   const tabFromUrl = searchParams.get("tab") as FilterTab | null;
   const briefCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
-  const validTabs: FilterTab[] = ["all", "ready", "in_review", "approved", "generating", "generated"];
+  const validTabs: FilterTab[] = ["all", "ready", "approved", "generating", "generated"];
   
   const [briefs, setBriefs] = useState<StoryBrief[]>([]);
   const [loading, setLoading] = useState(false);
@@ -497,8 +491,6 @@ const GenerateDraftPage: React.FC = () => {
     // Filter by status tab
     if (filterTab === "ready") {
       filtered = filtered.filter((b) => b.status === "created");
-    } else if (filterTab === "in_review") {
-      filtered = filtered.filter((b) => b.status === "pending_review" || b.status === "needs_changes");
     } else if (filterTab === "approved") {
       filtered = filtered.filter((b) => b.status === "approved");
     } else if (filterTab === "generating") {
@@ -527,7 +519,6 @@ const GenerateDraftPage: React.FC = () => {
     return {
       all: briefs.length,
       ready: briefs.filter((b) => b.status === "created").length,
-      in_review: briefs.filter((b) => b.status === "pending_review" || b.status === "needs_changes").length,
       approved: briefs.filter((b) => b.status === "approved").length,
       generating: briefs.filter((b) => b.status === "draft_generating").length,
       generated: briefs.filter((b) => b.status === "draft_generated").length,
@@ -545,14 +536,8 @@ const GenerateDraftPage: React.FC = () => {
     if (brief.status === "created") {
       return "Build and review a contract before generating";
     }
-    if (brief.status === "pending_review") {
-      return "Contract must be approved before generating";
-    }
-    if (brief.status === "needs_changes") {
-      return "Contract needs changes before it can be approved";
-    }
-    if (brief.status === "rejected") {
-      return "Contract was rejected";
+    if (brief.status === "created") {
+      return "Build a contract first by clicking 'Review Contract'";
     }
     return "";
   };
@@ -668,7 +653,6 @@ const GenerateDraftPage: React.FC = () => {
               >
                 <Tab label={`All (${statusCounts.all})`} value="all" />
                 <Tab label={`New (${statusCounts.ready})`} value="ready" />
-                <Tab label={`In Review (${statusCounts.in_review})`} value="in_review" />
                 <Tab label={`Approved (${statusCounts.approved})`} value="approved" />
                 <Tab label={`Generating (${statusCounts.generating})`} value="generating" />
                 <Tab label={`Generated (${statusCounts.generated})`} value="generated" />
@@ -715,8 +699,6 @@ const GenerateDraftPage: React.FC = () => {
               const isGenerating = generating === brief.id || brief.status === "draft_generating";
               const isGenerated = brief.status === "draft_generated";
               const isApprovedForGeneration = brief.status === "approved";
-              const isInReview = brief.status === "pending_review" || brief.status === "needs_changes";
-              const isRejected = brief.status === "rejected";
               const isNew = brief.status === "created";
               const canGenerate = isApprovedForGeneration && !isGenerating;
               const tooltipText = !canGenerate ? getGenerateButtonTooltip(brief) : "";
@@ -726,8 +708,6 @@ const GenerateDraftPage: React.FC = () => {
                 if (isGenerated) return "success.main";
                 if (isGenerating) return "info.main";
                 if (isApprovedForGeneration) return "success.light";
-                if (isInReview) return "warning.main";
-                if (isRejected) return "error.main";
                 return undefined;
               };
               const borderColor = getBorderColor();
@@ -806,26 +786,6 @@ const GenerateDraftPage: React.FC = () => {
                               onClick={() => navigate(`/specialist/story-briefs/${brief.id}/contract`)}
                             >
                               Build Contract
-                            </Button>
-                          ) : isInReview ? (
-                            /* Review Contract button for briefs in review */
-                            <Button
-                              variant="contained"
-                              color="warning"
-                              startIcon={<RateReview />}
-                              onClick={() => navigate(`/specialist/story-briefs/${brief.id}/contract`)}
-                            >
-                              Review Contract
-                            </Button>
-                          ) : isRejected ? (
-                            /* View Contract button for rejected briefs */
-                            <Button
-                              variant="outlined"
-                              color="error"
-                              startIcon={<RateReview />}
-                              onClick={() => navigate(`/specialist/story-briefs/${brief.id}/contract`)}
-                            >
-                              View Contract
                             </Button>
                           ) : isApprovedForGeneration ? (
                             /* Generate Draft button for approved briefs */

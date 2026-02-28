@@ -4,7 +4,8 @@ import admin from "firebase-admin";
 import { firestore } from "../config/firebase";
 import { StoryBrief } from "../models/storyBrief.model";
 import { StoryDraft, GenerateDraftInput, GenerationConfig, DraftPage } from "../models/storyDraft.model";
-import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
+import type { GenerationContract } from "../models/generationContract.model";
+import { buildStoryDraftPromptFromContract } from "../services/storyPromptBuilder";
 import { loadWritingRules } from "../services/ragWritingRules.service";
 import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
@@ -217,7 +218,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
 
-    // Verify contract approval (Agent 2 generation gate)
+    // Verify contract exists and is valid (generation gate)
     const contractDoc = await firestore.collection("generationContracts").doc(briefId).get();
     if (!contractDoc.exists) {
       res.status(404).json({
@@ -227,10 +228,10 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
     const contractData = contractDoc.data();
-    if (contractData?.status !== "valid" || contractData?.reviewStatus !== "approved") {
+    if (contractData?.status !== "valid") {
       res.status(409).json({
         success: false,
-        error: "Generation contract must be valid and approved before generating a draft.",
+        error: "Generation contract must be valid before generating a draft.",
       });
       return;
     }
@@ -289,9 +290,9 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
     let rawModelOutput: string | undefined;
     
     try {
-      // Build prompt using existing prompt builder
+      // Build prompt from the approved GenerationContract (not the raw brief)
       const ragContext = await loadWritingRules();
-      const prompt = buildStoryDraftPrompt(briefData, ragContext);
+      const prompt = buildStoryDraftPromptFromContract(contractData as GenerationContract, briefData, ragContext);
 
       // Call LLM
       rawModelOutput = await generateStoryDraft(prompt);

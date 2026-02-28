@@ -1,5 +1,6 @@
 //server/src/models/storyBrief.model.ts
 import admin from "firebase-admin";
+import type { SpecialistOverrides } from "./generationContract.model";
 
 /**
  * Story Brief Firestore Data Model
@@ -28,10 +29,7 @@ const ALLOWED_EMOTIONAL_GOALS = [
 
 export type StoryBriefStatus =
   | "created"            // Brief just created, no contract yet
-  | "pending_review"     // Contract built, awaiting specialist review
-  | "approved"           // Contract approved by specialist, ready for generation
-  | "needs_changes"      // Specialist requested changes
-  | "rejected"           // Specialist rejected the contract
+  | "approved"           // Contract built and auto-approved, ready for generation
   | "draft_generating"   // Draft generation in progress
   | "draft_generated"    // Draft generated successfully
   | "archived";          // Archived
@@ -168,6 +166,12 @@ export interface StoryBrief {
   // ─────────────────────────────────────────────────────────────────────────
   /** Story preferences for caregiver presence and ending style */
   storyPreferences: StoryPreferences;
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Specialist Overrides (set via Contract Editor, applied by Agent 1)
+  // ─────────────────────────────────────────────────────────────────────────
+  /** Delta-based overrides applied on top of auto-generated contract rules */
+  overrides?: SpecialistOverrides;
 }
 
 // ============================================================================

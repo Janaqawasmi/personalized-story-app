@@ -10,6 +10,9 @@ import type {
   GenerationContract,
   ContractWarning,
   ContractError,
+  SpecialistOverrides,
+  AuditContext,
+  ReviewRecord,
 } from "../../models/generationContract.model";
 import {
   mergeAndDeduplicateArrays,
@@ -60,16 +63,20 @@ function addWarning(
 // ============================================================================
 
 /**
- * Builds a generation contract from a brief ID by loading the brief from Firestore
- * 
+ * Builds a generation contract from a brief ID by loading the brief from Firestore.
+ * Every saved contract is automatically approved (no separate review step).
+ * An audit record is written on every save.
+ *
  * @param briefId - The brief ID
  * @param deps - Optional dependencies (firestore instance)
- * @param options - Optional configuration (skipSave: if true, don't save to Firestore)
+ * @param options - Optional configuration (skipSave, rulesVersion)
+ * @param auditContext - Optional metadata (reviewerId, clinicalRationale) for the audit record
  */
 export async function buildGenerationContractFromBriefId(
   briefId: string,
   deps?: { firestore?: Firestore },
-  options?: { skipSave?: boolean; rulesVersion?: string }
+  options?: { skipSave?: boolean; rulesVersion?: string },
+  auditContext?: AuditContext
 ): Promise<GenerationContract> {
   const fs = deps?.firestore ?? db;
 
@@ -85,22 +92,25 @@ export async function buildGenerationContractFromBriefId(
     throw new Error(`Story brief "${briefId}" has no data (${ERROR_CODES.BRIEF_NOT_FOUND})`);
   }
 
-  return buildGenerationContract(briefId, briefRaw, deps, options);
+  return buildGenerationContract(briefId, briefRaw, deps, options, auditContext);
 }
 
 /**
- * Builds a generation contract from a raw brief object
- * 
+ * Builds a generation contract from a raw brief object.
+ * Every saved contract is automatically approved.
+ *
  * @param briefId - The brief ID
  * @param briefRaw - The raw brief object
  * @param deps - Optional dependencies (firestore instance)
- * @param options - Optional configuration (skipSave: if true, don't save to Firestore)
+ * @param options - Optional configuration (skipSave, rulesVersion)
+ * @param auditContext - Optional metadata for the audit record
  */
 export async function buildGenerationContract(
   briefId: string,
   briefRaw: any,
   deps?: { firestore?: Firestore },
-  options?: { skipSave?: boolean; rulesVersion?: string }
+  options?: { skipSave?: boolean; rulesVersion?: string },
+  auditContext?: AuditContext
 ): Promise<GenerationContract> {
   const fs = deps?.firestore ?? db;
   const errors: ContractError[] = [];
@@ -159,16 +169,15 @@ export async function buildGenerationContract(
         errorCount: validationResult.errors.length,
         warningCount: validationResult.warnings.length,
       },
-      // Agent 2: every contract build starts in pending_review
-      reviewStatus: "pending_review" as const,
+      // All contracts are auto-approved (generation gate also checks status === "valid")
+      reviewStatus: "approved" as const,
     };
 
     // Save invalid contract for debugging (unless skipSave is true)
     if (!options?.skipSave) {
-      await saveContractToFirestore(contract, fs);
-      // Update brief status to pending_review
+      await saveContractToFirestore(contract, fs, auditContext);
       await fs.collection("storyBriefs").doc(briefId).update({
-        status: "pending_review",
+        status: "approved",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
@@ -369,78 +378,175 @@ export async function buildGenerationContract(
     );
   }
 
-  // (G) Override hook
+  // (G) Specialist overrides — apply all delta-based overrides from the brief
   let overrideUsed = false;
-  let overrideDetails: Record<string, unknown> | undefined = undefined;
+  let specialistOverrides: SpecialistOverrides | undefined = undefined;
+  const ov: SpecialistOverrides | undefined = briefRaw.overrides;
 
-  if (briefRaw.overrides?.copingToolId) {
-    const overrideToolId = briefRaw.overrides.copingToolId as string;
-    const overrideTool = rules.copingTools[overrideToolId];
+  // Track effective values that may be overridden
+  let effectiveSensitivity = sensitivity;
+  let effectiveCaregiverPresence = caregiverPresence;
+  let effectiveKeyMessage = keyMessage;
+  let effectiveEndingStyle = endingStyle;
+  let effectiveEndingContract = endingContract;
 
-    if (
-      overrideTool &&
-      overrideTool.allowedAges.includes(ageBand)
-    ) {
-      overrideUsed = true;
-      // Add override tool to the list if not already present, but keep all other valid tools
-      if (!filteredCopingTools.includes(overrideToolId)) {
-        filteredCopingTools.push(overrideToolId);
+  if (ov && typeof ov === "object") {
+    // --- Coping tool override (existing behaviour) ---
+    if (ov.copingToolId) {
+      const overrideToolId = ov.copingToolId;
+      const overrideTool = rules.copingTools[overrideToolId];
+
+      if (overrideTool && overrideTool.allowedAges.includes(ageBand)) {
+        overrideUsed = true;
+        if (!filteredCopingTools.includes(overrideToolId)) {
+          filteredCopingTools.push(overrideToolId);
+        }
+      } else {
+        addWarning(
+          warnings,
+          WARNING_CODES.INVALID_OVERRIDE_COPING_TOOL,
+          `Override coping tool "${overrideToolId}" is invalid or not allowed for age band "${ageBand}", ignoring override`
+        );
       }
-      overrideDetails = {
-        copingToolId: overrideToolId,
-        reason: briefRaw.overrides.reason ?? "user_override",
-      };
-    } else {
-      addWarning(
-        warnings,
-        WARNING_CODES.INVALID_OVERRIDE_COPING_TOOL,
-        `Override coping tool "${overrideToolId}" is invalid or not allowed for age band "${ageBand}", ignoring override`
-      );
+    }
+
+    // --- Required elements add/remove ---
+    if (Array.isArray(ov.addRequiredElements) && ov.addRequiredElements.length > 0) {
+      requiredElements = deduplicateArray([...requiredElements, ...ov.addRequiredElements]);
+      overrideUsed = true;
+    }
+    if (Array.isArray(ov.removeRequiredElements) && ov.removeRequiredElements.length > 0) {
+      const removeSet = new Set(ov.removeRequiredElements);
+      requiredElements = requiredElements.filter((e) => !removeSet.has(e));
+      overrideUsed = true;
+    }
+
+    // --- Must-avoid add/remove ---
+    if (Array.isArray(ov.addMustAvoid) && ov.addMustAvoid.length > 0) {
+      mustAvoid = deduplicateArray([...mustAvoid, ...ov.addMustAvoid]);
+      overrideUsed = true;
+    }
+    if (Array.isArray(ov.removeMustAvoid) && ov.removeMustAvoid.length > 0) {
+      const removeSet = new Set(ov.removeMustAvoid);
+      mustAvoid = mustAvoid.filter((e) => !removeSet.has(e));
+      overrideUsed = true;
+    }
+
+    // --- Sensitivity override (re-applies sensitivity rules with new level) ---
+    if (ov.emotionalSensitivity && ov.emotionalSensitivity !== sensitivity) {
+      effectiveSensitivity = ov.emotionalSensitivity;
+      const newSensRule = rules.sensitivityRules[effectiveSensitivity];
+      if (newSensRule) {
+        mustAvoid = mergeAndDeduplicateArrays(mustAvoid, newSensRule.addMustAvoid);
+      }
+      overrideUsed = true;
+    }
+
+    // --- Ending style override (re-applies ending rules with new style) ---
+    if (ov.endingStyle && ov.endingStyle !== endingStyle) {
+      effectiveEndingStyle = ov.endingStyle;
+      const newEndingRule = rules.endingRules[effectiveEndingStyle];
+      if (newEndingRule) {
+        effectiveEndingContract = {
+          endingStyle: effectiveEndingStyle,
+          mustInclude: [...newEndingRule.mustInclude],
+          mustAvoid: mergeAndDeduplicateArrays(newEndingRule.mustAvoid, mustAvoid),
+          requiresEmotionalStability: newEndingRule.requiresEmotionalStability,
+          requiresSuccessMoment: newEndingRule.requiresSuccessMoment,
+          requiresSafeClosure,
+        };
+      }
+      overrideUsed = true;
+    }
+
+    // --- Caregiver presence override ---
+    if (ov.caregiverPresence && ov.caregiverPresence !== caregiverPresence) {
+      effectiveCaregiverPresence = ov.caregiverPresence;
+      overrideUsed = true;
+    }
+
+    // --- Key message override ---
+    if (ov.keyMessage !== undefined && ov.keyMessage !== "") {
+      effectiveKeyMessage = ov.keyMessage;
+      overrideUsed = true;
+    }
+
+    // --- Length budget overrides ---
+    const originalMaxScenes = lengthBudget.maxScenes;
+    const originalMaxWords = lengthBudget.maxWords;
+
+    if (typeof ov.minScenes === "number" && ov.minScenes > 0) {
+      lengthBudget.minScenes = ov.minScenes;
+      overrideUsed = true;
+    }
+    if (typeof ov.maxScenes === "number" && ov.maxScenes > 0) {
+      lengthBudget.maxScenes = ov.maxScenes;
+      overrideUsed = true;
+    }
+
+    // Explicit maxWords override takes priority
+    if (typeof ov.maxWords === "number" && ov.maxWords > 0) {
+      lengthBudget.maxWords = ov.maxWords;
+      overrideUsed = true;
+    } else if (
+      lengthBudget.maxScenes !== originalMaxScenes &&
+      originalMaxScenes > 0
+    ) {
+      // Auto-scale maxWords proportionally to scene count change
+      const scaleFactor = lengthBudget.maxScenes / originalMaxScenes;
+      lengthBudget.maxWords = Math.round(originalMaxWords * scaleFactor);
+      // Note: overrideUsed already set by maxScenes override above
+    }
+
+    // Persist the overrides snapshot on the contract for audit
+    if (overrideUsed) {
+      specialistOverrides = { ...ov };
     }
   }
 
-  // 6. Build final contract
+  // 6. Build final contract — all contracts are auto-approved
+  const allWarnings = [...validationResult.warnings.map((w) => ({ code: w.code, message: w.message })), ...warnings];
+
   const contract: GenerationContract = {
     briefId,
     rulesVersionUsed: rulesVersion,
     topic,
     situation,
     ageBand,
-    caregiverPresence,
-    emotionalSensitivity: sensitivity,
+    caregiverPresence: effectiveCaregiverPresence,
+    emotionalSensitivity: effectiveSensitivity,
     lengthBudget,
     styleRules,
     requiredElements: deduplicateArray(requiredElements),
     allowedCopingTools: deduplicateArray(filteredCopingTools),
     mustAvoid: deduplicateArray(mustAvoid),
-    endingContract,
+    endingContract: effectiveEndingContract,
     overrideUsed,
-    warnings: [...validationResult.warnings.map((w) => ({ code: w.code, message: w.message })), ...warnings],
+    warnings: allWarnings,
     errors,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     status: errors.length === 0 ? "valid" : "invalid",
     validationSummary: {
       errorCount: errors.length,
-      warningCount: validationResult.warnings.length + warnings.length, // Count matches merged array
+      warningCount: allWarnings.length,
     },
-    // Agent 2: every contract build starts in pending_review
-    reviewStatus: "pending_review" as const,
+    // All contracts auto-approved (generation gate also checks status === "valid")
+    reviewStatus: "approved" as const,
   };
 
   // Conditionally add optional fields only if defined (for exactOptionalPropertyTypes)
-  if (overrideDetails !== undefined) {
-    contract.overrideDetails = overrideDetails;
+  if (specialistOverrides !== undefined) {
+    contract.specialistOverrides = specialistOverrides;
   }
-  if (keyMessage !== undefined && keyMessage !== "") {
-    contract.keyMessage = keyMessage;
+  if (effectiveKeyMessage !== undefined && effectiveKeyMessage !== "") {
+    contract.keyMessage = effectiveKeyMessage;
   }
 
   // 7. Save to Firestore (unless skipSave is true)
   if (!options?.skipSave) {
-    await saveContractToFirestore(contract, fs);
-    // Update brief status to pending_review (contract built, awaiting specialist review)
+    await saveContractToFirestore(contract, fs, auditContext);
     await fs.collection("storyBriefs").doc(briefId).update({
-      status: "pending_review",
+      status: "approved",
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
   }
@@ -449,29 +555,58 @@ export async function buildGenerationContract(
 }
 
 /**
- * Saves a generation contract to Firestore
- * Clears review fields on every save (regeneration resets approval)
+ * Saves a generation contract to Firestore and writes an audit record.
+ * Every save produces a review record in the append-only audit trail.
  */
 async function saveContractToFirestore(
   contract: GenerationContract,
-  fs: Firestore
+  fs: Firestore,
+  auditContext?: AuditContext
 ): Promise<void> {
   const contractRef = fs
     .collection("generationContracts")
     .doc(contract.briefId);
 
-  // Convert FieldValue to actual value for saving
-  // Use spread then delete review fields (FieldValue.delete() is invalid with set(merge:false))
   const contractData: any = {
     ...contract,
+    reviewedBy: auditContext?.reviewerId || "system",
+    reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  // Clear review fields on every save (regeneration resets approval)
-  delete contractData.reviewedBy;
-  delete contractData.reviewedAt;
-  delete contractData.reviewNotes;
-  delete contractData.approvedContractVersionHash;
-
   await contractRef.set(contractData, { merge: false });
+
+  // Write audit record on every save
+  const reviewRecord: ReviewRecord = {
+    briefId: contract.briefId,
+    contractId: contract.briefId,
+    rulesVersionUsed: contract.rulesVersionUsed || "",
+    reviewerId: auditContext?.reviewerId || "system",
+    overrideApplied: contract.overrideUsed,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  // Include specialist overrides snapshot if present
+  if (contract.overrideUsed && contract.specialistOverrides) {
+    reviewRecord.specialistOverrides = { ...contract.specialistOverrides };
+  }
+
+  // Include clinical rationale if provided
+  if (auditContext?.clinicalRationale && auditContext.clinicalRationale.trim().length > 0) {
+    reviewRecord.clinicalRationale = auditContext.clinicalRationale.trim();
+  }
+
+  // Include contract snapshot for audit
+  const {
+    createdAt: _ca,
+    updatedAt: _ua,
+    reviewStatus: _rs,
+    reviewedBy: _rb,
+    reviewedAt: _ra,
+    ...contractCore
+  } = contract;
+  reviewRecord.contractSnapshot = contractCore;
+
+  const reviewRef = contractRef.collection("reviews").doc();
+  await reviewRef.set(reviewRecord);
 }

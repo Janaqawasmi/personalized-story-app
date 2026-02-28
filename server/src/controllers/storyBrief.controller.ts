@@ -3,6 +3,7 @@ import { firestore, admin } from "../config/firebase";
 import { StoryBrief, createStoryBrief as createStoryBriefModel, StoryBriefInput } from "../models/storyBrief.model";
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
+import type { SpecialistOverrides } from "../models/generationContract.model";
 
 /**
  * List all story briefs (newest first)
@@ -81,6 +82,7 @@ export const getStoryBriefById = async (req: Request, res: Response): Promise<vo
 
 /**
  * Create a new story brief (written by specialist)
+ * Automatically builds a generation contract after creation (Agent 1)
  */
 export const createStoryBrief = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -94,10 +96,22 @@ export const createStoryBrief = async (req: Request, res: Response): Promise<voi
       .collection("storyBriefs")
       .add(storyBrief);
 
+    const briefId = docRef.id;
+
+    // Auto-build contract (Agent 1) - fire and forget (don't block response)
+    buildGenerationContractFromBriefId(briefId, { firestore })
+      .then((contract) => {
+        console.log(`[createStoryBrief] Auto-built contract for brief ${briefId}. status=${contract.status}, reviewStatus=${contract.reviewStatus}`);
+      })
+      .catch((err) => {
+        console.error(`[createStoryBrief] Failed to auto-build contract for brief ${briefId}:`, err);
+        // Non-critical: contract can be built manually later
+      });
+
     res.status(201).json({
       success: true,
       data: {
-        id: docRef.id,
+        id: briefId,
         ...storyBrief,
       },
     });
@@ -127,9 +141,11 @@ export const buildContract = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    console.log(`[buildContract] Rebuilding contract for brief ${briefId}...`);
     const contract = await buildGenerationContractFromBriefId(briefId, {
       firestore,
     });
+    console.log(`[buildContract] Done. status=${contract.status}, reviewStatus=${contract.reviewStatus}`);
 
     res.status(200).json({
       success: true,
@@ -226,132 +242,237 @@ export const getContract = async (req: Request, res: Response): Promise<void> =>
 };
 
 /**
- * Apply override to a story brief and regenerate contract
+ * Apply specialist overrides to a story brief and regenerate the contract.
+ * Accepts a full SpecialistOverrides payload (copingToolId, add/remove
+ * required elements, add/remove must-avoid, sensitivity, ending style,
+ * caregiver presence, key message, scene length).
+ *
  * POST /api/agent1/contracts/:briefId/override
  */
 export const applyOverride = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
-    const { copingToolId, reason } = req.body;
+    const overrides = req.body; // SpecialistOverrides payload
 
     if (!briefId) {
-      res.status(400).json({
-        success: false,
-        error: "briefId is required",
-      });
+      res.status(400).json({ success: false, error: "briefId is required" });
       return;
     }
 
-    if (!copingToolId || typeof copingToolId !== "string") {
-      res.status(400).json({
-        success: false,
-        error: "copingToolId is required and must be a string",
-      });
+    if (!overrides || typeof overrides !== "object") {
+      res.status(400).json({ success: false, error: "Request body must be an overrides object" });
       return;
     }
 
     // Load the brief
     const briefDoc = await firestore.collection("storyBriefs").doc(briefId).get();
     if (!briefDoc.exists) {
-      res.status(404).json({
-        success: false,
-        error: `Story brief "${briefId}" not found`,
-      });
+      res.status(404).json({ success: false, error: `Story brief "${briefId}" not found` });
       return;
     }
 
     const briefData = briefDoc.data();
     if (!briefData) {
-      res.status(404).json({
-        success: false,
-        error: `Story brief "${briefId}" has no data`,
-      });
+      res.status(404).json({ success: false, error: `Story brief "${briefId}" has no data` });
       return;
     }
 
-    // Validate override: tool exists and is allowed for age
     const ageBand = briefData.childProfile?.ageGroup;
-    if (!ageBand) {
-      res.status(400).json({
-        success: false,
-        error: "Cannot validate override: brief missing ageBand",
-      });
-      return;
-    }
 
-    const rules = await loadClinicalRules(undefined, firestore);
-    const copingTool = rules.copingTools[copingToolId];
-
-    if (!copingTool) {
-      res.status(400).json({
-        success: false,
-        error: `Coping tool "${copingToolId}" not found in rules`,
-      });
-      return;
-    }
-
-    if (!copingTool.allowedAges.includes(ageBand)) {
-      res.status(400).json({
-        success: false,
-        error: `Coping tool "${copingToolId}" is not allowed for age band "${ageBand}"`,
-      });
-      return;
-    }
-
-    // Check if an existing contract exists to preserve its rules version
-    let existingRulesVersion: string | undefined = undefined;
-    try {
-      const existingContractDoc = await firestore
-        .collection("generationContracts")
-        .doc(briefId)
-        .get();
-      
-      if (existingContractDoc.exists) {
-        const existingContractData = existingContractDoc.data();
-        if (existingContractData?.rulesVersionUsed) {
-          existingRulesVersion = existingContractData.rulesVersionUsed as string;
-        }
+    // --- Validate coping tool override if provided ---
+    if (overrides.copingToolId) {
+      if (!ageBand) {
+        res.status(400).json({ success: false, error: "Cannot validate coping tool: brief missing ageGroup" });
+        return;
       }
-    } catch (err) {
-      // If we can't load existing contract, continue with default version
-      console.warn(`Could not load existing contract for brief ${briefId}:`, err);
+      const rules = await loadClinicalRules(undefined, firestore);
+      const copingTool = rules.copingTools[overrides.copingToolId];
+      if (!copingTool) {
+        res.status(400).json({ success: false, error: `Coping tool "${overrides.copingToolId}" not found in rules` });
+        return;
+      }
+      if (!copingTool.allowedAges.includes(ageBand)) {
+        res.status(400).json({ success: false, error: `Coping tool "${overrides.copingToolId}" is not allowed for age band "${ageBand}"` });
+        return;
+      }
     }
 
-    // Update brief with override
+    // --- Validate scene count if provided ---
+    if (overrides.minScenes !== undefined && (typeof overrides.minScenes !== "number" || overrides.minScenes < 1)) {
+      res.status(400).json({ success: false, error: "minScenes must be a positive number" });
+      return;
+    }
+    if (overrides.maxScenes !== undefined && (typeof overrides.maxScenes !== "number" || overrides.maxScenes < 1)) {
+      res.status(400).json({ success: false, error: "maxScenes must be a positive number" });
+      return;
+    }
+    if (overrides.maxWords !== undefined && (typeof overrides.maxWords !== "number" || overrides.maxWords < 50)) {
+      res.status(400).json({ success: false, error: "maxWords must be a number >= 50" });
+      return;
+    }
+
+    // --- Preserve existing rules version ---
+    let existingRulesVersion: string | undefined;
+    try {
+      const existingContractDoc = await firestore.collection("generationContracts").doc(briefId).get();
+      if (existingContractDoc.exists) {
+        existingRulesVersion = existingContractDoc.data()?.rulesVersionUsed as string | undefined;
+      }
+    } catch {
+      // non-critical
+    }
+
+    // --- Save overrides to the brief ---
+    const overridesPayload: Record<string, any> = {
+      ...overrides,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    // Remove undefined values to avoid Firestore errors
+    for (const key of Object.keys(overridesPayload)) {
+      if (overridesPayload[key] === undefined) {
+        delete overridesPayload[key];
+      }
+    }
+
     await firestore.collection("storyBriefs").doc(briefId).update({
-      overrides: {
-        copingToolId,
-        reason: reason || "",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(), // Update root-level timestamp
+      overrides: overridesPayload,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Regenerate contract using the original rules version if available
-    // Note: buildGenerationContractFromBriefId also sets brief.status = "pending_review"
-    // and contract.reviewStatus = "pending_review" (clears approval fields)
+    // --- Derive reviewer from auth ---
+    const reviewerId = (req as any).user?.uid || "specialist";
+    const clinicalRationale = overrides.reason || undefined;
+
+    // --- Regenerate contract with overrides applied ---
     const contract = await buildGenerationContractFromBriefId(
       briefId,
       { firestore },
-      existingRulesVersion ? { rulesVersion: existingRulesVersion } : undefined
+      existingRulesVersion ? { rulesVersion: existingRulesVersion } : undefined,
+      { reviewerId, clinicalRationale }
     );
 
-    // Redundant safety net: explicitly ensure brief status is pending_review after override
-    await firestore.collection("storyBriefs").doc(briefId).update({
-      status: "pending_review",
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    console.log(`[applyOverride] Overrides applied for brief ${briefId}. overrideUsed=${contract.overrideUsed}`);
 
     res.status(200).json({
       success: true,
       data: contract,
     });
   } catch (error: any) {
-    console.error("Error applying override:", error);
-
+    console.error("Error applying overrides:", error);
     res.status(500).json({
       success: false,
-      error: "Failed to apply override",
+      error: "Failed to apply overrides",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Get the append-only review history (audit trail) for a generation contract
+ *
+ * GET /api/agent1/contracts/:briefId/reviews
+ */
+export const getReviewHistory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { briefId } = req.params;
+
+    if (!briefId) {
+      res.status(400).json({ success: false, error: "briefId parameter is required" });
+      return;
+    }
+
+    const contractRef = firestore.collection("generationContracts").doc(briefId);
+    const contractDoc = await contractRef.get();
+
+    if (!contractDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: `Generation contract for brief "${briefId}" not found`,
+      });
+      return;
+    }
+
+    const reviewsSnapshot = await contractRef
+      .collection("reviews")
+      .orderBy("createdAt", "desc")
+      .get();
+
+    const reviews = reviewsSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    res.status(200).json({ success: true, data: reviews });
+  } catch (error: any) {
+    console.error("Error fetching review history:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch review history",
+      details: error.message,
+    });
+  }
+};
+
+/**
+ * Reset all specialist overrides on a story brief and regenerate the contract
+ * from pure clinical rules (no overrides).
+ *
+ * DELETE /api/agent1/contracts/:briefId/override
+ */
+export const resetOverrides = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { briefId } = req.params;
+
+    if (!briefId) {
+      res.status(400).json({ success: false, error: "briefId is required" });
+      return;
+    }
+
+    const briefDoc = await firestore.collection("storyBriefs").doc(briefId).get();
+    if (!briefDoc.exists) {
+      res.status(404).json({ success: false, error: `Story brief "${briefId}" not found` });
+      return;
+    }
+
+    // Preserve existing rules version if available
+    let existingRulesVersion: string | undefined;
+    try {
+      const existingContractDoc = await firestore.collection("generationContracts").doc(briefId).get();
+      if (existingContractDoc.exists) {
+        existingRulesVersion = existingContractDoc.data()?.rulesVersionUsed as string | undefined;
+      }
+    } catch {
+      // non-critical
+    }
+
+    // Remove overrides from the brief
+    await firestore.collection("storyBriefs").doc(briefId).update({
+      overrides: admin.firestore.FieldValue.delete(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    // --- Derive reviewer from auth ---
+    const reviewerId = (req as any).user?.uid || "specialist";
+
+    // Regenerate contract without overrides
+    const contract = await buildGenerationContractFromBriefId(
+      briefId,
+      { firestore },
+      existingRulesVersion ? { rulesVersion: existingRulesVersion } : undefined,
+      { reviewerId, clinicalRationale: "Overrides reset to clinical defaults" }
+    );
+
+    console.log(`[resetOverrides] Overrides cleared for brief ${briefId}. status=${contract.status}`);
+
+    res.status(200).json({
+      success: true,
+      data: contract,
+    });
+  } catch (error: any) {
+    console.error("Error resetting overrides:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to reset overrides",
       details: error.message,
     });
   }

@@ -1,5 +1,5 @@
 // client/src/pages/AdminContractReviewPage.tsx
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -26,262 +26,352 @@ import {
   fetchGenerationContract,
   buildContractFromBrief,
   applyContractOverride,
-  submitContractReview,
+  resetContractOverrides,
   fetchReviewHistory,
   StoryBrief,
   GenerationContract,
   ClientReviewRecord,
+  SpecialistOverrides,
 } from "../api/api";
 
-// Helper function to format text for display
+// ============================================================================
+// Constants & Helpers
+// ============================================================================
+
 function formatDisplayText(text: string): string {
   if (!text) return text;
   return text
     .split("_")
-    .filter((word) => word.length > 0) // Filter out empty strings from leading/trailing underscores
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .filter((w) => w.length > 0)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
 }
 
-// Helper function to format age group
-function formatAgeGroup(ageGroup: string): string {
-  const map: Record<string, string> = {
+const CLINICAL_LABELS: Record<string, string> = {
+  // Required elements
+  emotion_labeling: "Name and validate the child's emotions",
+  validation_phrase: "Include an emotional validation phrase",
+  reassurance_loop: "Repeat a reassurance/comfort cycle",
+  gentle_exposure_steps: "Gradual, gentle exposure to difficulty",
+  predictable_routine: "Show a predictable, safe routine",
+  caregiver_reassurance: "Caregiver provides reassurance",
+  small_success_moment: "A small moment of success or agency",
+  positive_self_talk: "Model positive self-talk",
+  coping_tool_practice: "Practice the coping tool in the story",
+  // Coping tools
+  balloon_breathing: "Balloon breathing exercise",
+  counting: "Counting (self-regulation)",
+  safe_object: "Comfort/safe object",
+  coping_phrase: "Coping phrase (repeated reassurance)",
+  name_the_feeling: "Name the feeling",
+  // Must-avoid
+  shaming_language: "Shaming language",
+  suspense: "Suspense or tension-building",
+  threat_metaphors: "Threatening metaphors",
+  betrayal_theme: "Themes of betrayal",
+  humiliation: "Humiliation",
+  punishment_tone: "Punitive or punishing tone",
+  sudden_surprise: "Sudden surprises",
+  emotional_spikes: "Sharp emotional spikes",
+  cliffhanger: "Cliffhanger endings",
+  new_threat: "Introduction of new threats",
+  helplessness: "Feelings of helplessness",
+  needles: "Needles",
+  blood: "Blood",
+  hospital_realism: "Realistic hospital imagery",
+  police_threat: "Police as threat",
+  punitive_authority: "Punitive authority figures",
+  // Ending elements
+  emotional_closure: "Emotional closure",
+  calm_state: "Calm state",
+  safe_present_moment: "Safe present moment",
+  success_moment: "Success moment",
+};
+
+function getClinicalLabel(key: string): string {
+  return CLINICAL_LABELS[key] || formatDisplayText(key);
+}
+
+function formatAgeGroup(ag: string): string {
+  const m: Record<string, string> = {
     "0_3": "0\u20133 years",
     "3_6": "3\u20136 years",
     "6_9": "6\u20139 years",
     "9_12": "9\u201312 years",
   };
-  return map[ageGroup] || ageGroup;
+  return m[ag] || ag;
 }
 
-// Helper to get review status color
-function getReviewStatusColor(
-  status?: string
-): "default" | "warning" | "success" | "error" | "info" {
-  switch (status) {
-    case "approved":
-      return "success";
-    case "needs_changes":
-      return "warning";
-    case "rejected":
-      return "error";
-    case "pending_review":
-      return "info";
-    default:
-      return "default";
-  }
-}
+// Known option pools for add-item selects
+const KNOWN_REQUIRED_ELEMENTS = [
+  "emotion_labeling", "validation_phrase", "reassurance_loop",
+  "gentle_exposure_steps", "predictable_routine", "caregiver_reassurance",
+  "small_success_moment", "positive_self_talk", "coping_tool_practice",
+];
+
+const KNOWN_MUST_AVOID = [
+  "shaming_language", "suspense", "threat_metaphors", "betrayal_theme",
+  "humiliation", "punishment_tone", "sudden_surprise", "emotional_spikes",
+  "cliffhanger", "new_threat", "helplessness", "needles", "blood",
+  "hospital_realism", "police_threat", "punitive_authority",
+];
+
+const KNOWN_COPING_TOOLS = [
+  "balloon_breathing", "counting", "safe_object", "coping_phrase", "name_the_feeling",
+];
+
+// ============================================================================
+// Component
+// ============================================================================
 
 const AdminContractReviewPage: React.FC = () => {
   const { briefId } = useParams<{ briefId: string }>();
   const navigate = useNavigate();
 
+  // --- Data state ---
   const [brief, setBrief] = useState<StoryBrief | null>(null);
   const [contract, setContract] = useState<GenerationContract | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [applyingOverride, setApplyingOverride] = useState(false);
-  const [submittingReview, setSubmittingReview] = useState(false);
-  const [rebuilding, setRebuilding] = useState(false);
-
-  // Override UI state
-  const [selectedCopingTool, setSelectedCopingTool] = useState<string>("");
-  const [overrideReason, setOverrideReason] = useState<string>("");
-
-  // Review decision UI state
-  const [reviewNotes, setReviewNotes] = useState<string>("");
-  const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
-
-  // Review history
+  const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [reviewHistory, setReviewHistory] = useState<ClientReviewRecord[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Load contract data (persisted, or build if not found)
-  const loadContractData = useCallback(async () => {
-    if (!briefId) {
-      setError("Brief ID is required");
-      setLoading(false);
-      return;
+  // --- Override editor state ---
+  const [ovCopingTool, setOvCopingTool] = useState("");
+  const [ovSensitivity, setOvSensitivity] = useState("");
+  const [ovEndingStyle, setOvEndingStyle] = useState("");
+  const [ovCaregiverPresence, setOvCaregiverPresence] = useState("");
+  const [ovKeyMessage, setOvKeyMessage] = useState("");
+  const [ovMinScenes, setOvMinScenes] = useState<number | "">("");
+  const [ovMaxScenes, setOvMaxScenes] = useState<number | "">("");
+  const [ovMaxWords, setOvMaxWords] = useState<number | "">("");
+  const [addedRequired, setAddedRequired] = useState<string[]>([]);
+  const [removedRequired, setRemovedRequired] = useState<string[]>([]);
+  const [addedMustAvoid, setAddedMustAvoid] = useState<string[]>([]);
+  const [removedMustAvoid, setRemovedMustAvoid] = useState<string[]>([]);
+  const [newRequiredItem, setNewRequiredItem] = useState("");
+  const [newMustAvoidItem, setNewMustAvoidItem] = useState("");
+  const [customMustAvoid, setCustomMustAvoid] = useState("");
+
+  // --- Init editor from contract ---
+  const initEditor = useCallback((c: GenerationContract) => {
+    const ov = c.specialistOverrides;
+    setOvCopingTool(ov?.copingToolId || "");
+    setOvSensitivity(ov?.emotionalSensitivity || "");
+    setOvEndingStyle(ov?.endingStyle || "");
+    setOvCaregiverPresence(ov?.caregiverPresence || "");
+    setOvKeyMessage(ov?.keyMessage || "");
+    setOvMinScenes(ov?.minScenes ?? "");
+    setOvMaxScenes(ov?.maxScenes ?? "");
+    setOvMaxWords(ov?.maxWords ?? "");
+    setAddedRequired(ov?.addRequiredElements || []);
+    setRemovedRequired(ov?.removeRequiredElements || []);
+    setAddedMustAvoid(ov?.addMustAvoid || []);
+    setRemovedMustAvoid(ov?.removeMustAvoid || []);
+  }, []);
+
+  // --- Compute base items (before overrides) ---
+  const baseRequired = useMemo(() => {
+    if (!contract) return [];
+    const prev = contract.specialistOverrides;
+    let base = [...contract.requiredElements];
+    if (prev?.removeRequiredElements) base = [...base, ...prev.removeRequiredElements];
+    if (prev?.addRequiredElements) {
+      const addSet = new Set(prev.addRequiredElements);
+      base = base.filter((e) => !addSet.has(e));
     }
+    return Array.from(new Set(base));
+  }, [contract]);
 
-    try {
-      setLoading(true);
-      setError(null);
-      setReviewSuccess(null);
+  const baseMustAvoid = useMemo(() => {
+    if (!contract) return [];
+    const prev = contract.specialistOverrides;
+    let base = [...contract.mustAvoid];
+    if (prev?.removeMustAvoid) base = [...base, ...prev.removeMustAvoid];
+    if (prev?.addMustAvoid) {
+      const addSet = new Set(prev.addMustAvoid);
+      base = base.filter((e) => !addSet.has(e));
+    }
+    return Array.from(new Set(base));
+  }, [contract]);
 
-      // Load brief
-      const briefData = await fetchStoryBriefById(briefId);
-      setBrief(briefData);
+  // --- Effective displayed lists ---
+  const effectiveRequired = useMemo(() => {
+    const removeSet = new Set(removedRequired);
+    return Array.from(new Set([...baseRequired.filter((e) => !removeSet.has(e)), ...addedRequired]));
+  }, [baseRequired, addedRequired, removedRequired]);
 
-      // Try to load persisted contract; if not found, build one
+  const effectiveMustAvoid = useMemo(() => {
+    const removeSet = new Set(removedMustAvoid);
+    return Array.from(new Set([...baseMustAvoid.filter((e) => !removeSet.has(e)), ...addedMustAvoid]));
+  }, [baseMustAvoid, addedMustAvoid, removedMustAvoid]);
+
+  // --- Unsaved changes detection ---
+  const hasUnsavedChanges = useMemo(() => {
+    if (!contract) return false;
+    const ov = contract.specialistOverrides;
+    return (
+      ovCopingTool !== (ov?.copingToolId || "") ||
+      ovSensitivity !== (ov?.emotionalSensitivity || "") ||
+      ovEndingStyle !== (ov?.endingStyle || "") ||
+      ovCaregiverPresence !== (ov?.caregiverPresence || "") ||
+      ovKeyMessage !== (ov?.keyMessage || "") ||
+      ovMinScenes !== (ov?.minScenes ?? "") ||
+      ovMaxScenes !== (ov?.maxScenes ?? "") ||
+      ovMaxWords !== (ov?.maxWords ?? "") ||
+      JSON.stringify(addedRequired.slice().sort()) !== JSON.stringify((ov?.addRequiredElements || []).slice().sort()) ||
+      JSON.stringify(removedRequired.slice().sort()) !== JSON.stringify((ov?.removeRequiredElements || []).slice().sort()) ||
+      JSON.stringify(addedMustAvoid.slice().sort()) !== JSON.stringify((ov?.addMustAvoid || []).slice().sort()) ||
+      JSON.stringify(removedMustAvoid.slice().sort()) !== JSON.stringify((ov?.removeMustAvoid || []).slice().sort())
+    );
+  }, [contract, ovCopingTool, ovSensitivity, ovEndingStyle, ovCaregiverPresence, ovKeyMessage, ovMinScenes, ovMaxScenes, ovMaxWords, addedRequired, removedRequired, addedMustAvoid, removedMustAvoid]);
+
+  // --- Load data ---
+  const loadContractData = useCallback(async () => {
+    if (!briefId) { setError("Brief ID is required"); setLoading(false); return; }
+      try {
+        setLoading(true);
+        setError(null);
+      setSuccessMsg(null);
+        const briefData = await fetchStoryBriefById(briefId);
+        setBrief(briefData);
       let contractData: GenerationContract;
       try {
         contractData = await fetchGenerationContract(briefId);
       } catch {
-        // Contract doesn't exist yet — build and persist it
         contractData = await buildContractFromBrief(briefId);
-        // Reload brief since buildContract updates brief.status
         const updatedBrief = await fetchStoryBriefById(briefId);
         setBrief(updatedBrief);
       }
       setContract(contractData);
-
-      // Set initial selected coping tool if override exists
-      if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
-        setSelectedCopingTool(contractData.overrideDetails.copingToolId as string);
-      } else if (contractData.allowedCopingTools.length > 0) {
-        setSelectedCopingTool(contractData.allowedCopingTools[0]);
-      }
-
-      // Fetch review history in parallel (non-blocking)
+      initEditor(contractData);
       try {
         setHistoryLoading(true);
         const history = await fetchReviewHistory(briefId);
         setReviewHistory(history);
-      } catch {
-        // Review history is non-critical; silently ignore
-        setReviewHistory([]);
-      } finally {
-        setHistoryLoading(false);
-      }
+      } catch { setReviewHistory([]); } finally { setHistoryLoading(false); }
     } catch (err: any) {
       setError(err.message || "Failed to load contract");
-    } finally {
-      setLoading(false);
-    }
-  }, [briefId]);
+    } finally { setLoading(false); }
+  }, [briefId, initEditor]);
 
-  useEffect(() => {
-    loadContractData();
-  }, [loadContractData]);
+  useEffect(() => { loadContractData(); }, [loadContractData]);
 
-  const handleApplyOverride = async () => {
-    if (!briefId || !selectedCopingTool) {
-      setError("Coping tool selection is required");
-      return;
-    }
-
-    try {
-      setApplyingOverride(true);
-      setError(null);
-      setReviewSuccess(null);
-
-      await applyContractOverride(briefId, {
-        copingToolId: selectedCopingTool,
-        reason: overrideReason || undefined,
-      });
-
-      // Reload persisted contract and brief after override (contract is regenerated)
-      const updatedContract = await fetchGenerationContract(briefId);
-      setContract(updatedContract);
-
-      const updatedBrief = await fetchStoryBriefById(briefId);
-      setBrief(updatedBrief);
-
-      // Synchronize selectedCopingTool with the new override
-      if (updatedContract.overrideDetails?.copingToolId) {
-        setSelectedCopingTool(updatedContract.overrideDetails.copingToolId as string);
-      }
-      setOverrideReason(""); // Clear reason after successful override
-    } catch (err: any) {
-      setError(err.message || "Failed to apply override");
-    } finally {
-      setApplyingOverride(false);
+  // --- Required elements handlers ---
+  const handleRemoveRequired = (item: string) => {
+    if (addedRequired.includes(item)) {
+      setAddedRequired((prev) => prev.filter((e) => e !== item));
+    } else {
+      setRemovedRequired((prev) => Array.from(new Set([...prev, item])));
     }
   };
 
-  const handleReviewDecision = async (decision: "approved" | "needs_changes" | "rejected") => {
+  const handleAddRequired = (item: string) => {
+    if (!item) return;
+    if (removedRequired.includes(item)) {
+      setRemovedRequired((prev) => prev.filter((e) => e !== item));
+    } else if (!effectiveRequired.includes(item)) {
+      setAddedRequired((prev) => Array.from(new Set([...prev, item])));
+    }
+    setNewRequiredItem("");
+  };
+
+  // --- Must-avoid handlers ---
+  const handleRemoveMustAvoid = (item: string) => {
+    if (addedMustAvoid.includes(item)) {
+      setAddedMustAvoid((prev) => prev.filter((e) => e !== item));
+    } else {
+      setRemovedMustAvoid((prev) => Array.from(new Set([...prev, item])));
+    }
+  };
+
+  const handleAddMustAvoid = (item: string) => {
+    if (!item) return;
+    if (removedMustAvoid.includes(item)) {
+      setRemovedMustAvoid((prev) => prev.filter((e) => e !== item));
+    } else if (!effectiveMustAvoid.includes(item)) {
+      setAddedMustAvoid((prev) => Array.from(new Set([...prev, item])));
+    }
+    setNewMustAvoidItem("");
+  };
+
+  const handleAddCustomMustAvoid = () => {
+    const item = customMustAvoid.trim().toLowerCase().replace(/\s+/g, "_");
+    if (item) {
+      handleAddMustAvoid(item);
+      setCustomMustAvoid("");
+    }
+  };
+
+  // --- Save & Regenerate ---
+  const handleSaveAndRegenerate = async () => {
     if (!briefId) return;
-
     try {
-      setSubmittingReview(true);
+      setSaving(true);
       setError(null);
-      setReviewSuccess(null);
+      setSuccessMsg(null);
+      const overrides: SpecialistOverrides = {};
+      if (ovCopingTool) overrides.copingToolId = ovCopingTool;
+      if (addedRequired.length) overrides.addRequiredElements = addedRequired;
+      if (removedRequired.length) overrides.removeRequiredElements = removedRequired;
+      if (addedMustAvoid.length) overrides.addMustAvoid = addedMustAvoid;
+      if (removedMustAvoid.length) overrides.removeMustAvoid = removedMustAvoid;
+      if (ovSensitivity) overrides.emotionalSensitivity = ovSensitivity as SpecialistOverrides["emotionalSensitivity"];
+      if (ovEndingStyle) overrides.endingStyle = ovEndingStyle as SpecialistOverrides["endingStyle"];
+      if (ovCaregiverPresence) overrides.caregiverPresence = ovCaregiverPresence as SpecialistOverrides["caregiverPresence"];
+      if (ovKeyMessage) overrides.keyMessage = ovKeyMessage;
+      if (ovMinScenes !== "") overrides.minScenes = Number(ovMinScenes);
+      if (ovMaxScenes !== "") overrides.maxScenes = Number(ovMaxScenes);
+      if (ovMaxWords !== "") overrides.maxWords = Number(ovMaxWords);
+      overrides.reason = "specialist_adjustment";
 
-      await submitContractReview(briefId, decision, reviewNotes || undefined);
-
-      // Refresh contract, brief, and review history to reflect updated state
-      const updatedContract = await fetchGenerationContract(briefId);
-      setContract(updatedContract);
-
+      await applyContractOverride(briefId, overrides);
+      const updated = await fetchGenerationContract(briefId);
+      setContract(updated);
+      initEditor(updated);
       const updatedBrief = await fetchStoryBriefById(briefId);
       setBrief(updatedBrief);
-
-      try {
-        const history = await fetchReviewHistory(briefId);
-        setReviewHistory(history);
-      } catch {
-        // non-critical
-      }
-
-      setReviewNotes(""); // Clear notes after submission
-      setReviewSuccess(
-        `Decision "${formatDisplayText(decision)}" submitted successfully.`
-      );
+      try { const h = await fetchReviewHistory(briefId); setReviewHistory(h); } catch {}
+      setSuccessMsg("Contract regenerated with your adjustments.");
     } catch (err: any) {
-      setError(err.message || "Failed to submit review");
-    } finally {
-      setSubmittingReview(false);
-    }
+      setError(err.message || "Failed to save overrides");
+    } finally { setSaving(false); }
   };
 
-  const handleContinueToGeneration = () => {
-    navigate(`/specialist/generate-draft?briefId=${briefId}`);
-  };
-
-  const handleRebuildContract = async () => {
+  // --- Reset to defaults (clear all overrides) ---
+  const handleResetDefaults = async () => {
     if (!briefId) return;
-
     try {
-      setRebuilding(true);
+      setResetting(true);
       setError(null);
-      setReviewSuccess(null);
-
-      const newContract = await buildContractFromBrief(briefId);
-      setContract(newContract);
-
-      // Refresh brief (status changes to pending_review)
+      setSuccessMsg(null);
+      await resetContractOverrides(briefId);
+      const updated = await fetchGenerationContract(briefId);
+      setContract(updated);
+      initEditor(updated);
       const updatedBrief = await fetchStoryBriefById(briefId);
       setBrief(updatedBrief);
-
-      // Refresh review history
-      try {
-        const history = await fetchReviewHistory(briefId);
-        setReviewHistory(history);
-      } catch {
-        // non-critical
-      }
-
-      // Sync coping tool selection
-      if (newContract.overrideUsed && newContract.overrideDetails?.copingToolId) {
-        setSelectedCopingTool(newContract.overrideDetails.copingToolId as string);
-      } else if (newContract.allowedCopingTools.length > 0) {
-        setSelectedCopingTool(newContract.allowedCopingTools[0]);
-      }
-
-      setReviewSuccess("Contract rebuilt successfully. Ready for review.");
+      try { const h = await fetchReviewHistory(briefId); setReviewHistory(h); } catch {}
+      setSuccessMsg("All overrides cleared. Contract regenerated from clinical rules.");
     } catch (err: any) {
-      setError(err.message || "Failed to rebuild contract");
-    } finally {
-      setRebuilding(false);
-    }
+      setError(err.message || "Failed to reset overrides");
+    } finally { setResetting(false); }
   };
 
-  // Extract override tool ID for type safety
-  const overrideToolId =
-    contract?.overrideUsed && contract.overrideDetails?.copingToolId
-      ? typeof contract.overrideDetails.copingToolId === "string"
-        ? contract.overrideDetails.copingToolId
-        : null
-      : null;
+  // --- Gate conditions ---
+  const canContinueToGeneration = contract?.status === "valid" && (!contract.errors || contract.errors.length === 0);
 
-  // Gate conditions
-  const canApprove =
-    contract?.status === "valid" && (!contract.errors || contract.errors.length === 0);
-  const canContinueToGeneration =
-    contract?.status === "valid" && contract?.reviewStatus === "approved";
-  const showRebuild =
-    contract?.reviewStatus === "needs_changes" || contract?.reviewStatus === "rejected";
+  // Available items for add-selects (exclude already effective items)
+  const availableRequiredToAdd = KNOWN_REQUIRED_ELEMENTS.filter((e) => !effectiveRequired.includes(e));
+  const availableMustAvoidToAdd = KNOWN_MUST_AVOID.filter((e) => !effectiveMustAvoid.includes(e));
+  const copingToolOptions = contract
+    ? Array.from(new Set([...contract.allowedCopingTools, ...KNOWN_COPING_TOOLS]))
+    : KNOWN_COPING_TOOLS;
+
+  // ===================== RENDER =====================
 
   if (loading) {
     return (
@@ -313,399 +403,374 @@ const AdminContractReviewPage: React.FC = () => {
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <SpecialistNav />
       <Typography variant="h4" gutterBottom>
-        Contract Review
+        Contract Editor
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Review the generation contract before proceeding to story generation
+        Review and adjust the generation contract. Changes are saved and approved automatically.
       </Typography>
 
+      {/* Alerts */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
-
-      {reviewSuccess && (
-        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setReviewSuccess(null)}>
-          {reviewSuccess}
+      {successMsg && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMsg(null)}>
+          {successMsg}
         </Alert>
       )}
-
       {contract.errors.length > 0 && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Contract Errors ({contract.errors.length}):
-          </Typography>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <strong>Contract Errors:</strong>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {contract.errors.map((err, idx) => (
-              <li key={idx}>{err.message}</li>
-            ))}
+            {contract.errors.map((e, i) => <li key={i}>{e.message}</li>)}
           </ul>
         </Alert>
       )}
-
       {contract.warnings.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Warnings ({contract.warnings.length}):
-          </Typography>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>Warnings:</strong>
           <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {contract.warnings.map((warn, idx) => (
-              <li key={idx}>{warn.message}</li>
-            ))}
+            {contract.warnings.map((w, i) => <li key={i}>{w.message}</li>)}
           </ul>
         </Alert>
       )}
 
-      {/* Workflow Guidance Banner */}
-      {contract.reviewStatus === "pending_review" && (
+      {/* Workflow guidance */}
+      {hasUnsavedChanges ? (
         <Alert severity="info" sx={{ mb: 3 }}>
-          <strong>Awaiting Review</strong> — This contract is waiting for your decision. Review the details below, then approve, request changes, or reject.
+          <strong>Unsaved changes</strong> — Click "Save &amp; Regenerate" to apply your adjustments.
         </Alert>
-      )}
-      {contract.reviewStatus === "approved" && (
+      ) : canContinueToGeneration ? (
         <Alert severity="success" sx={{ mb: 3 }}>
-          <strong>Approved</strong> — This contract has been approved and is ready for story generation. Use the "Continue to Generation" button below.
+          <strong>Ready</strong> — This contract is valid and ready for story generation. You can still adjust it below.
         </Alert>
-      )}
-      {contract.reviewStatus === "needs_changes" && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <strong>Changes Requested</strong> — This contract was marked as needing changes. Use the override tool or rebuild the contract, then submit a new review.
-        </Alert>
-      )}
-      {contract.reviewStatus === "rejected" && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <strong>Rejected</strong> — This contract was rejected. You can rebuild the contract to start a new review cycle.
+      ) : (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          Adjust the contract below, then click "Save &amp; Regenerate".
         </Alert>
       )}
 
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-          gap: 3,
-        }}
-      >
-        {/* Brief Summary */}
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3 }}>
+        {/* ────────────── Brief Summary (read-only) ────────────── */}
         <Card>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Brief Summary
-            </Typography>
+            <Typography variant="h6" gutterBottom>Brief Summary</Typography>
             <Stack spacing={1}>
+              <LabelValue label="Topic" value={formatDisplayText(brief.therapeuticFocus.primaryTopic)} />
+              <LabelValue label="Situation" value={formatDisplayText(brief.therapeuticFocus.specificSituation)} />
+              <LabelValue label="Age Group" value={formatAgeGroup(brief.childProfile.ageGroup)} />
+              <LabelValue label="Emotional Sensitivity" value={formatDisplayText(brief.childProfile.emotionalSensitivity)} />
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Topic
-                </Typography>
-                <Typography>{formatDisplayText(brief.therapeuticFocus.primaryTopic)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Situation
-                </Typography>
-                <Typography>{formatDisplayText(brief.therapeuticFocus.specificSituation)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Age Group
-                </Typography>
-                <Typography>{formatAgeGroup(brief.childProfile.ageGroup)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Emotional Sensitivity
-                </Typography>
-                <Typography>{formatDisplayText(brief.childProfile.emotionalSensitivity)}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Emotional Goals
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Emotional Goals</Typography>
                 <Box sx={{ mt: 0.5 }}>
-                  {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
-                    <Chip key={idx} label={formatDisplayText(goal)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+                  {brief.therapeuticIntent.emotionalGoals.map((g, i) => (
+                    <Chip key={i} label={formatDisplayText(g)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
                   ))}
                 </Box>
               </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Ending Style
-                </Typography>
-                <Typography>{formatDisplayText(brief.storyPreferences.endingStyle)}</Typography>
-              </Box>
+              <LabelValue label="Ending Style" value={formatDisplayText(brief.storyPreferences.endingStyle)} />
             </Stack>
           </CardContent>
         </Card>
 
-        {/* Contract Details */}
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Contract Details
-            </Typography>
-            <Stack spacing={2}>
-              {/* Contract Status + Review Status */}
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Status
-                </Typography>
-                <Box sx={{ mt: 0.5, display: "flex", gap: 1, alignItems: "center" }}>
-                  <Chip
-                    label={contract.status === "valid" ? "Valid" : "Invalid"}
-                    size="small"
-                    color={contract.status === "valid" ? "success" : "error"}
-                  />
-                  <Chip
-                    label={formatDisplayText(contract.reviewStatus || "pending_review")}
-                    size="small"
-                    color={getReviewStatusColor(contract.reviewStatus)}
-                  />
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Rules Version
-                </Typography>
-                <Typography variant="body2">{contract.rulesVersionUsed}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Length Budget
-                </Typography>
-                <Typography>
-                  {contract.lengthBudget.minScenes}–{contract.lengthBudget.maxScenes} scenes, max{" "}
-                  {contract.lengthBudget.maxWords} words
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Required Elements ({contract.requiredElements.length})
-                </Typography>
-                <Box sx={{ mt: 0.5 }}>
-                  {contract.requiredElements.slice(0, 10).map((elem, idx) => (
-                    <Chip key={idx} label={formatDisplayText(elem)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                  ))}
-                  {contract.requiredElements.length > 10 && (
-                    <Typography variant="caption" color="text.secondary">
-                      +{contract.requiredElements.length - 10} more
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Allowed Coping Tools ({contract.allowedCopingTools.length})
-                </Typography>
-                <Box sx={{ mt: 0.5 }}>
-                  {contract.allowedCopingTools.map((tool, idx) => (
-                    <Chip key={idx} label={formatDisplayText(tool)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                  ))}
-                </Box>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Must Avoid (showing first 20 of {contract.mustAvoid.length})
-                </Typography>
-                <Box sx={{ mt: 0.5 }}>
-                  {contract.mustAvoid.slice(0, 20).map((item, idx) => (
-                    <Chip
-                      key={idx}
-                      label={formatDisplayText(item)}
-                      size="small"
-                      color="error"
-                      variant="outlined"
-                      sx={{ mr: 0.5, mb: 0.5 }}
-                    />
-                  ))}
-                  {contract.mustAvoid.length > 20 && (
-                    <Typography variant="caption" color="text.secondary">
-                      +{contract.mustAvoid.length - 20} more
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
+        {/* ────────────── Contract Status (read-only) ────────────── */}
+          <Card>
+            <CardContent>
+            <Typography variant="h6" gutterBottom>Contract Status</Typography>
+            <Stack spacing={1}>
+              <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                      <Chip
+                  label={contract.status === "valid" ? "Valid" : "Invalid"}
+                        size="small"
+                  color={contract.status === "valid" ? "success" : "error"}
+                />
+                {contract.overrideUsed && <Chip label="Overrides Applied" size="small" variant="outlined" color="warning" />}
+                  </Box>
+              <LabelValue label="Rules Version" value={contract.rulesVersionUsed} />
+              <LabelValue label="Length Budget" value={`${contract.lengthBudget.minScenes}–${contract.lengthBudget.maxScenes} scenes, max ${contract.lengthBudget.maxWords} words`} />
+              <LabelValue label="Language Complexity" value={formatDisplayText(contract.styleRules.languageComplexity)} />
+              <LabelValue label="Emotional Tone" value={formatDisplayText(contract.styleRules.emotionalTone)} />
+              <LabelValue label="Caregiver Presence" value={formatDisplayText(contract.caregiverPresence)} />
+              <LabelValue label="Sensitivity" value={formatDisplayText(contract.emotionalSensitivity)} />
+              <LabelValue label="Ending Style" value={formatDisplayText(contract.endingContract.endingStyle)} />
+              {contract.keyMessage && <LabelValue label="Key Message" value={contract.keyMessage} />}
+              </Stack>
+            </CardContent>
+          </Card>
 
-              {/* Last review info */}
-              {contract.reviewedBy && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Last Reviewed By
-                  </Typography>
-                  <Typography variant="body2">{contract.reviewedBy}</Typography>
-                  {contract.reviewedAt && (
-                    <Typography variant="caption" color="text.secondary">
-                      {typeof contract.reviewedAt === "object" && contract.reviewedAt._seconds
-                        ? new Date(contract.reviewedAt._seconds * 1000).toLocaleString()
-                        : String(contract.reviewedAt)}
-                    </Typography>
-                  )}
-                </Box>
-              )}
-              {contract.reviewNotes && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Review Notes
-                  </Typography>
-                  <Typography variant="body2">{contract.reviewNotes}</Typography>
-                </Box>
-              )}
-            </Stack>
-          </CardContent>
-        </Card>
-
-        {/* Override Section */}
+        {/* ────────────── SPECIALIST ADJUSTMENTS ────────────── */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Override Coping Tool
+              Specialist Adjustments
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Override the automatically selected coping tool if needed
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Modify any aspect of the contract. Changes are applied on top of the clinical rules.
             </Typography>
-            <Stack spacing={2} direction={{ xs: "column", sm: "row" }} alignItems="flex-start">
-              <FormControl sx={{ minWidth: 250 }}>
-                <InputLabel>Coping Tool</InputLabel>
-                <Select
-                  value={selectedCopingTool}
-                  onChange={(e) => setSelectedCopingTool(e.target.value)}
-                  label="Coping Tool"
+
+            {/* ── Required Elements ── */}
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Required Elements
+            </Typography>
+            <Box sx={{ mb: 1 }}>
+              {effectiveRequired.map((item) => (
+                <Chip
+                  key={item}
+                  label={getClinicalLabel(item)}
+                  size="small"
+                  onDelete={() => handleRemoveRequired(item)}
+                  color={addedRequired.includes(item) ? "primary" : "default"}
+                  variant={addedRequired.includes(item) ? "outlined" : "filled"}
+                  sx={{ mr: 0.5, mb: 0.5 }}
+                />
+              ))}
+              {effectiveRequired.length === 0 && (
+                <Typography variant="body2" color="text.secondary">None</Typography>
+              )}
+            </Box>
+            {availableRequiredToAdd.length > 0 && (
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 3 }}>
+                <FormControl size="small" sx={{ minWidth: 280 }}>
+                  <InputLabel>Add required element</InputLabel>
+                  <Select
+                    value={newRequiredItem}
+                    onChange={(e) => setNewRequiredItem(e.target.value)}
+                    label="Add required element"
+                  >
+                    {availableRequiredToAdd.map((e) => (
+                      <MenuItem key={e} value={e}>{getClinicalLabel(e)}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={!newRequiredItem}
+                  onClick={() => handleAddRequired(newRequiredItem)}
                 >
-                  {contract.allowedCopingTools.map((tool) => (
-                    <MenuItem key={tool} value={tool}>
-                      {formatDisplayText(tool)}
-                    </MenuItem>
+                  Add
+                </Button>
+              </Stack>
+            )}
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* ── Must-Avoid Items ── */}
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Must-Avoid Items
+            </Typography>
+            <Box sx={{ mb: 1 }}>
+              {effectiveMustAvoid.map((item) => (
+                <Chip
+                  key={item}
+                  label={getClinicalLabel(item)}
+                  size="small"
+                  color={addedMustAvoid.includes(item) ? "warning" : "error"}
+                  variant="outlined"
+                  onDelete={() => handleRemoveMustAvoid(item)}
+                  sx={{ mr: 0.5, mb: 0.5 }}
+                />
+              ))}
+              {effectiveMustAvoid.length === 0 && (
+                <Typography variant="body2" color="text.secondary">None</Typography>
+              )}
+            </Box>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+              <FormControl size="small" sx={{ minWidth: 280 }}>
+                <InputLabel>Add must-avoid item</InputLabel>
+                <Select
+                  value={newMustAvoidItem}
+                  onChange={(e) => setNewMustAvoidItem(e.target.value)}
+                  label="Add must-avoid item"
+                >
+                  {availableMustAvoidToAdd.map((e) => (
+                    <MenuItem key={e} value={e}>{getClinicalLabel(e)}</MenuItem>
                   ))}
                 </Select>
               </FormControl>
-              <TextField
-                label="Reason (optional)"
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="Why are you overriding the default?"
-                sx={{ flexGrow: 1 }}
-              />
               <Button
+                size="small"
                 variant="outlined"
-                onClick={handleApplyOverride}
-                disabled={applyingOverride || !selectedCopingTool}
+                disabled={!newMustAvoidItem}
+                onClick={() => handleAddMustAvoid(newMustAvoidItem)}
               >
-                {applyingOverride ? <CircularProgress size={20} /> : "Apply Override & Regenerate"}
+                Add
               </Button>
             </Stack>
-            {overrideToolId && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Override is currently active: {formatDisplayText(overrideToolId)}
-              </Alert>
-            )}
-          </Paper>
-        </Box>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 3 }}>
+                <TextField
+                  size="small"
+                  label="Add custom trigger (e.g. dogs, thunder)"
+                  value={customMustAvoid}
+                  onChange={(e) => setCustomMustAvoid(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCustomMustAvoid(); } }}
+                  sx={{ minWidth: 280 }}
+                />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  disabled={!customMustAvoid.trim()}
+                  onClick={handleAddCustomMustAvoid}
+                >
+                  Add Custom
+                </Button>
+              </Stack>
 
-        {/* Rebuild Contract (visible when needs_changes or rejected) */}
-        {showRebuild && (
-          <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
-            <Paper sx={{ p: 3, borderLeft: "4px solid", borderLeftColor: "warning.main" }}>
-              <Typography variant="h6" gutterBottom>
-                Rebuild Contract
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Rebuild the generation contract to apply changes and start a new review cycle.
-              </Typography>
-              <Button
-                variant="contained"
-                color="warning"
-                onClick={handleRebuildContract}
-                disabled={rebuilding}
-                startIcon={rebuilding ? <CircularProgress size={16} /> : undefined}
-              >
-                {rebuilding ? "Rebuilding..." : "Rebuild Contract"}
-              </Button>
-            </Paper>
-          </Box>
-        )}
+            <Divider sx={{ my: 2 }} />
 
-        {/* Decision Controls (Agent 2) */}
-        <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Review Decision
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Approve, request changes, or reject this generation contract
-            </Typography>
+            {/* ── Dropdowns & text fields ── */}
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "1fr 1fr 1fr" }, gap: 2, mb: 3 }}>
+              {/* Coping Tool */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>Primary Coping Tool</InputLabel>
+                <Select
+                  value={ovCopingTool}
+                  onChange={(e) => setOvCopingTool(e.target.value)}
+                  label="Primary Coping Tool"
+                >
+                  <MenuItem value=""><em>Use default</em></MenuItem>
+                  {copingToolOptions.map((t) => (
+                    <MenuItem key={t} value={t}>{getClinicalLabel(t)}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-            {contract.reviewStatus === "approved" && (
-              <Alert severity="success" sx={{ mb: 2 }}>
-                This contract is already approved. To make a new decision, rebuild the contract first.
-              </Alert>
-            )}
+              {/* Emotional Sensitivity */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>Emotional Sensitivity</InputLabel>
+                <Select
+                  value={ovSensitivity}
+                  onChange={(e) => setOvSensitivity(e.target.value)}
+                  label="Emotional Sensitivity"
+                >
+                  <MenuItem value=""><em>Use default ({formatDisplayText(brief.childProfile.emotionalSensitivity)})</em></MenuItem>
+                  <MenuItem value="low">Low</MenuItem>
+                  <MenuItem value="medium">Medium</MenuItem>
+                  <MenuItem value="high">High</MenuItem>
+                </Select>
+              </FormControl>
 
+              {/* Ending Style */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>Ending Style</InputLabel>
+                <Select
+                  value={ovEndingStyle}
+                  onChange={(e) => setOvEndingStyle(e.target.value)}
+                  label="Ending Style"
+                >
+                  <MenuItem value=""><em>Use default ({formatDisplayText(brief.storyPreferences.endingStyle)})</em></MenuItem>
+                  <MenuItem value="calm_resolution">Calm Resolution</MenuItem>
+                  <MenuItem value="open_ended">Open Ended</MenuItem>
+                  <MenuItem value="empowering">Empowering</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Caregiver Presence */}
+              <FormControl size="small" fullWidth>
+                <InputLabel>Caregiver Presence</InputLabel>
+                <Select
+                  value={ovCaregiverPresence}
+                  onChange={(e) => setOvCaregiverPresence(e.target.value)}
+                  label="Caregiver Presence"
+                >
+                  <MenuItem value=""><em>Use default ({formatDisplayText(brief.storyPreferences.caregiverPresence)})</em></MenuItem>
+                  <MenuItem value="included">Included</MenuItem>
+                  <MenuItem value="self_guided">Self-Guided</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Min Scenes */}
+              <TextField
+                size="small"
+                type="number"
+                label="Min Scenes"
+                value={ovMinScenes}
+                onChange={(e) => setOvMinScenes(e.target.value === "" ? "" : Number(e.target.value))}
+                inputProps={{ min: 1, max: 20 }}
+                helperText={`Default: ${contract.lengthBudget.minScenes}`}
+              />
+
+              {/* Max Scenes */}
+              <TextField
+                size="small"
+                type="number"
+                label="Max Scenes"
+                value={ovMaxScenes}
+                onChange={(e) => setOvMaxScenes(e.target.value === "" ? "" : Number(e.target.value))}
+                inputProps={{ min: 1, max: 20 }}
+                helperText={`Default: ${contract.lengthBudget.maxScenes}`}
+              />
+
+              {/* Max Words */}
+              <TextField
+                size="small"
+                type="number"
+                label="Max Words"
+                value={ovMaxWords}
+                onChange={(e) => setOvMaxWords(e.target.value === "" ? "" : Number(e.target.value))}
+                inputProps={{ min: 50, max: 5000 }}
+                helperText={ovMaxWords === "" && (ovMaxScenes !== "" || ovMinScenes !== "") ? "Auto-scales with scenes" : `Default: ${contract.lengthBudget.maxWords}`}
+              />
+            </Box>
+
+            {/* Key Message */}
             <TextField
-              label="Review Notes (optional)"
-              value={reviewNotes}
-              onChange={(e) => setReviewNotes(e.target.value)}
-              placeholder="Add notes about your review decision..."
-              multiline
-              rows={2}
+              size="small"
               fullWidth
-              sx={{ mb: 2 }}
-              disabled={contract.reviewStatus === "approved"}
+              label="Key Message (override)"
+              value={ovKeyMessage}
+              onChange={(e) => setOvKeyMessage(e.target.value)}
+              placeholder={contract.keyMessage || "e.g. It's okay to ask for help"}
+              helperText="The core takeaway the story should convey"
+              sx={{ mb: 3 }}
             />
 
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={() => handleReviewDecision("approved")}
-                disabled={submittingReview || !canApprove || contract.reviewStatus === "approved"}
-              >
-                {submittingReview ? <CircularProgress size={20} /> : "Approve"}
-              </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={() => handleReviewDecision("needs_changes")}
-                disabled={submittingReview || contract.reviewStatus === "approved"}
-              >
-                {submittingReview ? <CircularProgress size={20} /> : "Needs Changes"}
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => handleReviewDecision("rejected")}
-                disabled={submittingReview || contract.reviewStatus === "approved"}
-              >
-                {submittingReview ? <CircularProgress size={20} /> : "Reject"}
-              </Button>
+            {/* Action buttons */}
+            <Stack spacing={2}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Button
+                  variant="contained"
+                  onClick={handleSaveAndRegenerate}
+                  disabled={saving || !hasUnsavedChanges}
+                  startIcon={saving ? <CircularProgress size={16} /> : undefined}
+                >
+                  {saving ? "Saving…" : "Save & Regenerate"}
+                </Button>
+                {contract.overrideUsed && (
+                  <Button
+                    variant="outlined"
+                    color="warning"
+                    onClick={handleResetDefaults}
+                    disabled={resetting}
+                    startIcon={resetting ? <CircularProgress size={16} /> : undefined}
+                  >
+                    {resetting ? "Resetting…" : "Reset to Defaults"}
+                  </Button>
+                )}
+              </Stack>
+              {contract.status !== "valid" && (
+                <Typography variant="caption" color="error">
+                  Contract has errors — fix them before generating a story.
+                </Typography>
+              )}
             </Stack>
-
-            {!canApprove && contract.reviewStatus !== "approved" && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Approve is disabled because the contract is invalid or has errors.
-                You can still request changes or reject.
-              </Alert>
-            )}
           </Paper>
         </Box>
 
-        {/* Review History (Audit Trail) */}
+        {/* ────────────── Audit Trail ────────────── */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Review History
-            </Typography>
+            <Typography variant="h6" gutterBottom>Audit Trail</Typography>
             {historyLoading ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
-                <CircularProgress size={24} />
-              </Box>
+              <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}><CircularProgress size={24} /></Box>
             ) : reviewHistory.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No review decisions have been recorded yet.
-              </Typography>
+              <Typography variant="body2" color="text.secondary">No audit records yet.</Typography>
             ) : (
-              <Stack spacing={2}>
+              <Stack spacing={1}>
                 {reviewHistory.map((record) => {
-                  const decisionColor = getReviewStatusColor(record.decision);
-                  const createdAt =
+                  const ts =
                     typeof record.createdAt === "object" && record.createdAt !== null
                       ? "_seconds" in record.createdAt
                         ? new Date((record.createdAt as any)._seconds * 1000).toLocaleString()
@@ -715,35 +780,23 @@ const AdminContractReviewPage: React.FC = () => {
                       : typeof record.createdAt === "string"
                         ? new Date(record.createdAt).toLocaleString()
                         : "—";
-
                   return (
-                    <Card key={record.id} variant="outlined" sx={{ borderLeft: "3px solid", borderLeftColor: `${decisionColor}.main` }}>
+                    <Card key={record.id} variant="outlined">
                       <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
-                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                           <Chip
-                            label={formatDisplayText(record.decision)}
+                            label={record.overrideApplied ? "Overrides Applied" : "Clean Build"}
                             size="small"
-                            color={decisionColor}
+                            color={record.overrideApplied ? "warning" : "success"}
+                            variant="outlined"
                           />
                           <Typography variant="caption" color="text.secondary">
-                            by {record.reviewerId}
+                            by {record.reviewerId} · {ts}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            · {createdAt}
-                          </Typography>
-                          {record.overrideApplied && (
-                            <Chip label="Override Applied" size="small" variant="outlined" color="info" />
-                          )}
                         </Stack>
-                        {record.reviewNotes && (
-                          <Typography variant="body2" sx={{ mt: 0.5 }}>
-                            {record.reviewNotes}
-                          </Typography>
-                        )}
-                        {record.overrideDetails && (
-                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                            Override: {formatDisplayText(record.overrideDetails.copingToolId)}
-                            {record.overrideDetails.reason && ` — ${record.overrideDetails.reason}`}
+                        {record.clinicalRationale && (
+                          <Typography variant="body2" sx={{ mt: 0.5, fontStyle: "italic", color: "text.secondary" }}>
+                            {record.clinicalRationale}
                           </Typography>
                         )}
                       </CardContent>
@@ -755,16 +808,14 @@ const AdminContractReviewPage: React.FC = () => {
           </Paper>
         </Box>
 
-        {/* Actions */}
+        {/* ────────────── Bottom Actions ────────────── */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Divider sx={{ my: 2 }} />
           <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button variant="outlined" onClick={() => navigate(-1)}>
-              Back
-            </Button>
+            <Button variant="outlined" onClick={() => navigate(-1)}>Back</Button>
             <Button
               variant="contained"
-              onClick={handleContinueToGeneration}
+              onClick={() => navigate(`/specialist/generate-draft?briefId=${briefId}`)}
               disabled={!canContinueToGeneration}
             >
               Continue to Generation
@@ -772,7 +823,7 @@ const AdminContractReviewPage: React.FC = () => {
           </Stack>
           {!canContinueToGeneration && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block", textAlign: "right" }}>
-              Contract must be valid and approved before generation can proceed.
+              Contract must be valid before generation.
             </Typography>
           )}
         </Box>
@@ -780,5 +831,15 @@ const AdminContractReviewPage: React.FC = () => {
     </Container>
   );
 };
+
+// Tiny helper for label-value pairs
+function LabelValue({ label, value }: { label: string; value: string }) {
+  return (
+    <Box>
+      <Typography variant="caption" color="text.secondary">{label}</Typography>
+      <Typography variant="body2">{value}</Typography>
+    </Box>
+  );
+}
 
 export default AdminContractReviewPage;
