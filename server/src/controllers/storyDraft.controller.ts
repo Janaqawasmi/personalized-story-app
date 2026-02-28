@@ -208,11 +208,29 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
 
     const briefData = briefDoc.data() as StoryBrief;
 
-    // Validate brief status before transaction
-    if (briefData.status !== "created") {
+    // Validate brief status — must be "approved" (Agent 2 approval gate)
+    if (briefData.status !== "approved") {
       res.status(409).json({
         success: false,
-        error: `Cannot generate draft: brief status is "${briefData.status}", expected "created"`,
+        error: `Cannot generate draft: brief status is "${briefData.status}", expected "approved"`,
+      });
+      return;
+    }
+
+    // Verify contract approval (Agent 2 generation gate)
+    const contractDoc = await firestore.collection("generationContracts").doc(briefId).get();
+    if (!contractDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: "Generation contract not found. Build a contract first.",
+      });
+      return;
+    }
+    const contractData = contractDoc.data();
+    if (contractData?.status !== "valid" || contractData?.reviewStatus !== "approved") {
+      res.status(409).json({
+        success: false,
+        error: "Generation contract must be valid and approved before generating a draft.",
       });
       return;
     }
@@ -237,8 +255,8 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       }
 
       const briefDataInTx = briefDocInTx.data() as StoryBrief;
-      if (briefDataInTx.status !== "created") {
-        throw new Error(`Cannot generate draft: brief status is "${briefDataInTx.status}", expected "created"`);
+      if (briefDataInTx.status !== "approved") {
+        throw new Error(`Cannot generate draft: brief status is "${briefDataInTx.status}", expected "approved"`);
       }
 
       // Update brief status to "draft_generating" and lock it
@@ -338,9 +356,9 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       
       await draftRef.update(updateData);
 
-      // Reset brief status back to "created" and unlock
+      // Reset brief status back to "approved" (rollback to pre-generation state) and unlock
       const briefUpdateData: any = {
-        status: "created",
+        status: "approved",
         updatedAt: admin.firestore.Timestamp.now(),
       };
       briefUpdateData.lockedAt = admin.firestore.FieldValue.delete();

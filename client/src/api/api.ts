@@ -309,7 +309,7 @@ export interface StoryBrief {
   createdAt: FirestoreTimestampJson;
   updatedAt: FirestoreTimestampJson;
   createdBy: string;
-  status: "created" | "draft_generating" | "draft_generated" | "archived";
+  status: "created" | "pending_review" | "approved" | "needs_changes" | "rejected" | "draft_generating" | "draft_generated" | "archived";
   version: number;
 
   // Therapeutic Focus
@@ -470,11 +470,17 @@ export interface GenerationContract {
   errors: Array<{ code: string; message: string }>;
   createdAt: any;
   updatedAt?: any;
-  status?: "valid" | "invalid";
+  status: "valid" | "invalid";
   validationSummary?: {
     errorCount: number;
     warningCount: number;
   };
+  // Review state fields (managed by Agent 2)
+  reviewStatus: "pending_review" | "approved" | "needs_changes" | "rejected";
+  reviewedBy?: string;
+  reviewedAt?: any;
+  reviewNotes?: string;
+  approvedContractVersionHash?: string;
 }
 
 /**
@@ -524,6 +530,86 @@ export async function applyContractOverride(
     }
     const data = await res.json();
     return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Fetch a persisted generation contract by brief ID
+ */
+export async function fetchGenerationContract(briefId: string): Promise<GenerationContract> {
+  try {
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to fetch contract (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Build (and persist) a generation contract for a brief
+ */
+export async function buildContractFromBrief(briefId: string): Promise<GenerationContract> {
+  try {
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/build-contract`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to build contract (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Submit a specialist review decision for a generation contract (Agent 2)
+ */
+export async function submitContractReview(
+  briefId: string,
+  decision: "approved" | "needs_changes" | "rejected",
+  reviewNotes?: string
+): Promise<{ success: boolean; data: { reviewId: string; decision: string; reviewStatus: string; briefStatus: string } }> {
+  try {
+    const res = await fetch(`${API_BASE}/api/agent2/contracts/${briefId}/review`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ decision, reviewNotes }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.message || errorData.details || `Failed to submit review (${res.status})`);
+    }
+    const data = await res.json();
+    return data;
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');

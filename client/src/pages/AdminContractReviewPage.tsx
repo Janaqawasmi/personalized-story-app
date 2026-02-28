@@ -1,5 +1,5 @@
 // client/src/pages/AdminContractReviewPage.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -23,8 +23,10 @@ import {
 import SpecialistNav from "../components/SpecialistNav";
 import {
   fetchStoryBriefById,
-  previewContract,
+  fetchGenerationContract,
+  buildContractFromBrief,
   applyContractOverride,
+  submitContractReview,
   StoryBrief,
   GenerationContract,
 } from "../api/api";
@@ -42,12 +44,30 @@ function formatDisplayText(text: string): string {
 // Helper function to format age group
 function formatAgeGroup(ageGroup: string): string {
   const map: Record<string, string> = {
-    "0_3": "0–3 years",
-    "3_6": "3–6 years",
-    "6_9": "6–9 years",
-    "9_12": "9–12 years",
+    "0_3": "0\u20133 years",
+    "3_6": "3\u20136 years",
+    "6_9": "6\u20139 years",
+    "9_12": "9\u201312 years",
   };
   return map[ageGroup] || ageGroup;
+}
+
+// Helper to get review status color
+function getReviewStatusColor(
+  status?: string
+): "default" | "warning" | "success" | "error" | "info" {
+  switch (status) {
+    case "approved":
+      return "success";
+    case "needs_changes":
+      return "warning";
+    case "rejected":
+      return "error";
+    case "pending_review":
+      return "info";
+    default:
+      return "default";
+  }
 }
 
 const AdminContractReviewPage: React.FC = () => {
@@ -59,46 +79,62 @@ const AdminContractReviewPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [applyingOverride, setApplyingOverride] = useState(false);
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Override UI state
   const [selectedCopingTool, setSelectedCopingTool] = useState<string>("");
   const [overrideReason, setOverrideReason] = useState<string>("");
 
-  useEffect(() => {
-    const loadContract = async () => {
-      if (!briefId) {
-        setError("Brief ID is required");
-        setLoading(false);
-        return;
-      }
+  // Review decision UI state
+  const [reviewNotes, setReviewNotes] = useState<string>("");
+  const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
 
+  // Load contract data (persisted, or build if not found)
+  const loadContractData = useCallback(async () => {
+    if (!briefId) {
+      setError("Brief ID is required");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      setReviewSuccess(null);
+
+      // Load brief
+      const briefData = await fetchStoryBriefById(briefId);
+      setBrief(briefData);
+
+      // Try to load persisted contract; if not found, build one
+      let contractData: GenerationContract;
       try {
-        setLoading(true);
-        setError(null);
-
-        // Load brief
-        const briefData = await fetchStoryBriefById(briefId);
-        setBrief(briefData);
-
-        // Preview contract
-        const contractData = await previewContract(briefData, briefId);
-        setContract(contractData);
-
-        // Set initial selected coping tool if override exists
-        if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
-          setSelectedCopingTool(contractData.overrideDetails.copingToolId as string);
-        } else if (contractData.allowedCopingTools.length > 0) {
-          setSelectedCopingTool(contractData.allowedCopingTools[0]);
-        }
-      } catch (err: any) {
-        setError(err.message || "Failed to load contract");
-      } finally {
-        setLoading(false);
+        contractData = await fetchGenerationContract(briefId);
+      } catch {
+        // Contract doesn't exist yet — build and persist it
+        contractData = await buildContractFromBrief(briefId);
+        // Reload brief since buildContract updates brief.status
+        const updatedBrief = await fetchStoryBriefById(briefId);
+        setBrief(updatedBrief);
       }
-    };
+      setContract(contractData);
 
-    loadContract();
+      // Set initial selected coping tool if override exists
+      if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
+        setSelectedCopingTool(contractData.overrideDetails.copingToolId as string);
+      } else if (contractData.allowedCopingTools.length > 0) {
+        setSelectedCopingTool(contractData.allowedCopingTools[0]);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to load contract");
+    } finally {
+      setLoading(false);
+    }
   }, [briefId]);
+
+  useEffect(() => {
+    loadContractData();
+  }, [loadContractData]);
 
   const handleApplyOverride = async () => {
     if (!briefId || !selectedCopingTool) {
@@ -109,13 +145,20 @@ const AdminContractReviewPage: React.FC = () => {
     try {
       setApplyingOverride(true);
       setError(null);
+      setReviewSuccess(null);
 
-      const updatedContract = await applyContractOverride(briefId, {
+      await applyContractOverride(briefId, {
         copingToolId: selectedCopingTool,
         reason: overrideReason || undefined,
       });
 
+      // Reload persisted contract and brief after override (contract is regenerated)
+      const updatedContract = await fetchGenerationContract(briefId);
       setContract(updatedContract);
+
+      const updatedBrief = await fetchStoryBriefById(briefId);
+      setBrief(updatedBrief);
+
       // Synchronize selectedCopingTool with the new override
       if (updatedContract.overrideDetails?.copingToolId) {
         setSelectedCopingTool(updatedContract.overrideDetails.copingToolId as string);
@@ -128,8 +171,35 @@ const AdminContractReviewPage: React.FC = () => {
     }
   };
 
-  const handleConfirmAndContinue = () => {
-    // Navigate to generate draft page with briefId
+  const handleReviewDecision = async (decision: "approved" | "needs_changes" | "rejected") => {
+    if (!briefId) return;
+
+    try {
+      setSubmittingReview(true);
+      setError(null);
+      setReviewSuccess(null);
+
+      const result = await submitContractReview(briefId, decision, reviewNotes || undefined);
+
+      // Refresh contract and brief to reflect updated state
+      const updatedContract = await fetchGenerationContract(briefId);
+      setContract(updatedContract);
+
+      const updatedBrief = await fetchStoryBriefById(briefId);
+      setBrief(updatedBrief);
+
+      setReviewNotes(""); // Clear notes after submission
+      setReviewSuccess(
+        `Decision "${formatDisplayText(decision)}" submitted successfully.`
+      );
+    } catch (err: any) {
+      setError(err.message || "Failed to submit review");
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleContinueToGeneration = () => {
     navigate(`/specialist/generate-draft?briefId=${briefId}`);
   };
 
@@ -140,6 +210,12 @@ const AdminContractReviewPage: React.FC = () => {
         ? contract.overrideDetails.copingToolId
         : null
       : null;
+
+  // Gate conditions
+  const canApprove =
+    contract?.status === "valid" && (!contract.errors || contract.errors.length === 0);
+  const canContinueToGeneration =
+    contract?.status === "valid" && contract?.reviewStatus === "approved";
 
   if (loading) {
     return (
@@ -180,6 +256,12 @@ const AdminContractReviewPage: React.FC = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {reviewSuccess && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setReviewSuccess(null)}>
+          {reviewSuccess}
         </Alert>
       )}
 
@@ -268,71 +350,120 @@ const AdminContractReviewPage: React.FC = () => {
         </Card>
 
         {/* Contract Details */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Contract Details
-              </Typography>
-              <Stack spacing={2}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Contract Details
+            </Typography>
+            <Stack spacing={2}>
+              {/* Contract Status + Review Status */}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Status
+                </Typography>
+                <Box sx={{ mt: 0.5, display: "flex", gap: 1, alignItems: "center" }}>
+                  <Chip
+                    label={contract.status === "valid" ? "Valid" : "Invalid"}
+                    size="small"
+                    color={contract.status === "valid" ? "success" : "error"}
+                  />
+                  <Chip
+                    label={formatDisplayText(contract.reviewStatus || "pending_review")}
+                    size="small"
+                    color={getReviewStatusColor(contract.reviewStatus)}
+                  />
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Rules Version
+                </Typography>
+                <Typography variant="body2">{contract.rulesVersionUsed}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Length Budget
+                </Typography>
+                <Typography>
+                  {contract.lengthBudget.minScenes}–{contract.lengthBudget.maxScenes} scenes, max{" "}
+                  {contract.lengthBudget.maxWords} words
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Required Elements ({contract.requiredElements.length})
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {contract.requiredElements.slice(0, 10).map((elem, idx) => (
+                    <Chip key={idx} label={formatDisplayText(elem)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+                  ))}
+                  {contract.requiredElements.length > 10 && (
+                    <Typography variant="caption" color="text.secondary">
+                      +{contract.requiredElements.length - 10} more
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Allowed Coping Tools ({contract.allowedCopingTools.length})
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {contract.allowedCopingTools.map((tool, idx) => (
+                    <Chip key={idx} label={formatDisplayText(tool)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+                  ))}
+                </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Must Avoid (showing first 20 of {contract.mustAvoid.length})
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {contract.mustAvoid.slice(0, 20).map((item, idx) => (
+                    <Chip
+                      key={idx}
+                      label={formatDisplayText(item)}
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      sx={{ mr: 0.5, mb: 0.5 }}
+                    />
+                  ))}
+                  {contract.mustAvoid.length > 20 && (
+                    <Typography variant="caption" color="text.secondary">
+                      +{contract.mustAvoid.length - 20} more
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Last review info */}
+              {contract.reviewedBy && (
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Length Budget
+                    Last Reviewed By
                   </Typography>
-                  <Typography>
-                    {contract.lengthBudget.minScenes}–{contract.lengthBudget.maxScenes} scenes, max{" "}
-                    {contract.lengthBudget.maxWords} words
-                  </Typography>
+                  <Typography variant="body2">{contract.reviewedBy}</Typography>
+                  {contract.reviewedAt && (
+                    <Typography variant="caption" color="text.secondary">
+                      {typeof contract.reviewedAt === "object" && contract.reviewedAt._seconds
+                        ? new Date(contract.reviewedAt._seconds * 1000).toLocaleString()
+                        : String(contract.reviewedAt)}
+                    </Typography>
+                  )}
                 </Box>
+              )}
+              {contract.reviewNotes && (
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    Required Elements ({contract.requiredElements.length})
+                    Review Notes
                   </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {contract.requiredElements.slice(0, 10).map((elem, idx) => (
-                      <Chip key={idx} label={formatDisplayText(elem)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                    ))}
-                    {contract.requiredElements.length > 10 && (
-                      <Typography variant="caption" color="text.secondary">
-                        +{contract.requiredElements.length - 10} more
-                      </Typography>
-                    )}
-                  </Box>
+                  <Typography variant="body2">{contract.reviewNotes}</Typography>
                 </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Allowed Coping Tools ({contract.allowedCopingTools.length})
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {contract.allowedCopingTools.map((tool, idx) => (
-                      <Chip key={idx} label={formatDisplayText(tool)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                    ))}
-                  </Box>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Must Avoid (showing first 20 of {contract.mustAvoid.length})
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {contract.mustAvoid.slice(0, 20).map((item, idx) => (
-                      <Chip
-                        key={idx}
-                        label={formatDisplayText(item)}
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
-                    {contract.mustAvoid.length > 20 && (
-                      <Typography variant="caption" color="text.secondary">
-                        +{contract.mustAvoid.length - 20} more
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
 
         {/* Override Section */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
@@ -381,6 +512,63 @@ const AdminContractReviewPage: React.FC = () => {
           </Paper>
         </Box>
 
+        {/* Decision Controls (Agent 2) */}
+        <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Review Decision
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Approve, request changes, or reject this generation contract
+            </Typography>
+
+            <TextField
+              label="Review Notes (optional)"
+              value={reviewNotes}
+              onChange={(e) => setReviewNotes(e.target.value)}
+              placeholder="Add notes about your review decision..."
+              multiline
+              rows={2}
+              fullWidth
+              sx={{ mb: 2 }}
+            />
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => handleReviewDecision("approved")}
+                disabled={submittingReview || !canApprove}
+              >
+                {submittingReview ? <CircularProgress size={20} /> : "Approve"}
+              </Button>
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={() => handleReviewDecision("needs_changes")}
+                disabled={submittingReview}
+              >
+                {submittingReview ? <CircularProgress size={20} /> : "Needs Changes"}
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => handleReviewDecision("rejected")}
+                disabled={submittingReview}
+              >
+                {submittingReview ? <CircularProgress size={20} /> : "Reject"}
+              </Button>
+            </Stack>
+
+            {!canApprove && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Approve is disabled because the contract is invalid or has errors.
+                You can still request changes or reject.
+              </Alert>
+            )}
+          </Paper>
+        </Box>
+
         {/* Actions */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Divider sx={{ my: 2 }} />
@@ -390,12 +578,17 @@ const AdminContractReviewPage: React.FC = () => {
             </Button>
             <Button
               variant="contained"
-              onClick={handleConfirmAndContinue}
-              disabled={contract.errors.length > 0}
+              onClick={handleContinueToGeneration}
+              disabled={!canContinueToGeneration}
             >
-              Confirm & Continue
+              Continue to Generation
             </Button>
           </Stack>
+          {!canContinueToGeneration && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block", textAlign: "right" }}>
+              Contract must be valid and approved before generation can proceed.
+            </Typography>
+          )}
         </Box>
       </Box>
     </Container>

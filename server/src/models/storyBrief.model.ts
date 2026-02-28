@@ -26,7 +26,15 @@ const ALLOWED_EMOTIONAL_GOALS = [
 // Type Definitions
 // ============================================================================
 
-export type StoryBriefStatus = "created" | "draft_generating" | "draft_generated" | "archived";
+export type StoryBriefStatus =
+  | "created"            // Brief just created, no contract yet
+  | "pending_review"     // Contract built, awaiting specialist review
+  | "approved"           // Contract approved by specialist, ready for generation
+  | "needs_changes"      // Specialist requested changes
+  | "rejected"           // Specialist rejected the contract
+  | "draft_generating"   // Draft generation in progress
+  | "draft_generated"    // Draft generated successfully
+  | "archived";          // Archived
 
 export type AgeGroup = "0_3" | "3_6" | "6_9" | "9_12";
 

@@ -186,6 +186,46 @@ export const previewContract = async (req: Request, res: Response): Promise<void
 };
 
 /**
+ * Get a persisted generation contract by brief ID
+ * GET /api/agent1/contracts/:briefId
+ */
+export const getContract = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { briefId } = req.params;
+
+    if (!briefId) {
+      res.status(400).json({
+        success: false,
+        error: "briefId is required",
+      });
+      return;
+    }
+
+    const contractDoc = await firestore.collection("generationContracts").doc(briefId).get();
+
+    if (!contractDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: `Generation contract for brief "${briefId}" not found`,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: contractDoc.data(),
+    });
+  } catch (error: any) {
+    console.error("Error fetching generation contract:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch generation contract",
+      details: error.message,
+    });
+  }
+};
+
+/**
  * Apply override to a story brief and regenerate contract
  * POST /api/agent1/contracts/:briefId/override
  */
@@ -288,11 +328,19 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
     });
 
     // Regenerate contract using the original rules version if available
+    // Note: buildGenerationContractFromBriefId also sets brief.status = "pending_review"
+    // and contract.reviewStatus = "pending_review" (clears approval fields)
     const contract = await buildGenerationContractFromBriefId(
       briefId,
       { firestore },
       existingRulesVersion ? { rulesVersion: existingRulesVersion } : undefined
     );
+
+    // Redundant safety net: explicitly ensure brief status is pending_review after override
+    await firestore.collection("storyBriefs").doc(briefId).update({
+      status: "pending_review",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
 
     res.status(200).json({
       success: true,

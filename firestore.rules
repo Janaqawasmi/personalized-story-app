@@ -143,6 +143,26 @@ service cloud.firestore {
     }
     
     // ============================================================================
+    // generationContracts Collection Rules
+    // ============================================================================
+    match /generationContracts/{briefId} {
+      // Authenticated users can read contracts
+      allow read: if request.auth != null;
+
+      // Client writes are fully denied — all writes via Admin SDK
+      allow create, update, delete: if false;
+
+      // Reviews subcollection (append-only audit trail)
+      match /reviews/{reviewId} {
+        // Authenticated users can read review history
+        allow read: if request.auth != null;
+
+        // Client writes denied — all writes via Admin SDK
+        allow create, update, delete: if false;
+      }
+    }
+
+    // ============================================================================
     // Default Deny
     // ============================================================================
     // All other collections and documents are denied by default

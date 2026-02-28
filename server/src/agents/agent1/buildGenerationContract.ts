@@ -159,11 +159,18 @@ export async function buildGenerationContract(
         errorCount: validationResult.errors.length,
         warningCount: validationResult.warnings.length,
       },
+      // Agent 2: every contract build starts in pending_review
+      reviewStatus: "pending_review" as const,
     };
 
     // Save invalid contract for debugging (unless skipSave is true)
     if (!options?.skipSave) {
       await saveContractToFirestore(contract, fs);
+      // Update brief status to pending_review
+      await fs.collection("storyBriefs").doc(briefId).update({
+        status: "pending_review",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
     }
     return contract;
   }
@@ -416,6 +423,8 @@ export async function buildGenerationContract(
       errorCount: errors.length,
       warningCount: validationResult.warnings.length + warnings.length, // Count matches merged array
     },
+    // Agent 2: every contract build starts in pending_review
+    reviewStatus: "pending_review" as const,
   };
 
   // Conditionally add optional fields only if defined (for exactOptionalPropertyTypes)
@@ -429,6 +438,11 @@ export async function buildGenerationContract(
   // 7. Save to Firestore (unless skipSave is true)
   if (!options?.skipSave) {
     await saveContractToFirestore(contract, fs);
+    // Update brief status to pending_review (contract built, awaiting specialist review)
+    await fs.collection("storyBriefs").doc(briefId).update({
+      status: "pending_review",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
   }
 
   return contract;
@@ -436,6 +450,7 @@ export async function buildGenerationContract(
 
 /**
  * Saves a generation contract to Firestore
+ * Clears review fields on every save (regeneration resets approval)
  */
 async function saveContractToFirestore(
   contract: GenerationContract,
@@ -446,10 +461,17 @@ async function saveContractToFirestore(
     .doc(contract.briefId);
 
   // Convert FieldValue to actual value for saving
+  // Use spread then delete review fields (FieldValue.delete() is invalid with set(merge:false))
   const contractData: any = {
     ...contract,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+
+  // Clear review fields on every save (regeneration resets approval)
+  delete contractData.reviewedBy;
+  delete contractData.reviewedAt;
+  delete contractData.reviewNotes;
+  delete contractData.approvedContractVersionHash;
 
   await contractRef.set(contractData, { merge: false });
 }

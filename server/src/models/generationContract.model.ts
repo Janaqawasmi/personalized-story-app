@@ -60,11 +60,21 @@ export interface GenerationContract {
   errors: ContractError[];
   createdAt: FieldValue | Timestamp | string;
   updatedAt?: FieldValue | Timestamp | string;
-  status?: "valid" | "invalid";
+
+  // --- REQUIRED (was optional) ---
+  status: "valid" | "invalid";
+
   validationSummary?: {
     errorCount: number;
     warningCount: number;
   };
+
+  // --- Review state fields (managed by Agent 2) ---
+  reviewStatus: "pending_review" | "approved" | "needs_changes" | "rejected";
+  reviewedBy?: string;
+  reviewedAt?: FieldValue | Timestamp | string;
+  reviewNotes?: string;
+  approvedContractVersionHash?: string;
 }
 
 // ============================================================================
