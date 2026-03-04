@@ -543,13 +543,27 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
     }
 
     // Add override to history
-    overrideHistory.push({
+    // Note: FieldValue.serverTimestamp() cannot be used inside arrays
+    // Use Timestamp.now() instead, which will be serialized correctly
+    const overrideEntry: {
+      copingToolId: string;
+      reason?: string;
+      appliedAt: any;
+      appliedBy: string;
+      appliedByName: string;
+    } = {
       copingToolId,
-      reason: reason || undefined,
-      appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+      appliedAt: admin.firestore.Timestamp.now(),
       appliedBy: user.uid,
       appliedByName: user.displayName,
-    });
+    };
+    
+    // Only include reason if it's provided (avoid undefined in Firestore)
+    if (reason && reason.trim().length > 0) {
+      overrideEntry.reason = reason.trim();
+    }
+    
+    overrideHistory.push(overrideEntry);
 
     // Update contract with override tracking and previous approvals
     await firestore.collection("generationContracts").doc(briefId).update({
