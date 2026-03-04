@@ -10,6 +10,7 @@
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import { StoryBrief, createStoryBrief as createStoryBriefModel, StoryBriefInput } from "../models/storyBrief.model";
+import { GenerationContract } from "../models/generationContract.model";
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
 import { AuditTrail } from "../services/auditTrail.service";
@@ -151,6 +152,48 @@ export const createStoryBrief = async (req: Request, res: Response): Promise<voi
  *
  * PHASE 1 FIX: Logs "contract.built" to audit trail with actor info.
  */
+/**
+ * Helper function to serialize Firestore Timestamp to ISO string
+ * Handles: Firestore Timestamp objects, FieldValue, Date objects, ISO strings, and objects with seconds/_seconds
+ */
+function serializeTimestamp(ts: any): string | undefined {
+  if (!ts) return undefined;
+  
+  // Already a string (ISO format)
+  if (typeof ts === "string") return ts;
+  
+  // Date object
+  if (ts instanceof Date) return ts.toISOString();
+  
+  // Firestore Admin SDK Timestamp object (has toDate method)
+  if (ts && typeof ts === "object" && typeof ts.toDate === "function") {
+    try {
+      return ts.toDate().toISOString();
+    } catch (e) {
+      console.warn("Error converting Firestore Timestamp to Date:", e);
+      return undefined;
+    }
+  }
+  
+  // Object with seconds property (Firestore Timestamp format: { seconds: number, nanoseconds?: number })
+  if (ts && typeof ts === "object" && typeof ts.seconds === "number") {
+    return new Date(ts.seconds * 1000).toISOString();
+  }
+  
+  // JSON serialized format with underscore prefix: { _seconds: number, _nanoseconds?: number }
+  if (ts && typeof ts === "object" && typeof ts._seconds === "number") {
+    return new Date(ts._seconds * 1000).toISOString();
+  }
+  
+  // FieldValue.serverTimestamp() - this shouldn't be in the response, but handle gracefully
+  if (ts && typeof ts === "object" && ts.constructor?.name === "FieldValue") {
+    console.warn("Warning: FieldValue.serverTimestamp() found in response - timestamp not resolved yet");
+    return undefined;
+  }
+  
+  return undefined;
+}
+
 export const buildContract = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
@@ -182,9 +225,48 @@ export const buildContract = async (req: Request, res: Response): Promise<void> 
       },
     });
 
+    // Read the contract back from Firestore to get resolved timestamps
+    // (createdAt and updatedAt are FieldValue.serverTimestamp() until saved)
+    const savedContractDoc = await firestore
+      .collection("generationContracts")
+      .doc(briefId)
+      .get();
+
+    if (!savedContractDoc.exists) {
+      // Contract wasn't saved (shouldn't happen, but handle gracefully)
+      console.warn(`Contract ${briefId} not found in Firestore after build`);
+      res.status(500).json({
+        success: false,
+        error: "Contract was not saved to Firestore",
+      });
+      return;
+    }
+
+    const savedContract = savedContractDoc.data() as GenerationContract;
+    
+    // Debug: Log the timestamp format to help diagnose issues
+    if (process.env.NODE_ENV === "development" || process.env.ALLOW_UNAUTHENTICATED_REQUESTS === "true") {
+      console.log(`[DEBUG] Contract ${briefId} createdAt type:`, typeof savedContract.createdAt, savedContract.createdAt?.constructor?.name);
+      console.log(`[DEBUG] Contract ${briefId} createdAt value:`, savedContract.createdAt);
+      console.log(`[DEBUG] Serialized createdAt:`, serializeTimestamp(savedContract.createdAt));
+    }
+
+    // Serialize timestamps to ISO strings for JSON response
+    const serializedContract: any = {
+      ...savedContract,
+      createdAt: serializeTimestamp(savedContract.createdAt),
+      updatedAt: savedContract.updatedAt ? serializeTimestamp(savedContract.updatedAt) : undefined,
+      approval: savedContract.approval
+        ? {
+            ...savedContract.approval,
+            decidedAt: serializeTimestamp(savedContract.approval.decidedAt),
+          }
+        : undefined,
+    };
+
     res.status(200).json({
       success: true,
-      data: contract,
+      data: serializedContract,
     });
   } catch (error: any) {
     console.error("Error building generation contract:", error);
@@ -221,6 +303,13 @@ export const previewContract = async (req: Request, res: Response): Promise<void
       { skipSave: true } // Preview mode: don't save to Firestore
     );
 
+    // Serialize timestamps for preview (createdAt will be FieldValue, so use current time as fallback)
+    const serializedContract: any = {
+      ...contract,
+      createdAt: serializeTimestamp(contract.createdAt) || new Date().toISOString(),
+      updatedAt: contract.updatedAt ? serializeTimestamp(contract.updatedAt) : undefined,
+    };
+
     // Log preview to audit trail (lightweight, for traceability)
     if (req.user) {
       await AuditTrail.log({
@@ -238,7 +327,7 @@ export const previewContract = async (req: Request, res: Response): Promise<void
 
     res.status(200).json({
       success: true,
-      data: contract,
+      data: serializedContract,
     });
   } catch (error: any) {
     console.error("Error previewing generation contract:", error);
@@ -425,12 +514,33 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       },
     });
 
+    // Read the contract back from Firestore to get resolved timestamps
+    const savedContractDoc = await firestore
+      .collection("generationContracts")
+      .doc(briefId)
+      .get();
+
+    const savedContract = savedContractDoc.exists
+      ? (savedContractDoc.data() as GenerationContract)
+      : contract;
+
+    // Serialize timestamps to ISO strings for JSON response
+    const serializedContract: any = {
+      ...savedContract,
+      createdAt: serializeTimestamp(savedContract.createdAt),
+      updatedAt: savedContract.updatedAt ? serializeTimestamp(savedContract.updatedAt) : undefined,
+      approval: savedContract.approval
+        ? {
+            ...savedContract.approval,
+            decidedAt: serializeTimestamp(savedContract.approval.decidedAt),
+          }
+        : undefined,
+      previousApprovalRevoked, // Inform the client that re-approval is needed
+    };
+
     res.status(200).json({
       success: true,
-      data: {
-        ...contract,
-        previousApprovalRevoked, // Inform the client that re-approval is needed
-      },
+      data: serializedContract,
     });
   } catch (error: any) {
     console.error("Error applying override:", error);

@@ -110,23 +110,54 @@ function formatAgeGroup(ageGroup: string): string {
 
 /**
  * Normalizes various Firestore timestamp formats to a string for display.
- * Handles: string ISO dates, Date objects, Firestore Timestamp objects, and undefined.
+ * Handles:
+ * - string ISO dates
+ * - Date objects
+ * - Firestore Timestamp objects (with toDate() method)
+ * - Objects with seconds property ({ seconds: number, nanoseconds?: number })
+ * - Objects with _seconds property (JSON serialized: { _seconds: number, _nanoseconds?: number })
+ * - undefined/null
  */
 function normalizeTimestamp(ts: unknown): string | undefined {
   if (!ts) return undefined;
+  
+  // String ISO date
   if (typeof ts === "string") return ts;
+  
+  // Date object
   if (ts instanceof Date) return ts.toISOString();
-  if (typeof ts === "object" && ts !== null && "seconds" in ts) {
-    // Firestore Timestamp format: { seconds: number, nanoseconds: number }
-    return new Date((ts as { seconds: number }).seconds * 1000).toISOString();
+  
+  // Firestore Timestamp object (has toDate method)
+  if (typeof ts === "object" && ts !== null && "toDate" in ts && typeof (ts as any).toDate === "function") {
+    return (ts as any).toDate().toISOString();
   }
+  
+  // Object with seconds property (Firestore Timestamp format)
+  if (typeof ts === "object" && ts !== null) {
+    if ("seconds" in ts && typeof (ts as any).seconds === "number") {
+      return new Date((ts as any).seconds * 1000).toISOString();
+    }
+    // JSON serialized format with underscore prefix
+    if ("_seconds" in ts && typeof (ts as any)._seconds === "number") {
+      return new Date((ts as any)._seconds * 1000).toISOString();
+    }
+  }
+  
   return undefined;
 }
 
 function formatTimestamp(ts: string | undefined): string {
   if (!ts) return "—";
   try {
-    return new Date(ts).toLocaleString();
+    const date = new Date(ts);
+    // Format: D.M.YYYY, HH:mm:ss (e.g., "4.3.2026, 20:49:51")
+    const day = date.getDate();
+    const month = date.getMonth() + 1; // getMonth() returns 0-11
+    const year = date.getFullYear();
+    const hours = date.getHours().toString().padStart(2, "0");
+    const minutes = date.getMinutes().toString().padStart(2, "0");
+    const seconds = date.getSeconds().toString().padStart(2, "0");
+    return `${day}.${month}.${year}, ${hours}:${minutes}:${seconds}`;
   } catch {
     return ts;
   }
@@ -992,12 +1023,12 @@ const AdminContractReviewPage: React.FC = () => {
                   No audit events recorded yet.
                 </Typography>
               ) : (
-                <Stack spacing={1}>
+                <Stack spacing={2}>
                   {auditHistory.map((entry) => (
                     <Box
                       key={entry.id}
                       sx={{
-                        p: 1.5,
+                        p: 2,
                         borderLeft: 3,
                         borderColor:
                           entry.action.includes("approved") ? "success.main" :
@@ -1008,16 +1039,32 @@ const AdminContractReviewPage: React.FC = () => {
                         borderRadius: 1,
                       }}
                     >
-                      <Typography variant="subtitle2">
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
                         {formatAuditAction(entry.action)}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         {entry.actor.displayName} ({entry.actor.role}) — {formatTimestamp(normalizeTimestamp(entry.timestamp))}
                       </Typography>
                       {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                        <Typography variant="caption" color="text.secondary" component="pre" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>
+                        <Box
+                          component="pre"
+                          sx={{
+                            mt: 1,
+                            p: 1.5,
+                            bgcolor: "background.paper",
+                            border: "1px solid",
+                            borderColor: "divider",
+                            borderRadius: 1,
+                            fontSize: "0.75rem",
+                            fontFamily: "monospace",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                            color: "text.secondary",
+                            margin: 0,
+                          }}
+                        >
                           {JSON.stringify(entry.metadata, null, 2)}
-                        </Typography>
+                        </Box>
                       )}
                     </Box>
                   ))}

@@ -672,7 +672,7 @@ export async function fetchContractStatus(
 export async function fetchFullContract(briefId: string): Promise<GenerationContract | null> {
   try {
     const headers = await getAuthHeaders();
-    const res = await fetch(`${API_BASE}/agent1/contracts/${briefId}/full`, { headers });
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/full`, { headers });
     
     if (res.status === 404) {
       return null; // No contract exists yet

@@ -315,6 +315,48 @@ export const getContractStatus = async (req: Request, res: Response): Promise<vo
  * Returns the full persisted generation contract.
  * GET /api/agent1/contracts/:briefId/full
  */
+/**
+ * Helper function to serialize Firestore Timestamp to ISO string
+ * Handles: Firestore Timestamp objects, FieldValue, Date objects, ISO strings, and objects with seconds/_seconds
+ */
+function serializeTimestamp(ts: any): string | undefined {
+  if (!ts) return undefined;
+  
+  // Already a string (ISO format)
+  if (typeof ts === "string") return ts;
+  
+  // Date object
+  if (ts instanceof Date) return ts.toISOString();
+  
+  // Firestore Admin SDK Timestamp object (has toDate method)
+  if (ts && typeof ts === "object" && typeof ts.toDate === "function") {
+    try {
+      return ts.toDate().toISOString();
+    } catch (e) {
+      console.warn("Error converting Firestore Timestamp to Date:", e);
+      return undefined;
+    }
+  }
+  
+  // Object with seconds property (Firestore Timestamp format: { seconds: number, nanoseconds?: number })
+  if (ts && typeof ts === "object" && typeof ts.seconds === "number") {
+    return new Date(ts.seconds * 1000).toISOString();
+  }
+  
+  // JSON serialized format with underscore prefix: { _seconds: number, _nanoseconds?: number }
+  if (ts && typeof ts === "object" && typeof ts._seconds === "number") {
+    return new Date(ts._seconds * 1000).toISOString();
+  }
+  
+  // FieldValue.serverTimestamp() - this shouldn't be in the response, but handle gracefully
+  if (ts && typeof ts === "object" && ts.constructor?.name === "FieldValue") {
+    console.warn("Warning: FieldValue.serverTimestamp() found in response - timestamp not resolved yet");
+    return undefined;
+  }
+  
+  return undefined;
+}
+
 export const getContract = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
@@ -337,9 +379,32 @@ export const getContract = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
+    const contractData = contractDoc.data() as GenerationContract;
+    
+    // Debug: Log the timestamp format to help diagnose issues
+    if (process.env.NODE_ENV === "development" || process.env.ALLOW_UNAUTHENTICATED_REQUESTS === "true") {
+      console.log(`[DEBUG] Contract ${briefId} createdAt type:`, typeof contractData.createdAt, contractData.createdAt?.constructor?.name);
+      console.log(`[DEBUG] Contract ${briefId} createdAt value:`, contractData.createdAt);
+      console.log(`[DEBUG] Serialized createdAt:`, serializeTimestamp(contractData.createdAt));
+    }
+    
+    // Serialize timestamps to ISO strings for JSON response
+    const serializedContract: any = {
+      ...contractData,
+      createdAt: serializeTimestamp(contractData.createdAt),
+      updatedAt: contractData.updatedAt ? serializeTimestamp(contractData.updatedAt) : undefined,
+      // Also serialize approval timestamp if present
+      approval: contractData.approval
+        ? {
+            ...contractData.approval,
+            decidedAt: serializeTimestamp(contractData.approval.decidedAt),
+          }
+        : undefined,
+    };
+
     res.status(200).json({
       success: true,
-      data: contractDoc.data(),
+      data: serializedContract,
     });
   } catch (error: any) {
     console.error("Error fetching contract:", error);
@@ -369,6 +434,18 @@ export const getAuditHistory = async (req: Request, res: Response): Promise<void
     });
   } catch (error: any) {
     console.error("Error fetching audit history:", error);
+    
+    // Check if it's an index error
+    if (error.code === 9 || error.message?.includes("index") || error.message?.includes("FAILED_PRECONDITION")) {
+      res.status(503).json({
+        success: false,
+        error: "Audit history index is still building",
+        details: "The Firestore indexes for audit history queries are being built. Please wait a few minutes and try again. If this persists, check the Firebase Console for index status.",
+        code: "INDEX_BUILDING",
+      });
+      return;
+    }
+
     res.status(500).json({
       success: false,
       error: "Failed to fetch audit history",
