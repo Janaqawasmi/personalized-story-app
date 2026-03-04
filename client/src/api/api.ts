@@ -13,7 +13,7 @@ import { getAuth } from "firebase/auth";
 // Configuration
 // ============================================================================
 
-const API_BASE = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
 
 // ============================================================================
 // Auth Helper
@@ -837,37 +837,8 @@ export async function searchStories(query: string): Promise<StorySearchResponse>
 }
 // ---------- Draft Suggestion APIs ----------
 
-/**
- * Helper to get Firebase auth token for authenticated requests
- * Returns null if auth is not available (for development/testing)
- */
-async function getAuthToken(): Promise<string | null> {
-  try {
-    // Try to get Firebase auth token
-    // This will be implemented when Firebase Auth is set up
-    // For now, return null to allow testing without auth
-    const auth = (window as any).firebaseAuth;
-    if (auth?.currentUser) {
-      return await auth.currentUser.getIdToken();
-    }
-    return null;
-  } catch (error) {
-    console.warn('Failed to get auth token:', error);
-    return null;
-  }
-}
-
-/**
- * Helper to create authenticated fetch headers
- */
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  const token = await getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+// Note: getAuthHeaders() is already defined above (line 27) using Firebase Auth
+// The old implementation using getAuthToken() has been removed
 
 export interface DraftSuggestion {
   id: string;

@@ -10,18 +10,12 @@ import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
 import { AuditTrail } from "../services/auditTrail.service";
 
-/**
- * Extend Express Request to include user from auth middleware
- */
-interface AuthenticatedRequest extends Request {
-  user?: { uid: string };
-}
+// Note: req.user is already typed globally by auth.middleware.ts
+// No need for local Request interface
 
 /**
  * List all generated drafts (READ-ONLY)
  * GET /api/story-drafts
- * 
- * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
 export const listDrafts = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -160,8 +154,9 @@ export const getDraftById = async (req: Request, res: Response): Promise<void> =
  * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
 export const generateDraftFromBrief = async (req: Request, res: Response): Promise<void> => {
+  const { briefId } = req.params; // Extract early so it's available in catch block
+  
   try {
-    const { briefId } = req.params;
     const input = req.body as GenerateDraftInput;
 
     // Validate briefId
@@ -381,7 +376,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
     console.error("Error generating draft:", error);
 
     // Log generation failure (if not already logged above)
-    if (req.user && !error.message?.includes("Cannot generate draft") && !error.message?.includes("not found")) {
+    if (req.user && briefId && !error.message?.includes("Cannot generate draft") && !error.message?.includes("not found")) {
       await AuditTrail.log({
         action: "generation.failed",
         actor: AuditTrail.actorFromRequest(req.user),
@@ -420,9 +415,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
 /**
  * Extend Express Request to include user from auth middleware
  */
-interface AuthenticatedRequest extends Request {
-  user?: { uid: string };
-}
+// Note: req.user is already typed globally by auth.middleware.ts
 
 /**
  * Enter edit mode for a draft
@@ -431,7 +424,7 @@ interface AuthenticatedRequest extends Request {
  * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
  * but does not change draft status. Status only changes when edits are saved.
  */
-export const enterEditMode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const enterEditMode = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -479,7 +472,7 @@ export const enterEditMode = async (req: AuthenticatedRequest, res: Response): P
  * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
  * but does not change draft status. Status reflects content revisions, not UI mode.
  */
-export const cancelEditMode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const cancelEditMode = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -526,7 +519,7 @@ export const cancelEditMode = async (req: AuthenticatedRequest, res: Response): 
  * Saves edits to a draft. Allowed if status === "generated" or "editing".
  * Status changes to "editing" (meaning "revised") when first saved from "generated".
  */
-export const updateDraft = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const updateDraft = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
     const updateData = req.body as {
@@ -674,7 +667,7 @@ export const updateDraft = async (req: AuthenticatedRequest, res: Response): Pro
  * Approves a draft, making it immutable and creating a StoryTemplate.
  * Only allowed if status === "editing" OR "generated"
  */
-export const approveDraft = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const approveDraft = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
