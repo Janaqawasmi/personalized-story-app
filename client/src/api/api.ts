@@ -694,7 +694,9 @@ export async function fetchFullContract(briefId: string): Promise<GenerationCont
     const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/full`, { headers });
     
     if (res.status === 404) {
-      return null; // No contract exists yet
+      // Contract doesn't exist yet - this is expected and will trigger auto-build
+      // Return null silently (404 is not an error in this context)
+      return null;
     }
     
     if (!res.ok) {
@@ -703,11 +705,20 @@ export async function fetchFullContract(briefId: string): Promise<GenerationCont
     }
     
     const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch contract");
+    }
     return data.data || null;
-  } catch (err) {
+  } catch (err: any) {
+    // Only throw for non-404 errors (network errors, etc.)
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
     }
+    // For other errors, re-throw so the caller can handle them
+    if (err.message && !err.message.includes('404')) {
+      throw err;
+    }
+    // 404 or similar - return null to trigger auto-build
     return null;
   }
 }
@@ -739,6 +750,23 @@ export async function fetchAuditHistory(
     entries: data.data || [],
     pagination: data.pagination || { hasMore: false, limit: limit || 20 },
   };
+}
+
+/**
+ * Fetches the current default rules version from settings.
+ */
+export async function fetchCurrentRulesVersion(): Promise<string> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/rules/current-version`, { headers });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || "Failed to fetch current rules version");
+  }
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to fetch current rules version");
+  }
+  return data.version;
 }
 
 // ---------- Story Prompt Preview API ----------

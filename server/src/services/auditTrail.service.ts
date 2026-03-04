@@ -28,6 +28,7 @@ export type AuditAction =
   // Contract lifecycle
   | "contract.built"
   | "contract.preview"
+  | "contract.viewed" // When specialist loads persisted contract
   | "contract.override_applied"
   // Approval lifecycle
   | "contract.approved"
@@ -216,9 +217,23 @@ async function getByBriefId(
   // Determine pagination info
   const hasMore = allEntries.length > limit;
   const entries = allEntries.slice(0, limit);
-  const nextCursor = hasMore && entries.length > 0 ? entries[entries.length - 1].id : undefined;
+  const lastEntry = entries.length > 0 ? entries[entries.length - 1] : null;
+  const nextCursor = hasMore && lastEntry ? lastEntry.id : undefined;
 
-  return { entries, nextCursor, hasMore };
+  const result: {
+    entries: Array<AuditEntry & { id: string }>;
+    nextCursor?: string;
+    hasMore: boolean;
+  } = {
+    entries,
+    hasMore,
+  };
+
+  if (nextCursor !== undefined) {
+    result.nextCursor = nextCursor;
+  }
+
+  return result;
 }
 
 // ============================================================================

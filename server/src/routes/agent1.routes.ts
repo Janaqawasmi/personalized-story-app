@@ -15,6 +15,7 @@ import {
   getContractStatus,
   getAuditHistory,
   getContract,
+  getCurrentRulesVersion,
 } from "../controllers/contractApproval.controller";
 
 const router = Router();
@@ -57,5 +58,10 @@ router.post(
 router.get("/contracts/:briefId/full", getContract);
 router.get("/contracts/:briefId/status", getContractStatus);
 router.get("/contracts/:briefId/audit", getAuditHistory);
+
+// ──────────────────────────────────────────────────────────
+// Rules Version (authenticated, any role)
+// ──────────────────────────────────────────────────────────
+router.get("/rules/current-version", getCurrentRulesVersion);
 
 export default router;

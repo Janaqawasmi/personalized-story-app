@@ -46,13 +46,13 @@ import InfoIcon from "@mui/icons-material/Info";
 import SpecialistNav from "../components/SpecialistNav";
 import {
   fetchStoryBriefById,
-  previewContract,
   fetchFullContract,
   buildContract,
   applyContractOverride,
   approveContract as apiApproveContract,
   rejectContract as apiRejectContract,
   fetchAuditHistory,
+  fetchCurrentRulesVersion,
   StoryBrief,
   GenerationContract,
 } from "../api/api";
@@ -203,16 +203,22 @@ const AdminContractReviewPage: React.FC = () => {
   // Data state
   const [brief, setBrief] = useState<StoryBrief | null>(null);
   const [contract, setContract] = useState<GenerationContract | null>(null);
-  const [isContractPersisted, setIsContractPersisted] = useState(false);
   const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Auto-build state (when no contract exists)
+  const [autoBuilding, setAutoBuilding] = useState(false);
+
   // Action state
-  const [building, setBuilding] = useState(false);
   const [approving, setApproving] = useState(false);
   const [applyingOverride, setApplyingOverride] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
+
+  // Rules version check
+  const [rulesVersionStale, setRulesVersionStale] = useState(false);
+  const [currentRulesVersion, setCurrentRulesVersion] = useState<string | null>(null);
 
   // Reject dialog
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -271,16 +277,25 @@ const AdminContractReviewPage: React.FC = () => {
         const briefData = await fetchStoryBriefById(briefId);
         setBrief(briefData);
 
-        // Load persisted contract first, fall back to preview if none exists
+        // Load persisted contract, or auto-build if none exists
         let contractData = await fetchFullContract(briefId);
-        let isPersisted = true;
+        
         if (!contractData) {
-          // No persisted contract yet — use preview
-          contractData = await previewContract(briefData, briefId);
-          isPersisted = false;
+          // No persisted contract yet — auto-build and persist
+          setAutoBuilding(true);
+          try {
+            contractData = await buildContract(briefId);
+            if (!contractData) {
+              throw new Error("Contract build completed but no contract data returned");
+            }
+          } catch (buildError: any) {
+            setAutoBuilding(false);
+            throw new Error(`Failed to auto-build contract: ${buildError.message || "Unknown error"}`);
+          }
+          setAutoBuilding(false);
         }
+        
         setContract(contractData);
-        setIsContractPersisted(isPersisted);
 
         // Set initial coping tool selection
         if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
@@ -290,6 +305,21 @@ const AdminContractReviewPage: React.FC = () => {
           }
         } else if (contractData.allowedCopingTools.length > 0) {
           setSelectedCopingTool(contractData.allowedCopingTools[0]);
+        }
+
+        // Check for stale rules version (non-blocking)
+        try {
+          const defaultVersion = await fetchCurrentRulesVersion();
+          setCurrentRulesVersion(defaultVersion);
+          if (
+            contractData.rulesVersionUsed &&
+            contractData.rulesVersionUsed !== defaultVersion &&
+            contractData.status !== "approved"
+          ) {
+            setRulesVersionStale(true);
+          }
+        } catch {
+          // Non-blocking — stale check failure should not prevent review
         }
 
         // Load audit history
@@ -308,32 +338,25 @@ const AdminContractReviewPage: React.FC = () => {
   // Handlers
   // ──────────────────────────────────────────────────────────
 
-  const handleBuildContract = async () => {
+  const handleRebuildContract = async () => {
     if (!briefId) return;
 
     try {
-      setBuilding(true);
+      setRebuilding(true);
       setError(null);
       setSuccessMessage(null);
 
-      // Build the contract (saves to database)
-      const builtContract = await buildContract(briefId);
-      
-      // Update local state
-      setContract(builtContract);
-      setIsContractPersisted(true);
-      setSuccessMessage("Contract built successfully!");
+      const rebuiltContract = await buildContract(briefId);
+      setContract(rebuiltContract);
+      setRulesVersionStale(false);
+      setSuccessMessage("Contract rebuilt successfully under the latest rules version.");
+      setTimeout(() => setSuccessMessage(null), 4000);
 
-      // Clear success message after 3 seconds
-      setTimeout(() => setSuccessMessage(null), 3000);
-
-      // Refresh audit history
       await refreshAuditHistory();
     } catch (err: any) {
-      setError(err.message || "Failed to build contract");
-      setSuccessMessage(null);
+      setError(err.message || "Failed to rebuild contract");
     } finally {
-      setBuilding(false);
+      setRebuilding(false);
     }
   };
 
@@ -468,7 +491,8 @@ const AdminContractReviewPage: React.FC = () => {
   const isApprovable = contract?.status === "valid";
   const hasErrors = (contract?.errors?.length ?? 0) > 0;
   // A contract cannot be approved if it has errors, regardless of status
-  const canApprove = isApprovable && !hasErrors && isContractPersisted;
+  // All contracts on this page are persisted (auto-built if needed)
+  const canApprove = isApprovable && !hasErrors;
 
   // Override message helper
   const overrideMessage = contract && contract.overrideUsed && contract.overrideDetails?.copingToolId
@@ -498,6 +522,19 @@ const AdminContractReviewPage: React.FC = () => {
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         <SpecialistNav />
         <Alert severity="error">{error}</Alert>
+      </Container>
+    );
+  }
+
+  // Show loading state while auto-building contract
+  if (autoBuilding) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <SpecialistNav />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 4 }}>
+          <CircularProgress size={24} />
+          <Typography>Building contract...</Typography>
+        </Box>
       </Container>
     );
   }
@@ -541,22 +578,26 @@ const AdminContractReviewPage: React.FC = () => {
         </Alert>
       )}
 
-      {/* Build Contract Alert - shown when contract is not persisted */}
-      {!isContractPersisted && (
-        <Alert severity="info" sx={{ mb: 3 }}>
+      {/* Stale Rules Version Warning */}
+      {rulesVersionStale && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
-            Contract Preview
+            Rules Version Outdated
           </Typography>
           <Typography variant="body2" sx={{ mb: 2 }}>
-            This is a preview of the contract. You need to build and save it before you can approve it.
+            This contract was built under rules version <strong>{contract.rulesVersionUsed}</strong>.
+            The current rules version is <strong>{currentRulesVersion}</strong>.
+            Clinical rules have been updated since this contract was built.
+            Consider rebuilding the contract before approving.
           </Typography>
           <Button
-            variant="contained"
-            onClick={handleBuildContract}
-            disabled={building}
-            startIcon={building ? <CircularProgress size={16} /> : null}
+            variant="outlined"
+            size="small"
+            onClick={handleRebuildContract}
+            disabled={rebuilding}
+            startIcon={rebuilding ? <CircularProgress size={14} /> : null}
           >
-            {building ? "Building Contract..." : "Build Contract"}
+            {rebuilding ? "Rebuilding..." : "Rebuild Contract"}
           </Button>
         </Alert>
       )}

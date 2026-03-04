@@ -526,3 +526,50 @@ export const getAuditHistory = async (req: Request, res: Response): Promise<void
     });
   }
 };
+
+// ============================================================================
+// Get Current Rules Version
+// ============================================================================
+
+/**
+ * Returns the current default rules version from settings.
+ * Used by the frontend to check if a contract's rules version is stale.
+ * 
+ * GET /api/agent1/rules/current-version
+ */
+export const getCurrentRulesVersion = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const settingsDoc = await firestore.collection("settings").doc("rules").get();
+    
+    if (!settingsDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: "Rules settings not found",
+      });
+      return;
+    }
+
+    const settingsData = settingsDoc.data();
+    const defaultVersion = settingsData?.defaultVersion;
+
+    if (!defaultVersion) {
+      res.status(500).json({
+        success: false,
+        error: "Default rules version not configured",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      version: defaultVersion,
+    });
+  } catch (error: any) {
+    console.error("Error fetching current rules version:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch current rules version",
+      details: error.message,
+    });
+  }
+};
