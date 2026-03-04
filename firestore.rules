@@ -48,6 +48,12 @@ service cloud.firestore {
       // Client-side writes are blocked entirely.
       // The Express backend uses the Admin SDK which bypasses these rules.
       allow write: if false;
+
+      // Contract history subcollection (archived rejected contracts)
+      match /history/{historyId} {
+        allow read: if isAuthenticated();
+        allow write: if false; // Admin SDK only
+      }
     }
 
     // ────────────────────────────────────────────────────
@@ -55,11 +61,13 @@ service cloud.firestore {
     // ────────────────────────────────────────────────────
 
     match /auditTrail/{entryId} {
-      // Any authenticated user can read audit entries
+      // Any authenticated user can read audit entries (read-only for clients)
+      // This enables the UI to display audit history, but clients cannot modify it.
       allow read: if isAuthenticated();
 
       // Only the server (admin SDK) can write.
       // No client-side creates, updates, or deletes.
+      // This is critical for audit trail immutability and clinical governance.
       allow create: if false;
       allow update: if false;
       allow delete: if false;

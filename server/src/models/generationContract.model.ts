@@ -1,10 +1,12 @@
 // server/src/models/generationContract.model.ts
 //
 // PHASE 1 UPDATE:
-//   - Added "pending_review" | "approved" | "rejected" to ContractStatus
-//   - Added ApprovalRecord interface
+//   - Added "approved" | "rejected" to ContractStatus
+//   - Added ApprovalRecord interface with expiry support
 //   - Added approval fields to GenerationContract
-//   - Existing interfaces and helpers are unchanged
+//   - Added previousApprovals array for approval history
+//   - Added overrideCount and overrideHistory tracking
+//   - Removed "pending_review" (was undefined alias for "valid")
 //
 import type { FieldValue, Timestamp } from "firebase-admin/firestore";
 
@@ -16,14 +18,15 @@ import type { FieldValue, Timestamp } from "firebase-admin/firestore";
  * Contract status lifecycle:
  *   "invalid"         → Contract has errors, cannot be approved
  *   "valid"           → Contract built successfully, awaiting review
- *   "pending_review"  → Alias for valid, explicitly entered review queue
  *   "approved"        → Specialist approved — generation is allowed
  *   "rejected"        → Specialist rejected — generation is blocked
+ * 
+ * Note: "pending_review" was removed as it was an undefined alias for "valid".
+ * All contracts awaiting review use "valid" status.
  */
 export type ContractStatus =
   | "invalid"
   | "valid"
-  | "pending_review"
   | "approved"
   | "rejected";
 
@@ -84,6 +87,15 @@ export interface ApprovalRecord {
 
   /** Optional notes from the specialist (required for rejection) */
   notes?: string;
+
+  /** When the approval expires (optional, for clinical governance) */
+  expiresAt?: FieldValue | Timestamp | string;
+
+  /** When this approval was revoked (if applicable) */
+  revokedAt?: FieldValue | Timestamp | string;
+
+  /** Reason for revocation (if applicable) */
+  revokedReason?: string;
 }
 
 export interface GenerationContract {
@@ -116,8 +128,23 @@ export interface GenerationContract {
     warningCount: number;
   };
 
-  /** Populated when a specialist approves or rejects the contract */
+  /** Current approval/rejection record (most recent decision) */
   approval?: ApprovalRecord;
+
+  /** Historical approval/rejection records (preserves full decision history) */
+  previousApprovals?: ApprovalRecord[];
+
+  /** Number of times override has been applied to this contract */
+  overrideCount?: number;
+
+  /** History of override applications */
+  overrideHistory?: Array<{
+    copingToolId: string;
+    reason?: string;
+    appliedAt: FieldValue | Timestamp | string;
+    appliedBy: string;
+    appliedByName: string;
+  }>;
 }
 
 // ============================================================================

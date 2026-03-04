@@ -469,13 +469,38 @@ async function saveContractToFirestore(
     .collection("generationContracts")
     .doc(contract.briefId);
 
-  // Safety check: if contract is approved, explicitly nullify approval to prevent silent overwrite
-  // This is a defensive check - the UI should revoke approval before regeneration
-  if (contract.status === "approved") {
-    console.warn(
-      `WARNING: Saving contract with status "approved" - approval record will be overwritten. ` +
-      `This should not happen if approval revocation is working correctly.`
-    );
+  // Check if an existing contract exists that should be archived
+  const existingContractDoc = await contractRef.get();
+  
+  if (existingContractDoc.exists) {
+    const existingContract = existingContractDoc.data() as GenerationContract;
+    
+    // Archive rejected contracts before overwriting
+    if (existingContract.status === "rejected") {
+      const historyRef = fs
+        .collection("generationContracts")
+        .doc(contract.briefId)
+        .collection("history")
+        .doc();
+      
+      await historyRef.set({
+        ...existingContract,
+        archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+        archivedReason: "rebuilt_after_rejection",
+        replacedByVersion: contract.createdAt, // Link to new version
+      });
+      
+      console.log(`Archived rejected contract ${contract.briefId} to history before rebuild`);
+    }
+    
+    // Safety check: if contract is approved, explicitly nullify approval to prevent silent overwrite
+    // This is a defensive check - the UI should revoke approval before regeneration
+    if (existingContract.status === "approved") {
+      console.warn(
+        `WARNING: Saving contract with status "approved" - approval record will be overwritten. ` +
+        `This should not happen if approval revocation is working correctly.`
+      );
+    }
   }
 
   // Convert FieldValue to actual value for saving

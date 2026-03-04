@@ -187,7 +187,7 @@ function getStatusColor(status: string | undefined): "success" | "error" | "warn
     case "rejected": return "error";
     case "invalid": return "error";
     case "valid": return "warning";
-    case "pending_review": return "info";
+    // pending_review removed - use "valid" instead
     default: return "default";
   }
 }
@@ -245,8 +245,8 @@ const AdminContractReviewPage: React.FC = () => {
   const refreshAuditHistory = useCallback(async () => {
     if (!briefId) return;
     try {
-      const history = await fetchAuditHistory(briefId, AUDIT_HISTORY_LIMIT);
-      setAuditHistory(history);
+      const result = await fetchAuditHistory(briefId, AUDIT_HISTORY_LIMIT);
+      setAuditHistory(result.entries);
     } catch {
       // Audit history is supplementary — don't block on failure
     }
@@ -464,9 +464,8 @@ const AdminContractReviewPage: React.FC = () => {
 
   const isApproved = contract?.status === "approved";
   const isRejected = contract?.status === "rejected";
-  // Explicitly exclude invalid status - only valid or pending_review contracts can be approved
-  const isApprovable =
-    contract?.status === "valid" || contract?.status === "pending_review";
+  // Only valid contracts can be approved
+  const isApprovable = contract?.status === "valid";
   const hasErrors = (contract?.errors?.length ?? 0) > 0;
   // A contract cannot be approved if it has errors, regardless of status
   const canApprove = isApprovable && !hasErrors && isContractPersisted;

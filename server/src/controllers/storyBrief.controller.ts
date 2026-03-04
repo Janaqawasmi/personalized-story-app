@@ -9,8 +9,9 @@
 
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
+import type { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { StoryBrief, createStoryBrief as createStoryBriefModel, StoryBriefInput } from "../models/storyBrief.model";
-import { GenerationContract } from "../models/generationContract.model";
+import { GenerationContract, ApprovalRecord } from "../models/generationContract.model";
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
 import { AuditTrail } from "../services/auditTrail.service";
@@ -370,6 +371,33 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // Check if existing contract was approved - if so, reason is required
+    let existingContract: GenerationContract | null = null;
+    let requiresReason = false;
+    try {
+      const existingContractDoc = await firestore
+        .collection("generationContracts")
+        .doc(briefId)
+        .get();
+
+      if (existingContractDoc.exists) {
+        existingContract = existingContractDoc.data() as GenerationContract;
+        requiresReason = existingContract?.status === "approved";
+      }
+    } catch (err) {
+      console.warn(`Could not check existing contract for brief ${briefId}:`, err);
+    }
+
+    // Require reason if overriding an approved contract
+    if (requiresReason && (!reason || typeof reason !== "string" || reason.trim().length === 0)) {
+      res.status(400).json({
+        success: false,
+        error: "Override reason required",
+        details: "Overriding an approved contract requires a clinical justification for the audit trail.",
+      });
+      return;
+    }
+
     // Load the brief
     const briefDoc = await firestore.collection("storyBriefs").doc(briefId).get();
     if (!briefDoc.exists) {
@@ -418,36 +446,51 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    // --- PHASE 1: Check if a previous approval existed and revoke it ---
+    // --- Check if a previous approval existed and prepare to revoke it ---
     let previousApprovalRevoked = false;
-    try {
-      const existingContractDoc = await firestore
-        .collection("generationContracts")
-        .doc(briefId)
-        .get();
+    let previousApprovals: ApprovalRecord[] = [];
+    let overrideCount = 0;
+    let overrideHistory: Array<{
+      copingToolId: string;
+      reason?: string;
+      appliedAt: FieldValue | Timestamp | string;
+      appliedBy: string;
+      appliedByName: string;
+    }> = [];
 
-      if (existingContractDoc.exists) {
-        const existingContract = existingContractDoc.data();
+    if (existingContract) {
+      // Preserve previous approvals
+      previousApprovals = existingContract.previousApprovals || [];
+      
+      // Track override count and history
+      overrideCount = (existingContract.overrideCount || 0) + 1;
+      overrideHistory = existingContract.overrideHistory || [];
 
-        if (existingContract?.status === "approved") {
-          previousApprovalRevoked = true;
+      if (existingContract.status === "approved" && existingContract.approval) {
+        previousApprovalRevoked = true;
 
-          // Log that the approval was revoked due to override
-          await AuditTrail.log({
-            action: "contract.approval_revoked",
-            actor: AuditTrail.actorFromRequest(user),
-            resourceType: "generationContract",
-            resourceId: briefId,
-            metadata: {
-              reason: "override_applied",
-              previousApproval: existingContract.approval ?? null,
-              overrideCopingToolId: copingToolId,
-            },
-          });
-        }
+        // Mark the current approval as revoked
+        const revokedApproval: ApprovalRecord = {
+          ...existingContract.approval,
+          revokedAt: admin.firestore.FieldValue.serverTimestamp(),
+          revokedReason: "override_applied",
+        };
+        previousApprovals.push(revokedApproval);
+
+        // Log that the approval was revoked due to override
+        await AuditTrail.log({
+          action: "contract.approval_revoked",
+          actor: AuditTrail.actorFromRequest(user),
+          resourceType: "generationContract",
+          resourceId: briefId,
+          metadata: {
+            reason: "override_applied",
+            previousApproval: existingContract.approval,
+            overrideCopingToolId: copingToolId,
+            overrideReason: reason || null,
+          },
+        });
       }
-    } catch (err) {
-      console.warn(`Could not check existing contract for brief ${briefId}:`, err);
     }
 
     // Check if an existing contract exists to preserve its rules version
@@ -485,7 +528,7 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       existingRulesVersion ? { rulesVersion: existingRulesVersion } : undefined
     );
 
-    // --- PHASE 1: Ensure the rebuilt contract is NOT approved ---
+    // --- Ensure the rebuilt contract is NOT approved ---
     // The buildGenerationContract sets status to "valid" or "invalid" based on errors,
     // so a freshly built contract will never be "approved". This is correct behavior.
     // We add an explicit safety check as defense in depth.
@@ -499,6 +542,25 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       contract.status = "valid";
     }
 
+    // Add override to history
+    overrideHistory.push({
+      copingToolId,
+      reason: reason || undefined,
+      appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+      appliedBy: user.uid,
+      appliedByName: user.displayName,
+    });
+
+    // Update contract with override tracking and previous approvals
+    await firestore.collection("generationContracts").doc(briefId).update({
+      overrideCount,
+      overrideHistory,
+      previousApprovals,
+      // Clear current approval if it was revoked
+      ...(previousApprovalRevoked ? { approval: admin.firestore.FieldValue.delete() } : {}),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
     // Log override to audit trail
     await AuditTrail.log({
       action: "contract.override_applied",
@@ -507,6 +569,7 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       resourceId: briefId,
       metadata: {
         copingToolId,
+        overrideCount,
         reason: reason || null,
         previousApprovalRevoked,
         newStatus: contract.status,
@@ -533,9 +596,13 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
         ? {
             ...savedContract.approval,
             decidedAt: serializeTimestamp(savedContract.approval.decidedAt),
+            expiresAt: savedContract.approval.expiresAt
+              ? serializeTimestamp(savedContract.approval.expiresAt)
+              : undefined,
           }
         : undefined,
       previousApprovalRevoked, // Inform the client that re-approval is needed
+      overrideCount: savedContract.overrideCount || 0,
     };
 
     res.status(200).json({

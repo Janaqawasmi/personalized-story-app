@@ -24,7 +24,7 @@ import type { GenerationContract, ContractStatus, ApprovalRecord } from "../mode
  *
  * Preconditions:
  *   - Contract must exist
- *   - Contract status must be "valid" or "pending_review"
+ *   - Contract status must be "valid"
  *   - Contract must have zero errors
  *   - User must be authenticated (enforced by middleware)
  *
@@ -62,12 +62,11 @@ export const approveContract = async (req: Request, res: Response): Promise<void
     const contract = contractDoc.data() as GenerationContract;
 
     // Validate contract is in an approvable state
-    const approvableStatuses: ContractStatus[] = ["valid", "pending_review"];
-    if (!contract.status || !approvableStatuses.includes(contract.status)) {
+    if (contract.status !== "valid") {
       res.status(409).json({
         success: false,
         error: `Contract cannot be approved in its current state`,
-        details: `Current status: "${contract.status}". Must be "valid" or "pending_review".`,
+        details: `Current status: "${contract.status}". Must be "valid".`,
       });
       return;
     }
@@ -83,28 +82,26 @@ export const approveContract = async (req: Request, res: Response): Promise<void
       return;
     }
 
-    // Build approval record
+    // Build approval record with optional expiry (default: 7 days from now)
+    const approvalExpiryDays = 7; // Configurable: could come from settings
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + approvalExpiryDays);
+
     const approvalRecord: ApprovalRecord = {
       decision: "approved",
       decidedBy: user.uid,
       decidedByName: user.displayName,
       decidedByEmail: user.email,
       decidedAt: admin.firestore.FieldValue.serverTimestamp(),
+      expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
       ...(notes ? { notes } : {}),
     };
 
-    // Update contract atomically
-    await contractRef.update({
-      status: "approved" as ContractStatus,
-      approval: approvalRecord,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Log to immutable audit trail
-    await AuditTrail.log({
-      action: "contract.approved",
+    // Prepare audit entry
+    const auditEntry = {
+      action: "contract.approved" as const,
       actor: AuditTrail.actorFromRequest(user),
-      resourceType: "generationContract",
+      resourceType: "generationContract" as const,
       resourceId: briefId,
       relatedResourceId: briefId,
       metadata: {
@@ -113,6 +110,38 @@ export const approveContract = async (req: Request, res: Response): Promise<void
         warningCount: contract.warnings?.length ?? 0,
         notes: notes ?? null,
       },
+    };
+
+    // Update contract and log audit trail atomically using transaction
+    await firestore.runTransaction(async (transaction) => {
+      // Re-read contract in transaction to ensure consistency
+      const contractDoc = await transaction.get(contractRef);
+      if (!contractDoc.exists) {
+        throw new Error("Contract not found");
+      }
+
+      const currentContract = contractDoc.data() as GenerationContract;
+      
+      // Preserve previous approvals
+      const previousApprovals = currentContract.previousApprovals || [];
+      if (currentContract.approval) {
+        previousApprovals.push(currentContract.approval);
+      }
+
+      // Update contract
+      transaction.update(contractRef, {
+        status: "approved" as ContractStatus,
+        approval: approvalRecord,
+        previousApprovals,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create audit entry
+      const auditRef = firestore.collection("auditTrail").doc();
+      transaction.set(auditRef, {
+        ...auditEntry,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
     });
 
     res.status(200).json({
@@ -146,7 +175,7 @@ export const approveContract = async (req: Request, res: Response): Promise<void
  *
  * Preconditions:
  *   - Contract must exist
- *   - Contract status must be "valid" or "pending_review"
+ *   - Contract status must be "valid"
  *   - Rejection reason must be provided
  *
  * Effects:
@@ -192,12 +221,11 @@ export const rejectContract = async (req: Request, res: Response): Promise<void>
     const contract = contractDoc.data() as GenerationContract;
 
     // Validate contract is in a rejectable state
-    const rejectableStatuses: ContractStatus[] = ["valid", "pending_review"];
-    if (!contract.status || !rejectableStatuses.includes(contract.status)) {
+    if (contract.status !== "valid") {
       res.status(409).json({
         success: false,
         error: `Contract cannot be rejected in its current state`,
-        details: `Current status: "${contract.status}". Must be "valid" or "pending_review".`,
+        details: `Current status: "${contract.status}". Must be "valid".`,
       });
       return;
     }
@@ -212,24 +240,49 @@ export const rejectContract = async (req: Request, res: Response): Promise<void>
       notes: reason.trim(),
     };
 
-    // Update contract
-    await contractRef.update({
-      status: "rejected" as ContractStatus,
-      approval: approvalRecord,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Log to immutable audit trail
-    await AuditTrail.log({
-      action: "contract.rejected",
+    // Prepare audit entry
+    const auditEntry = {
+      action: "contract.rejected" as const,
       actor: AuditTrail.actorFromRequest(user),
-      resourceType: "generationContract",
+      resourceType: "generationContract" as const,
       resourceId: briefId,
       relatedResourceId: briefId,
       metadata: {
         rulesVersionUsed: contract.rulesVersionUsed,
         reason: reason.trim(),
       },
+    };
+
+    // Update contract and log audit trail atomically using transaction
+    await firestore.runTransaction(async (transaction) => {
+      // Re-read contract in transaction to ensure consistency
+      const contractDoc = await transaction.get(contractRef);
+      if (!contractDoc.exists) {
+        throw new Error("Contract not found");
+      }
+
+      const currentContract = contractDoc.data() as GenerationContract;
+      
+      // Preserve previous approvals
+      const previousApprovals = currentContract.previousApprovals || [];
+      if (currentContract.approval) {
+        previousApprovals.push(currentContract.approval);
+      }
+
+      // Update contract
+      transaction.update(contractRef, {
+        status: "rejected" as ContractStatus,
+        approval: approvalRecord,
+        previousApprovals,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create audit entry
+      const auditRef = firestore.collection("auditTrail").doc();
+      transaction.set(auditRef, {
+        ...auditEntry,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
     });
 
     res.status(200).json({
@@ -360,6 +413,7 @@ function serializeTimestamp(ts: any): string | undefined {
 export const getContract = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
+    const user = req.user; // May be undefined for unauthenticated requests
 
     if (!briefId) {
       res.status(400).json({ success: false, error: "briefId is required" });
@@ -381,6 +435,16 @@ export const getContract = async (req: Request, res: Response): Promise<void> =>
 
     const contractData = contractDoc.data() as GenerationContract;
     
+    // Log contract view to audit trail (if user is authenticated)
+    if (user) {
+      await AuditTrail.log({
+        action: "contract.viewed",
+        actor: AuditTrail.actorFromRequest(user),
+        resourceType: "generationContract",
+        resourceId: briefId,
+      });
+    }
+    
     // Debug: Log the timestamp format to help diagnose issues
     if (process.env.NODE_ENV === "development" || process.env.ALLOW_UNAUTHENTICATED_REQUESTS === "true") {
       console.log(`[DEBUG] Contract ${briefId} createdAt type:`, typeof contractData.createdAt, contractData.createdAt?.constructor?.name);
@@ -398,6 +462,9 @@ export const getContract = async (req: Request, res: Response): Promise<void> =>
         ? {
             ...contractData.approval,
             decidedAt: serializeTimestamp(contractData.approval.decidedAt),
+            expiresAt: contractData.approval.expiresAt
+              ? serializeTimestamp(contractData.approval.expiresAt)
+              : undefined,
           }
         : undefined,
     };
@@ -419,18 +486,24 @@ export const getContract = async (req: Request, res: Response): Promise<void> =>
 export const getAuditHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
-    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 200);
+    const cursor = req.query.cursor as string | undefined;
 
     if (!briefId) {
       res.status(400).json({ success: false, error: "briefId is required" });
       return;
     }
 
-    const entries = await AuditTrail.getByBriefId(briefId, limit);
+    const result = await AuditTrail.getByBriefId(briefId, limit, cursor);
 
     res.status(200).json({
       success: true,
-      data: entries,
+      data: result.entries,
+      pagination: {
+        hasMore: result.hasMore,
+        nextCursor: result.nextCursor,
+        limit,
+      },
     });
   } catch (error: any) {
     console.error("Error fetching audit history:", error);

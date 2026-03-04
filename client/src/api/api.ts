@@ -535,12 +535,31 @@ export interface GenerationContract {
   };
   overrideUsed: boolean;
   overrideDetails?: Record<string, unknown>;
+  overrideCount?: number;
+  overrideHistory?: Array<{
+    copingToolId: string;
+    reason?: string;
+    appliedAt: string;
+    appliedBy: string;
+    appliedByName: string;
+  }>;
+  previousApprovals?: Array<{
+    decision: "approved" | "rejected";
+    decidedBy: string;
+    decidedByName: string;
+    decidedByEmail: string;
+    decidedAt: string;
+    expiresAt?: string;
+    revokedAt?: string;
+    revokedReason?: string;
+    notes?: string;
+  }>;
   keyMessage?: string;
   warnings: Array<{ code: string; message: string }>;
   errors: Array<{ code: string; message: string }>;
   createdAt: any;
   updatedAt?: any;
-  status?: "invalid" | "valid" | "pending_review" | "approved" | "rejected";
+  status?: "invalid" | "valid" | "approved" | "rejected";
   approval?: {
     decision: "approved" | "rejected";
     decidedBy: string;
@@ -694,20 +713,32 @@ export async function fetchFullContract(briefId: string): Promise<GenerationCont
 }
 
 /**
- * Fetches the audit trail for a brief/contract.
+ * Fetches the audit trail for a brief/contract with pagination support.
  */
 export async function fetchAuditHistory(
   briefId: string,
-  limit?: number
-): Promise<Array<{ id: string; action: string; actor: any; resourceType: string; resourceId: string; relatedResourceId?: string; metadata?: any; timestamp: string }>> {
+  limit?: number,
+  cursor?: string
+): Promise<{
+  entries: Array<{ id: string; action: string; actor: any; resourceType: string; resourceId: string; relatedResourceId?: string; metadata?: any; timestamp: string }>;
+  pagination: {
+    hasMore: boolean;
+    nextCursor?: string;
+    limit: number;
+  };
+}> {
   const headers = await getAuthHeaders();
-  const url = limit
-    ? `${API_BASE}/api/agent1/contracts/${briefId}/audit?limit=${limit}`
-    : `${API_BASE}/api/agent1/contracts/${briefId}/audit`;
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const url = `${API_BASE}/api/agent1/contracts/${briefId}/audit${params.toString() ? `?${params.toString()}` : ""}`;
   const res = await fetch(url, { headers });
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Failed to fetch audit history");
-  return data.data;
+  return {
+    entries: data.data || [],
+    pagination: data.pagination || { hasMore: false, limit: limit || 20 },
+  };
 }
 
 // ---------- Story Prompt Preview API ----------

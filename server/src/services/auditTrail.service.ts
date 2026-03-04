@@ -146,34 +146,56 @@ async function getByResource(
 async function getByBriefId(
   briefId: string,
   limit: number = 100,
+  cursor?: string, // Document ID to start after (for pagination)
   fs?: Firestore
-): Promise<Array<AuditEntry & { id: string }>> {
+): Promise<{
+  entries: Array<AuditEntry & { id: string }>;
+  nextCursor?: string;
+  hasMore: boolean;
+}> {
   const db = fs ?? firestore;
+  const fetchLimit = limit + 1; // Fetch one extra to check hasMore
 
-  // Query both resourceId and relatedResourceId
+  // Build queries for both resourceId and relatedResourceId
+  let directQuery = db
+    .collection(COLLECTION_NAME)
+    .where("resourceId", "==", briefId)
+    .orderBy("timestamp", "desc")
+    .limit(fetchLimit);
+
+  let relatedQuery = db
+    .collection(COLLECTION_NAME)
+    .where("relatedResourceId", "==", briefId)
+    .orderBy("timestamp", "desc")
+    .limit(fetchLimit);
+
+  // Apply cursor if provided
+  if (cursor) {
+    try {
+      const cursorDoc = await db.collection(COLLECTION_NAME).doc(cursor).get();
+      if (cursorDoc.exists) {
+        directQuery = directQuery.startAfter(cursorDoc);
+        relatedQuery = relatedQuery.startAfter(cursorDoc);
+      }
+    } catch (err) {
+      console.warn(`Invalid cursor for audit history pagination: ${cursor}`, err);
+    }
+  }
+
+  // Execute queries
   const [directSnapshot, relatedSnapshot] = await Promise.all([
-    db
-      .collection(COLLECTION_NAME)
-      .where("resourceId", "==", briefId)
-      .orderBy("timestamp", "desc")
-      .limit(limit)
-      .get(),
-    db
-      .collection(COLLECTION_NAME)
-      .where("relatedResourceId", "==", briefId)
-      .orderBy("timestamp", "desc")
-      .limit(limit)
-      .get(),
+    directQuery.get(),
+    relatedQuery.get(),
   ]);
 
   // Merge and deduplicate by document ID
   const seen = new Set<string>();
-  const entries: Array<AuditEntry & { id: string }> = [];
+  const allEntries: Array<AuditEntry & { id: string }> = [];
 
   for (const doc of [...directSnapshot.docs, ...relatedSnapshot.docs]) {
     if (!seen.has(doc.id)) {
       seen.add(doc.id);
-      entries.push({
+      allEntries.push({
         id: doc.id,
         ...(doc.data() as AuditEntry),
       });
@@ -181,7 +203,7 @@ async function getByBriefId(
   }
 
   // Sort by timestamp descending (Firestore timestamps are objects)
-  entries.sort((a, b) => {
+  allEntries.sort((a, b) => {
     const aTime = a.timestamp && typeof a.timestamp === "object" && "toMillis" in a.timestamp
       ? (a.timestamp as FirebaseFirestore.Timestamp).toMillis()
       : 0;
@@ -191,7 +213,12 @@ async function getByBriefId(
     return bTime - aTime;
   });
 
-  return entries.slice(0, limit);
+  // Determine pagination info
+  const hasMore = allEntries.length > limit;
+  const entries = allEntries.slice(0, limit);
+  const nextCursor = hasMore && entries.length > 0 ? entries[entries.length - 1].id : undefined;
+
+  return { entries, nextCursor, hasMore };
 }
 
 // ============================================================================
@@ -227,4 +254,6 @@ export const AuditTrail = {
   getByResource,
   getByBriefId,
   actorFromRequest,
+  // Export pagination result type for TypeScript
+  getByBriefIdPaginated: getByBriefId,
 };

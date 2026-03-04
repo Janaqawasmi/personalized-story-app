@@ -7,17 +7,18 @@ This document describes the complete workflow for reviewing and approving genera
 
 ### Contract Status Lifecycle
 ```
-invalid → valid → pending_review → approved → [generation allowed]
+invalid → valid → approved → [generation allowed]
                 ↓
-            rejected → [must rebuild]
+            rejected → [must rebuild] → valid (archived to history)
 ```
 
 **Status Definitions:**
 - `invalid`: Contract has validation errors, cannot be approved
 - `valid`: Contract built successfully, awaiting review
-- `pending_review`: Alias for `valid`, explicitly entered review queue
-- `approved`: Specialist approved — generation is allowed
+- `approved`: Specialist approved — generation is allowed (with expiry check)
 - `rejected`: Specialist rejected — generation is blocked
+
+**Note:** `pending_review` was removed as it was an undefined alias for `valid`. All contracts awaiting review use `valid` status.
 
 ---
 
@@ -182,9 +183,14 @@ const canApprove =
 
 **Preconditions (enforced by backend):**
 - Contract must exist
-- Contract status must be `"valid"` or `"pending_review"`
+- Contract status must be `"valid"`
 - Contract must have zero errors
 - User must be authenticated (specialist or admin)
+
+**Approval Expiry:**
+- Approvals expire after 7 days (configurable)
+- Expired approvals require re-approval before generation
+- Expiry timestamp is stored in `approval.expiresAt`
 
 **Process:**
 1. Calls `apiApproveContract(briefId, approvalNotes)`
@@ -193,7 +199,7 @@ const canApprove =
    - **Validates preconditions:**
      - Status check: `["valid", "pending_review"].includes(status)`
      - Error check: `errors.length === 0`
-   - Builds approval record:
+   - Builds approval record with expiry (default: 7 days):
      ```typescript
      {
        decision: "approved",
@@ -201,18 +207,15 @@ const canApprove =
        decidedByName: user.displayName,
        decidedByEmail: user.email,
        decidedAt: FieldValue.serverTimestamp(),
+       expiresAt: Timestamp.fromDate(expiresDate), // 7 days from now
        notes?: string
      }
      ```
-   - Updates contract atomically:
-     ```typescript
-     {
-       status: "approved",
-       approval: approvalRecord,
-       updatedAt: FieldValue.serverTimestamp()
-     }
-     ```
-   - Logs `"contract.approved"` to audit trail
+   - Updates contract atomically using Firestore transaction:
+     - Preserves `previousApprovals` array (adds current approval if exists)
+     - Sets `status: "approved"`
+     - Sets `approval: approvalRecord`
+     - Creates audit entry in same transaction
    - Returns approval record
 3. Client updates state:
    - Sets `contract.status = "approved"`
@@ -246,7 +249,7 @@ const canApprove =
 
 **Preconditions:**
 - Contract must exist
-- Contract status must be `"valid"` or `"pending_review"`
+- Contract status must be `"valid"`
 - Rejection reason is **required**
 
 **Process:**
@@ -256,18 +259,17 @@ const canApprove =
 4. Backend (`rejectContract` controller):
    - Validates preconditions
    - Builds approval record with `decision: "rejected"`
-   - Updates contract:
-     ```typescript
-     {
-       status: "rejected",
-       approval: { decision: "rejected", notes: reason, ... },
-       updatedAt: FieldValue.serverTimestamp()
-     }
-     ```
-   - Logs `"contract.rejected"` to audit trail
+   - Updates contract atomically using Firestore transaction:
+     - Preserves `previousApprovals` array
+     - Sets `status: "rejected"`
+     - Sets `approval: approvalRecord`
+     - Creates audit entry in same transaction
 5. Client updates state and shows rejection message
 
-**Important:** Rejected contracts cannot be approved. Specialist must update the brief and rebuild the contract.
+**Important:** Rejected contracts cannot be approved. When rebuilding after rejection:
+- The rejected contract is archived to `generationContracts/{briefId}/history/{historyId}`
+- The new contract replaces the rejected one
+- Audit trail preserves the full history
 
 ---
 
@@ -278,16 +280,20 @@ const canApprove =
 
 **API:** `POST /api/admin/story-briefs/:briefId/generate-draft`
 
-**Three-Layer Protection:**
+**Multi-Layer Protection:**
 1. **`requireAuth`** (middleware): Verifies Firebase ID token, populates `req.user`
 2. **`requireRole("specialist", "admin")`** (middleware): Verifies user has required role
 3. **`requireApprovedContract`** (middleware): **CRITICAL GATE**
    - Loads contract from Firestore
-   - Checks `contract.status === "approved"`
-   - If not approved:
-     - Logs `"generation.blocked"` to audit trail
+   - **Check 1:** Contract must exist
+   - **Check 2:** `contract.status === "approved"`
+   - **Check 3:** Contract must have zero errors
+   - **Check 4:** Rules version currency — `contract.rulesVersionUsed` must match current default version
+   - **Check 5:** Approval expiry — `approval.expiresAt` must not be in the past
+   - If any check fails:
+     - Logs `"generation.blocked"` with structured reason code (e.g., `CONTRACT_NOT_APPROVED`, `CONTRACT_RULES_OUTDATED`, `CONTRACT_APPROVAL_EXPIRED`)
      - Returns 403 with specific error message
-   - If approved: Attaches `req.approvedContract` to request
+   - If all checks pass: Attaches `req.approvedContract` to request
 
 **Process:**
 1. Generation guard middleware verifies approval
@@ -299,10 +305,14 @@ const canApprove =
    - Logs `"generation.failed"` on error
 
 **Error Handling:**
-- If contract not found → 404: "Generation contract not found"
-- If contract not approved → 403: "Generation not authorized" with status-specific message
-- If contract has errors → 403: "Contract has validation errors"
-- If contract is rejected → 403: "Contract was rejected" with rejection reason
+- If contract not found → 404: "Generation contract not found" (`CONTRACT_NOT_FOUND`)
+- If contract not approved → 403: "Generation not authorized" with status-specific message (`CONTRACT_NOT_APPROVED`)
+- If contract has errors → 403: "Contract has errors" (`CONTRACT_HAS_ERRORS`)
+- If contract is rejected → 403: "Contract was rejected" with rejection reason (`CONTRACT_REJECTED`)
+- If rules version outdated → 403: "Contract rules version outdated" (`CONTRACT_RULES_OUTDATED`)
+- If approval expired → 403: "Contract approval expired" (`CONTRACT_APPROVAL_EXPIRED`)
+
+All blocking events are logged with structured `reason` codes for audit analysis.
 
 ---
 
@@ -314,7 +324,26 @@ All critical operations are enforced at the backend level:
 1. **Authentication:** `requireAuth` middleware on all routes
 2. **Authorization:** `requireRole` middleware for mutations
 3. **Approval Gate:** `requireApprovedContract` middleware for generation
-4. **Audit Trail:** All actions logged immutably
+   - Checks contract status
+   - Validates rules version currency
+   - Enforces approval expiry
+   - Uses structured blocking reason codes
+4. **Audit Trail:** All actions logged immutably with atomic writes
+
+### Generation Guard Layers
+
+**Layer 1: Authentication** (`requireAuth`)
+- Protects against: Unauthenticated access
+- Does NOT protect against: Stale sessions, token theft
+
+**Layer 2: Authorization** (`requireRole`)
+- Protects against: Unauthorized roles
+- Does NOT protect against: Self-approval, cross-organization access (if multi-tenancy added)
+
+**Layer 3: Approval Gate** (`requireApprovedContract`)
+- Protects against: Unapproved contracts, contracts with errors, rejected contracts
+- **NEW:** Protects against: Stale rules versions, expired approvals
+- Does NOT protect against: Contract belonging to different organization (if multi-tenancy added)
 
 ### Client-Side Protection
 - Client-side checks are for **UX only**
@@ -324,7 +353,9 @@ All critical operations are enforced at the backend level:
 ### Data Integrity
 - `createdBy` is **always** derived from `req.user.uid` (never from request body)
 - Contract status transitions are atomic (Firestore transactions)
-- Approval records are immutable (append-only audit trail)
+- Approval records are preserved in `previousApprovals` array (full history)
+- Rejected contracts are archived before rebuild (preserves document history)
+- Audit trail writes are atomic with state changes (prevents audit gaps)
 
 ---
 
@@ -340,13 +371,19 @@ All critical operations are enforced at the backend level:
 - **On generation:** Guard middleware blocks (contract won't be approved anyway)
 
 ### Contract Already Approved
-- **On override:** Approval is revoked, status set to `"valid"`, requires re-approval
+- **On override:** 
+  - Current approval is moved to `previousApprovals` array with `revokedAt` and `revokedReason`
+  - Status set to `"valid"`, requires re-approval
+  - Override reason is **required** if contract was previously approved
+  - Override count is incremented
+  - Override is added to `overrideHistory`
 - **On regeneration:** Safety check forces status back to `"valid"` if somehow approved
 
 ### Contract Rejected
 - **On approval attempt:** Returns 409, cannot approve rejected contract
 - **On generation:** Guard middleware blocks with rejection reason
-- **Resolution:** Update brief and rebuild contract
+- **On rebuild:** Rejected contract is archived to `generationContracts/{briefId}/history/{historyId}` before new contract is saved
+- **Resolution:** Update brief and rebuild contract (old rejected contract preserved in history)
 
 ### Timestamp Serialization
 - Backend serializes Firestore Timestamps to ISO strings
@@ -370,11 +407,12 @@ All events are logged with:
 - `brief.created`
 - `contract.built`
 - `contract.preview`
+- `contract.viewed` (when specialist loads persisted contract)
 - `contract.override_applied`
 - `contract.approval_revoked`
 - `contract.approved`
 - `contract.rejected`
-- `generation.blocked`
+- `generation.blocked` (with structured reason codes)
 - `generation.started`
 - `generation.completed`
 - `generation.failed`
@@ -405,19 +443,53 @@ All events are logged with:
 
 ## Testing Checklist
 
+### Basic Workflow
 - [ ] Brief creation logs audit event
 - [ ] Contract building saves to Firestore
 - [ ] Contract preview doesn't save
-- [ ] Override revokes approval if contract was approved
+- [ ] Contract view logs `contract.viewed` event
 - [ ] Approval requires valid status and no errors
 - [ ] Rejection requires reason
-- [ ] Generation blocked if contract not approved
-- [ ] Generation blocked if contract not found
-- [ ] Generation blocked if contract has errors
-- [ ] Generation blocked if contract rejected
-- [ ] Audit history displays correctly
-- [ ] Timestamps serialize correctly
+- [ ] Approval includes expiry timestamp (7 days default)
+- [ ] Previous approvals are preserved in `previousApprovals` array
+
+### Override Flow
+- [ ] Override revokes approval if contract was approved
+- [ ] Override reason required for post-approval overrides
+- [ ] Override reason optional for first-time overrides
+- [ ] Override count is tracked and incremented
+- [ ] Override history is maintained
+- [ ] Revoked approval added to `previousApprovals` with revocation metadata
+
+### Generation Guard
+- [ ] Generation blocked if contract not found (`CONTRACT_NOT_FOUND`)
+- [ ] Generation blocked if contract not approved (`CONTRACT_NOT_APPROVED`)
+- [ ] Generation blocked if contract has errors (`CONTRACT_HAS_ERRORS`)
+- [ ] Generation blocked if contract rejected (`CONTRACT_REJECTED`)
+- [ ] Generation blocked if rules version outdated (`CONTRACT_RULES_OUTDATED`)
+- [ ] Generation blocked if approval expired (`CONTRACT_APPROVAL_EXPIRED`)
+- [ ] All blocking events use structured reason codes
+
+### Rejection & Rebuild
+- [ ] Rejected contract archived to history subcollection before rebuild
+- [ ] Rejected contract preserved with `archivedAt` and `archivedReason`
+- [ ] New contract replaces rejected one (old one in history)
+
+### Audit Trail
+- [ ] Audit writes are atomic with state changes (transactions)
+- [ ] Audit history supports pagination (cursor-based)
+- [ ] Audit history API returns `hasMore` and `nextCursor`
 - [ ] All actions logged to audit trail
+- [ ] Timestamps serialize correctly
+
+### Edge Cases
+- [ ] Override applied to contract that was never approved (should not revoke non-existent approval)
+- [ ] Override with invalid coping tool (should be rejected with specific error)
+- [ ] Build contract while a rejected contract already exists (should archive old one)
+- [ ] Approval attempted by different specialist than who created brief (should be permitted)
+- [ ] Approval attempted on contract whose rules version has been deactivated (should block)
+- [ ] Generation attempted after approval has expired (should block)
+- [ ] Concurrent approval attempts (transaction should prevent race condition)
 
 ---
 
