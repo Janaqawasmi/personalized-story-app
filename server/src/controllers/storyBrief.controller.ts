@@ -1,8 +1,18 @@
+// server/src/controllers/storyBrief.controller.ts
+//
+// PHASE 1 CHANGES:
+//   - createStoryBrief: createdBy now comes from req.user (auth session), not req.body
+//   - buildContract: logs "contract.built" to audit trail
+//   - previewContract: logs "contract.preview" to audit trail
+//   - applyOverride: revokes previous approval, logs to audit trail
+//   - All mutation endpoints expect req.user (set by auth middleware)
+
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import { StoryBrief, createStoryBrief as createStoryBriefModel, StoryBriefInput } from "../models/storyBrief.model";
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
+import { AuditTrail } from "../services/auditTrail.service";
 
 /**
  * List all story briefs (newest first)
@@ -81,18 +91,42 @@ export const getStoryBriefById = async (req: Request, res: Response): Promise<vo
 
 /**
  * Create a new story brief (written by specialist)
+ *
+ * PHASE 1 FIX: createdBy is derived from the authenticated user session,
+ * NOT from the request body. This guarantees clinical accountability —
+ * we always know which specialist authored the brief.
  */
 export const createStoryBrief = async (req: Request, res: Response): Promise<void> => {
   try {
+    const user = req.user!; // Guaranteed by requireAuth middleware
     const input = req.body as StoryBriefInput;
 
+    // CRITICAL: Override createdBy with authenticated user identity
+    // Ignore any createdBy value from the client
+    const securedInput: StoryBriefInput = {
+      ...input,
+      createdBy: user.uid,
+    };
+
     // Use the model's createStoryBrief helper which validates and sets system fields
-    const storyBrief = createStoryBriefModel(input);
+    const storyBrief = createStoryBriefModel(securedInput);
 
     // Save to Firestore
     const docRef = await firestore
       .collection("storyBriefs")
       .add(storyBrief);
+
+    // Log to audit trail
+    await AuditTrail.log({
+      action: "brief.created",
+      actor: AuditTrail.actorFromRequest(user),
+      resourceType: "storyBrief",
+      resourceId: docRef.id,
+      metadata: {
+        topic: input.therapeuticFocus?.primaryTopic,
+        ageGroup: input.childProfile?.ageGroup,
+      },
+    });
 
     res.status(201).json({
       success: true,
@@ -114,10 +148,13 @@ export const createStoryBrief = async (req: Request, res: Response): Promise<voi
 
 /**
  * Build a generation contract from a story brief ID
+ *
+ * PHASE 1 FIX: Logs "contract.built" to audit trail with actor info.
  */
 export const buildContract = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
+    const user = req.user!;
 
     if (!briefId) {
       res.status(400).json({
@@ -129,6 +166,20 @@ export const buildContract = async (req: Request, res: Response): Promise<void> 
 
     const contract = await buildGenerationContractFromBriefId(briefId, {
       firestore,
+    });
+
+    // Log to audit trail
+    await AuditTrail.log({
+      action: "contract.built",
+      actor: AuditTrail.actorFromRequest(user),
+      resourceType: "generationContract",
+      resourceId: briefId,
+      metadata: {
+        status: contract.status,
+        rulesVersionUsed: contract.rulesVersionUsed,
+        errorCount: contract.errors.length,
+        warningCount: contract.warnings.length,
+      },
     });
 
     res.status(200).json({
@@ -170,6 +221,21 @@ export const previewContract = async (req: Request, res: Response): Promise<void
       { skipSave: true } // Preview mode: don't save to Firestore
     );
 
+    // Log preview to audit trail (lightweight, for traceability)
+    if (req.user) {
+      await AuditTrail.log({
+        action: "contract.preview",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "generationContract",
+        resourceId: tempBriefId,
+        metadata: {
+          status: contract.status,
+          errorCount: contract.errors.length,
+          warningCount: contract.warnings.length,
+        },
+      });
+    }
+
     res.status(200).json({
       success: true,
       data: contract,
@@ -188,11 +254,16 @@ export const previewContract = async (req: Request, res: Response): Promise<void
 /**
  * Apply override to a story brief and regenerate contract
  * POST /api/agent1/contracts/:briefId/override
+ *
+ * PHASE 1 FIX: When an override is applied, any previous approval is revoked.
+ * The contract status is set back to "valid", requiring re-approval before generation.
+ * This ensures the specialist reviews the changed contract.
  */
 export const applyOverride = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
     const { copingToolId, reason } = req.body;
+    const user = req.user!;
 
     if (!briefId) {
       res.status(400).json({
@@ -258,6 +329,38 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    // --- PHASE 1: Check if a previous approval existed and revoke it ---
+    let previousApprovalRevoked = false;
+    try {
+      const existingContractDoc = await firestore
+        .collection("generationContracts")
+        .doc(briefId)
+        .get();
+
+      if (existingContractDoc.exists) {
+        const existingContract = existingContractDoc.data();
+
+        if (existingContract?.status === "approved") {
+          previousApprovalRevoked = true;
+
+          // Log that the approval was revoked due to override
+          await AuditTrail.log({
+            action: "contract.approval_revoked",
+            actor: AuditTrail.actorFromRequest(user),
+            resourceType: "generationContract",
+            resourceId: briefId,
+            metadata: {
+              reason: "override_applied",
+              previousApproval: existingContract.approval ?? null,
+              overrideCopingToolId: copingToolId,
+            },
+          });
+        }
+      }
+    } catch (err) {
+      console.warn(`Could not check existing contract for brief ${briefId}:`, err);
+    }
+
     // Check if an existing contract exists to preserve its rules version
     let existingRulesVersion: string | undefined = undefined;
     try {
@@ -265,7 +368,7 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
         .collection("generationContracts")
         .doc(briefId)
         .get();
-      
+
       if (existingContractDoc.exists) {
         const existingContractData = existingContractDoc.data();
         if (existingContractData?.rulesVersionUsed) {
@@ -273,7 +376,6 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
         }
       }
     } catch (err) {
-      // If we can't load existing contract, continue with default version
       console.warn(`Could not load existing contract for brief ${briefId}:`, err);
     }
 
@@ -284,7 +386,7 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
         reason: reason || "",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(), // Update root-level timestamp
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // Regenerate contract using the original rules version if available
@@ -294,9 +396,41 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       existingRulesVersion ? { rulesVersion: existingRulesVersion } : undefined
     );
 
+    // --- PHASE 1: Ensure the rebuilt contract is NOT approved ---
+    // The buildGenerationContract sets status to "valid" or "invalid" based on errors,
+    // so a freshly built contract will never be "approved". This is correct behavior.
+    // We add an explicit safety check as defense in depth.
+    if (contract.status === "approved") {
+      // This should never happen, but if it does, force it back
+      await firestore.collection("generationContracts").doc(briefId).update({
+        status: "valid",
+        approval: admin.firestore.FieldValue.delete(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      contract.status = "valid";
+    }
+
+    // Log override to audit trail
+    await AuditTrail.log({
+      action: "contract.override_applied",
+      actor: AuditTrail.actorFromRequest(user),
+      resourceType: "generationContract",
+      resourceId: briefId,
+      metadata: {
+        copingToolId,
+        reason: reason || null,
+        previousApprovalRevoked,
+        newStatus: contract.status,
+        rulesVersionUsed: contract.rulesVersionUsed,
+      },
+    });
+
     res.status(200).json({
       success: true,
-      data: contract,
+      data: {
+        ...contract,
+        previousApprovalRevoked, // Inform the client that re-approval is needed
+      },
     });
   } catch (error: any) {
     console.error("Error applying override:", error);

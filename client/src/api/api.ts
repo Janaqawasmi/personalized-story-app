@@ -1,5 +1,44 @@
-// Use relative URLs in dev via proxy, and absolute in production via env
-const API_BASE = process.env.REACT_APP_API_BASE || "";
+// client/src/api/api.ts
+//
+// PHASE 1 CHANGES:
+//   - All API calls now include Authorization header with Firebase ID token
+//   - Added approveContract() and rejectContract() API calls
+//   - Added fetchContractStatus() and fetchAuditHistory() API calls
+//   - Added getAuthHeaders() helper for consistent auth header injection
+//   - Updated applyContractOverride() response type to include previousApprovalRevoked
+
+import { getAuth } from "firebase/auth";
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const API_BASE = import.meta.env.VITE_API_URL || process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
+
+// ============================================================================
+// Auth Helper
+// ============================================================================
+
+/**
+ * Gets the current user's ID token for API authentication.
+ * Returns headers object with Authorization bearer token.
+ * Throws if user is not authenticated.
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Not authenticated. Please log in.");
+  }
+
+  const token = await user.getIdToken();
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 // ---------- Existing APIs ----------
 
@@ -66,12 +105,13 @@ export interface ApiErrorResponse {
 }
 
 export async function createStoryBrief(
-  data: StoryBriefInput
+  data: Omit<StoryBriefInput, "createdBy">
 ): Promise<CreateStoryBriefResponse> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/admin/story-briefs`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(data),
     });
 
@@ -411,11 +451,10 @@ export async function generateDraftFromBrief(
   briefId: string,
   options?: { length?: "short" | "medium" | "long"; tone?: string; emphasis?: string }
 ): Promise<{ success: boolean; draftId: string; message: string }> {
+  const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/generate-draft`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       length: options?.length || "medium",
       tone: options?.tone || "calm",
@@ -470,7 +509,16 @@ export interface GenerationContract {
   errors: Array<{ code: string; message: string }>;
   createdAt: any;
   updatedAt?: any;
-  status?: "valid" | "invalid";
+  status?: "invalid" | "valid" | "pending_review" | "approved" | "rejected";
+  approval?: {
+    decision: "approved" | "rejected";
+    decidedBy: string;
+    decidedByName: string;
+    decidedByEmail: string;
+    decidedAt: string;
+    notes?: string;
+  };
+  previousApprovalRevoked?: boolean;
   validationSummary?: {
     errorCount: number;
     warningCount: number;
@@ -482,11 +530,10 @@ export interface GenerationContract {
  */
 export async function previewContract(brief: any, briefId?: string): Promise<GenerationContract> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/agent1/contracts/preview`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({ brief, briefId }),
     });
     if (!res.ok) {
@@ -511,11 +558,10 @@ export async function applyContractOverride(
   override: { copingToolId: string; reason?: string }
 ): Promise<GenerationContract> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/override`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(override),
     });
     if (!res.ok) {
@@ -530,6 +576,78 @@ export async function applyContractOverride(
     }
     throw err;
   }
+}
+
+// ============================================================================
+// Approval API (NEW — Phase 1)
+// ============================================================================
+
+/**
+ * Approves a generation contract, allowing story generation.
+ * Requires specialist or admin role.
+ */
+export async function approveContract(
+  briefId: string,
+  notes?: string
+): Promise<{ briefId: string; status: string; approval: any }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/approve`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ notes }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to approve contract");
+  return data.data;
+}
+
+/**
+ * Rejects a generation contract, blocking story generation.
+ * Requires a reason for clinical accountability.
+ */
+export async function rejectContract(
+  briefId: string,
+  reason: string
+): Promise<{ briefId: string; status: string; reason: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/reject`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ reason }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to reject contract");
+  return data.data;
+}
+
+/**
+ * Fetches the current approval status of a contract.
+ */
+export async function fetchContractStatus(
+  briefId: string
+): Promise<{ briefId: string; status: string; approval: any | null; errorCount: number; warningCount: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/status`, { headers });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to fetch contract status");
+  return data.data;
+}
+
+/**
+ * Fetches the audit trail for a brief/contract.
+ */
+export async function fetchAuditHistory(
+  briefId: string,
+  limit?: number
+): Promise<Array<{ id: string; action: string; actor: any; resourceType: string; resourceId: string; relatedResourceId?: string; metadata?: any; timestamp: string }>> {
+  const headers = await getAuthHeaders();
+  const url = limit
+    ? `${API_BASE}/api/agent1/contracts/${briefId}/audit?limit=${limit}`
+    : `${API_BASE}/api/agent1/contracts/${briefId}/audit`;
+  const res = await fetch(url, { headers });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to fetch audit history");
+  return data.data;
 }
 
 // ---------- Story Prompt Preview API ----------

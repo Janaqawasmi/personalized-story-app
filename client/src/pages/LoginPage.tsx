@@ -1,11 +1,63 @@
-import { Box, Typography, Button, Link, useTheme } from "@mui/material";
+import { useState } from "react";
+import { Box, Typography, Button, Link, useTheme, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import GoogleIcon from "@mui/icons-material/Google";
 import { useTranslation } from "../i18n/useTranslation";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { auth } from "../firebase";
+import { useNavigate } from "react-router-dom";
 
 export default function LoginPage() {
   const theme = useTheme();
   const t = useTranslation();
+  const navigate = useNavigate();
+  
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleEmailLogin() {
+    if (!email || !password) {
+      setError("Please enter both email and password");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await signInWithEmailAndPassword(auth, email, password);
+      // Success - RequireAuth will handle navigation
+      setEmailDialogOpen(false);
+      navigate("/specialist");
+    } catch (err: any) {
+      console.error("Email login error:", err);
+      setError(err.message || "Failed to sign in. Please check your email and password.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    try {
+      setLoading(true);
+      setError(null);
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      // Success - RequireAuth will handle navigation
+      navigate("/specialist");
+    } catch (err: any) {
+      console.error("Google login error:", err);
+      if (err.code === "auth/popup-closed-by-user") {
+        setError("Sign in cancelled");
+      } else {
+        setError(err.message || "Failed to sign in with Google");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
   
   return (
     <Box
@@ -67,6 +119,7 @@ export default function LoginPage() {
           <Button
             variant="contained"
             fullWidth
+            onClick={() => setEmailDialogOpen(true)}
             sx={{
               py: 1.75, // Increased vertical padding
               borderRadius: 2,
@@ -95,6 +148,8 @@ export default function LoginPage() {
           <Button
             variant="outlined"
             fullWidth
+            onClick={handleGoogleLogin}
+            disabled={loading}
             sx={{
               py: 1.75,
               borderRadius: 2,
@@ -157,6 +212,56 @@ export default function LoginPage() {
           </Link>
         </Box>
       </Box>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2, maxWidth: 400, width: "100%" }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Email/Password Login Dialog */}
+      <Dialog open={emailDialogOpen} onClose={() => setEmailDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Sign in with Email</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+            <TextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              fullWidth
+              autoComplete="email"
+            />
+            <TextField
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              autoComplete="current-password"
+              onKeyPress={(e) => {
+                if (e.key === "Enter" && !loading) {
+                  handleEmailLogin();
+                }
+              }}
+            />
+            {error && (
+              <Alert severity="error" onClose={() => setError(null)}>
+                {error}
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEmailDialogOpen(false)} disabled={loading}>
+            Cancel
+          </Button>
+          <Button onClick={handleEmailLogin} variant="contained" disabled={loading || !email || !password}>
+            {loading ? "Signing in..." : "Sign In"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

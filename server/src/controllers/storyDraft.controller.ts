@@ -8,6 +8,7 @@ import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
 import { loadWritingRules } from "../services/ragWritingRules.service";
 import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
+import { AuditTrail } from "../services/auditTrail.service";
 
 /**
  * Extend Express Request to include user from auth middleware
@@ -172,17 +173,22 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
 
-    // TODO: AUTH - Re-introduce authentication check when auth middleware is added
-    // if (!req.user || !req.user.uid) {
-    //   res.status(401).json({
-    //     success: false,
-    //     error: "Authentication required",
-    //   });
-    //   return;
-    // }
+    // The approved contract is already loaded by the guard middleware
+    const approvedContract = req.approvedContract;
 
-    // TODO: AUTH - Replace with req.user.uid when authentication is implemented
-    const createdBy = "system_specialist";
+    // Log generation start
+    if (req.user) {
+      await AuditTrail.log({
+        action: "generation.started",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "storyDraft",
+        resourceId: briefId,
+        relatedResourceId: briefId,
+        metadata: { rulesVersionUsed: approvedContract?.rulesVersionUsed },
+      });
+    }
+
+    const createdBy = req.user?.uid || "system_specialist";
 
     // Validate input
     if (!input.length || !input.tone) {
@@ -303,6 +309,17 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
         updatedAt: admin.firestore.Timestamp.now(),
       });
 
+      // Log generation completion
+      if (req.user) {
+        await AuditTrail.log({
+          action: "generation.completed",
+          actor: AuditTrail.actorFromRequest(req.user),
+          resourceType: "storyDraft",
+          resourceId: draftId,
+          relatedResourceId: briefId,
+        });
+      }
+
       res.status(201).json({
       success: true,
         draftId,
@@ -347,10 +364,32 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       
       await briefRef.update(briefUpdateData);
 
+      // Log generation failure
+      if (req.user) {
+        await AuditTrail.log({
+          action: "generation.failed",
+          actor: AuditTrail.actorFromRequest(req.user),
+          resourceType: "storyDraft",
+          resourceId: briefId,
+          metadata: { error: generationError.message },
+        });
+      }
+
       throw generationError;
     }
   } catch (error: any) {
     console.error("Error generating draft:", error);
+
+    // Log generation failure (if not already logged above)
+    if (req.user && !error.message?.includes("Cannot generate draft") && !error.message?.includes("not found")) {
+      await AuditTrail.log({
+        action: "generation.failed",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "storyDraft",
+        resourceId: briefId,
+        metadata: { error: error.message },
+      });
+    }
 
     // Check if it's a conflict error (status not "created")
     if (error.message?.includes("Cannot generate draft")) {

@@ -1,4 +1,14 @@
 // client/src/pages/AdminContractReviewPage.tsx
+//
+// PHASE 1 CHANGES:
+//   - "Confirm & Continue" replaced with explicit Approve/Reject actions
+//   - Approve calls backend API and waits for confirmation before navigation
+//   - Reject requires a reason (clinical accountability)
+//   - Shows current approval status and who approved/rejected
+//   - Displays audit trail history
+//   - Override shows warning that re-approval is required
+//   - Navigation to generation only possible after backend confirms approval
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -19,27 +29,40 @@ import {
   Divider,
   Card,
   CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Collapse,
 } from "@mui/material";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import HistoryIcon from "@mui/icons-material/History";
 import SpecialistNav from "../components/SpecialistNav";
 import {
   fetchStoryBriefById,
   previewContract,
   applyContractOverride,
+  approveContract as apiApproveContract,
+  rejectContract as apiRejectContract,
+  fetchAuditHistory,
   StoryBrief,
   GenerationContract,
 } from "../api/api";
 
-// Helper function to format text for display
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 function formatDisplayText(text: string): string {
   if (!text) return text;
   return text
     .split("_")
-    .filter((word) => word.length > 0) // Filter out empty strings from leading/trailing underscores
+    .filter((word) => word.length > 0)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 }
 
-// Helper function to format age group
 function formatAgeGroup(ageGroup: string): string {
   const map: Record<string, string> = {
     "0_3": "0–3 years",
@@ -50,20 +73,81 @@ function formatAgeGroup(ageGroup: string): string {
   return map[ageGroup] || ageGroup;
 }
 
+function formatTimestamp(ts: string | undefined): string {
+  if (!ts) return "—";
+  try {
+    return new Date(ts).toLocaleString();
+  } catch {
+    return ts;
+  }
+}
+
+function formatAuditAction(action: string): string {
+  const labels: Record<string, string> = {
+    "brief.created": "Brief Created",
+    "contract.built": "Contract Built",
+    "contract.preview": "Contract Previewed",
+    "contract.override_applied": "Override Applied",
+    "contract.approved": "Contract Approved",
+    "contract.rejected": "Contract Rejected",
+    "contract.approval_revoked": "Approval Revoked",
+    "generation.requested": "Generation Requested",
+    "generation.blocked": "Generation Blocked",
+    "generation.started": "Generation Started",
+    "generation.completed": "Generation Completed",
+    "generation.failed": "Generation Failed",
+  };
+  return labels[action] || action;
+}
+
+function getStatusColor(status: string | undefined): "success" | "error" | "warning" | "info" | "default" {
+  switch (status) {
+    case "approved": return "success";
+    case "rejected": return "error";
+    case "invalid": return "error";
+    case "valid": return "warning";
+    case "pending_review": return "info";
+    default: return "default";
+  }
+}
+
+// ============================================================================
+// Component
+// ============================================================================
+
 const AdminContractReviewPage: React.FC = () => {
   const { briefId } = useParams<{ briefId: string }>();
   const navigate = useNavigate();
 
+  // Data state
   const [brief, setBrief] = useState<StoryBrief | null>(null);
   const [contract, setContract] = useState<GenerationContract | null>(null);
+  const [auditHistory, setAuditHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Action state
+  const [approving, setApproving] = useState(false);
   const [applyingOverride, setApplyingOverride] = useState(false);
 
-  // Override UI state
+  // Reject dialog
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  // Override UI
   const [selectedCopingTool, setSelectedCopingTool] = useState<string>("");
   const [overrideReason, setOverrideReason] = useState<string>("");
 
+  // Audit history visibility
+  const [showAuditHistory, setShowAuditHistory] = useState(false);
+
+  // Approval notes
+  const [approvalNotes, setApprovalNotes] = useState("");
+
+  // ──────────────────────────────────────────────────────────
+  // Load data
+  // ──────────────────────────────────────────────────────────
   useEffect(() => {
     const loadContract = async () => {
       if (!briefId) {
@@ -84,11 +168,19 @@ const AdminContractReviewPage: React.FC = () => {
         const contractData = await previewContract(briefData, briefId);
         setContract(contractData);
 
-        // Set initial selected coping tool if override exists
+        // Set initial coping tool selection
         if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
           setSelectedCopingTool(contractData.overrideDetails.copingToolId as string);
         } else if (contractData.allowedCopingTools.length > 0) {
           setSelectedCopingTool(contractData.allowedCopingTools[0]);
+        }
+
+        // Load audit history
+        try {
+          const history = await fetchAuditHistory(briefId, 20);
+          setAuditHistory(history);
+        } catch {
+          // Audit history is supplementary — don't block on failure
         }
       } catch (err: any) {
         setError(err.message || "Failed to load contract");
@@ -99,6 +191,76 @@ const AdminContractReviewPage: React.FC = () => {
 
     loadContract();
   }, [briefId]);
+
+  // ──────────────────────────────────────────────────────────
+  // Handlers
+  // ──────────────────────────────────────────────────────────
+
+  const handleApprove = async () => {
+    if (!briefId) return;
+
+    try {
+      setApproving(true);
+      setError(null);
+
+      // Call backend approval endpoint
+      const result = await apiApproveContract(briefId, approvalNotes || undefined);
+
+      // Update local state to reflect approval
+      setContract((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: "approved",
+              approval: result.approval,
+            }
+          : prev
+      );
+
+      // Refresh audit history
+      try {
+        const history = await fetchAuditHistory(briefId, 20);
+        setAuditHistory(history);
+      } catch {
+        // Non-blocking
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to approve contract");
+    } finally {
+      setApproving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!briefId || !rejectReason.trim()) return;
+
+    try {
+      setRejecting(true);
+      setError(null);
+
+      await apiRejectContract(briefId, rejectReason.trim());
+
+      // Update local state
+      setContract((prev) =>
+        prev ? { ...prev, status: "rejected" } : prev
+      );
+
+      setRejectDialogOpen(false);
+      setRejectReason("");
+
+      // Refresh audit history
+      try {
+        const history = await fetchAuditHistory(briefId, 20);
+        setAuditHistory(history);
+      } catch {
+        // Non-blocking
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to reject contract");
+    } finally {
+      setRejecting(false);
+    }
+  };
 
   const handleApplyOverride = async () => {
     if (!briefId || !selectedCopingTool) {
@@ -116,11 +278,19 @@ const AdminContractReviewPage: React.FC = () => {
       });
 
       setContract(updatedContract);
-      // Synchronize selectedCopingTool with the new override
+
       if (updatedContract.overrideDetails?.copingToolId) {
         setSelectedCopingTool(updatedContract.overrideDetails.copingToolId as string);
       }
-      setOverrideReason(""); // Clear reason after successful override
+      setOverrideReason("");
+
+      // Refresh audit history
+      try {
+        const history = await fetchAuditHistory(briefId, 20);
+        setAuditHistory(history);
+      } catch {
+        // Non-blocking
+      }
     } catch (err: any) {
       setError(err.message || "Failed to apply override");
     } finally {
@@ -128,18 +298,33 @@ const AdminContractReviewPage: React.FC = () => {
     }
   };
 
-  const handleConfirmAndContinue = () => {
-    // Navigate to generate draft page with briefId
-    navigate(`/specialist/generate-draft?briefId=${briefId}`);
+  const handleProceedToGeneration = () => {
+    // Only navigate if contract is approved (belt-and-suspenders with backend guard)
+    if (contract?.status === "approved") {
+      navigate(`/specialist/generate-draft?briefId=${briefId}`);
+    }
   };
 
-  // Extract override tool ID for type safety
+  // ──────────────────────────────────────────────────────────
+  // Derived state
+  // ──────────────────────────────────────────────────────────
+
+  const isApproved = contract?.status === "approved";
+  const isRejected = contract?.status === "rejected";
+  const isApprovable =
+    contract?.status === "valid" || contract?.status === "pending_review";
+  const hasErrors = (contract?.errors?.length ?? 0) > 0;
+
   const overrideToolId =
     contract?.overrideUsed && contract.overrideDetails?.copingToolId
       ? typeof contract.overrideDetails.copingToolId === "string"
         ? contract.overrideDetails.copingToolId
         : null
       : null;
+
+  // ──────────────────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -170,20 +355,61 @@ const AdminContractReviewPage: React.FC = () => {
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <SpecialistNav />
-      <Typography variant="h4" gutterBottom>
-        Contract Review
-      </Typography>
+
+      {/* Header with status */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+        <Typography variant="h4">Contract Review</Typography>
+        <Chip
+          label={formatDisplayText(contract.status || "unknown")}
+          color={getStatusColor(contract.status)}
+          size="medium"
+        />
+      </Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Review the generation contract before proceeding to story generation
+        Review the generation contract before approving story generation
       </Typography>
 
+      {/* Alerts */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      {contract.errors.length > 0 && (
+      {/* Approval status banner */}
+      {isApproved && contract.approval && (
+        <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 3 }}>
+          <Typography variant="subtitle2">
+            Approved by {contract.approval.decidedByName}
+          </Typography>
+          <Typography variant="body2">
+            {formatTimestamp(contract.approval.decidedAt)}
+            {contract.approval.notes && ` — "${contract.approval.notes}"`}
+          </Typography>
+        </Alert>
+      )}
+
+      {isRejected && contract.approval && (
+        <Alert severity="error" icon={<CancelIcon />} sx={{ mb: 3 }}>
+          <Typography variant="subtitle2">
+            Rejected by {contract.approval.decidedByName}
+          </Typography>
+          <Typography variant="body2">
+            Reason: {contract.approval.notes || "No reason provided"}
+          </Typography>
+        </Alert>
+      )}
+
+      {/* Override re-approval warning */}
+      {contract.previousApprovalRevoked && (
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          A previous approval was revoked because an override was applied.
+          The contract must be re-approved before generation can proceed.
+        </Alert>
+      )}
+
+      {/* Contract errors */}
+      {hasErrors && (
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="subtitle2" gutterBottom>
             Contract Errors ({contract.errors.length}):
@@ -209,6 +435,7 @@ const AdminContractReviewPage: React.FC = () => {
         </Alert>
       )}
 
+      {/* Main content grid */}
       <Box
         sx={{
           display: "grid",
@@ -224,33 +451,23 @@ const AdminContractReviewPage: React.FC = () => {
             </Typography>
             <Stack spacing={1}>
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Topic
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Topic</Typography>
                 <Typography>{formatDisplayText(brief.therapeuticFocus.primaryTopic)}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Situation
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Situation</Typography>
                 <Typography>{formatDisplayText(brief.therapeuticFocus.specificSituation)}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Age Group
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Age Group</Typography>
                 <Typography>{formatAgeGroup(brief.childProfile.ageGroup)}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Emotional Sensitivity
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Emotional Sensitivity</Typography>
                 <Typography>{formatDisplayText(brief.childProfile.emotionalSensitivity)}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Emotional Goals
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Emotional Goals</Typography>
                 <Box sx={{ mt: 0.5 }}>
                   {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
                     <Chip key={idx} label={formatDisplayText(goal)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
@@ -258,9 +475,7 @@ const AdminContractReviewPage: React.FC = () => {
                 </Box>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Ending Style
-                </Typography>
+                <Typography variant="caption" color="text.secondary">Ending Style</Typography>
                 <Typography>{formatDisplayText(brief.storyPreferences.endingStyle)}</Typography>
               </Box>
             </Stack>
@@ -268,71 +483,69 @@ const AdminContractReviewPage: React.FC = () => {
         </Card>
 
         {/* Contract Details */}
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Contract Details
-              </Typography>
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Length Budget
-                  </Typography>
-                  <Typography>
-                    {contract.lengthBudget.minScenes}–{contract.lengthBudget.maxScenes} scenes, max{" "}
-                    {contract.lengthBudget.maxWords} words
-                  </Typography>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Contract Details
+            </Typography>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Length Budget</Typography>
+                <Typography>
+                  {contract.lengthBudget.minScenes}–{contract.lengthBudget.maxScenes} scenes, max{" "}
+                  {contract.lengthBudget.maxWords} words
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Required Elements ({contract.requiredElements.length})
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {contract.requiredElements.slice(0, 10).map((elem, idx) => (
+                    <Chip key={idx} label={formatDisplayText(elem)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+                  ))}
+                  {contract.requiredElements.length > 10 && (
+                    <Typography variant="caption" color="text.secondary">
+                      +{contract.requiredElements.length - 10} more
+                    </Typography>
+                  )}
                 </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Required Elements ({contract.requiredElements.length})
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {contract.requiredElements.slice(0, 10).map((elem, idx) => (
-                      <Chip key={idx} label={formatDisplayText(elem)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                    ))}
-                    {contract.requiredElements.length > 10 && (
-                      <Typography variant="caption" color="text.secondary">
-                        +{contract.requiredElements.length - 10} more
-                      </Typography>
-                    )}
-                  </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Allowed Coping Tools ({contract.allowedCopingTools.length})
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {contract.allowedCopingTools.map((tool, idx) => (
+                    <Chip key={idx} label={formatDisplayText(tool)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
+                  ))}
                 </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Allowed Coping Tools ({contract.allowedCopingTools.length})
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {contract.allowedCopingTools.map((tool, idx) => (
-                      <Chip key={idx} label={formatDisplayText(tool)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
-                    ))}
-                  </Box>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Must Avoid (showing first 20 of {contract.mustAvoid.length})
+                </Typography>
+                <Box sx={{ mt: 0.5 }}>
+                  {contract.mustAvoid.slice(0, 20).map((item, idx) => (
+                    <Chip
+                      key={idx}
+                      label={formatDisplayText(item)}
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      sx={{ mr: 0.5, mb: 0.5 }}
+                    />
+                  ))}
+                  {contract.mustAvoid.length > 20 && (
+                    <Typography variant="caption" color="text.secondary">
+                      +{contract.mustAvoid.length - 20} more
+                    </Typography>
+                  )}
                 </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Must Avoid (showing first 20 of {contract.mustAvoid.length})
-                  </Typography>
-                  <Box sx={{ mt: 0.5 }}>
-                    {contract.mustAvoid.slice(0, 20).map((item, idx) => (
-                      <Chip
-                        key={idx}
-                        label={formatDisplayText(item)}
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        sx={{ mr: 0.5, mb: 0.5 }}
-                      />
-                    ))}
-                    {contract.mustAvoid.length > 20 && (
-                      <Typography variant="caption" color="text.secondary">
-                        +{contract.mustAvoid.length - 20} more
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              </Stack>
-            </CardContent>
-          </Card>
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
 
         {/* Override Section */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
@@ -341,7 +554,10 @@ const AdminContractReviewPage: React.FC = () => {
               Override Coping Tool
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Override the automatically selected coping tool if needed
+              Override the automatically selected coping tool if needed.
+              {isApproved && (
+                <strong> Applying an override will revoke the current approval and require re-review.</strong>
+              )}
             </Typography>
             <Stack spacing={2} direction={{ xs: "column", sm: "row" }} alignItems="flex-start">
               <FormControl sx={{ minWidth: 250 }}>
@@ -381,23 +597,174 @@ const AdminContractReviewPage: React.FC = () => {
           </Paper>
         </Box>
 
-        {/* Actions */}
+        {/* Approval Actions */}
+        <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+          <Paper sx={{ p: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Approval Decision
+            </Typography>
+
+            {isApprovable && !hasErrors && (
+              <>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Review the contract above. Approve to allow story generation, or reject with a reason.
+                </Typography>
+
+                <TextField
+                  label="Approval notes (optional)"
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  placeholder="Any notes about this approval..."
+                  fullWidth
+                  sx={{ mb: 2 }}
+                />
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<CheckCircleIcon />}
+                    onClick={handleApprove}
+                    disabled={approving}
+                  >
+                    {approving ? <CircularProgress size={20} /> : "Approve Contract"}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<CancelIcon />}
+                    onClick={() => setRejectDialogOpen(true)}
+                  >
+                    Reject Contract
+                  </Button>
+                </Stack>
+              </>
+            )}
+
+            {isApproved && (
+              <Stack spacing={2}>
+                <Alert severity="success">
+                  This contract is approved. You can proceed to story generation.
+                </Alert>
+                <Button
+                  variant="contained"
+                  onClick={handleProceedToGeneration}
+                >
+                  Proceed to Generation
+                </Button>
+              </Stack>
+            )}
+
+            {isRejected && (
+              <Alert severity="info">
+                This contract was rejected. Update the brief and rebuild the contract to try again.
+              </Alert>
+            )}
+
+            {hasErrors && !isApproved && !isRejected && (
+              <Alert severity="error">
+                Contract has errors and cannot be approved. Fix the brief and rebuild.
+              </Alert>
+            )}
+          </Paper>
+        </Box>
+
+        {/* Audit History */}
+        <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+          <Button
+            startIcon={<HistoryIcon />}
+            onClick={() => setShowAuditHistory(!showAuditHistory)}
+            sx={{ mb: 1 }}
+          >
+            {showAuditHistory ? "Hide" : "Show"} Audit History ({auditHistory.length})
+          </Button>
+
+          <Collapse in={showAuditHistory}>
+            <Paper sx={{ p: 2 }}>
+              {auditHistory.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No audit events recorded yet.
+                </Typography>
+              ) : (
+                <Stack spacing={1}>
+                  {auditHistory.map((entry: any) => (
+                    <Box
+                      key={entry.id}
+                      sx={{
+                        p: 1.5,
+                        borderLeft: 3,
+                        borderColor:
+                          entry.action.includes("approved") ? "success.main" :
+                          entry.action.includes("rejected") || entry.action.includes("blocked") ? "error.main" :
+                          entry.action.includes("revoked") ? "warning.main" :
+                          "grey.300",
+                        bgcolor: "grey.50",
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Typography variant="subtitle2">
+                        {formatAuditAction(entry.action)}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {entry.actor.displayName} ({entry.actor.role}) — {formatTimestamp(entry.timestamp)}
+                      </Typography>
+                      {entry.metadata && Object.keys(entry.metadata).length > 0 && (
+                        <Typography variant="caption" color="text.secondary" component="pre" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>
+                          {JSON.stringify(entry.metadata, null, 2)}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          </Collapse>
+        </Box>
+
+        {/* Navigation */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Divider sx={{ my: 2 }} />
           <Stack direction="row" spacing={2} justifyContent="flex-end">
             <Button variant="outlined" onClick={() => navigate(-1)}>
               Back
             </Button>
-            <Button
-              variant="contained"
-              onClick={handleConfirmAndContinue}
-              disabled={contract.errors.length > 0}
-            >
-              Confirm & Continue
-            </Button>
           </Stack>
         </Box>
       </Box>
+
+      {/* Reject Dialog */}
+      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Contract</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this contract. This is required for clinical accountability
+            and will be recorded in the audit trail.
+          </Typography>
+          <TextField
+            label="Rejection reason"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Explain why this contract should not proceed to generation..."
+            multiline
+            rows={3}
+            fullWidth
+            required
+            error={rejectReason.trim().length === 0 && rejecting}
+            helperText={rejectReason.trim().length === 0 ? "Required" : ""}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleReject}
+            disabled={rejecting || rejectReason.trim().length === 0}
+          >
+            {rejecting ? <CircularProgress size={20} /> : "Confirm Rejection"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

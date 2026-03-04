@@ -1,9 +1,31 @@
 // server/src/models/generationContract.model.ts
+//
+// PHASE 1 UPDATE:
+//   - Added "pending_review" | "approved" | "rejected" to ContractStatus
+//   - Added ApprovalRecord interface
+//   - Added approval fields to GenerationContract
+//   - Existing interfaces and helpers are unchanged
+//
 import type { FieldValue, Timestamp } from "firebase-admin/firestore";
 
 // ============================================================================
 // Type Definitions
 // ============================================================================
+
+/**
+ * Contract status lifecycle:
+ *   "invalid"         → Contract has errors, cannot be approved
+ *   "valid"           → Contract built successfully, awaiting review
+ *   "pending_review"  → Alias for valid, explicitly entered review queue
+ *   "approved"        → Specialist approved — generation is allowed
+ *   "rejected"        → Specialist rejected — generation is blocked
+ */
+export type ContractStatus =
+  | "invalid"
+  | "valid"
+  | "pending_review"
+  | "approved"
+  | "rejected";
 
 export interface LengthBudget {
   minScenes: number;
@@ -39,6 +61,31 @@ export interface ContractError {
   message: string;
 }
 
+/**
+ * Records a specialist's approval or rejection decision.
+ * Stored directly on the contract for quick access,
+ * and also logged to the audit trail for immutability.
+ */
+export interface ApprovalRecord {
+  /** "approved" or "rejected" */
+  decision: "approved" | "rejected";
+
+  /** UID of the specialist who made the decision */
+  decidedBy: string;
+
+  /** Display name of the specialist */
+  decidedByName: string;
+
+  /** Email of the specialist */
+  decidedByEmail: string;
+
+  /** When the decision was made */
+  decidedAt: FieldValue | Timestamp | string;
+
+  /** Optional notes from the specialist (required for rejection) */
+  notes?: string;
+}
+
 export interface GenerationContract {
   briefId: string;
   rulesVersionUsed: string;
@@ -60,11 +107,17 @@ export interface GenerationContract {
   errors: ContractError[];
   createdAt: FieldValue | Timestamp | string;
   updatedAt?: FieldValue | Timestamp | string;
-  status?: "valid" | "invalid";
+
+  /** Contract lifecycle status — see ContractStatus type */
+  status?: ContractStatus;
+
   validationSummary?: {
     errorCount: number;
     warningCount: number;
   };
+
+  /** Populated when a specialist approves or rejects the contract */
+  approval?: ApprovalRecord;
 }
 
 // ============================================================================

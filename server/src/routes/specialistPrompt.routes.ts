@@ -1,8 +1,12 @@
 //server/src/routes/specialistPrompt.routes.ts
 import { Router } from "express";
+import { requireAuth } from "../middleware/auth.middleware";
 import { previewStoryPrompt } from "../controllers/storyPrompt.controller";
 
 const router = Router();
+
+// All specialist routes require authentication
+router.use(requireAuth);
 
 /**
  * Specialist – Prompt Preview (Read-only)
