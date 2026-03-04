@@ -9,7 +9,7 @@
 //   - Override shows warning that re-approval is required
 //   - Navigation to generation only possible after backend confirms approval
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Fragment, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -34,10 +34,15 @@ import {
   DialogContent,
   DialogActions,
   Collapse,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import HistoryIcon from "@mui/icons-material/History";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import InfoIcon from "@mui/icons-material/Info";
 import SpecialistNav from "../components/SpecialistNav";
 import {
   fetchStoryBriefById,
@@ -51,6 +56,34 @@ import {
   StoryBrief,
   GenerationContract,
 } from "../api/api";
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const REQUIRED_ELEMENTS_DISPLAY_LIMIT = 10;
+const MUST_AVOID_DISPLAY_LIMIT = 20;
+const AUDIT_HISTORY_LIMIT = 20;
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+interface AuditEntry {
+  id: string;
+  action: string;
+  actor: {
+    uid: string;
+    email: string;
+    displayName: string;
+    role: string;
+  };
+  resourceType: "storyBrief" | "generationContract" | "storyDraft" | string;
+  resourceId: string;
+  relatedResourceId?: string;
+  metadata?: Record<string, unknown>;
+  timestamp: string | { seconds: number; nanoseconds: number } | Date;
+}
 
 // ============================================================================
 // Helper Functions
@@ -73,6 +106,21 @@ function formatAgeGroup(ageGroup: string): string {
     "9_12": "9–12 years",
   };
   return map[ageGroup] || ageGroup;
+}
+
+/**
+ * Normalizes various Firestore timestamp formats to a string for display.
+ * Handles: string ISO dates, Date objects, Firestore Timestamp objects, and undefined.
+ */
+function normalizeTimestamp(ts: unknown): string | undefined {
+  if (!ts) return undefined;
+  if (typeof ts === "string") return ts;
+  if (ts instanceof Date) return ts.toISOString();
+  if (typeof ts === "object" && ts !== null && "seconds" in ts) {
+    // Firestore Timestamp format: { seconds: number, nanoseconds: number }
+    return new Date((ts as { seconds: number }).seconds * 1000).toISOString();
+  }
+  return undefined;
 }
 
 function formatTimestamp(ts: string | undefined): string {
@@ -125,9 +173,10 @@ const AdminContractReviewPage: React.FC = () => {
   const [brief, setBrief] = useState<StoryBrief | null>(null);
   const [contract, setContract] = useState<GenerationContract | null>(null);
   const [isContractPersisted, setIsContractPersisted] = useState(false);
-  const [auditHistory, setAuditHistory] = useState<any[]>([]);
+  const [auditHistory, setAuditHistory] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Action state
   const [building, setBuilding] = useState(false);
@@ -148,6 +197,29 @@ const AdminContractReviewPage: React.FC = () => {
 
   // Approval notes
   const [approvalNotes, setApprovalNotes] = useState("");
+
+  // Expandable sections
+  const [expandedRequiredElements, setExpandedRequiredElements] = useState(false);
+  const [expandedMustAvoid, setExpandedMustAvoid] = useState(false);
+  const [expandedMetadata, setExpandedMetadata] = useState(false);
+
+  // ──────────────────────────────────────────────────────────
+  // Helper Functions
+  // ──────────────────────────────────────────────────────────
+
+  /**
+   * Refreshes the audit history for the current brief.
+   * Non-blocking - failures are silently ignored.
+   */
+  const refreshAuditHistory = useCallback(async () => {
+    if (!briefId) return;
+    try {
+      const history = await fetchAuditHistory(briefId, AUDIT_HISTORY_LIMIT);
+      setAuditHistory(history);
+    } catch {
+      // Audit history is supplementary — don't block on failure
+    }
+  }, [briefId]);
 
   // ──────────────────────────────────────────────────────────
   // Load data
@@ -181,18 +253,16 @@ const AdminContractReviewPage: React.FC = () => {
 
         // Set initial coping tool selection
         if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
-          setSelectedCopingTool(contractData.overrideDetails.copingToolId as string);
+          const toolId = contractData.overrideDetails.copingToolId;
+          if (typeof toolId === "string") {
+            setSelectedCopingTool(toolId);
+          }
         } else if (contractData.allowedCopingTools.length > 0) {
           setSelectedCopingTool(contractData.allowedCopingTools[0]);
         }
 
         // Load audit history
-        try {
-          const history = await fetchAuditHistory(briefId, 20);
-          setAuditHistory(history);
-        } catch {
-          // Audit history is supplementary — don't block on failure
-        }
+        await refreshAuditHistory();
       } catch (err: any) {
         setError(err.message || "Failed to load contract");
       } finally {
@@ -201,7 +271,7 @@ const AdminContractReviewPage: React.FC = () => {
     };
 
     loadContract();
-  }, [briefId]);
+  }, [briefId, refreshAuditHistory]);
 
   // ──────────────────────────────────────────────────────────
   // Handlers
@@ -213,6 +283,7 @@ const AdminContractReviewPage: React.FC = () => {
     try {
       setBuilding(true);
       setError(null);
+      setSuccessMessage(null);
 
       // Build the contract (saves to database)
       const builtContract = await buildContract(briefId);
@@ -220,16 +291,16 @@ const AdminContractReviewPage: React.FC = () => {
       // Update local state
       setContract(builtContract);
       setIsContractPersisted(true);
+      setSuccessMessage("Contract built successfully!");
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
 
       // Refresh audit history
-      try {
-        const history = await fetchAuditHistory(briefId, 20);
-        setAuditHistory(history);
-      } catch {
-        // Non-blocking
-      }
+      await refreshAuditHistory();
     } catch (err: any) {
       setError(err.message || "Failed to build contract");
+      setSuccessMessage(null);
     } finally {
       setBuilding(false);
     }
@@ -241,6 +312,7 @@ const AdminContractReviewPage: React.FC = () => {
     try {
       setApproving(true);
       setError(null);
+      setSuccessMessage(null);
 
       // Call backend approval endpoint
       const result = await apiApproveContract(briefId, approvalNotes || undefined);
@@ -256,15 +328,14 @@ const AdminContractReviewPage: React.FC = () => {
           : prev
       );
 
+      setSuccessMessage("Contract approved successfully!");
+      setTimeout(() => setSuccessMessage(null), 3000);
+
       // Refresh audit history
-      try {
-        const history = await fetchAuditHistory(briefId, 20);
-        setAuditHistory(history);
-      } catch {
-        // Non-blocking
-      }
+      await refreshAuditHistory();
     } catch (err: any) {
       setError(err.message || "Failed to approve contract");
+      setSuccessMessage(null);
     } finally {
       setApproving(false);
     }
@@ -276,26 +347,31 @@ const AdminContractReviewPage: React.FC = () => {
     try {
       setRejecting(true);
       setError(null);
+      setSuccessMessage(null);
 
       await apiRejectContract(briefId, rejectReason.trim());
 
-      // Update local state
-      setContract((prev) =>
-        prev ? { ...prev, status: "rejected" } : prev
-      );
+      // Fetch the updated contract to get the approval record
+      const updatedContract = await fetchFullContract(briefId);
+      if (updatedContract) {
+        setContract(updatedContract);
+      } else {
+        // Fallback: update status only if fetch fails
+        setContract((prev) =>
+          prev ? { ...prev, status: "rejected" } : prev
+        );
+      }
 
       setRejectDialogOpen(false);
       setRejectReason("");
+      setSuccessMessage("Contract rejected successfully.");
+      setTimeout(() => setSuccessMessage(null), 3000);
 
       // Refresh audit history
-      try {
-        const history = await fetchAuditHistory(briefId, 20);
-        setAuditHistory(history);
-      } catch {
-        // Non-blocking
-      }
+      await refreshAuditHistory();
     } catch (err: any) {
       setError(err.message || "Failed to reject contract");
+      setSuccessMessage(null);
     } finally {
       setRejecting(false);
     }
@@ -310,6 +386,7 @@ const AdminContractReviewPage: React.FC = () => {
     try {
       setApplyingOverride(true);
       setError(null);
+      setSuccessMessage(null);
 
       const updatedContract = await applyContractOverride(briefId, {
         copingToolId: selectedCopingTool,
@@ -319,19 +396,25 @@ const AdminContractReviewPage: React.FC = () => {
       setContract(updatedContract);
 
       if (updatedContract.overrideDetails?.copingToolId) {
-        setSelectedCopingTool(updatedContract.overrideDetails.copingToolId as string);
+        const toolId = updatedContract.overrideDetails.copingToolId;
+        if (typeof toolId === "string") {
+          setSelectedCopingTool(toolId);
+        }
       }
       setOverrideReason("");
 
-      // Refresh audit history
-      try {
-        const history = await fetchAuditHistory(briefId, 20);
-        setAuditHistory(history);
-      } catch {
-        // Non-blocking
+      if (updatedContract.previousApprovalRevoked) {
+        setSuccessMessage("Override applied. Previous approval was revoked - contract requires re-approval.");
+      } else {
+        setSuccessMessage("Override applied successfully!");
       }
+      setTimeout(() => setSuccessMessage(null), 5000);
+
+      // Refresh audit history
+      await refreshAuditHistory();
     } catch (err: any) {
       setError(err.message || "Failed to apply override");
+      setSuccessMessage(null);
     } finally {
       setApplyingOverride(false);
     }
@@ -350,16 +433,23 @@ const AdminContractReviewPage: React.FC = () => {
 
   const isApproved = contract?.status === "approved";
   const isRejected = contract?.status === "rejected";
+  // Explicitly exclude invalid status - only valid or pending_review contracts can be approved
   const isApprovable =
     contract?.status === "valid" || contract?.status === "pending_review";
   const hasErrors = (contract?.errors?.length ?? 0) > 0;
+  // A contract cannot be approved if it has errors, regardless of status
+  const canApprove = isApprovable && !hasErrors && isContractPersisted;
 
-  const overrideToolId =
-    contract?.overrideUsed && contract.overrideDetails?.copingToolId
-      ? typeof contract.overrideDetails.copingToolId === "string"
-        ? contract.overrideDetails.copingToolId
-        : null
-      : null;
+  // Override message helper
+  const overrideMessage = contract && contract.overrideUsed && contract.overrideDetails?.copingToolId
+    ? (() => {
+        const toolId = contract.overrideDetails!.copingToolId;
+        const toolText = typeof toolId === "string" ? formatDisplayText(toolId) : String(toolId);
+        const reason = contract.overrideDetails!.reason;
+        const reasonText = typeof reason === "string" ? reason : "";
+        return `Tool: ${toolText}${reasonText ? ` — Reason: ${reasonText}` : ""}`;
+      })()
+    : null;
 
   // ──────────────────────────────────────────────────────────
   // Render
@@ -415,6 +505,12 @@ const AdminContractReviewPage: React.FC = () => {
         </Alert>
       )}
 
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
       {/* Build Contract Alert - shown when contract is not persisted */}
       {!isContractPersisted && (
         <Alert severity="info" sx={{ mb: 3 }}>
@@ -442,7 +538,7 @@ const AdminContractReviewPage: React.FC = () => {
             Approved by {contract.approval.decidedByName}
           </Typography>
           <Typography variant="body2">
-            {formatTimestamp(contract.approval.decidedAt)}
+            {formatTimestamp(normalizeTimestamp(contract.approval.decidedAt))}
             {contract.approval.notes && ` — "${contract.approval.notes}"`}
           </Typography>
         </Alert>
@@ -537,6 +633,16 @@ const AdminContractReviewPage: React.FC = () => {
                 <Typography variant="caption" color="text.secondary">Ending Style</Typography>
                 <Typography>{formatDisplayText(brief.storyPreferences.endingStyle)}</Typography>
               </Box>
+              {contract.keyMessage && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Key Message</Typography>
+                  <Typography>{contract.keyMessage}</Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">Caregiver Presence</Typography>
+                <Typography>{formatDisplayText(contract.caregiverPresence || brief.storyPreferences.caregiverPresence)}</Typography>
+              </Box>
             </Stack>
           </CardContent>
         </Card>
@@ -560,13 +666,17 @@ const AdminContractReviewPage: React.FC = () => {
                   Required Elements ({contract.requiredElements.length})
                 </Typography>
                 <Box sx={{ mt: 0.5 }}>
-                  {contract.requiredElements.slice(0, 10).map((elem, idx) => (
+                  {(expandedRequiredElements ? contract.requiredElements : contract.requiredElements.slice(0, REQUIRED_ELEMENTS_DISPLAY_LIMIT)).map((elem, idx) => (
                     <Chip key={idx} label={formatDisplayText(elem)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
                   ))}
-                  {contract.requiredElements.length > 10 && (
-                    <Typography variant="caption" color="text.secondary">
-                      +{contract.requiredElements.length - 10} more
-                    </Typography>
+                  {contract.requiredElements.length > REQUIRED_ELEMENTS_DISPLAY_LIMIT && (
+                    <Button
+                      size="small"
+                      onClick={() => setExpandedRequiredElements(!expandedRequiredElements)}
+                      sx={{ mt: 0.5, textTransform: "none" }}
+                    >
+                      {expandedRequiredElements ? "Show Less" : `+${contract.requiredElements.length - REQUIRED_ELEMENTS_DISPLAY_LIMIT} more`}
+                    </Button>
                   )}
                 </Box>
               </Box>
@@ -582,10 +692,10 @@ const AdminContractReviewPage: React.FC = () => {
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Must Avoid (showing first 20 of {contract.mustAvoid.length})
+                  Must Avoid ({contract.mustAvoid.length} items)
                 </Typography>
                 <Box sx={{ mt: 0.5 }}>
-                  {contract.mustAvoid.slice(0, 20).map((item, idx) => (
+                  {(expandedMustAvoid ? contract.mustAvoid : contract.mustAvoid.slice(0, MUST_AVOID_DISPLAY_LIMIT)).map((item, idx) => (
                     <Chip
                       key={idx}
                       label={formatDisplayText(item)}
@@ -595,10 +705,14 @@ const AdminContractReviewPage: React.FC = () => {
                       sx={{ mr: 0.5, mb: 0.5 }}
                     />
                   ))}
-                  {contract.mustAvoid.length > 20 && (
-                    <Typography variant="caption" color="text.secondary">
-                      +{contract.mustAvoid.length - 20} more
-                    </Typography>
+                  {contract.mustAvoid.length > MUST_AVOID_DISPLAY_LIMIT && (
+                    <Button
+                      size="small"
+                      onClick={() => setExpandedMustAvoid(!expandedMustAvoid)}
+                      sx={{ mt: 0.5, textTransform: "none" }}
+                    >
+                      {expandedMustAvoid ? "Show Less" : `+${contract.mustAvoid.length - MUST_AVOID_DISPLAY_LIMIT} more`}
+                    </Button>
                   )}
                 </Box>
               </Box>
@@ -606,19 +720,152 @@ const AdminContractReviewPage: React.FC = () => {
           </CardContent>
         </Card>
 
+        {/* Style Rules Section */}
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Style Rules
+            </Typography>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Max Sentence Words</Typography>
+                <Typography>{contract.styleRules.maxSentenceWords} words per sentence</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Dialogue Policy</Typography>
+                <Typography>{formatDisplayText(contract.styleRules.dialoguePolicy)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Abstract Concepts</Typography>
+                <Typography>{formatDisplayText(contract.styleRules.abstractConcepts)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Emotional Tone</Typography>
+                <Typography>{formatDisplayText(contract.styleRules.emotionalTone)}</Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Language Complexity</Typography>
+                <Typography>{formatDisplayText(contract.styleRules.languageComplexity)}</Typography>
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {/* Ending Requirements Section */}
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Ending Requirements
+            </Typography>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">Ending Style</Typography>
+                <Typography>{formatDisplayText(contract.endingContract.endingStyle)}</Typography>
+              </Box>
+              {contract.endingContract.mustInclude.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Must Include ({contract.endingContract.mustInclude.length})
+                  </Typography>
+                  <Box sx={{ mt: 0.5 }}>
+                    {contract.endingContract.mustInclude.map((item, idx) => (
+                      <Chip key={idx} label={formatDisplayText(item)} size="small" sx={{ mr: 0.5, mb: 0.5 }} color="success" />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">Requirements</Typography>
+                <Stack spacing={0.5} sx={{ mt: 0.5 }}>
+                  <Chip
+                    label={contract.endingContract.requiresEmotionalStability ? "Requires Emotional Stability" : "No Emotional Stability Requirement"}
+                    size="small"
+                    color={contract.endingContract.requiresEmotionalStability ? "success" : "default"}
+                    variant={contract.endingContract.requiresEmotionalStability ? "filled" : "outlined"}
+                    sx={{ width: "fit-content" }}
+                  />
+                  <Chip
+                    label={contract.endingContract.requiresSuccessMoment ? "Requires Success Moment" : "No Success Moment Requirement"}
+                    size="small"
+                    color={contract.endingContract.requiresSuccessMoment ? "success" : "default"}
+                    variant={contract.endingContract.requiresSuccessMoment ? "filled" : "outlined"}
+                    sx={{ width: "fit-content" }}
+                  />
+                  <Chip
+                    label={contract.endingContract.requiresSafeClosure ? "Requires Safe Closure" : "No Safe Closure Requirement"}
+                    size="small"
+                    color={contract.endingContract.requiresSafeClosure ? "success" : "default"}
+                    variant={contract.endingContract.requiresSafeClosure ? "filled" : "outlined"}
+                    sx={{ width: "fit-content" }}
+                  />
+                </Stack>
+              </Box>
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {/* Metadata Section (Collapsible) */}
+        <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
+          <Accordion expanded={expandedMetadata} onChange={() => setExpandedMetadata(!expandedMetadata)}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <InfoIcon fontSize="small" />
+                <Typography variant="subtitle2">Contract Metadata</Typography>
+              </Stack>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Rules Version</Typography>
+                  <Typography>{contract.rulesVersionUsed || "Not specified"}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Contract ID</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: "monospace" }}>{briefId}</Typography>
+                </Box>
+                {contract.lengthBudget.targetWords && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Target Words</Typography>
+                    <Typography>{contract.lengthBudget.targetWords} words</Typography>
+                  </Box>
+                )}
+                {contract.createdAt && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Created At</Typography>
+                    <Typography>{formatTimestamp(normalizeTimestamp(contract.createdAt))}</Typography>
+                  </Box>
+                )}
+                {contract.updatedAt && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">Updated At</Typography>
+                    <Typography>{formatTimestamp(normalizeTimestamp(contract.updatedAt))}</Typography>
+                  </Box>
+                )}
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
+        </Box>
+
         {/* Override Section */}
         <Box sx={{ gridColumn: { xs: "1", md: "1 / -1" } }}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Override Coping Tool
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Override the automatically selected coping tool if needed.
-              {isApproved && (
-                <strong> Applying an override will revoke the current approval and require re-review.</strong>
+            <Fragment>
+              <Typography variant="h6" gutterBottom>
+                Override Coping Tool
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Override the automatically selected coping tool if needed.
+                {isApproved && (
+                  <span> <strong>Applying an override will revoke the current approval and require re-review.</strong></span>
+                )}
+              </Typography>
+              {overrideMessage && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2">Current Override Active</Typography>
+                  <Typography variant="body2">{overrideMessage}</Typography>
+                </Alert>
               )}
-            </Typography>
-            <Stack spacing={2} direction={{ xs: "column", sm: "row" }} alignItems="flex-start">
+              <Stack spacing={2} direction={{ xs: "column", sm: "row" }} alignItems="flex-start">
               <FormControl sx={{ minWidth: 250 }}>
                 <InputLabel>Coping Tool</InputLabel>
                 <Select
@@ -626,6 +873,10 @@ const AdminContractReviewPage: React.FC = () => {
                   onChange={(e) => setSelectedCopingTool(e.target.value)}
                   label="Coping Tool"
                 >
+                  {/* TODO: Issue 14 - Currently only shows goal-derived tools.
+                      For a true override, we should show ALL age-compatible tools from clinical rules,
+                      with goal-derived ones marked as "recommended". This requires a new API endpoint
+                      to fetch all age-compatible coping tools for the contract's age band. */}
                   {contract.allowedCopingTools.map((tool) => (
                     <MenuItem key={tool} value={tool}>
                       {formatDisplayText(tool)}
@@ -647,12 +898,8 @@ const AdminContractReviewPage: React.FC = () => {
               >
                 {applyingOverride ? <CircularProgress size={20} /> : "Apply Override & Regenerate"}
               </Button>
-            </Stack>
-            {overrideToolId && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Override is currently active: {formatDisplayText(overrideToolId)}
-              </Alert>
-            )}
+              </Stack>
+            </Fragment>
           </Paper>
         </Box>
 
@@ -663,7 +910,7 @@ const AdminContractReviewPage: React.FC = () => {
               Approval Decision
             </Typography>
 
-            {isApprovable && !hasErrors && isContractPersisted && (
+            {canApprove && (
               <>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Review the contract above. Approve to allow story generation, or reject with a reason.
@@ -746,7 +993,7 @@ const AdminContractReviewPage: React.FC = () => {
                 </Typography>
               ) : (
                 <Stack spacing={1}>
-                  {auditHistory.map((entry: any) => (
+                  {auditHistory.map((entry) => (
                     <Box
                       key={entry.id}
                       sx={{
@@ -765,7 +1012,7 @@ const AdminContractReviewPage: React.FC = () => {
                         {formatAuditAction(entry.action)}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {entry.actor.displayName} ({entry.actor.role}) — {formatTimestamp(entry.timestamp)}
+                        {entry.actor.displayName} ({entry.actor.role}) — {formatTimestamp(normalizeTimestamp(entry.timestamp))}
                       </Typography>
                       {entry.metadata && Object.keys(entry.metadata).length > 0 && (
                         <Typography variant="caption" color="text.secondary" component="pre" sx={{ mt: 0.5, whiteSpace: "pre-wrap" }}>

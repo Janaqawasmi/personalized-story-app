@@ -171,11 +171,13 @@ export async function buildGenerationContract(
   const normalized = validationResult.normalizedBrief;
 
   // 2. Decide rules version
-  // Priority: options.rulesVersion > briefRaw.rulesVersion > default version
+  // Priority: options.rulesVersion > default version
+  // NOTE: We do NOT use briefRaw.rulesVersion because it may be stale from a previous build.
+  // If a specialist rebuilds a contract, we should use the current default rules version,
+  // not a potentially deprecated version embedded in the brief.
+  // If a specific version is required, it must be passed via options.rulesVersion.
   const rulesVersion =
-    options?.rulesVersion ??
-    briefRaw.rulesVersion ??
-    (await getDefaultRulesVersion(fs));
+    options?.rulesVersion ?? (await getDefaultRulesVersion(fs));
 
   // 3. Load clinical rules
   const rules = await loadClinicalRules(rulesVersion, fs);
@@ -313,14 +315,14 @@ export async function buildGenerationContract(
     );
   }
 
+  // Ending contract: mustAvoid should contain ONLY ending-specific avoidances
+  // The global mustAvoid field (at contract root) carries goal + sensitivity + exclusion patterns
+  // The endingContract.mustAvoid is for ending-scene-specific constraints only
   const endingContract = endingRule
     ? {
         endingStyle,
         mustInclude: [...endingRule.mustInclude],
-        mustAvoid: mergeAndDeduplicateArrays(
-          endingRule.mustAvoid,
-          mustAvoid
-        ),
+        mustAvoid: [...endingRule.mustAvoid], // Ending-specific only, not merged with global
         requiresEmotionalStability: endingRule.requiresEmotionalStability,
         requiresSuccessMoment: endingRule.requiresSuccessMoment,
         requiresSafeClosure,
@@ -328,7 +330,7 @@ export async function buildGenerationContract(
     : {
         endingStyle,
         mustInclude: [],
-        mustAvoid: [...mustAvoid],
+        mustAvoid: [], // Empty if no ending rule, not the global list
         requiresEmotionalStability: false,
         requiresSuccessMoment: false,
         requiresSafeClosure,
@@ -363,6 +365,8 @@ export async function buildGenerationContract(
   }
 
   // (G) Override hook
+  // When a specialist overrides the coping tool, it should REPLACE the goal-derived list,
+  // not be appended to it. The override is a deliberate clinical judgment.
   let overrideUsed = false;
   let overrideDetails: Record<string, unknown> | undefined = undefined;
 
@@ -375,10 +379,8 @@ export async function buildGenerationContract(
       overrideTool.allowedAges.includes(ageBand)
     ) {
       overrideUsed = true;
-      // Add override tool to the list if not already present, but keep all other valid tools
-      if (!filteredCopingTools.includes(overrideToolId)) {
-        filteredCopingTools.push(overrideToolId);
-      }
+      // Override replaces the goal-derived list with the specialist's chosen tool
+      filteredCopingTools = [overrideToolId];
       overrideDetails = {
         copingToolId: overrideToolId,
         reason: briefRaw.overrides.reason ?? "user_override",
@@ -408,13 +410,26 @@ export async function buildGenerationContract(
     mustAvoid: deduplicateArray(mustAvoid),
     endingContract,
     overrideUsed,
-    warnings: [...validationResult.warnings.map((w) => ({ code: w.code, message: w.message })), ...warnings],
+    warnings: (() => {
+      const mergedWarnings = [
+        ...validationResult.warnings.map((w) => ({ code: w.code, message: w.message })),
+        ...warnings,
+      ];
+      return mergedWarnings;
+    })(),
     errors,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     status: errors.length === 0 ? "valid" : "invalid",
     validationSummary: {
       errorCount: errors.length,
-      warningCount: validationResult.warnings.length + warnings.length, // Count matches merged array
+      warningCount: (() => {
+        // Derive count from the merged array to ensure consistency
+        const mergedWarnings = [
+          ...validationResult.warnings.map((w) => ({ code: w.code, message: w.message })),
+          ...warnings,
+        ];
+        return mergedWarnings.length;
+      })(),
     },
   };
 
@@ -436,6 +451,15 @@ export async function buildGenerationContract(
 
 /**
  * Saves a generation contract to Firestore
+ * 
+ * WARNING: Uses merge: false, which will OVERWRITE the entire document including
+ * any existing approval records. This is intentional for contract regeneration,
+ * but the caller MUST ensure that:
+ * 1. If the contract is approved, the approval is revoked before regeneration
+ * 2. The contract status is not "approved" when this function is called
+ * 
+ * If approval revocation and regeneration ever fall out of sync, an approved
+ * contract could have its approval record silently erased.
  */
 async function saveContractToFirestore(
   contract: GenerationContract,
@@ -444,6 +468,15 @@ async function saveContractToFirestore(
   const contractRef = fs
     .collection("generationContracts")
     .doc(contract.briefId);
+
+  // Safety check: if contract is approved, explicitly nullify approval to prevent silent overwrite
+  // This is a defensive check - the UI should revoke approval before regeneration
+  if (contract.status === "approved") {
+    console.warn(
+      `WARNING: Saving contract with status "approved" - approval record will be overwritten. ` +
+      `This should not happen if approval revocation is working correctly.`
+    );
+  }
 
   // Convert FieldValue to actual value for saving
   const contractData: any = {

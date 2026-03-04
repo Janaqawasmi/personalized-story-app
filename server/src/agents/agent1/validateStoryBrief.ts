@@ -378,15 +378,19 @@ export async function validateStoryBriefInput(
         "languageTone.complexity",
         "languageTone.complexity is required"
       );
-    } else if (!ALLOWED_COMPLEXITY.includes(complexity)) {
-      addError(
-        errors,
-        ERROR_CODES.INVALID_COMPLEXITY,
-        "languageTone.complexity",
-        `languageTone.complexity must be one of: ${ALLOWED_COMPLEXITY.join(", ")}`
-      );
     } else {
-      isComplexityValid = true;
+      // Normalize to lowercase for case-insensitive comparison
+      const normalizedComplexity = typeof complexity === "string" ? complexity.toLowerCase() : complexity;
+      if (!ALLOWED_COMPLEXITY.includes(normalizedComplexity as Complexity)) {
+        addError(
+          errors,
+          ERROR_CODES.INVALID_COMPLEXITY,
+          "languageTone.complexity",
+          `languageTone.complexity must be one of: ${ALLOWED_COMPLEXITY.join(", ")}`
+        );
+      } else {
+        isComplexityValid = true;
+      }
     }
 
     if (!emotionalTone) {
@@ -396,15 +400,19 @@ export async function validateStoryBriefInput(
         "languageTone.emotionalTone",
         "languageTone.emotionalTone is required"
       );
-    } else if (!ALLOWED_EMOTIONAL_TONE.includes(emotionalTone)) {
-      addError(
-        errors,
-        ERROR_CODES.INVALID_EMOTIONAL_TONE,
-        "languageTone.emotionalTone",
-        `languageTone.emotionalTone must be one of: ${ALLOWED_EMOTIONAL_TONE.join(", ")}`
-      );
     } else {
-      isEmotionalToneValid = true;
+      // Normalize to lowercase for case-insensitive comparison
+      const normalizedEmotionalTone = typeof emotionalTone === "string" ? emotionalTone.toLowerCase() : emotionalTone;
+      if (!ALLOWED_EMOTIONAL_TONE.includes(normalizedEmotionalTone as EmotionalTone)) {
+        addError(
+          errors,
+          ERROR_CODES.INVALID_EMOTIONAL_TONE,
+          "languageTone.emotionalTone",
+          `languageTone.emotionalTone must be one of: ${ALLOWED_EMOTIONAL_TONE.join(", ")}`
+        );
+      } else {
+        isEmotionalToneValid = true;
+      }
     }
 
     // Only assign to normalized if both values are valid
@@ -463,15 +471,19 @@ export async function validateStoryBriefInput(
         "storyPreferences.caregiverPresence",
         "storyPreferences.caregiverPresence is required"
       );
-    } else if (!ALLOWED_CAREGIVER_PRESENCE.includes(caregiverPresence)) {
-      addError(
-        errors,
-        ERROR_CODES.INVALID_CAREGIVER_PRESENCE,
-        "storyPreferences.caregiverPresence",
-        `storyPreferences.caregiverPresence must be one of: ${ALLOWED_CAREGIVER_PRESENCE.join(", ")}`
-      );
     } else {
-      isCaregiverPresenceValid = true;
+      // Normalize to lowercase for case-insensitive comparison
+      const normalizedCaregiverPresence = typeof caregiverPresence === "string" ? caregiverPresence.toLowerCase() : caregiverPresence;
+      if (!ALLOWED_CAREGIVER_PRESENCE.includes(normalizedCaregiverPresence as CaregiverPresence)) {
+        addError(
+          errors,
+          ERROR_CODES.INVALID_CAREGIVER_PRESENCE,
+          "storyPreferences.caregiverPresence",
+          `storyPreferences.caregiverPresence must be one of: ${ALLOWED_CAREGIVER_PRESENCE.join(", ")}`
+        );
+      } else {
+        isCaregiverPresenceValid = true;
+      }
     }
 
     if (!endingStyle) {
@@ -481,15 +493,19 @@ export async function validateStoryBriefInput(
         "storyPreferences.endingStyle",
         "storyPreferences.endingStyle is required"
       );
-    } else if (!ALLOWED_ENDING_STYLE.includes(endingStyle)) {
-      addError(
-        errors,
-        ERROR_CODES.INVALID_ENDING_STYLE,
-        "storyPreferences.endingStyle",
-        `storyPreferences.endingStyle must be one of: ${ALLOWED_ENDING_STYLE.join(", ")}`
-      );
     } else {
-      isEndingStyleValid = true;
+      // Normalize to lowercase for case-insensitive comparison
+      const normalizedEndingStyle = typeof endingStyle === "string" ? endingStyle.toLowerCase() : endingStyle;
+      if (!ALLOWED_ENDING_STYLE.includes(normalizedEndingStyle as EndingStyle)) {
+        addError(
+          errors,
+          ERROR_CODES.INVALID_ENDING_STYLE,
+          "storyPreferences.endingStyle",
+          `storyPreferences.endingStyle must be one of: ${ALLOWED_ENDING_STYLE.join(", ")}`
+        );
+      } else {
+        isEndingStyleValid = true;
+      }
     }
 
     // Only assign to normalized if both values are valid

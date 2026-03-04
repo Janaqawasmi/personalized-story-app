@@ -25,6 +25,10 @@ export interface GoalMapping {
 export interface CopingTool {
   displayName?: string;
   allowedAges: string[];
+  // TODO: repetitionRequired and contraindications are loaded but not currently used by Agent 1.
+  // These fields are reserved for future use by Agent 2 (story generation) or for clinical
+  // safety checks. If contraindications is a clinical safety field, it should be actively
+  // checked during contract building, not silently ignored.
   repetitionRequired: number;
   contraindications?: string[];
 }
@@ -34,6 +38,9 @@ export interface EndingRule {
   mustAvoid: string[];
   requiresEmotionalStability: boolean;
   requiresSuccessMoment: boolean;
+  // NOTE: requiresSafeClosure is NOT part of EndingRule.
+  // It is derived from sensitivity rules (forceSafeClosure) and goal mappings (requiresClosure)
+  // in buildGenerationContract.ts, not from the ending rule itself.
 }
 
 export interface ExclusionRule {
@@ -59,6 +66,25 @@ export interface ClinicalRules {
 // Cache Configuration
 // ============================================================================
 
+/**
+ * WARNING: This is an in-memory, process-scoped cache.
+ * 
+ * In a single-process deployment, this works correctly. However, in any
+ * horizontally scaled deployment (multiple Cloud Run instances, multiple
+ * serverless function containers, etc.), each instance has its own cache.
+ * 
+ * When rules are updated:
+ * - Some instances may serve old rules for up to 5 minutes (CACHE_TTL_MS)
+ * - Different contract builds on different instances may use different rule versions
+ * - This breaks the determinism guarantee required for clinical systems
+ * 
+ * For production deployments with horizontal scaling:
+ * - Remove this cache entirely and always load from Firestore (recommended for low scale)
+ * - OR use a distributed cache (Redis/Memcached) with explicit invalidation when rules are updated
+ * 
+ * The performance cost of one extra Firestore read per contract build is negligible
+ * compared to the correctness guarantee.
+ */
 interface CacheEntry {
   rules: ClinicalRules;
   timestamp: number;
@@ -253,6 +279,40 @@ export async function loadClinicalRules(
       throw new Error(
         `Clinical rules version "${rulesVersion}" is incomplete. ` +
         `Required subcollections are missing or empty. Run seed:clinicalRules first.`
+      );
+    }
+
+    // Validate that all required age bands are covered
+    const requiredAgeBands = ["0_3", "3_6", "6_9", "9_12"];
+    const missingAgeBands = requiredAgeBands.filter((band) => !ageRules[band]);
+    if (missingAgeBands.length > 0) {
+      throw new Error(
+        `Clinical rules version "${rulesVersion}" is missing required age bands: ${missingAgeBands.join(", ")}. ` +
+        `All age bands (0_3, 3_6, 6_9, 9_12) must be present.`
+      );
+    }
+
+    // Validate that all required sensitivity levels are covered
+    const requiredSensitivityLevels = ["low", "medium", "high"];
+    const missingSensitivityLevels = requiredSensitivityLevels.filter(
+      (level) => !sensitivityRules[level]
+    );
+    if (missingSensitivityLevels.length > 0) {
+      throw new Error(
+        `Clinical rules version "${rulesVersion}" is missing required sensitivity levels: ${missingSensitivityLevels.join(", ")}. ` +
+        `All sensitivity levels (low, medium, high) must be present.`
+      );
+    }
+
+    // Validate that all required ending styles are covered
+    const requiredEndingStyles = ["calm_resolution", "open_ended", "empowering"];
+    const missingEndingStyles = requiredEndingStyles.filter(
+      (style) => !endingRules[style]
+    );
+    if (missingEndingStyles.length > 0) {
+      throw new Error(
+        `Clinical rules version "${rulesVersion}" is missing required ending styles: ${missingEndingStyles.join(", ")}. ` +
+        `All ending styles (calm_resolution, open_ended, empowering) must be present.`
       );
     }
     
