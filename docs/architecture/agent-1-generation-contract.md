@@ -208,6 +208,239 @@ Array of patterns to avoid, derived from:
   - `errorCount`: Number of errors
   - `warningCount`: Number of warnings
 
+## UI Contract
+
+The UI Contract defines how Generation Contract data is presented to specialists in the Contract Review interface. It specifies which fields are displayed, their visibility, editability, formatting rules, and organizational structure.
+
+### Contract Review Page Structure
+
+The Contract Review page (`/specialist/story-briefs/:briefId/contract`) displays the contract in the following sections:
+
+#### 1. Validation Alerts (Top of Page)
+
+**Display Rules:**
+- **Errors**: Always displayed if `contract.errors.length > 0`
+  - Display format: Red alert box with error count in header
+  - Content: List of all error messages
+  - Visibility: Always visible when errors exist
+  - Editability: Read-only
+  - Impact: Blocks contract confirmation (disables "Confirm & Continue" button)
+
+- **Warnings**: Always displayed if `contract.warnings.length > 0`
+  - Display format: Yellow/orange alert box with warning count in header
+  - Content: List of all warning messages
+  - Visibility: Always visible when warnings exist
+  - Editability: Read-only
+  - Impact: Non-blocking (does not prevent contract confirmation)
+
+#### 2. Brief Summary Card (Left Column)
+
+**Display Rules:**
+- **Section Title**: "Brief Summary"
+- **Layout**: Card component in left column of two-column grid
+- **All Fields**: Read-only (display only)
+
+**Fields Displayed:**
+
+| Field | Source | Display Label | Formatting | Visibility |
+|-------|--------|---------------|------------|------------|
+| `topic` | `contract.topic` | "Topic" | `formatDisplayText()` - Capitalize words, replace underscores with spaces | Always visible |
+| `situation` | `contract.situation` | "Situation" | `formatDisplayText()` - Capitalize words, replace underscores with spaces | Always visible |
+| `ageGroup` | `brief.childProfile.ageGroup` | "Age Group" | `formatAgeGroup()` - Maps enum to display (e.g., "0_3" → "0–3 years") | Always visible |
+| `emotionalSensitivity` | `brief.childProfile.emotionalSensitivity` | "Emotional Sensitivity" | `formatDisplayText()` - Capitalize words, replace underscores with spaces | Always visible |
+| `emotionalGoals` | `brief.therapeuticIntent.emotionalGoals` | "Emotional Goals" | Array displayed as chips, each goal formatted with `formatDisplayText()` | Always visible |
+| `endingStyle` | `brief.storyPreferences.endingStyle` | "Ending Style" | `formatDisplayText()` - Capitalize words, replace underscores with spaces | Always visible |
+
+**Display Format:**
+- Each field uses a two-line layout:
+  - Line 1: Caption (small, secondary color text)
+  - Line 2: Value (normal body text)
+- Emotional Goals displayed as Material-UI Chips with small size
+
+#### 3. Contract Details Card (Right Column)
+
+**Display Rules:**
+- **Section Title**: "Contract Details"
+- **Layout**: Card component in right column of two-column grid
+- **All Fields**: Read-only (display only)
+
+**Fields Displayed:**
+
+| Field | Source | Display Label | Formatting | Visibility | Display Limit |
+|-------|--------|---------------|------------|------------|---------------|
+| `lengthBudget` | `contract.lengthBudget` | "Length Budget" | Combined format: "{minScenes}–{maxScenes} scenes, max {maxWords} words" | Always visible | N/A |
+| `requiredElements` | `contract.requiredElements` | "Required Elements ({count})" | Array displayed as chips, each element formatted with `formatDisplayText()`, showing first 10 items | Always visible | First 10 items, "+{N} more" indicator if > 10 |
+| `allowedCopingTools` | `contract.allowedCopingTools` | "Allowed Coping Tools ({count})" | Array displayed as chips, each tool formatted with `formatDisplayText()` | Always visible | All items (no limit) |
+| `mustAvoid` | `contract.mustAvoid` | "Must Avoid (showing first 20 of {count})" | Array displayed as error-colored outlined chips, each item formatted with `formatDisplayText()`, showing first 20 items | Always visible | First 20 items, "+{N} more" indicator if > 20 |
+
+**Display Format:**
+- Length Budget: Single-line text display
+- Arrays: Material-UI Chips with small size
+- Must Avoid chips use error color variant (red outlined)
+- Required Elements and Allowed Coping Tools use default chip styling
+
+#### 4. Override Section (Full Width)
+
+**Display Rules:**
+- **Section Title**: "Override Coping Tool"
+- **Layout**: Paper component spanning full width (both columns)
+- **Purpose**: Allow specialist to override automatically selected coping tool
+- **Visibility**: Always visible
+
+**Fields Displayed:**
+
+| Field | Source | Display Label | Input Type | Editability | Validation |
+|-------|--------|---------------|------------|-------------|------------|
+| `copingTool` | `contract.allowedCopingTools` (populated in dropdown) | "Coping Tool" | Material-UI Select dropdown | Editable | Required (cannot be empty) |
+| `overrideReason` | User input (not from contract) | "Reason (optional)" | Material-UI TextField | Editable | Optional (can be empty string) |
+| `overrideStatus` | `contract.overrideUsed` + `contract.overrideDetails.copingToolId` | N/A (info alert) | Info alert box | Read-only | N/A |
+
+**Initial State:**
+- If `contract.overrideUsed === true` and `contract.overrideDetails.copingToolId` exists:
+  - Selected coping tool: `contract.overrideDetails.copingToolId`
+- Else if `contract.allowedCopingTools.length > 0`:
+  - Selected coping tool: First item in `contract.allowedCopingTools`
+- Else:
+  - Selected coping tool: Empty (dropdown disabled)
+
+**Override Application:**
+- When "Apply Override & Regenerate" button is clicked:
+  - Validates that `selectedCopingTool` is not empty
+  - Calls `applyContractOverride(briefId, { copingToolId, reason })` API
+  - Updates contract state with regenerated contract
+  - Synchronizes `selectedCopingTool` with new `contract.overrideDetails.copingToolId`
+  - Clears `overrideReason` field after successful override
+
+**Override Status Display:**
+- If override is active (`contract.overrideUsed === true`):
+  - Display info alert: "Override is currently active: {formatted tool name}"
+  - Format tool name using `formatDisplayText()`
+
+#### 5. Action Buttons (Full Width)
+
+**Display Rules:**
+- **Layout**: Stack of buttons at bottom, right-aligned
+- **Visibility**: Always visible
+
+**Buttons:**
+
+| Button | Label | Variant | Editability | Disabled Condition |
+|--------|-------|---------|-------------|-------------------|
+| Back | "Back" | Outlined | Action (navigates back) | Never disabled |
+| Confirm & Continue | "Confirm & Continue" | Contained (primary) | Action (navigates to generate draft page) | Disabled if `contract.errors.length > 0` |
+
+**Navigation:**
+- Back button: `navigate(-1)` (browser back)
+- Confirm & Continue button: Navigates to `/specialist/generate-draft?briefId={briefId}`
+
+### Field Formatting Functions
+
+The UI uses helper functions to format contract data for display:
+
+#### `formatDisplayText(text: string): string`
+- **Purpose**: Converts snake_case or kebab-case keys to human-readable labels
+- **Logic**:
+  1. Split by underscores
+  2. Filter out empty strings
+  3. Capitalize first letter of each word
+  4. Join with spaces
+- **Examples**:
+  - `"fear_anxiety"` → `"Fear Anxiety"`
+  - `"making_friends"` → `"Making Friends"`
+  - `"very_gentle"` → `"Very Gentle"`
+
+#### `formatAgeGroup(ageGroup: string): string`
+- **Purpose**: Converts age group enum to display format
+- **Mapping**:
+  - `"0_3"` → `"0–3 years"`
+  - `"3_6"` → `"3–6 years"`
+  - `"6_9"` → `"6–9 years"`
+  - `"9_12"` → `"9–12 years"`
+  - Unknown values → Return as-is
+
+### Fields NOT Displayed in UI
+
+The following Generation Contract fields are **not** displayed in the Contract Review UI but are available in the contract object:
+
+- **Contract Metadata**:
+  - `briefId` (used internally for API calls)
+  - `rulesVersionUsed` (not shown to specialist)
+  - `status` (used internally to disable buttons)
+  - `createdAt` (not shown)
+  - `updatedAt` (not shown)
+
+- **Therapeutic Context**:
+  - `caregiverPresence` (not shown in contract review, may be in brief summary)
+
+- **Length Budget**:
+  - `targetWords` (optional field, not displayed)
+
+- **Style Rules**:
+  - `styleRules.maxSentenceWords` (not displayed)
+  - `styleRules.dialoguePolicy` (not displayed)
+  - `styleRules.abstractConcepts` (not displayed)
+  - `styleRules.emotionalTone` (not displayed, but may be in brief summary)
+  - `styleRules.languageComplexity` (not displayed, but may be in brief summary)
+
+- **Ending Contract**:
+  - `endingContract.mustInclude` (not displayed)
+  - `endingContract.mustAvoid` (not displayed, but merged into `contract.mustAvoid`)
+  - `endingContract.requiresEmotionalStability` (not displayed)
+  - `endingContract.requiresSuccessMoment` (not displayed)
+  - `endingContract.requiresSafeClosure` (not displayed)
+
+- **Override Information**:
+  - `overrideDetails.reason` (not displayed separately, only used when applying new override)
+
+- **Key Message**:
+  - `keyMessage` (not displayed in contract review)
+
+- **Validation Summary**:
+  - `validationSummary` (not displayed, but error/warning counts shown in alert headers)
+
+### UI Contract API Endpoints
+
+The UI interacts with the following API endpoints:
+
+#### `POST /api/agent1/contracts/preview`
+- **Purpose**: Preview a generation contract without saving to Firestore
+- **Request Body**: `{ brief: StoryBrief, briefId?: string }`
+- **Response**: `{ data: GenerationContract }`
+- **Usage**: Load contract for initial display
+
+#### `POST /api/agent1/contracts/:briefId/override`
+- **Purpose**: Apply coping tool override and regenerate contract
+- **Request Body**: `{ copingToolId: string, reason?: string }`
+- **Response**: `{ data: GenerationContract }` (regenerated contract)
+- **Usage**: Update contract with specialist override
+
+### UI Contract Data Flow
+
+1. **Initial Load**:
+   - Load Story Brief by ID: `fetchStoryBriefById(briefId)`
+   - Preview Contract: `previewContract(briefData, briefId)`
+   - Display contract in UI sections
+   - Initialize override UI state from contract
+
+2. **Override Application**:
+   - User selects coping tool and optionally provides reason
+   - User clicks "Apply Override & Regenerate"
+   - Call `applyContractOverride(briefId, { copingToolId, reason })`
+   - Update contract state with regenerated contract
+   - Refresh UI to show updated contract and override status
+
+3. **Contract Confirmation**:
+   - User reviews contract (all sections)
+   - If no errors, "Confirm & Continue" button is enabled
+   - User clicks button → Navigate to generate draft page with `briefId`
+
+### UI Contract Validation Rules
+
+- **Error Blocking**: Contracts with `status === "invalid"` or `errors.length > 0` cannot be confirmed
+- **Warning Non-Blocking**: Contracts with only warnings can be confirmed
+- **Override Validation**: Override coping tool must exist in `contract.allowedCopingTools` (validated server-side)
+- **Required Fields**: Coping tool selection is required when applying override (client-side validation)
+
 ## Internal Processing Flow
 
 ### Step 1: Input Validation
