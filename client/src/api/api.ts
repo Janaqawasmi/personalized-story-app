@@ -13,7 +13,7 @@ import { getAuth } from "firebase/auth";
 // Configuration
 // ============================================================================
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000/api";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 // ============================================================================
 // Auth Helper

@@ -5,12 +5,13 @@ import GoogleIcon from "@mui/icons-material/Google";
 import { useTranslation } from "../i18n/useTranslation";
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 export default function LoginPage() {
   const theme = useTheme();
   const t = useTranslation();
   const navigate = useNavigate();
+  const { lang } = useParams<{ lang: string }>();
   
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -28,9 +29,10 @@ export default function LoginPage() {
       setLoading(true);
       setError(null);
       await signInWithEmailAndPassword(auth, email, password);
-      // Success - RequireAuth will handle navigation
+      // Success - navigate to specialist page with language prefix
       setEmailDialogOpen(false);
-      navigate("/specialist");
+      const specialistPath = lang ? `/${lang}/specialist` : "/he/specialist";
+      navigate(specialistPath);
     } catch (err: any) {
       console.error("Email login error:", err);
       setError(err.message || "Failed to sign in. Please check your email and password.");
@@ -45,8 +47,9 @@ export default function LoginPage() {
       setError(null);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      // Success - RequireAuth will handle navigation
-      navigate("/specialist");
+      // Success - navigate to specialist page with language prefix
+      const specialistPath = lang ? `/${lang}/specialist` : "/he/specialist";
+      navigate(specialistPath);
     } catch (err: any) {
       console.error("Google login error:", err);
       if (err.code === "auth/popup-closed-by-user") {
