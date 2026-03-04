@@ -14,6 +14,7 @@ import {
   rejectContract,
   getContractStatus,
   getAuditHistory,
+  getContract,
 } from "../controllers/contractApproval.controller";
 
 const router = Router();
@@ -53,6 +54,7 @@ router.post(
 // ──────────────────────────────────────────────────────────
 // Contract Status & Audit (authenticated, any role)
 // ──────────────────────────────────────────────────────────
+router.get("/contracts/:briefId/full", getContract);
 router.get("/contracts/:briefId/status", getContractStatus);
 router.get("/contracts/:briefId/audit", getAuditHistory);
 

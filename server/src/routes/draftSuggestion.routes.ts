@@ -7,7 +7,7 @@ import {
   rejectSuggestion,
   generateImagePromptSuggestionEndpoint,
 } from "../controllers/draftSuggestion.controller";
-import { requireAuth } from "../middleware/requireAuth";
+import { requireAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 

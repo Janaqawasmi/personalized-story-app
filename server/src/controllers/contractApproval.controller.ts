@@ -311,6 +311,46 @@ export const getContractStatus = async (req: Request, res: Response): Promise<vo
  * Returns the audit trail for a specific brief/contract.
  * Enables full traceability of who did what and when.
  */
+/**
+ * Returns the full persisted generation contract.
+ * GET /api/agent1/contracts/:briefId/full
+ */
+export const getContract = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { briefId } = req.params;
+
+    if (!briefId) {
+      res.status(400).json({ success: false, error: "briefId is required" });
+      return;
+    }
+
+    const contractDoc = await firestore
+      .collection("generationContracts")
+      .doc(briefId)
+      .get();
+
+    if (!contractDoc.exists) {
+      res.status(404).json({
+        success: false,
+        error: `Generation contract for brief "${briefId}" not found`,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: contractDoc.data(),
+    });
+  } catch (error: any) {
+    console.error("Error fetching contract:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to fetch contract",
+      details: error.message,
+    });
+  }
+};
+
 export const getAuditHistory = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;

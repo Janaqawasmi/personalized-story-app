@@ -634,6 +634,35 @@ export async function fetchContractStatus(
 }
 
 /**
+ * Fetches the persisted generation contract for a brief.
+ * This is the actual saved contract, not a preview.
+ * Returns null if no contract exists.
+ */
+export async function fetchFullContract(briefId: string): Promise<GenerationContract | null> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/agent1/contracts/${briefId}/full`, { headers });
+    
+    if (res.status === 404) {
+      return null; // No contract exists yet
+    }
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to fetch contract (${res.status})`);
+    }
+    
+    const data = await res.json();
+    return data.data || null;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    return null;
+  }
+}
+
+/**
  * Fetches the audit trail for a brief/contract.
  */
 export async function fetchAuditHistory(

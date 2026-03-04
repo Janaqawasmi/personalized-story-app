@@ -42,6 +42,7 @@ import SpecialistNav from "../components/SpecialistNav";
 import {
   fetchStoryBriefById,
   previewContract,
+  fetchFullContract,
   applyContractOverride,
   approveContract as apiApproveContract,
   rejectContract as apiRejectContract,
@@ -164,8 +165,12 @@ const AdminContractReviewPage: React.FC = () => {
         const briefData = await fetchStoryBriefById(briefId);
         setBrief(briefData);
 
-        // Preview contract
-        const contractData = await previewContract(briefData, briefId);
+        // Load persisted contract first, fall back to preview if none exists
+        let contractData = await fetchFullContract(briefId);
+        if (!contractData) {
+          // No persisted contract yet — use preview
+          contractData = await previewContract(briefData, briefId);
+        }
         setContract(contractData);
 
         // Set initial coping tool selection

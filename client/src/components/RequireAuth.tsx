@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Navigate, Outlet, useParams } from "react-router-dom";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { auth } from "../firebase";
-import { User, onAuthStateChanged } from "firebase/auth";
+import { Box, CircularProgress } from "@mui/material";
 
 export default function RequireAuth() {
   const [user, setUser] = useState<User | null>(null);
@@ -9,20 +10,22 @@ export default function RequireAuth() {
   const { lang } = useParams<{ lang: string }>();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
       setLoading(false);
     });
-
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>; // Or a proper loading spinner
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+        <CircularProgress />
+      </Box>
+    );
   }
 
   if (!user) {
-    // Preserve language prefix when redirecting to login
     const loginPath = lang ? `/${lang}/login` : "/he/login";
     return <Navigate to={loginPath} replace />;
   }

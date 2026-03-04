@@ -1,16 +1,12 @@
-// firestore.rules
-//
-// PHASE 1: Firestore Security Rules
-//
-// These rules provide a SECOND layer of protection at the database level.
-// Even if the Express middleware is bypassed (e.g., direct Firestore SDK access),
-// these rules enforce governance constraints.
-//
-// IMPORTANT: These rules assume Firebase Auth is used for authentication.
-// Deploy with: firebase deploy --only firestore:rules
-
 rules_version = '2';
 service cloud.firestore {
+  // PHASE 1: Firestore Security Rules
+  // These rules provide a SECOND layer of protection at the database level.
+  // Even if the Express middleware is bypassed (e.g., direct Firestore SDK access),
+  // these rules enforce governance constraints.
+  // IMPORTANT: These rules assume Firebase Auth is used for authentication.
+  // Deploy with: firebase deploy --only firestore:rules
+  
   match /databases/{database}/documents {
     // ────────────────────────────────────────────────────
     // Helper functions
@@ -36,16 +32,8 @@ service cloud.firestore {
       // Any authenticated user can read
       allow read: if isAuthenticated();
 
-      // Only specialists and admins can create
-      // createdBy must match the authenticated user's UID
-      allow create: if isSpecialistOrAdmin()
-                    && request.resource.data.createdBy == request.auth.uid;
-
-      // Only specialists and admins can update (for overrides)
-      allow update: if isSpecialistOrAdmin();
-
-      // Never allow delete — briefs are part of the audit trail
-      allow delete: if false;
+      // Admin SDK only — all writes go through backend
+      allow write: if false;
     }
 
     // ────────────────────────────────────────────────────
