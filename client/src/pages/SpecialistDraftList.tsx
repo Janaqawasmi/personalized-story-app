@@ -30,6 +30,7 @@ import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief } fr
 import { useLocation } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import SpecialistNav from "../components/SpecialistNav";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 // Helper to format age group for display
 const formatAgeGroup = (ageGroup: string): string => {
@@ -125,22 +126,40 @@ const SpecialistDraftList: React.FC = () => {
   // Track if this is the initial mount
   const isInitialMount = useRef(true);
 
-  // Load drafts on mount and when navigating back to this page
+  // Wait for auth to be ready before loading drafts
   useEffect(() => {
-    // On initial mount, load immediately
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      loadDrafts();
+    const auth = getAuth();
+    
+    const loadWhenReady = () => {
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
+        loadDrafts();
+        return;
+      }
+
+      // When navigating back to this page, refresh after a small delay
+      if (location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) {
+        const timer = setTimeout(() => {
+          loadDrafts();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+    };
+    
+    // If user is already authenticated, load immediately
+    if (auth.currentUser) {
+      loadWhenReady();
       return;
     }
-
-    // When navigating back to this page, refresh after a small delay
-    if (location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) {
-      const timer = setTimeout(() => {
-        loadDrafts();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
+    
+    // Otherwise wait for auth state
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        loadWhenReady();
+      }
+    });
+    
+    return unsubscribe;
   }, [location.pathname, loadDrafts]);
 
   // Refresh when window regains focus (user returns to tab/window)

@@ -43,6 +43,7 @@ import {
   fetchStoryBriefById,
   previewContract,
   fetchFullContract,
+  buildContract,
   applyContractOverride,
   approveContract as apiApproveContract,
   rejectContract as apiRejectContract,
@@ -123,11 +124,13 @@ const AdminContractReviewPage: React.FC = () => {
   // Data state
   const [brief, setBrief] = useState<StoryBrief | null>(null);
   const [contract, setContract] = useState<GenerationContract | null>(null);
+  const [isContractPersisted, setIsContractPersisted] = useState(false);
   const [auditHistory, setAuditHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // Action state
+  const [building, setBuilding] = useState(false);
   const [approving, setApproving] = useState(false);
   const [applyingOverride, setApplyingOverride] = useState(false);
 
@@ -167,11 +170,14 @@ const AdminContractReviewPage: React.FC = () => {
 
         // Load persisted contract first, fall back to preview if none exists
         let contractData = await fetchFullContract(briefId);
+        let isPersisted = true;
         if (!contractData) {
           // No persisted contract yet — use preview
           contractData = await previewContract(briefData, briefId);
+          isPersisted = false;
         }
         setContract(contractData);
+        setIsContractPersisted(isPersisted);
 
         // Set initial coping tool selection
         if (contractData.overrideUsed && contractData.overrideDetails?.copingToolId) {
@@ -200,6 +206,34 @@ const AdminContractReviewPage: React.FC = () => {
   // ──────────────────────────────────────────────────────────
   // Handlers
   // ──────────────────────────────────────────────────────────
+
+  const handleBuildContract = async () => {
+    if (!briefId) return;
+
+    try {
+      setBuilding(true);
+      setError(null);
+
+      // Build the contract (saves to database)
+      const builtContract = await buildContract(briefId);
+      
+      // Update local state
+      setContract(builtContract);
+      setIsContractPersisted(true);
+
+      // Refresh audit history
+      try {
+        const history = await fetchAuditHistory(briefId, 20);
+        setAuditHistory(history);
+      } catch {
+        // Non-blocking
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to build contract");
+    } finally {
+      setBuilding(false);
+    }
+  };
 
   const handleApprove = async () => {
     if (!briefId) return;
@@ -378,6 +412,26 @@ const AdminContractReviewPage: React.FC = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
           {error}
+        </Alert>
+      )}
+
+      {/* Build Contract Alert - shown when contract is not persisted */}
+      {!isContractPersisted && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" gutterBottom>
+            Contract Preview
+          </Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            This is a preview of the contract. You need to build and save it before you can approve it.
+          </Typography>
+          <Button
+            variant="contained"
+            onClick={handleBuildContract}
+            disabled={building}
+            startIcon={building ? <CircularProgress size={16} /> : null}
+          >
+            {building ? "Building Contract..." : "Build Contract"}
+          </Button>
         </Alert>
       )}
 
@@ -609,7 +663,7 @@ const AdminContractReviewPage: React.FC = () => {
               Approval Decision
             </Typography>
 
-            {isApprovable && !hasErrors && (
+            {isApprovable && !hasErrors && isContractPersisted && (
               <>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   Review the contract above. Approve to allow story generation, or reject with a reason.

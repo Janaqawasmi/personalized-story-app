@@ -161,7 +161,8 @@ export interface StoryDraft {
 
 export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/story-drafts`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load drafts (${res.status})`);
@@ -230,7 +231,8 @@ export interface StoryDraftPage {
 
 export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
   try {
-    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load draft (${res.status})`);
@@ -250,9 +252,10 @@ export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
  */
 export async function enterEditMode(draftId: string): Promise<{ success: boolean; status: string }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/edit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -273,9 +276,10 @@ export async function enterEditMode(draftId: string): Promise<{ success: boolean
  */
 export async function cancelEditMode(draftId: string): Promise<{ success: boolean; status: string }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/cancel-edit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -407,7 +411,8 @@ export interface StoryBrief {
 
 export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/story-briefs`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load story briefs (${res.status})`);
@@ -425,13 +430,39 @@ export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
 /**
  * Fetch a single story brief by ID
  */
+/**
+ * Build a generation contract from a story brief.
+ * This saves the contract to the database.
+ */
+export async function buildContract(briefId: string): Promise<GenerationContract> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/build-contract`, {
+      method: 'POST',
+      headers,
+    });
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to build contract (${res.status})`);
+    }
+    
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
 export async function fetchStoryBriefById(briefId: string): Promise<StoryBrief> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
