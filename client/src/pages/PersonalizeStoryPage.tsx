@@ -209,8 +209,15 @@ export default function PersonalizeStoryPage() {
 
         if (existingSession) {
           if (existingSession.status === "completed") {
-            // Show completed decision screen
+            // Load saved personalization data into form (non-blocking)
             setShowCompletedScreen(true);
+            if (existingSession.data) {
+              setPersonalization({
+                childName: existingSession.data.childName || "",
+                gender: existingSession.data.gender,
+                visualStyle: existingSession.data.visualStyle || "watercolor",
+              });
+            }
           } else if (existingSession.status === "draft") {
             // Show resume screen
             setShowResumeScreen(true);
@@ -494,73 +501,6 @@ export default function PersonalizeStoryPage() {
     );
   }
 
-  // Completed Decision Screen
-  if (showCompletedScreen && session?.status === "completed") {
-    return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          backgroundColor: theme.palette.background.default,
-          direction: direction,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          px: 3,
-        }}
-      >
-        <Card
-          sx={{
-            maxWidth: 500,
-            width: "100%",
-            p: 4,
-            textAlign: "center",
-            borderRadius: 5,
-            boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98))",
-          }}
-        >
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-            {t("personalize.alreadyCompleted")}
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-            {t("personalize.whatToDo")}
-          </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Button
-              variant="contained"
-              onClick={handleStartNew}
-              fullWidth
-              sx={{
-                backgroundColor: "#824D5C",
-                "&:hover": { backgroundColor: "#6f404d" },
-                py: 1.5,
-              }}
-            >
-              {t("personalize.newPersonalization")}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleUsePrevious}
-              fullWidth
-              sx={{
-                py: 1.5,
-                borderColor: "#824D5C",
-                color: "#824D5C",
-                "&:hover": {
-                  borderColor: "#6f404d",
-                  backgroundColor: "rgba(130,77,92,0.08)",
-                },
-              }}
-            >
-              {t("personalize.usePrevious")}
-            </Button>
-          </Box>
-        </Card>
-      </Box>
-    );
-  }
-
   return (
     <Box
       sx={{
@@ -574,6 +514,70 @@ export default function PersonalizeStoryPage() {
       }}
     >
       <Box sx={{ width: "100%", maxWidth: 900 }}>
+        {/* Inline banner when a completed personalization exists */}
+        {showCompletedScreen && session?.status === "completed" && (
+          <Card
+            sx={{
+              mb: 3,
+              p: { xs: 2, md: 3 },
+              borderRadius: 4,
+              border: "1px solid",
+              borderColor: "rgba(130,77,92,0.25)",
+              background: "linear-gradient(135deg, rgba(130,77,92,0.06), rgba(130,77,92,0.02))",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
+            }}
+          >
+            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "center" }, gap: 2 }}>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#824D5C", mb: 0.5 }}>
+                  {t("personalize.alreadyCompleted")}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {session.data?.childName
+                    ? t("personalize.savedFor", { name: session.data.childName })
+                    : t("personalize.whatToDo")}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", gap: 1.5, flexShrink: 0 }}>
+                <Button
+                  variant="contained"
+                  onClick={handleUsePrevious}
+                  size="small"
+                  sx={{
+                    backgroundColor: "#824D5C",
+                    "&:hover": { backgroundColor: "#6f404d" },
+                    px: 3,
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  {t("personalize.usePrevious")}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={handleStartNew}
+                  size="small"
+                  sx={{
+                    borderColor: "#824D5C",
+                    color: "#824D5C",
+                    "&:hover": {
+                      borderColor: "#6f404d",
+                      backgroundColor: "rgba(130,77,92,0.08)",
+                    },
+                    px: 3,
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                  }}
+                >
+                  {t("personalize.newPersonalization")}
+                </Button>
+              </Box>
+            </Box>
+          </Card>
+        )}
+
         <Card
           sx={{
             width: "100%",

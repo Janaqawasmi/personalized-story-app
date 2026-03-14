@@ -411,10 +411,15 @@ export default function BookReaderPage() {
   const handleClose = () => {
     handleStopReading();
 
-    // IMPORTANT: don't clear personalization when going back to personalize page
-    shouldClearPersonalizationRef.current = false;
+    // Exit fullscreen if active
+    if (isFullScreen) {
+      toggleFullScreen();
+    }
 
-    navigate(`/stories/${storyId}/personalize`);
+    // Return to the personalized book cover/title page
+    // Keep personalization data — don't navigate away
+    setShowCover(true);
+    setSpreadIndex(0);
   };
 
   const handlePrev = () => {
