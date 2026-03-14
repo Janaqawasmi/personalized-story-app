@@ -833,6 +833,15 @@ export default function BookReaderPage() {
                         <FullscreenIcon />
                       </IconButton>
                     </Tooltip>
+
+                    <IconButton
+                      onClick={handleClose}
+                      sx={{
+                        color: theme.palette.text.primary,
+                      }}
+                    >
+                      <CloseIcon />
+                    </IconButton>
                   </Box>
                 </Box>
               )}
