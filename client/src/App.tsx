@@ -19,6 +19,8 @@ import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
 import ReviewDraftPage from "./pages/ReviewDraftPage";
 import PromptPreviewPage from "./pages/PromptPreviewPage";
+import AdminContractReviewPage from "./pages/AdminContractReviewPage";
+import RequireAuth from "./components/RequireAuth";
 
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
@@ -84,7 +86,7 @@ function AppContent() {
           />
 
           {/* ───────────── SPECIALIST ───────────── */}
-          <Route path="specialist">
+          <Route path="specialist" element={<RequireAuth />}>
             <Route index element={<SpecialistDraftList />} />
             <Route path="create-brief" element={<AdminStoryBriefForm />} />
             <Route path="generate-draft" element={<GenerateDraftPage />} />
@@ -93,6 +95,10 @@ function AppContent() {
             <Route
               path="story-briefs/:briefId/prompt-preview"
               element={<PromptPreviewPage />}
+            />
+            <Route
+              path="story-briefs/:briefId/contract"
+              element={<AdminContractReviewPage />}
             />
           </Route>
 

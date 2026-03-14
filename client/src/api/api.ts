@@ -1,5 +1,44 @@
-// Use relative URLs in dev via proxy, and absolute in production via env
-const API_BASE = process.env.REACT_APP_API_BASE || "";
+// client/src/api/api.ts
+//
+// PHASE 1 CHANGES:
+//   - All API calls now include Authorization header with Firebase ID token
+//   - Added approveContract() and rejectContract() API calls
+//   - Added fetchContractStatus() and fetchAuditHistory() API calls
+//   - Added getAuthHeaders() helper for consistent auth header injection
+//   - Updated applyContractOverride() response type to include previousApprovalRevoked
+
+import { getAuth } from "firebase/auth";
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+
+// ============================================================================
+// Auth Helper
+// ============================================================================
+
+/**
+ * Gets the current user's ID token for API authentication.
+ * Returns headers object with Authorization bearer token.
+ * Throws if user is not authenticated.
+ */
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const auth = getAuth();
+  const user = auth.currentUser;
+
+  if (!user) {
+    throw new Error("Not authenticated. Please log in.");
+  }
+
+  const token = await user.getIdToken();
+
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 // ---------- Existing APIs ----------
 
@@ -12,6 +51,20 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
   return res.json();
 }
 
+// Type aliases for StoryBrief fields
+export type AgeGroup = "0_3" | "3_6" | "6_9" | "9_12";
+export type EmotionalSensitivity = "low" | "medium" | "high";
+export type Complexity = "very_simple" | "simple" | "moderate";
+export type EmotionalTone = "very_gentle" | "calm" | "encouraging";
+export type CaregiverPresence = "included" | "self_guided";
+export type EndingStyle = "calm_resolution" | "open_ended" | "empowering";
+
+// Firestore Timestamp JSON representation
+export interface FirestoreTimestampJson {
+  _seconds: number;
+  _nanoseconds: number;
+}
+
 export interface StoryBriefInput {
   createdBy: string;
   therapeuticFocus: {
@@ -19,64 +72,63 @@ export interface StoryBriefInput {
     specificSituation: string;
   };
   childProfile: {
-    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
-    emotionalSensitivity: "low" | "medium" | "high";
+    ageGroup: AgeGroup;
+    emotionalSensitivity: EmotionalSensitivity;
   };
   therapeuticIntent: {
     emotionalGoals: string[];
     keyMessage?: string;
   };
   languageTone: {
-    complexity: "very_simple" | "simple" | "moderate";
-    emotionalTone: "very_gentle" | "calm" | "encouraging";
+    complexity: Complexity;
+    emotionalTone: EmotionalTone;
   };
   safetyConstraints: {
     exclusions: string[];
   };
   storyPreferences: {
-    caregiverPresence: "included" | "self_guided";
-    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+    caregiverPresence: CaregiverPresence;
+    endingStyle: EndingStyle;
   };
 }
 
-export interface StoryBriefResponse {
-  success: boolean;
-  id?: string;
-  data?: {
-    id: string;
-    topicKey: string;
-    targetAgeGroup: string;
-    topicTags: string[];
-    therapeuticIntent: string[];
-    constraints?: {
-      avoidMetaphors?: string[];
-      avoidLanguage?: string[];
-    };
-    status: "draft" | "generated" | "reviewed" | "approved";
-    createdAt: string;
-    updatedAt: string;
-    createdBy: string;
-  };
-  error?: string;
+// API Response types
+export interface CreateStoryBriefResponse {
+  success: true;
+  data: StoryBrief;
 }
 
-export async function createStoryBrief(data: StoryBriefInput): Promise<StoryBriefResponse> {
+export interface ApiErrorResponse {
+  success: false;
+  error: string;
+  details?: string;
+}
+
+export async function createStoryBrief(
+  data: Omit<StoryBriefInput, "createdBy">
+): Promise<CreateStoryBriefResponse> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/admin/story-briefs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      method: "POST",
+      headers,
       body: JSON.stringify(data),
     });
-    
+
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      const errorMessage = errorData.details || errorData.error || `Failed to create story brief (${res.status})`;
+      const errorData: Partial<ApiErrorResponse> = await res
+        .json()
+        .catch(() => ({ error: `Request failed with status ${res.status}` }));
+
+      const errorMessage =
+        errorData.details ||
+        errorData.error ||
+        `Failed to create story brief (${res.status})`;
+
       throw new Error(errorMessage);
     }
-    
-    return res.json();
+
+    return (await res.json()) as CreateStoryBriefResponse;
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
@@ -109,7 +161,8 @@ export interface StoryDraft {
 
 export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/story-drafts`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load drafts (${res.status})`);
@@ -178,7 +231,8 @@ export interface StoryDraftPage {
 
 export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
   try {
-    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load draft (${res.status})`);
@@ -198,9 +252,10 @@ export async function fetchDraftById(draftId: string): Promise<StoryDraftView> {
  */
 export async function enterEditMode(draftId: string): Promise<{ success: boolean; status: string }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/edit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -221,9 +276,10 @@ export async function enterEditMode(draftId: string): Promise<{ success: boolean
  */
 export async function cancelEditMode(draftId: string): Promise<{ success: boolean; status: string }> {
   try {
+    const headers = await getAuthHeaders();
     const res = await fetch(`${API_BASE}/api/story-drafts/${draftId}/cancel-edit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
@@ -292,33 +348,39 @@ export async function approveDraft(draftId: string): Promise<{ success: boolean;
 
 export interface StoryBrief {
   id: string;
-  createdAt: {
-    seconds: number;
-    nanoseconds: number;
-  } | string | Date;
-  updatedAt: {
-    seconds: number;
-    nanoseconds: number;
-  } | string | Date;
+
+  // Metadata
+  createdAt: FirestoreTimestampJson;
+  updatedAt: FirestoreTimestampJson;
   createdBy: string;
   status: "created" | "draft_generating" | "draft_generated" | "archived";
   version: number;
+
+  // Therapeutic Focus
   therapeuticFocus: {
     primaryTopic: string;
     specificSituation: string;
   };
+
+  // Child Profile
   childProfile: {
-    ageGroup: "0_3" | "3_6" | "6_9" | "9_12";
-    emotionalSensitivity: "low" | "medium" | "high";
+    ageGroup: AgeGroup;
+    emotionalSensitivity: EmotionalSensitivity;
   };
+
+  // Therapeutic Intent
   therapeuticIntent: {
     emotionalGoals: string[];
     keyMessage?: string;
   };
+
+  // Language & Tone
   languageTone: {
-    complexity: "very_simple" | "simple" | "moderate";
-    emotionalTone: "very_gentle" | "calm" | "encouraging";
+    complexity: Complexity;
+    emotionalTone: EmotionalTone;
   };
+
+  // Safety Constraints
   safetyConstraints: {
     enforced: {
       noThreateningImagery: true;
@@ -329,20 +391,28 @@ export interface StoryBrief {
     };
     exclusions: string[];
   };
+
+  // Story Preferences
   storyPreferences: {
-    caregiverPresence: "included" | "self_guided";
-    endingStyle: "calm_resolution" | "open_ended" | "empowering";
+    caregiverPresence: CaregiverPresence;
+    endingStyle: EndingStyle;
   };
-  lockedAt?: {
-    seconds: number;
-    nanoseconds: number;
-  } | string | Date;
+
+  // Optional fields added later
+  overrides?: {
+    copingToolId: string;
+    reason: string;
+    updatedAt: FirestoreTimestampJson;
+  };
+  lockedAt?: FirestoreTimestampJson;
   lockedByDraftId?: string;
+  rulesVersion?: string;
 }
 
 export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/admin/story-briefs`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load story briefs (${res.status})`);
@@ -357,15 +427,65 @@ export async function fetchStoryBriefs(): Promise<StoryBrief[]> {
   }
 }
 
+/**
+ * Fetch a single story brief by ID
+ */
+/**
+ * Build a generation contract from a story brief.
+ * This saves the contract to the database.
+ */
+export async function buildContract(briefId: string): Promise<GenerationContract> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/build-contract`, {
+      method: 'POST',
+      headers,
+    });
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to build contract (${res.status})`);
+    }
+    
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+export async function fetchStoryBriefById(briefId: string): Promise<StoryBrief> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}`, {
+      method: 'GET',
+      headers,
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Story brief "${briefId}" not found (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
 export async function generateDraftFromBrief(
   briefId: string,
   options?: { length?: "short" | "medium" | "long"; tone?: string; emphasis?: string }
 ): Promise<{ success: boolean; draftId: string; message: string }> {
+  const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/admin/story-briefs/${briefId}/generate-draft`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       length: options?.length || "medium",
       tone: options?.tone || "calm",
@@ -377,6 +497,301 @@ export async function generateDraftFromBrief(
     throw new Error(errorData.error || errorData.details || `Failed to generate draft (${res.status})`);
   }
   return res.json();
+}
+
+// ---------- Generation Contract APIs ----------
+
+export interface GenerationContract {
+  briefId: string;
+  rulesVersionUsed: string;
+  topic: string;
+  situation: string;
+  ageBand: string;
+  caregiverPresence: string;
+  emotionalSensitivity: string;
+  lengthBudget: {
+    minScenes: number;
+    maxScenes: number;
+    maxWords: number;
+    targetWords?: number;
+  };
+  styleRules: {
+    maxSentenceWords: number;
+    dialoguePolicy: "none" | "minimal" | "allowed";
+    abstractConcepts: "no" | "limited" | "yes";
+    emotionalTone: string;
+    languageComplexity: string;
+  };
+  requiredElements: string[];
+  allowedCopingTools: string[];
+  mustAvoid: string[];
+  endingContract: {
+    endingStyle: string;
+    mustInclude: string[];
+    mustAvoid: string[];
+    requiresEmotionalStability: boolean;
+    requiresSuccessMoment: boolean;
+    requiresSafeClosure: boolean;
+  };
+  overrideUsed: boolean;
+  overrideDetails?: Record<string, unknown>;
+  overrideCount?: number;
+  overrideHistory?: Array<{
+    copingToolId: string;
+    reason?: string;
+    appliedAt: string;
+    appliedBy: string;
+    appliedByName: string;
+  }>;
+  previousApprovals?: Array<{
+    decision: "approved" | "rejected";
+    decidedBy: string;
+    decidedByName: string;
+    decidedByEmail: string;
+    decidedAt: string;
+    expiresAt?: string;
+    revokedAt?: string;
+    revokedReason?: string;
+    notes?: string;
+  }>;
+  keyMessage?: string;
+  warnings: Array<{ code: string; message: string }>;
+  errors: Array<{ code: string; message: string }>;
+  createdAt: any;
+  updatedAt?: any;
+  status?: "invalid" | "valid" | "approved" | "rejected";
+  approval?: {
+    decision: "approved" | "rejected";
+    decidedBy: string;
+    decidedByName: string;
+    decidedByEmail: string;
+    decidedAt: string;
+    expiresAt?: string;
+    notes?: string;
+  };
+  previousApprovalRevoked?: boolean;
+  validationSummary?: {
+    errorCount: number;
+    warningCount: number;
+  };
+}
+
+/**
+ * Preview a generation contract from a brief object
+ */
+export async function previewContract(brief: any, briefId?: string): Promise<GenerationContract> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/preview`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ brief, briefId }),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to preview contract (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+/**
+ * Apply override to a story brief and regenerate contract
+ */
+export async function applyContractOverride(
+  briefId: string,
+  override: { copingToolId: string; reason?: string }
+): Promise<GenerationContract> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/override`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(override),
+    });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to apply override (${res.status})`);
+    }
+    const data = await res.json();
+    return data.data;
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    throw err;
+  }
+}
+
+// ============================================================================
+// Approval API (NEW — Phase 1)
+// ============================================================================
+
+/**
+ * Approves a generation contract, allowing story generation.
+ * Requires specialist or admin role.
+ */
+export async function approveContract(
+  briefId: string,
+  notes?: string
+): Promise<{ briefId: string; status: string; approval: any }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/approve`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ notes }),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to approve contract (${res.status})`);
+  }
+  
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to approve contract");
+  return data.data;
+}
+
+/**
+ * Rejects a generation contract, blocking story generation.
+ * Requires a reason for clinical accountability.
+ */
+export async function rejectContract(
+  briefId: string,
+  reason: string
+): Promise<{ briefId: string; status: string; reason: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/reject`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ reason }),
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to reject contract (${res.status})`);
+  }
+  
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to reject contract");
+  return data.data;
+}
+
+/**
+ * Fetches the current approval status of a contract.
+ */
+export async function fetchContractStatus(
+  briefId: string
+): Promise<{ briefId: string; status: string; approval: any | null; errorCount: number; warningCount: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/status`, { headers });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to fetch contract status (${res.status})`);
+  }
+  
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to fetch contract status");
+  return data.data;
+}
+
+/**
+ * Fetches the persisted generation contract for a brief.
+ * This is the actual saved contract, not a preview.
+ * Returns null if no contract exists.
+ */
+export async function fetchFullContract(briefId: string): Promise<GenerationContract | null> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/full`, { headers });
+    
+    if (res.status === 404) {
+      // Contract doesn't exist yet - this is expected and will trigger auto-build
+      // Return null silently (404 is not an error in this context)
+      return null;
+    }
+    
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+      throw new Error(errorData.error || errorData.details || `Failed to fetch contract (${res.status})`);
+    }
+    
+    const data = await res.json();
+    if (!data.success) {
+      throw new Error(data.error || "Failed to fetch contract");
+    }
+    return data.data || null;
+  } catch (err: any) {
+    // Only throw for non-404 errors (network errors, etc.)
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+    }
+    // For other errors, re-throw so the caller can handle them
+    if (err.message && !err.message.includes('404')) {
+      throw err;
+    }
+    // 404 or similar - return null to trigger auto-build
+    return null;
+  }
+}
+
+/**
+ * Fetches the audit trail for a brief/contract with pagination support.
+ */
+export async function fetchAuditHistory(
+  briefId: string,
+  limit?: number,
+  cursor?: string
+): Promise<{
+  entries: Array<{ id: string; action: string; actor: any; resourceType: string; resourceId: string; relatedResourceId?: string; metadata?: any; timestamp: string }>;
+  pagination: {
+    hasMore: boolean;
+    nextCursor?: string;
+    limit: number;
+  };
+}> {
+  const headers = await getAuthHeaders();
+  const params = new URLSearchParams();
+  if (limit) params.append("limit", limit.toString());
+  if (cursor) params.append("cursor", cursor);
+  const url = `${API_BASE}/api/agent1/contracts/${briefId}/audit${params.toString() ? `?${params.toString()}` : ""}`;
+  const res = await fetch(url, { headers });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to fetch audit history (${res.status})`);
+  }
+  
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || "Failed to fetch audit history");
+  return {
+    entries: data.data || [],
+    pagination: data.pagination || { hasMore: false, limit: limit || 20 },
+  };
+}
+
+/**
+ * Fetches the current default rules version from settings.
+ */
+export async function fetchCurrentRulesVersion(): Promise<string> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/agent1/rules/current-version`, { headers });
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || "Failed to fetch current rules version");
+  }
+  const data = await res.json();
+  if (!data.success) {
+    throw new Error(data.error || "Failed to fetch current rules version");
+  }
+  return data.version;
 }
 
 // ---------- Story Prompt Preview API ----------
@@ -566,37 +981,8 @@ export async function searchStories(query: string): Promise<StorySearchResponse>
 }
 // ---------- Draft Suggestion APIs ----------
 
-/**
- * Helper to get Firebase auth token for authenticated requests
- * Returns null if auth is not available (for development/testing)
- */
-async function getAuthToken(): Promise<string | null> {
-  try {
-    // Try to get Firebase auth token
-    // This will be implemented when Firebase Auth is set up
-    // For now, return null to allow testing without auth
-    const auth = (window as any).firebaseAuth;
-    if (auth?.currentUser) {
-      return await auth.currentUser.getIdToken();
-    }
-    return null;
-  } catch (error) {
-    console.warn('Failed to get auth token:', error);
-    return null;
-  }
-}
-
-/**
- * Helper to create authenticated fetch headers
- */
-async function getAuthHeaders(): Promise<HeadersInit> {
-  const headers: HeadersInit = { 'Content-Type': 'application/json' };
-  const token = await getAuthToken();
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+// Note: getAuthHeaders() is already defined above (line 27) using Firebase Auth
+// The old implementation using getAuthToken() has been removed
 
 export interface DraftSuggestion {
   id: string;

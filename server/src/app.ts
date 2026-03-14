@@ -1,3 +1,10 @@
+// server/src/app.ts
+//
+// PHASE 1 CHANGES:
+//   - Removed duplicate storyDraftRoutes mount
+//   - All specialist/admin routes now go through auth middleware (applied at router level)
+//   - Added comment explaining which routes are protected and how
+
 import "dotenv/config";
 console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
 
@@ -18,6 +25,7 @@ import { admin, firestore } from "./config/firebase";
 
 import storyDraftRoutes from "./routes/storyDraft.routes";
 import storyBriefRouter from "./routes/storyBrief.routes";
+import agent1Routes from "./routes/agent1.routes";
 import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
@@ -34,38 +42,38 @@ app.use(cors());
 app.use(express.json());
 
 // ---------- ROUTES ----------
+//
+// AUTHENTICATION STRATEGY:
+//   Auth middleware is applied at the ROUTER level (inside each router file),
+//   not here at the app level. This allows:
+//     - Public routes (templates, stories) to remain unauthenticated
+//     - Specialist routes to require auth + role checks
+//     - Generation routes to additionally require contract approval
+//
+//   See individual route files for their auth requirements:
+//     - storyBrief.routes.ts    → requireAuth on all, requireRole on mutations
+//     - agent1.routes.ts        → requireAuth on all, requireRole on approvals
+//     - storyDraft.routes.ts    → requireAuth on all (read-only)
+//
+
+// Public routes (no auth required)
 app.use("/api/story-templates", templateRoutes);
-app.use("/api/story-drafts", storyDraftRoutes);
-app.use("/api/personalized-stories", personalizedStoryRoutes);
 app.use("/api/stories", storiesRoutes);
-
-app.use("/api/admin/story-briefs", storyBriefRouter); // Includes generate-draft endpoint
-app.use("/api/story-drafts", storyDraftRoutes); // READ-ONLY draft viewing
-app.use("/api/specialist", specialistPromptRoutes); // Prompt preview endpoint
-
-// REVIEW/APPROVAL ENDPOINTS COMMENTED OUT
-// app.use("/api/specialist/reviews", storyReviewRoutes);
+app.use("/api/personalized-stories", personalizedStoryRoutes);
 app.use("/api/reference-data", referenceDataRoutes);
 
-// ---------- DEBUG FIRESTORE ----------
-// REVIEW/APPROVAL ENDPOINTS COMMENTED OUT (out of scope for current phase)
-// app.get("/api/debug/firestore", async (_req: Request, res: Response) => {
-//   try {
-//     const snap = await firestore
-//       .collection("story_templates")
-//       .limit(5)
-//       .get();
-//
-//     res.json({
-//       empty: snap.empty,
-//       count: snap.size,
-//       docs: snap.docs.map((d) => d.id),
-//     });
-//   } catch (error) {
-//     console.error("🔥 Firestore debug error:", error);
-//     res.status(500).json({ success: false });
-//   }
-// });
+// Protected routes (auth enforced at router level)
+app.use("/api/admin/story-briefs", storyBriefRouter);
+app.use("/api/agent1", agent1Routes);
+app.use("/api/story-drafts", storyDraftRoutes);
+app.use("/api/specialist", specialistPromptRoutes);
+
+// PHASE 1 FIX: Removed duplicate mount of storyDraftRoutes.
+// Previously mounted twice at "/api/story-drafts" — this caused
+// double middleware execution and unpredictable behavior.
+
+// REVIEW/APPROVAL ENDPOINTS — uncomment when storyReview routes are updated with auth
+// app.use("/api/specialist/reviews", storyReviewRoutes);
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {

@@ -30,6 +30,7 @@ import { fetchDraftsForReview, StoryDraftView, fetchStoryBriefs, StoryBrief } fr
 import { useLocation } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import SpecialistNav from "../components/SpecialistNav";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 
 // Helper to format age group for display
 const formatAgeGroup = (ageGroup: string): string => {
@@ -125,22 +126,56 @@ const SpecialistDraftList: React.FC = () => {
   // Track if this is the initial mount
   const isInitialMount = useRef(true);
 
-  // Load drafts on mount and when navigating back to this page
+  // Wait for auth to be ready before loading drafts
   useEffect(() => {
-    // On initial mount, load immediately
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      loadDrafts();
-      return;
-    }
-
-    // When navigating back to this page, refresh after a small delay
-    if (location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) {
-      const timer = setTimeout(() => {
+    const auth = getAuth();
+    let cleanupTimer: (() => void) | undefined;
+    let unsubscribe: (() => void) | undefined;
+    
+    const loadWhenReady = (): (() => void) | undefined => {
+      if (isInitialMount.current) {
+        isInitialMount.current = false;
         loadDrafts();
-      }, 100);
-      return () => clearTimeout(timer);
+        return undefined;
+      }
+
+      // When navigating back to this page, refresh after a small delay
+      if (location.pathname.endsWith("/specialist/drafts") || location.pathname.endsWith("/specialist")) {
+        const timer = setTimeout(() => {
+          loadDrafts();
+        }, 100);
+        return () => clearTimeout(timer);
+      }
+      return undefined;
+    };
+    
+    // If user is already authenticated, load immediately
+    if (auth.currentUser) {
+      cleanupTimer = loadWhenReady();
+      // Return the cleanup function if one was created
+      return cleanupTimer;
     }
+    
+    // Otherwise wait for auth state
+    unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // Store cleanup function from loadWhenReady if it returns one
+        const timerCleanup = loadWhenReady();
+        if (timerCleanup) {
+          cleanupTimer = timerCleanup;
+        }
+      }
+    });
+    
+    // Return cleanup function that handles both unsubscribe and timer
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      if (cleanupTimer) {
+        cleanupTimer();
+      }
+    };
   }, [location.pathname, loadDrafts]);
 
   // Refresh when window regains focus (user returns to tab/window)

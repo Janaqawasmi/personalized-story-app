@@ -8,9 +8,12 @@ import {
   approveDraft 
 } from "../controllers/storyDraft.controller";
 import draftSuggestionRoutes from "./draftSuggestion.routes";
-import { requireAuth } from "../middleware/requireAuth";
+import { requireAuth } from "../middleware/auth.middleware";
 
 const router = Router();
+
+// All storyDraft routes require authentication
+router.use(requireAuth);
 
 // GET /api/story-drafts (READ-ONLY) - List all generated drafts
 router.get("/", listDrafts);
@@ -19,16 +22,16 @@ router.get("/", listDrafts);
 router.use("/", draftSuggestionRoutes);
 
 // POST /api/story-drafts/:draftId/edit - Enter edit mode
-router.post("/:draftId/edit", requireAuth, enterEditMode);
+router.post("/:draftId/edit", enterEditMode);
 
 // POST /api/story-drafts/:draftId/cancel-edit - Cancel edit mode
-router.post("/:draftId/cancel-edit", requireAuth, cancelEditMode);
+router.post("/:draftId/cancel-edit", cancelEditMode);
 
 // PATCH /api/story-drafts/:draftId - Save edits
-router.patch("/:draftId", requireAuth, updateDraft);
+router.patch("/:draftId", updateDraft);
 
 // POST /api/story-drafts/:draftId/approve - Approve draft
-router.post("/:draftId/approve", requireAuth, approveDraft);
+router.post("/:draftId/approve", approveDraft);
 
 // GET /api/story-drafts/:draftId (READ-ONLY) - Get a single draft
 router.get("/:draftId", getDraftById);

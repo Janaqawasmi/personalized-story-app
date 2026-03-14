@@ -6,18 +6,13 @@ import { DraftSuggestion, CreateSuggestionInput } from "../models/draftSuggestio
 import { createSuggestionForDraft } from "../services/draftSuggestion.service";
 import { generateImagePromptSuggestion } from "../services/imagePromptSuggestion.service";
 
-/**
- * Extend Express Request to include user from auth middleware
- */
-interface AuthenticatedRequest extends Request {
-  user?: { uid: string };
-}
+// Note: req.user is already typed globally by auth.middleware.ts
 
 /**
  * Create a new AI suggestion for a draft
  * POST /api/story-drafts/:draftId/suggestions
  */
-export const createSuggestion = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const createSuggestion = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
     const userId = req.user?.uid;
@@ -160,7 +155,7 @@ export const createSuggestion = async (req: AuthenticatedRequest, res: Response)
  * List suggestions for a draft
  * GET /api/story-drafts/:draftId/suggestions
  */
-export const listSuggestions = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const listSuggestions = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
     const statusFilter = req.query.status as string | undefined;
@@ -248,7 +243,7 @@ export const listSuggestions = async (req: AuthenticatedRequest, res: Response):
  * Accept a suggestion (apply it to the draft)
  * POST /api/story-drafts/:draftId/suggestions/:suggestionId/accept
  */
-export const acceptSuggestion = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const acceptSuggestion = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId, suggestionId } = req.params;
     const userId = req.user?.uid;
@@ -422,7 +417,7 @@ export const acceptSuggestion = async (req: AuthenticatedRequest, res: Response)
  * Reject a suggestion
  * POST /api/story-drafts/:draftId/suggestions/:suggestionId/reject
  */
-export const rejectSuggestion = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const rejectSuggestion = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId, suggestionId } = req.params;
     const userId = req.user?.uid;
@@ -510,7 +505,7 @@ export const rejectSuggestion = async (req: AuthenticatedRequest, res: Response)
  * Generate an AI suggestion for aligning an image prompt with story text
  * POST /api/story-drafts/:draftId/pages/:pageNumber/image-prompt-suggestion
  */
-export const generateImagePromptSuggestionEndpoint = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const generateImagePromptSuggestionEndpoint = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId, pageNumber } = req.params;
     const userId = req.user?.uid;

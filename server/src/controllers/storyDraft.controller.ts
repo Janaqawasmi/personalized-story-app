@@ -8,19 +8,14 @@ import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
 import { loadWritingRules } from "../services/ragWritingRules.service";
 import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
+import { AuditTrail } from "../services/auditTrail.service";
 
-/**
- * Extend Express Request to include user from auth middleware
- */
-interface AuthenticatedRequest extends Request {
-  user?: { uid: string };
-}
+// Note: req.user is already typed globally by auth.middleware.ts
+// No need for local Request interface
 
 /**
  * List all generated drafts (READ-ONLY)
  * GET /api/story-drafts
- * 
- * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
 export const listDrafts = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -78,7 +73,6 @@ export const listDrafts = async (_req: Request, res: Response): Promise<void> =>
  * Get a story draft by ID (READ-ONLY)
  * GET /api/story-drafts/:draftId
  * 
- * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
 export const getDraftById = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -92,15 +86,6 @@ export const getDraftById = async (req: Request, res: Response): Promise<void> =
       });
       return;
     }
-
-    // TODO: AUTH - Re-introduce authentication check when auth middleware is added
-    // if (!req.user || !req.user.uid) {
-    //   res.status(401).json({
-    //     success: false,
-    //     error: "Authentication required",
-    //   });
-    //   return;
-    // }
 
     // Fetch draft from Firestore
     const draftDoc = await firestore.collection("storyDrafts").doc(draftId).get();
@@ -156,11 +141,11 @@ export const getDraftById = async (req: Request, res: Response): Promise<void> =
  * POST /api/admin/story-briefs/:briefId/generate-draft
  * 
  * TODO: Add idempotency protection for generate-draft
- * TODO: AUTH - Re-introduce authentication middleware to extract req.user.uid
  */
 export const generateDraftFromBrief = async (req: Request, res: Response): Promise<void> => {
+  const { briefId } = req.params; // Extract early so it's available in catch block
+  
   try {
-    const { briefId } = req.params;
     const input = req.body as GenerateDraftInput;
 
     // Validate briefId
@@ -172,17 +157,26 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
 
-    // TODO: AUTH - Re-introduce authentication check when auth middleware is added
-    // if (!req.user || !req.user.uid) {
-    //   res.status(401).json({
-    //     success: false,
-    //     error: "Authentication required",
-    //   });
-    //   return;
-    // }
+    // The approved contract is already loaded by the guard middleware
+    const approvedContract = req.approvedContract;
 
-    // TODO: AUTH - Replace with req.user.uid when authentication is implemented
-    const createdBy = "system_specialist";
+    // Log generation start
+    if (req.user) {
+      await AuditTrail.log({
+        action: "generation.started",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "storyDraft",
+        resourceId: briefId,
+        relatedResourceId: briefId,
+        metadata: { rulesVersionUsed: approvedContract?.rulesVersionUsed },
+      });
+    }
+
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const createdBy = req.user.uid;
 
     // Validate input
     if (!input.length || !input.tone) {
@@ -303,6 +297,17 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
         updatedAt: admin.firestore.Timestamp.now(),
       });
 
+      // Log generation completion
+      if (req.user) {
+        await AuditTrail.log({
+          action: "generation.completed",
+          actor: AuditTrail.actorFromRequest(req.user),
+          resourceType: "storyDraft",
+          resourceId: draftId,
+          relatedResourceId: briefId,
+        });
+      }
+
       res.status(201).json({
       success: true,
         draftId,
@@ -347,10 +352,32 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       
       await briefRef.update(briefUpdateData);
 
+      // Log generation failure
+      if (req.user) {
+        await AuditTrail.log({
+          action: "generation.failed",
+          actor: AuditTrail.actorFromRequest(req.user),
+          resourceType: "storyDraft",
+          resourceId: briefId,
+          metadata: { error: generationError.message },
+        });
+      }
+
       throw generationError;
     }
   } catch (error: any) {
     console.error("Error generating draft:", error);
+
+    // Log generation failure (if not already logged above)
+    if (req.user && briefId && !error.message?.includes("Cannot generate draft") && !error.message?.includes("not found")) {
+      await AuditTrail.log({
+        action: "generation.failed",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "storyDraft",
+        resourceId: briefId,
+        metadata: { error: error.message },
+      });
+    }
 
     // Check if it's a conflict error (status not "created")
     if (error.message?.includes("Cannot generate draft")) {
@@ -381,9 +408,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
 /**
  * Extend Express Request to include user from auth middleware
  */
-interface AuthenticatedRequest extends Request {
-  user?: { uid: string };
-}
+// Note: req.user is already typed globally by auth.middleware.ts
 
 /**
  * Enter edit mode for a draft
@@ -392,7 +417,7 @@ interface AuthenticatedRequest extends Request {
  * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
  * but does not change draft status. Status only changes when edits are saved.
  */
-export const enterEditMode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const enterEditMode = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -440,7 +465,7 @@ export const enterEditMode = async (req: AuthenticatedRequest, res: Response): P
  * NOTE: Edit mode is now a UI-only state. This endpoint exists for compatibility
  * but does not change draft status. Status reflects content revisions, not UI mode.
  */
-export const cancelEditMode = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const cancelEditMode = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -487,7 +512,7 @@ export const cancelEditMode = async (req: AuthenticatedRequest, res: Response): 
  * Saves edits to a draft. Allowed if status === "generated" or "editing".
  * Status changes to "editing" (meaning "revised") when first saved from "generated".
  */
-export const updateDraft = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const updateDraft = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
     const updateData = req.body as {
@@ -512,7 +537,11 @@ export const updateDraft = async (req: AuthenticatedRequest, res: Response): Pro
     }
 
     // Get user ID from authentication middleware
-    const userId = req.user?.uid || "system_specialist";
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const userId = req.user.uid;
 
     const draftRef = firestore.collection("storyDrafts").doc(draftId);
     const draftDoc = await draftRef.get();
@@ -613,6 +642,21 @@ export const updateDraft = async (req: AuthenticatedRequest, res: Response): Pro
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
+    // Log draft edit to audit trail
+    if (req.user) {
+      await AuditTrail.log({
+        action: "brief.updated",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "storyDraft",
+        resourceId: draftId,
+        relatedResourceId: draftData.briefId,
+        metadata: {
+          revisionCount: currentRevisionCount + 1,
+          status: newStatus,
+        },
+      });
+    }
+
     res.status(200).json({
       success: true,
       status: newStatus,
@@ -635,7 +679,7 @@ export const updateDraft = async (req: AuthenticatedRequest, res: Response): Pro
  * Approves a draft, making it immutable and creating a StoryTemplate.
  * Only allowed if status === "editing" OR "generated"
  */
-export const approveDraft = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+export const approveDraft = async (req: Request, res: Response): Promise<void> => {
   try {
     const { draftId } = req.params;
 
@@ -648,7 +692,11 @@ export const approveDraft = async (req: AuthenticatedRequest, res: Response): Pr
     }
 
     // Get user ID from authentication middleware
-    const approvedBy = req.user?.uid || "system_specialist";
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Authentication required" });
+      return;
+    }
+    const approvedBy = req.user.uid;
 
     const draftRef = firestore.collection("storyDrafts").doc(draftId);
     const draftDoc = await draftRef.get();
@@ -744,6 +792,35 @@ export const approveDraft = async (req: AuthenticatedRequest, res: Response): Pr
         approvedBy: approvedBy,
       });
     });
+
+    // Get template ID created for this draft (after transaction completes)
+    const templatesSnapshot = await firestore
+      .collection("story_templates")
+      .where("draftId", "==", draftId)
+      .limit(1)
+      .get();
+    const templateId = templatesSnapshot.empty || templatesSnapshot.docs.length === 0 || !templatesSnapshot.docs[0] ? null : templatesSnapshot.docs[0].id;
+
+    // Log draft approval to audit trail
+    if (req.user) {
+      const draftDoc = await draftRef.get();
+      const draftData = draftDoc.exists ? (draftDoc.data() as StoryDraft) : null;
+      const metadata: Record<string, unknown> = {
+        action: "draft_approved_and_template_created",
+        approvedBy: req.user.uid,
+      };
+      if (templateId) {
+        metadata.templateId = templateId;
+      }
+      await AuditTrail.log({
+        action: "generation.completed",
+        actor: AuditTrail.actorFromRequest(req.user),
+        resourceType: "storyDraft",
+        resourceId: draftId,
+        ...(draftData?.briefId && { relatedResourceId: draftData.briefId }),
+        metadata,
+      });
+    }
 
     res.status(200).json({
       success: true,
