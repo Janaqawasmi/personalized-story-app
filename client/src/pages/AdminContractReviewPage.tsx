@@ -475,8 +475,8 @@ const AdminContractReviewPage: React.FC = () => {
   };
 
   const handleProceedToGeneration = () => {
-    // Only navigate if contract is approved (belt-and-suspenders with backend guard)
-    if (contract?.status === "approved") {
+    // Only navigate if contract is approved and not expired (belt-and-suspenders with backend guard)
+    if (contract?.status === "approved" && !isApprovalExpired) {
       navigate(`/specialist/generate-draft?briefId=${briefId}`);
     }
   };
@@ -493,6 +493,15 @@ const AdminContractReviewPage: React.FC = () => {
   // A contract cannot be approved if it has errors, regardless of status
   // All contracts on this page are persisted (auto-built if needed)
   const canApprove = isApprovable && !hasErrors;
+
+  // Check if approval is expired
+  const isApprovalExpired = (() => {
+    if (!isApproved || !contract?.approval?.expiresAt) return false;
+    const expiresAt = normalizeTimestamp(contract.approval.expiresAt);
+    if (!expiresAt) return false;
+    const expiryDate = new Date(expiresAt);
+    return expiryDate.getTime() < Date.now();
+  })();
 
   // Override message helper
   const overrideMessage = contract && contract.overrideUsed && contract.overrideDetails?.copingToolId
@@ -604,15 +613,64 @@ const AdminContractReviewPage: React.FC = () => {
 
       {/* Approval status banner */}
       {isApproved && contract.approval && (
-        <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 3 }}>
-          <Typography variant="subtitle2">
-            Approved by {contract.approval.decidedByName}
-          </Typography>
-          <Typography variant="body2">
-            {formatTimestamp(normalizeTimestamp(contract.approval.decidedAt))}
-            {contract.approval.notes && ` — "${contract.approval.notes}"`}
-          </Typography>
-        </Alert>
+        <>
+          {isApprovalExpired ? (
+            <Alert severity="warning" icon={<CancelIcon />} sx={{ mb: 3 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Approval Expired
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                This approval expired on {formatTimestamp(normalizeTimestamp(contract.approval.expiresAt))}.
+                The contract must be re-approved before generation can proceed.
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={async () => {
+                  // Re-approve: Use the standard approve endpoint which handles expired approvals
+                  try {
+                    setApproving(true);
+                    setError(null);
+                    setSuccessMessage(null);
+                    const result = await apiApproveContract(briefId!, approvalNotes || undefined);
+                    setContract((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            status: "approved",
+                            approval: result.approval,
+                          }
+                        : prev
+                    );
+                    setSuccessMessage("Contract re-approved successfully.");
+                    setTimeout(() => setSuccessMessage(null), 4000);
+                    await refreshAuditHistory();
+                  } catch (err: any) {
+                    setError(err.message || "Failed to re-approve contract");
+                  } finally {
+                    setApproving(false);
+                  }
+                }}
+                disabled={approving || hasErrors}
+              >
+                {approving ? "Re-approving..." : "Re-approve Contract"}
+              </Button>
+            </Alert>
+          ) : (
+            <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 3 }}>
+              <Typography variant="subtitle2">
+                Approved by {contract.approval.decidedByName}
+              </Typography>
+              <Typography variant="body2">
+                {formatTimestamp(normalizeTimestamp(contract.approval.decidedAt))}
+                {contract.approval.expiresAt && (
+                  <> — Expires: {formatTimestamp(normalizeTimestamp(contract.approval.expiresAt))}</>
+                )}
+                {contract.approval.notes && ` — "${contract.approval.notes}"`}
+              </Typography>
+            </Alert>
+          )}
+        </>
       )}
 
       {isRejected && contract.approval && (
@@ -1018,7 +1076,7 @@ const AdminContractReviewPage: React.FC = () => {
               </>
             )}
 
-            {isApproved && (
+            {isApproved && !isApprovalExpired && (
               <Stack spacing={2}>
                 <Alert severity="success">
                   This contract is approved. You can proceed to story generation.

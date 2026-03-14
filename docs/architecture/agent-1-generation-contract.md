@@ -6,6 +6,8 @@ Agent 1, the **Generation Contract Builder**, is the foundational safety and val
 
 The agent serves as a deterministic translation layer between the specialist's domain knowledge (expressed through Story Briefs) and the generative AI system's operational parameters. It ensures that every story generation request is validated, constrained, and traceable before any AI model is invoked.
 
+**Critical Safety Constraint:** No story generation can occur without specialist approval. Agent 1 builds contracts that must be reviewed and explicitly approved by a specialist before any story generation is permitted. This approval gate is enforced at the backend API level and cannot be bypassed.
+
 ## Purpose
 
 Agent 1 exists to:
@@ -19,6 +21,8 @@ Agent 1 exists to:
 4. **Enable Traceability**: Maintain immutable records of which rules were applied, which versions were used, and which overrides were exercised.
 
 5. **Support Human Oversight**: Provide specialists with transparent, reviewable contracts that can be modified before finalization.
+
+6. **Enforce Approval Gate**: Require explicit specialist approval before any story generation can proceed, with approval expiry and rules version currency checks.
 
 ## Responsibilities
 
@@ -141,9 +145,27 @@ A Generation Contract is a complete, executable specification containing:
 #### Contract Metadata
 - **briefId**: Reference to the source Story Brief
 - **rulesVersionUsed**: Exact version of clinical rules applied (e.g., `"v1"`)
-- **status**: `"valid"` or `"invalid"` (invalid contracts cannot proceed)
+- **status**: `"invalid"`, `"valid"`, `"approved"`, or `"rejected"` (see Status Lifecycle below)
 - **createdAt**: Timestamp of contract creation
 - **updatedAt**: Timestamp of last modification
+- **approval**: Approval record (if approved) containing:
+  - `decision`: `"approved"` or `"rejected"`
+  - `decidedBy`: UID of approving/rejecting specialist
+  - `decidedByName`: Display name of specialist
+  - `decidedByEmail`: Email of specialist
+  - `decidedAt`: Timestamp of approval/rejection decision
+  - `expiresAt`: Timestamp when approval expires (default: 7 days from approval)
+  - `notes`: Optional approval notes
+  - `revokedAt`: Timestamp if approval was revoked (e.g., due to override)
+  - `revokedReason`: Reason for revocation
+- **previousApprovals**: Array of all previous approval/rejection records (preserves full history)
+- **overrideCount**: Number of times override has been applied to this contract
+- **overrideHistory**: Array of override records, each containing:
+  - `copingToolId`: Overridden tool ID
+  - `reason`: Optional override reason
+  - `appliedAt`: Timestamp of override
+  - `appliedBy`: UID of specialist who applied override
+  - `appliedByName`: Display name of specialist
 
 #### Therapeutic Context
 - **topic**: Resolved topic label/key
@@ -208,13 +230,46 @@ Array of patterns to avoid, derived from:
   - `errorCount`: Number of errors
   - `warningCount`: Number of warnings
 
+## Contract Status Lifecycle
+
+Contracts progress through a defined state machine:
+
+```
+invalid → valid → approved → [generation allowed]
+                ↓
+            rejected → [must rebuild] → valid (archived to history)
+```
+
+**Status Definitions:**
+- `invalid`: Contract has validation errors, cannot be approved
+- `valid`: Contract built successfully, awaiting specialist review
+- `approved`: Specialist approved — generation is allowed (subject to expiry and rules version checks)
+- `rejected`: Specialist rejected — generation is blocked, contract must be rebuilt
+
+**Status Transitions:**
+- `invalid` → `valid`: Contract rebuilt with no errors
+- `valid` → `approved`: Specialist explicitly approves via approval endpoint
+- `valid` → `rejected`: Specialist explicitly rejects via rejection endpoint
+- `approved` → `valid`: Override applied to approved contract (revokes approval, requires re-approval)
+- `rejected` → `valid`: Contract rebuilt after rejection (previous rejected contract archived to history subcollection)
+
+**Note:** The `pending_review` status was removed as it was an undefined alias for `valid`. All contracts awaiting review use `valid` status.
+
 ## UI Contract
 
 The UI Contract defines how Generation Contract data is presented to specialists in the Contract Review interface. It specifies which fields are displayed, their visibility, editability, formatting rules, and organizational structure.
 
 ### Contract Review Page Structure
 
-The Contract Review page (`/specialist/story-briefs/:briefId/contract`) displays the contract in the following sections:
+The Contract Review page (`/specialist/story-briefs/:briefId/contract`) automatically builds and persists contracts if they don't exist. There is no "preview mode" — all contracts displayed are persisted in Firestore.
+
+**Auto-Build Behavior:**
+- When the page loads, it attempts to fetch a persisted contract
+- If no contract exists, the system automatically builds and persists one
+- The specialist sees a "Building contract..." loading state during auto-build
+- Once built, the contract is immediately available for review
+
+The page displays the contract in the following sections:
 
 #### 1. Validation Alerts (Top of Page)
 
@@ -316,7 +371,23 @@ The Contract Review page (`/specialist/story-briefs/:briefId/contract`) displays
   - Display info alert: "Override is currently active: {formatted tool name}"
   - Format tool name using `formatDisplayText()`
 
-#### 5. Action Buttons (Full Width)
+#### 5. Approval Status Banner (Full Width)
+
+**Display Rules:**
+- **Layout**: Alert component at top of contract display
+- **Visibility**: Always visible when contract has approval status
+
+**Banners:**
+- **Approved**: Green success alert showing approver name, approval date, and expiry date
+- **Rejected**: Red error alert showing rejection reason and rejector name
+- **Stale Rules Version**: Yellow warning alert if contract's rules version is outdated (not yet approved)
+
+**Stale Rules Warning:**
+- Appears when `contract.rulesVersionUsed !== currentDefaultVersion` and `contract.status !== "approved"`
+- Includes "Rebuild Contract" button to regenerate with latest rules
+- Rebuild preserves brief data but updates contract with new rules version
+
+#### 6. Action Buttons (Full Width)
 
 **Display Rules:**
 - **Layout**: Stack of buttons at bottom, right-aligned
@@ -327,11 +398,46 @@ The Contract Review page (`/specialist/story-briefs/:briefId/contract`) displays
 | Button | Label | Variant | Editability | Disabled Condition |
 |--------|-------|---------|-------------|-------------------|
 | Back | "Back" | Outlined | Action (navigates back) | Never disabled |
-| Confirm & Continue | "Confirm & Continue" | Contained (primary) | Action (navigates to generate draft page) | Disabled if `contract.errors.length > 0` |
+| Approve | "Approve" | Contained (primary) | Action (calls approval API) | Disabled if `!canApprove` |
+| Reject | "Reject" | Outlined (error) | Action (opens rejection dialog) | Disabled if `!canApprove` |
+| Proceed to Generation | "Proceed to Generation" | Contained (primary) | Action (navigates to generate draft page) | Only visible if `contract.status === "approved"` |
+
+**Approval Conditions (`canApprove`):**
+```typescript
+const canApprove =
+  contract?.status === "valid" &&
+  !hasErrors; // hasErrors = contract.errors.length > 0
+```
 
 **Navigation:**
 - Back button: `navigate(-1)` (browser back)
-- Confirm & Continue button: Navigates to `/specialist/generate-draft?briefId={briefId}`
+- Proceed to Generation button: Navigates to `/specialist/generate-draft?briefId={briefId}` (only after approval)
+
+#### 7. Audit History Section (Collapsible)
+
+**Display Rules:**
+- **Layout**: Collapsible section showing paginated audit trail
+- **Visibility**: Always visible (collapsed by default)
+- **Pagination**: Cursor-based pagination, loads 20 entries at a time
+
+**Audit Events Displayed:**
+- `brief.created`: Brief creation with metadata
+- `contract.built`: Contract build with status and rules version
+- `contract.previewed`: Contract preview (if used elsewhere)
+- `contract.viewed`: Contract view by specialist
+- `contract.override_applied`: Override application with tool ID and reason
+- `contract.approval_revoked`: Approval revocation due to override
+- `contract.approved`: Contract approval with approver and notes
+- `contract.rejected`: Contract rejection with reason
+- `generation.blocked`: Generation blocked with structured reason code
+- `generation.started`: Generation initiation
+- `generation.completed`: Successful generation
+- `generation.failed`: Generation failure with error
+
+**Display Format:**
+- Each entry shows: Action name, Actor (name and role), Timestamp (formatted), Metadata (JSON)
+- Entries sorted by timestamp (newest first)
+- "Load More" button appears if more entries are available
 
 ### Field Formatting Functions
 
@@ -364,82 +470,219 @@ The following Generation Contract fields are **not** displayed in the Contract R
 
 - **Contract Metadata**:
   - `briefId` (used internally for API calls)
-  - `rulesVersionUsed` (not shown to specialist)
-  - `status` (used internally to disable buttons)
-  - `createdAt` (not shown)
-  - `updatedAt` (not shown)
-
-- **Therapeutic Context**:
-  - `caregiverPresence` (not shown in contract review, may be in brief summary)
+  - `status` (used internally to disable buttons and control visibility)
+  - `createdAt` (displayed in metadata section when expanded)
+  - `updatedAt` (displayed in metadata section when expanded)
 
 - **Length Budget**:
   - `targetWords` (optional field, not displayed)
 
-- **Style Rules**:
-  - `styleRules.maxSentenceWords` (not displayed)
-  - `styleRules.dialoguePolicy` (not displayed)
-  - `styleRules.abstractConcepts` (not displayed)
-  - `styleRules.emotionalTone` (not displayed, but may be in brief summary)
-  - `styleRules.languageComplexity` (not displayed, but may be in brief summary)
-
 - **Ending Contract**:
-  - `endingContract.mustInclude` (not displayed)
-  - `endingContract.mustAvoid` (not displayed, but merged into `contract.mustAvoid`)
-  - `endingContract.requiresEmotionalStability` (not displayed)
-  - `endingContract.requiresSuccessMoment` (not displayed)
-  - `endingContract.requiresSafeClosure` (not displayed)
+  - `endingContract.mustAvoid` (not displayed separately, but ending-specific avoidances are merged into global `contract.mustAvoid`)
 
 - **Override Information**:
-  - `overrideDetails.reason` (not displayed separately, only used when applying new override)
-
-- **Key Message**:
-  - `keyMessage` (not displayed in contract review)
+  - `overrideDetails.reason` (not displayed separately in override status, only shown when applying new override)
 
 - **Validation Summary**:
-  - `validationSummary` (not displayed, but error/warning counts shown in alert headers)
+  - `validationSummary` (not displayed as object, but error/warning counts shown in alert headers)
+
+**Note:** The following fields **ARE** displayed in the current UI implementation (contrary to earlier documentation):
+- `rulesVersionUsed` — displayed in metadata section
+- `caregiverPresence` — displayed in brief summary
+- `styleRules.maxSentenceWords` — displayed in Style Rules section
+- `styleRules.dialoguePolicy` — displayed in Style Rules section
+- `styleRules.abstractConcepts` — displayed in Style Rules section
+- `styleRules.emotionalTone` — displayed in Style Rules section
+- `styleRules.languageComplexity` — displayed in Style Rules section
+- `endingContract.mustInclude` — displayed in Ending Requirements section
+- `endingContract.requiresEmotionalStability` — displayed as chip in Ending Requirements section
+- `endingContract.requiresSuccessMoment` — displayed as chip in Ending Requirements section
+- `endingContract.requiresSafeClosure` — displayed as chip in Ending Requirements section
+- `keyMessage` — displayed in brief summary if present
 
 ### UI Contract API Endpoints
 
 The UI interacts with the following API endpoints:
 
+#### `GET /api/agent1/contracts/:briefId/full`
+- **Purpose**: Fetch a persisted generation contract from Firestore
+- **Request**: Authenticated (requires Firebase ID token)
+- **Response**: `{ data: GenerationContract }` (with timestamps serialized to ISO strings)
+- **Usage**: Load persisted contract for review page
+- **Returns**: 404 if contract doesn't exist
+
+#### `POST /api/admin/story-briefs/:briefId/build-contract`
+- **Purpose**: Build and persist a generation contract from a story brief
+- **Request**: Authenticated (requires specialist/admin role)
+- **Request Body**: None (uses brief from Firestore)
+- **Response**: `{ data: GenerationContract }` (with timestamps serialized to ISO strings)
+- **Usage**: Auto-build contract when review page loads (if contract doesn't exist)
+- **Audit**: Logs `contract.built` to audit trail
+- **Archiving**: If rebuilding after rejection, archives previous contract to history subcollection
+
 #### `POST /api/agent1/contracts/preview`
 - **Purpose**: Preview a generation contract without saving to Firestore
 - **Request Body**: `{ brief: StoryBrief, briefId?: string }`
 - **Response**: `{ data: GenerationContract }`
-- **Usage**: Load contract for initial display
+- **Usage**: Preview contract in brief creation form (not used in review page)
+- **Audit**: Logs `contract.previewed` to audit trail
 
 #### `POST /api/agent1/contracts/:briefId/override`
 - **Purpose**: Apply coping tool override and regenerate contract
+- **Request**: Authenticated (requires specialist/admin role)
 - **Request Body**: `{ copingToolId: string, reason?: string }`
-- **Response**: `{ data: GenerationContract }` (regenerated contract)
+- **Response**: `{ data: GenerationContract }` (regenerated contract with timestamps serialized)
 - **Usage**: Update contract with specialist override
+- **Validation**: 
+  - Coping tool must exist in clinical rules and be age-compatible
+  - Reason is **required** if contract was previously approved
+- **Approval Revocation**: If contract was approved, approval is revoked and status returns to `"valid"`
+- **Audit**: Logs `contract.override_applied` (and `contract.approval_revoked` if applicable)
+
+#### `POST /api/agent1/contracts/:briefId/approve`
+- **Purpose**: Approve a generation contract (explicit approval gate)
+- **Request**: Authenticated (requires specialist/admin role)
+- **Request Body**: `{ notes?: string }` (optional approval notes)
+- **Response**: `{ data: ApprovalRecord }`
+- **Preconditions**: 
+  - Contract must exist
+  - Contract status must be `"valid"`
+  - Contract must have zero errors
+- **Process**: 
+  - Creates approval record with 7-day expiry (configurable)
+  - Updates contract atomically using Firestore transaction:
+    - Sets `status: "approved"`
+    - Sets `approval: approvalRecord`
+    - Preserves `previousApprovals` array (adds current approval if exists)
+    - Logs `contract.approved` to audit trail in same transaction
+- **Usage**: Specialist explicitly approves contract before generation
+
+#### `POST /api/agent1/contracts/:briefId/reject`
+- **Purpose**: Reject a generation contract
+- **Request**: Authenticated (requires specialist/admin role)
+- **Request Body**: `{ reason: string }` (required rejection reason)
+- **Response**: `{ data: ApprovalRecord }`
+- **Preconditions**: 
+  - Contract must exist
+  - Contract status must be `"valid"`
+  - Rejection reason is **required**
+- **Process**: 
+  - Creates rejection record
+  - Updates contract atomically using Firestore transaction:
+    - Sets `status: "rejected"`
+    - Sets `approval: rejectionRecord`
+    - Preserves `previousApprovals` array
+    - Logs `contract.rejected` to audit trail in same transaction
+- **Usage**: Specialist rejects contract that doesn't meet clinical standards
+
+#### `POST /api/agent1/contracts/:briefId/viewed`
+- **Purpose**: Log when a specialist views a persisted contract
+- **Request**: Authenticated
+- **Request Body**: None
+- **Response**: `{ success: true }`
+- **Audit**: Logs `contract.viewed` to audit trail
+- **Usage**: Called automatically when review page loads a persisted contract
+
+#### `GET /api/agent1/contracts/:briefId/audit-history`
+- **Purpose**: Fetch paginated audit history for a contract/brief
+- **Request**: Authenticated
+- **Query Parameters**: `limit?: number` (default: 20), `cursor?: string` (for pagination)
+- **Response**: `{ entries: AuditEntry[], pagination: { hasMore: boolean, nextCursor?: string, limit: number } }`
+- **Usage**: Load audit history for contract review page
+
+#### `GET /api/agent1/rules/current-version`
+- **Purpose**: Fetch the current default rules version
+- **Request**: Authenticated
+- **Response**: `{ version: string }` (e.g., `"v1"`)
+- **Usage**: Check if contract's rules version is outdated
 
 ### UI Contract Data Flow
 
 1. **Initial Load**:
    - Load Story Brief by ID: `fetchStoryBriefById(briefId)`
-   - Preview Contract: `previewContract(briefData, briefId)`
+   - Attempt to load persisted contract: `fetchFullContract(briefId)`
+   - **If contract doesn't exist:**
+     - Show "Building contract..." loading state
+     - Auto-build contract: `buildContract(briefId)` (persists to Firestore)
+     - Set `autoBuilding = false`
+   - **If contract exists:**
+     - Load contract immediately
+     - Log `contract.viewed` audit event
+   - Check for stale rules version (compare `contract.rulesVersionUsed` with current default)
    - Display contract in UI sections
    - Initialize override UI state from contract
+   - Load audit history (paginated)
 
 2. **Override Application**:
    - User selects coping tool and optionally provides reason
+   - **If contract was previously approved:**
+     - Reason is **required** (backend enforces this)
+     - Approval is revoked automatically
+     - Previous approval is moved to `previousApprovals` array
    - User clicks "Apply Override & Regenerate"
    - Call `applyContractOverride(briefId, { copingToolId, reason })`
+   - Backend:
+     - Validates override tool is age-compatible
+     - If contract was approved: logs `contract.approval_revoked` and sets status to `"valid"`
+     - Updates brief with override
+     - Regenerates contract with new coping tool
+     - Increments `overrideCount`
+     - Adds entry to `overrideHistory` array
+     - Logs `contract.override_applied` to audit trail
    - Update contract state with regenerated contract
    - Refresh UI to show updated contract and override status
+   - Refresh audit history
 
-3. **Contract Confirmation**:
+3. **Contract Approval**:
    - User reviews contract (all sections)
-   - If no errors, "Confirm & Continue" button is enabled
-   - User clicks button → Navigate to generate draft page with `briefId`
+   - If `canApprove` is true, "Approve" button is enabled
+   - User clicks "Approve" → Calls `approveContract(briefId, approvalNotes)`
+   - Backend (atomic transaction):
+     - Validates contract status is `"valid"` and has no errors
+     - Creates approval record with 7-day expiry
+     - Updates contract: `status = "approved"`, sets `approval` field
+     - Preserves `previousApprovals` array (adds current approval if exists)
+     - Logs `contract.approved` to audit trail
+   - Client updates state and shows success message
+   - "Proceed to Generation" button becomes visible
+
+4. **Contract Rejection**:
+   - User clicks "Reject" → Opens rejection dialog
+   - User enters **required** rejection reason
+   - Calls `rejectContract(briefId, reason)`
+   - Backend (atomic transaction):
+     - Validates contract status is `"valid"`
+     - Creates rejection record
+     - Updates contract: `status = "rejected"`, sets `approval` field
+     - Preserves `previousApprovals` array
+     - Logs `contract.rejected` to audit trail
+   - Client updates state and shows rejection message
+   - Contract cannot be approved after rejection (must rebuild)
+
+5. **Rebuild After Rejection**:
+   - When rebuilding a rejected contract:
+     - Previous rejected contract is archived to `generationContracts/{briefId}/history/{historyId}`
+     - New contract is built and saved at `generationContracts/{briefId}`
+     - Status transitions from `rejected` → `valid`
+     - Audit trail preserves full history
+
+6. **Stale Rules Rebuild**:
+   - If rules version is outdated and contract is not yet approved:
+     - Warning banner appears with "Rebuild Contract" button
+     - User clicks button → Calls `buildContract(briefId)` again
+     - Contract is regenerated with current default rules version
+     - Status remains `"valid"` (requires re-approval if previously approved)
 
 ### UI Contract Validation Rules
 
-- **Error Blocking**: Contracts with `status === "invalid"` or `errors.length > 0` cannot be confirmed
-- **Warning Non-Blocking**: Contracts with only warnings can be confirmed
-- **Override Validation**: Override coping tool must exist in `contract.allowedCopingTools` (validated server-side)
-- **Required Fields**: Coping tool selection is required when applying override (client-side validation)
+- **Error Blocking**: Contracts with `status === "invalid"` or `errors.length > 0` cannot be approved
+- **Warning Non-Blocking**: Contracts with only warnings can be approved
+- **Override Validation**: Override coping tool must exist in clinical rules and be age-compatible (validated server-side)
+- **Required Fields**: 
+  - Coping tool selection is required when applying override (client-side validation)
+  - Override reason is **required** when overriding a previously approved contract (backend enforced)
+- **Approval Preconditions**: Contract must be `status === "valid"` with zero errors (backend enforced)
+- **Rejection Precondition**: Rejection reason is **required** (backend enforced)
 
 ## Internal Processing Flow
 
@@ -548,17 +791,30 @@ The UI interacts with the following API endpoints:
    - If errors exist: `status = "invalid"`
    - If no errors: `status = "valid"`
 
-### Step 11: Persistence (Optional)
-1. If `skipSave` option is false (default):
-   - Save contract to Firestore at `generationContracts/{briefId}`
-   - Use `set()` with `merge: false` to overwrite existing contracts
-   - Set `updatedAt` timestamp
-2. If `skipSave` is true (preview mode):
-   - Return contract without saving
+### Step 11: Persistence
+1. **Contract Building** (from `buildContract` endpoint):
+   - Always saves contract to Firestore at `generationContracts/{briefId}`
+   - **If rebuilding after rejection or approval:**
+     - Archives previous contract to `generationContracts/{briefId}/history/{historyId}`
+     - Includes `archivedAt` timestamp and `archivedReason`:
+       - `"rebuilt_after_rejection"` for rejected contracts
+       - `"rebuilt_after_outdated_rules"` for approved contracts (when rules version is outdated)
+   - Uses `set()` with `merge: false` to overwrite existing contracts
+   - Sets `createdAt` and `updatedAt` timestamps
+   - Reads contract back from Firestore to get resolved timestamps
+   - Serializes Firestore Timestamps to ISO strings for API response
+   - Logs `contract.built` to audit trail
+2. **Contract Preview** (from `previewContract` endpoint):
+   - Does NOT save to Firestore
+   - Returns contract in memory only
+   - Logs `contract.previewed` to audit trail
+   - Used for initial contract display in brief creation form (not review page)
 
 ### Step 12: Return Contract
 1. Return complete Generation Contract object
-2. Downstream systems check `status` field before proceeding
+2. All timestamps serialized to ISO strings for API consistency
+3. Downstream systems check `status` field before proceeding
+4. Generation endpoints enforce approval gate (see Generation Guard section)
 
 ## Data Models
 
@@ -679,39 +935,59 @@ Currently, Agent 1 supports one type of override:
 
 ### Override Workflow
 
-1. **Contract Preview**: Specialist creates a Story Brief and is automatically navigated to the Contract Review page.
+1. **Contract Auto-Build**: Specialist creates a Story Brief and is automatically navigated to the Contract Review page. The system automatically builds and persists the contract if it doesn't exist.
 
 2. **Contract Display**: The system displays the generated contract, including:
    - Automatically selected coping tools (from goal mappings, filtered by age)
    - All contract parameters (length budget, style rules, required elements, etc.)
    - Any warnings or errors
+   - Override history (if any previous overrides were applied)
 
 3. **Override Selection**: Specialist can:
    - View all available coping tools for the age band
    - Select an alternative coping tool (even if not in goal mapping)
-   - Optionally provide a reason for the override (can be empty)
+   - **If contract was previously approved:** Reason is **required**
+   - **If contract was never approved:** Reason is optional (can be empty)
 
 4. **Override Application**: When specialist applies override:
    - System validates override (tool exists and is age-compatible)
+   - **If contract was previously approved:**
+     - Approval is revoked (status returns to `"valid"`)
+     - Previous approval is moved to `previousApprovals` array with `revokedAt` and `revokedReason`
+     - Logs `contract.approval_revoked` to audit trail
    - If valid: override is saved to Story Brief's `overrides` field
    - Contract is regenerated with override applied
-   - Override metadata (tool ID, reason, timestamp) is preserved in contract
+   - `overrideCount` is incremented
+   - Override entry is added to `overrideHistory` array (includes tool ID, reason, timestamp, actor)
+   - Override metadata (tool ID, reason, timestamp) is preserved in contract's `overrideDetails`
+   - Logs `contract.override_applied` to audit trail
 
 5. **Override Persistence**: Override is stored in:
    - Story Brief: `overrides.copingToolId` and `overrides.reason`
-   - Generation Contract: `overrideDetails.copingToolId` and `overrideDetails.reason`
+   - Generation Contract: 
+     - `overrideDetails.copingToolId` and `overrideDetails.reason`
+     - `overrideCount` (total number of overrides)
+     - `overrideHistory` (array of all override records)
 
 ### Override Validation
 
 - **Existence Check**: Override tool must exist in clinical rules
 - **Age Compatibility**: Override tool must be allowed for the brief's age band
 - **Invalid Override Handling**: If override is invalid, a warning is added and the override is ignored (contract uses default tool selection)
+- **Reason Requirement**: If contract was previously approved, override reason is **required** (backend enforced)
 
 ### Override Metadata
 
-- **Reason Preservation**: Override reasons are preserved exactly as provided, including empty strings. This ensures audit trail completeness.
-- **Timestamp Tracking**: Override timestamps are recorded in both brief and contract for audit purposes.
-- **Version Traceability**: Contracts regenerated with overrides maintain the same rules version as the original contract (unless explicitly changed).
+- **Reason Preservation**: Override reasons are preserved exactly as provided, including empty strings (for first-time overrides). For post-approval overrides, reason is required.
+- **Timestamp Tracking**: Override timestamps are recorded using `admin.firestore.Timestamp.now()` (cannot use `FieldValue.serverTimestamp()` inside arrays)
+- **History Tracking**: All overrides are preserved in `overrideHistory` array for full audit trail
+- **Version Traceability**: Contracts regenerated with overrides maintain the same rules version as the original contract (unless explicitly changed)
+- **Approval Revocation**: Overrides on approved contracts automatically revoke approval, requiring re-approval
+
+### Override Governance
+
+- **Override Count Tracking**: System tracks `overrideCount` to identify contracts with multiple overrides
+- **Future Enhancement**: After a configurable threshold (e.g., 3 overrides), system could require supervisor co-approval or flag for clinical review
 
 ## Versioning Strategy
 
@@ -751,6 +1027,72 @@ This enables:
 - **Default Updates**: System administrators can update default version in `settings/rules`
 - **Contract Regeneration**: Contracts can be regenerated with new rules versions if needed (requires explicit version specification)
 
+## Approval Workflow and Generation Guard
+
+### Approval Gate
+
+**Critical Constraint:** No story generation can occur without specialist approval. This is enforced at multiple layers:
+
+1. **Backend API Enforcement**: The `generate-draft` endpoint is protected by `requireApprovedContract` middleware
+2. **Contract Status Check**: Contract must have `status === "approved"`
+3. **Rules Version Currency**: Contract's `rulesVersionUsed` must match current default version
+4. **Approval Expiry**: Approval must not be expired (`approval.expiresAt` must be in the future)
+5. **Error Check**: Contract must have zero errors
+
+### Approval Process
+
+1. **Contract Build**: Contract is automatically built when specialist navigates to review page (if not already persisted)
+2. **Contract Review**: Specialist reviews contract details, warnings, and errors
+3. **Approval Decision**: Specialist explicitly approves or rejects via API endpoints
+4. **Approval Record**: Approval is recorded with:
+   - Approver identity (UID, name, email)
+   - Approval timestamp
+   - Expiry timestamp (default: 7 days from approval)
+   - Optional approval notes
+5. **Status Transition**: Contract status changes from `"valid"` → `"approved"` (or `"rejected"`)
+6. **Audit Trail**: Approval/rejection is logged to immutable audit trail
+
+### Generation Guard Middleware
+
+The `requireApprovedContract` middleware enforces the approval gate with the following checks:
+
+1. **Contract Existence**: Contract must exist in Firestore
+2. **Status Check**: `contract.status === "approved"`
+3. **Error Check**: `contract.errors.length === 0`
+4. **Rules Version Currency**: `contract.rulesVersionUsed === currentDefaultVersion`
+5. **Approval Expiry**: `contract.approval.expiresAt > now()`
+
+**Blocking Reasons (Structured):**
+- `CONTRACT_NOT_FOUND`: Contract doesn't exist
+- `CONTRACT_NOT_APPROVED`: Contract status is not `"approved"`
+- `CONTRACT_HAS_ERRORS`: Contract has validation errors
+- `CONTRACT_RULES_OUTDATED`: Contract's rules version doesn't match current default
+- `CONTRACT_APPROVAL_EXPIRED`: Approval has expired
+
+If any check fails:
+- Logs `generation.blocked` to audit trail with structured reason code
+- Returns 403 Forbidden with specific error message
+- Generation is blocked
+
+### Approval Expiry
+
+- **Default Expiry**: 7 days from approval (configurable)
+- **Expiry Check**: Generation guard verifies `approval.expiresAt` is in the future
+- **Expired Approval**: Contract status remains `"approved"` but generation is blocked until re-approved
+- **Re-approval**: Specialist must approve again to extend validity
+
+### Previous Approvals Tracking
+
+- **Full History**: All approval/rejection decisions are preserved in `previousApprovals` array
+- **Revocation Tracking**: When approval is revoked (e.g., due to override), the previous approval record includes `revokedAt` and `revokedReason`
+- **Audit Compliance**: Complete decision history is available on the contract document itself, not only in audit trail
+
+### Contract Archiving
+
+- **Rejected Contracts**: When a rejected contract is rebuilt, the previous rejected contract is archived to `generationContracts/{briefId}/history/{historyId}`
+- **Archive Metadata**: Includes `archivedAt` timestamp and `archivedReason: "rebuilt_after_rejection"`
+- **History Preservation**: Ensures rejected contracts are not lost when rebuilding
+
 ## Why This Agent Is Critical to System Safety
 
 Agent 1 serves as the **safety gatekeeper** for the entire DAMMAH story generation system. Its critical role cannot be overstated:
@@ -764,10 +1106,13 @@ By enforcing clinical rules and safety constraints **before** any AI model is in
 
 ### 2. Enables Human Oversight
 
-The contract review workflow allows specialists to:
+The contract review and approval workflow allows specialists to:
 - Verify that automated rule application matches clinical judgment
 - Override automated decisions when clinical expertise requires it
 - Maintain full visibility into what constraints will be applied to story generation
+- **Explicitly approve contracts before any story generation occurs**
+- Review and reject contracts that don't meet clinical standards
+- Track full approval history and override decisions
 
 ### 3. Ensures Reproducibility and Auditability
 
@@ -775,6 +1120,9 @@ By versioning rules and contracts:
 - Identical briefs produce identical contracts (deterministic behavior)
 - All decisions are traceable to specific rules versions
 - Regulatory compliance is supported through complete audit trails
+- **All approval/rejection decisions are immutably logged**
+- **Override history is preserved with full metadata**
+- **Contract archiving preserves rejected contract documents**
 
 ### 4. Prevents Downstream Failures
 
@@ -785,9 +1133,13 @@ By validating inputs and rules completeness:
 
 ### 5. Supports Clinical Governance
 
-The override system enables:
+The approval and override system enables:
 - Specialists to exercise clinical judgment when automated rules are insufficient
 - Override decisions to be documented and audited
+- **Explicit approval gate ensures no generation occurs without specialist review**
+- **Approval expiry ensures contracts are re-reviewed periodically**
+- **Rules version currency checks ensure contracts use current clinical guidelines**
+- **Override count tracking identifies contracts requiring additional review**
 - System to learn from override patterns (potential future enhancement)
 
 ### 6. Maintains System Integrity
@@ -811,8 +1163,43 @@ By providing clear error and warning signals:
 - Specialists are alerted to potential problems (warnings)
 - Invalid contracts are blocked from proceeding (errors)
 
+## Atomic Operations and Data Consistency
+
+### Firestore Transactions
+
+Critical state changes use Firestore transactions to ensure atomicity:
+
+1. **Approval/Rejection**: Contract status update and audit trail logging occur in a single transaction
+   - Prevents scenarios where contract is approved but audit event fails (or vice versa)
+   - Ensures `previousApprovals` array is updated atomically with status change
+
+2. **Override Application**: When overriding an approved contract:
+   - Approval revocation, contract regeneration, and audit logging are coordinated
+   - Previous approval is moved to `previousApprovals` array atomically
+
+3. **Contract Archiving**: When rebuilding after rejection:
+   - Previous contract is archived to history subcollection
+   - New contract is saved to main document
+   - Both operations are coordinated to prevent data loss
+
+### Timestamp Serialization
+
+All API responses serialize Firestore Timestamps to ISO strings for consistent client handling:
+- `createdAt`, `updatedAt`, `decidedAt`, `expiresAt`, `appliedAt`, `revokedAt` are all serialized
+- Client-side `normalizeTimestamp()` helper handles various timestamp formats (Firestore Timestamp objects, ISO strings, Date objects)
+- Ensures consistent display across different data sources
+
+### Audit Trail Immutability
+
+- Audit trail is append-only (no updates or deletes)
+- All audit events are logged with server timestamps
+- Audit entries include structured metadata for querying and analysis
+- Pagination supports cursor-based loading for large audit histories
+
 ## Conclusion
 
 Agent 1 is not merely a validation layer—it is the **foundational safety mechanism** that ensures DAMMAH generates therapeutically appropriate, age-appropriate, and clinically safe stories. Without Agent 1, the system would lack the deterministic constraints, human oversight, and traceability required for a production therapeutic AI system.
 
-The agent's design principles—determinism, traceability, human-in-the-loop oversight, and version control—are essential for building trust with specialists, ensuring regulatory compliance, and maintaining the therapeutic integrity of the DAMMAH platform.
+The agent's design principles—determinism, traceability, human-in-the-loop oversight, version control, and **explicit approval gates**—are essential for building trust with specialists, ensuring regulatory compliance, and maintaining the therapeutic integrity of the DAMMAH platform.
+
+**The approval gate is the system's most critical safety feature:** No story generation can occur without explicit specialist approval, enforced at the backend API level. This ensures that every story generated for a child has been reviewed and approved by a qualified specialist, with full audit trail and decision history preserved.

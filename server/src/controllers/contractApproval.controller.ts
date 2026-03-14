@@ -62,11 +62,26 @@ export const approveContract = async (req: Request, res: Response): Promise<void
     const contract = contractDoc.data() as GenerationContract;
 
     // Validate contract is in an approvable state
-    if (contract.status !== "valid") {
+    // Allow approval if status is "valid" OR if status is "approved" but approval has expired
+    const isExpiredApproval = contract.status === "approved" && 
+      contract.approval?.expiresAt && 
+      (() => {
+        const expiresAt = contract.approval.expiresAt;
+        if (expiresAt instanceof Date) {
+          return expiresAt.getTime() < Date.now();
+        } else if (typeof expiresAt === "object" && "toMillis" in expiresAt) {
+          return (expiresAt as any).toMillis() < Date.now();
+        } else if (typeof expiresAt === "string") {
+          return new Date(expiresAt).getTime() < Date.now();
+        }
+        return false;
+      })();
+
+    if (contract.status !== "valid" && !isExpiredApproval) {
       res.status(409).json({
         success: false,
         error: `Contract cannot be approved in its current state`,
-        details: `Current status: "${contract.status}". Must be "valid".`,
+        details: `Current status: "${contract.status}". Must be "valid" or an expired "approved" contract.`,
       });
       return;
     }

@@ -212,6 +212,29 @@ export const buildContract = async (req: Request, res: Response): Promise<void> 
       firestore,
     });
 
+    // Check if an existing contract exists and should be archived
+    const existingContractDoc = await firestore.collection("generationContracts").doc(briefId).get();
+    if (existingContractDoc.exists) {
+      const existingContract = existingContractDoc.data() as GenerationContract;
+      
+      // Archive if contract was rejected or approved (preserve history)
+      if (existingContract.status === "rejected" || existingContract.status === "approved") {
+        const archiveReason = existingContract.status === "rejected" 
+          ? "rebuilt_after_rejection"
+          : "rebuilt_after_outdated_rules";
+        
+        await firestore
+          .collection("generationContracts")
+          .doc(briefId)
+          .collection("history")
+          .add({
+            ...existingContract,
+            archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+            archivedReason: archiveReason,
+          });
+      }
+    }
+
     // Log to audit trail
     await AuditTrail.log({
       action: "contract.built",
@@ -457,6 +480,7 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       appliedBy: string;
       appliedByName: string;
     }> = [];
+    let revokedApproval: ApprovalRecord | null = null;
 
     if (existingContract) {
       // Preserve previous approvals
@@ -469,27 +493,12 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       if (existingContract.status === "approved" && existingContract.approval) {
         previousApprovalRevoked = true;
 
-        // Mark the current approval as revoked
-        const revokedApproval: ApprovalRecord = {
+        // Mark the current approval as revoked (will be added to previousApprovals in transaction)
+        revokedApproval = {
           ...existingContract.approval,
           revokedAt: admin.firestore.FieldValue.serverTimestamp(),
           revokedReason: "override_applied",
         };
-        previousApprovals.push(revokedApproval);
-
-        // Log that the approval was revoked due to override
-        await AuditTrail.log({
-          action: "contract.approval_revoked",
-          actor: AuditTrail.actorFromRequest(user),
-          resourceType: "generationContract",
-          resourceId: briefId,
-          metadata: {
-            reason: "override_applied",
-            previousApproval: existingContract.approval,
-            overrideCopingToolId: copingToolId,
-            overrideReason: reason || null,
-          },
-        });
       }
     }
 
@@ -565,22 +574,29 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
     
     overrideHistory.push(overrideEntry);
 
-    // Update contract with override tracking and previous approvals
-    await firestore.collection("generationContracts").doc(briefId).update({
-      overrideCount,
-      overrideHistory,
-      previousApprovals,
-      // Clear current approval if it was revoked
-      ...(previousApprovalRevoked ? { approval: admin.firestore.FieldValue.delete() } : {}),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    // Prepare audit entries
+    const approvalRevokedAuditEntry = previousApprovalRevoked && revokedApproval
+      ? {
+          action: "contract.approval_revoked" as const,
+          actor: AuditTrail.actorFromRequest(user),
+          resourceType: "generationContract" as const,
+          resourceId: briefId,
+          relatedResourceId: briefId,
+          metadata: {
+            reason: "override_applied",
+            previousApproval: existingContract!.approval,
+            overrideCopingToolId: copingToolId,
+            overrideReason: reason || null,
+          },
+        }
+      : null;
 
-    // Log override to audit trail
-    await AuditTrail.log({
-      action: "contract.override_applied",
+    const overrideAppliedAuditEntry = {
+      action: "contract.override_applied" as const,
       actor: AuditTrail.actorFromRequest(user),
-      resourceType: "generationContract",
+      resourceType: "generationContract" as const,
       resourceId: briefId,
+      relatedResourceId: briefId,
       metadata: {
         copingToolId,
         overrideCount,
@@ -589,6 +605,49 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
         newStatus: contract.status,
         rulesVersionUsed: contract.rulesVersionUsed,
       },
+    };
+
+    // Update contract and log audit trail atomically using transaction
+    const contractRef = firestore.collection("generationContracts").doc(briefId);
+    await firestore.runTransaction(async (transaction) => {
+      // Re-read contract in transaction to ensure consistency
+      const contractDoc = await transaction.get(contractRef);
+      if (!contractDoc.exists) {
+        throw new Error("Contract not found during override");
+      }
+
+      const currentContract = contractDoc.data() as GenerationContract;
+      
+      // If approval was revoked, add it to previousApprovals
+      const finalPreviousApprovals = [...previousApprovals];
+      if (revokedApproval) {
+        finalPreviousApprovals.push(revokedApproval);
+      }
+
+      // Update contract atomically
+      transaction.update(contractRef, {
+        overrideCount,
+        overrideHistory,
+        previousApprovals: finalPreviousApprovals,
+        // Clear current approval if it was revoked
+        ...(previousApprovalRevoked ? { approval: admin.firestore.FieldValue.delete() } : {}),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      // Create audit entries atomically
+      if (approvalRevokedAuditEntry) {
+        const auditRef1 = firestore.collection("auditTrail").doc();
+        transaction.set(auditRef1, {
+          ...approvalRevokedAuditEntry,
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      }
+
+      const auditRef2 = firestore.collection("auditTrail").doc();
+      transaction.set(auditRef2, {
+        ...overrideAppliedAuditEntry,
+        timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      });
     });
 
     // Read the contract back from Firestore to get resolved timestamps

@@ -566,6 +566,7 @@ export interface GenerationContract {
     decidedByName: string;
     decidedByEmail: string;
     decidedAt: string;
+    expiresAt?: string;
     notes?: string;
   };
   previousApprovalRevoked?: boolean;
