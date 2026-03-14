@@ -50,21 +50,36 @@ export default function LoginPage() {
         
         // Wait for auth state to be ready before navigating
         await new Promise<void>((resolve, reject) => {
+          let isResolved = false;
+          let timeoutId: NodeJS.Timeout | null = null;
+          
           const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (isResolved) return;
+            
             unsubscribe();
+            if (timeoutId) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+            
             if (user) {
+              isResolved = true;
               // Auth state is ready, now navigate
               setEmailDialogOpen(false);
               const specialistPath = lang ? `/${lang}/specialist` : "/he/specialist";
               navigate(specialistPath);
               resolve();
             } else {
+              isResolved = true;
               reject(new Error("Authentication failed"));
             }
           });
           
           // Timeout after 5 seconds
-          setTimeout(() => {
+          timeoutId = setTimeout(() => {
+            if (isResolved) return;
+            
+            isResolved = true;
             unsubscribe();
             reject(new Error("Authentication timeout"));
           }, 5000);
@@ -143,20 +158,35 @@ export default function LoginPage() {
       // Wait for auth state to be ready before navigating
       // This ensures the token is available for API calls
       return new Promise<void>((resolve, reject) => {
+        let isResolved = false;
+        let timeoutId: NodeJS.Timeout | null = null;
+        
         const unsubscribe = onAuthStateChanged(auth, (user) => {
+          if (isResolved) return;
+          
           unsubscribe();
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          
           if (user) {
+            isResolved = true;
             // Auth state is ready, now navigate
             const specialistPath = lang ? `/${lang}/specialist` : "/he/specialist";
             navigate(specialistPath);
             resolve();
           } else {
+            isResolved = true;
             reject(new Error("Authentication failed"));
           }
         });
         
         // Timeout after 5 seconds
-        setTimeout(() => {
+        timeoutId = setTimeout(() => {
+          if (isResolved) return;
+          
+          isResolved = true;
           unsubscribe();
           reject(new Error("Authentication timeout"));
         }, 5000);

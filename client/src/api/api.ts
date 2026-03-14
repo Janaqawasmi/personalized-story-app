@@ -647,6 +647,12 @@ export async function approveContract(
     headers,
     body: JSON.stringify({ notes }),
   });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to approve contract (${res.status})`);
+  }
+  
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Failed to approve contract");
   return data.data;
@@ -666,6 +672,12 @@ export async function rejectContract(
     headers,
     body: JSON.stringify({ reason }),
   });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to reject contract (${res.status})`);
+  }
+  
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Failed to reject contract");
   return data.data;
@@ -679,6 +691,12 @@ export async function fetchContractStatus(
 ): Promise<{ briefId: string; status: string; approval: any | null; errorCount: number; warningCount: number }> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/agent1/contracts/${briefId}/status`, { headers });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to fetch contract status (${res.status})`);
+  }
+  
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Failed to fetch contract status");
   return data.data;
@@ -745,6 +763,12 @@ export async function fetchAuditHistory(
   if (cursor) params.append("cursor", cursor);
   const url = `${API_BASE}/api/agent1/contracts/${briefId}/audit${params.toString() ? `?${params.toString()}` : ""}`;
   const res = await fetch(url, { headers });
+  
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
+    throw new Error(errorData.error || errorData.details || `Failed to fetch audit history (${res.status})`);
+  }
+  
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Failed to fetch audit history");
   return {

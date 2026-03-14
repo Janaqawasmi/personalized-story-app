@@ -129,12 +129,14 @@ const SpecialistDraftList: React.FC = () => {
   // Wait for auth to be ready before loading drafts
   useEffect(() => {
     const auth = getAuth();
+    let cleanupTimer: (() => void) | undefined;
+    let unsubscribe: (() => void) | undefined;
     
-    const loadWhenReady = () => {
+    const loadWhenReady = (): (() => void) | undefined => {
       if (isInitialMount.current) {
         isInitialMount.current = false;
         loadDrafts();
-        return;
+        return undefined;
       }
 
       // When navigating back to this page, refresh after a small delay
@@ -144,22 +146,36 @@ const SpecialistDraftList: React.FC = () => {
         }, 100);
         return () => clearTimeout(timer);
       }
+      return undefined;
     };
     
     // If user is already authenticated, load immediately
     if (auth.currentUser) {
-      loadWhenReady();
-      return;
+      cleanupTimer = loadWhenReady();
+      // Return the cleanup function if one was created
+      return cleanupTimer;
     }
     
     // Otherwise wait for auth state
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        loadWhenReady();
+        // Store cleanup function from loadWhenReady if it returns one
+        const timerCleanup = loadWhenReady();
+        if (timerCleanup) {
+          cleanupTimer = timerCleanup;
+        }
       }
     });
     
-    return unsubscribe;
+    // Return cleanup function that handles both unsubscribe and timer
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+      if (cleanupTimer) {
+        cleanupTimer();
+      }
+    };
   }, [location.pathname, loadDrafts]);
 
   // Refresh when window regains focus (user returns to tab/window)
