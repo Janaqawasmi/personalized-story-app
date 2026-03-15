@@ -15,6 +15,7 @@ import { GenerationContract, ApprovalRecord } from "../models/generationContract
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
 import { AuditTrail } from "../services/auditTrail.service";
+import { serializeTimestamp } from "../utils/serializeTimestamp";
 
 /**
  * List all story briefs (newest first)
@@ -153,47 +154,7 @@ export const createStoryBrief = async (req: Request, res: Response): Promise<voi
  *
  * PHASE 1 FIX: Logs "contract.built" to audit trail with actor info.
  */
-/**
- * Helper function to serialize Firestore Timestamp to ISO string
- * Handles: Firestore Timestamp objects, FieldValue, Date objects, ISO strings, and objects with seconds/_seconds
- */
-function serializeTimestamp(ts: any): string | undefined {
-  if (!ts) return undefined;
-  
-  // Already a string (ISO format)
-  if (typeof ts === "string") return ts;
-  
-  // Date object
-  if (ts instanceof Date) return ts.toISOString();
-  
-  // Firestore Admin SDK Timestamp object (has toDate method)
-  if (ts && typeof ts === "object" && typeof ts.toDate === "function") {
-    try {
-      return ts.toDate().toISOString();
-    } catch (e) {
-      console.warn("Error converting Firestore Timestamp to Date:", e);
-      return undefined;
-    }
-  }
-  
-  // Object with seconds property (Firestore Timestamp format: { seconds: number, nanoseconds?: number })
-  if (ts && typeof ts === "object" && typeof ts.seconds === "number") {
-    return new Date(ts.seconds * 1000).toISOString();
-  }
-  
-  // JSON serialized format with underscore prefix: { _seconds: number, _nanoseconds?: number }
-  if (ts && typeof ts === "object" && typeof ts._seconds === "number") {
-    return new Date(ts._seconds * 1000).toISOString();
-  }
-  
-  // FieldValue.serverTimestamp() - this shouldn't be in the response, but handle gracefully
-  if (ts && typeof ts === "object" && ts.constructor?.name === "FieldValue") {
-    console.warn("Warning: FieldValue.serverTimestamp() found in response - timestamp not resolved yet");
-    return undefined;
-  }
-  
-  return undefined;
-}
+// serializeTimestamp is now imported from ../utils/serializeTimestamp (Fix Obs 5: DRY)
 
 export const buildContract = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -212,28 +173,10 @@ export const buildContract = async (req: Request, res: Response): Promise<void> 
       firestore,
     });
 
-    // Check if an existing contract exists and should be archived
-    const existingContractDoc = await firestore.collection("generationContracts").doc(briefId).get();
-    if (existingContractDoc.exists) {
-      const existingContract = existingContractDoc.data() as GenerationContract;
-      
-      // Archive if contract was rejected or approved (preserve history)
-      if (existingContract.status === "rejected" || existingContract.status === "approved") {
-        const archiveReason = existingContract.status === "rejected" 
-          ? "rebuilt_after_rejection"
-          : "rebuilt_after_outdated_rules";
-        
-        await firestore
-          .collection("generationContracts")
-          .doc(briefId)
-          .collection("history")
-          .add({
-            ...existingContract,
-            archivedAt: admin.firestore.FieldValue.serverTimestamp(),
-            archivedReason: archiveReason,
-          });
-      }
-    }
+    // NOTE: Archiving of rejected/approved contracts is handled inside saveContractToFirestore()
+    // in buildGenerationContract.ts. No need to archive here — by this point, the new contract
+    // has already been saved (overwriting the old one), so reading the doc would return the
+    // new contract, not the old one. (Dead code removed — confirmed by runtime logs, H1.)
 
     // Log to audit trail
     await AuditTrail.log({
@@ -502,23 +445,8 @@ export const applyOverride = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    // Check if an existing contract exists to preserve its rules version
-    let existingRulesVersion: string | undefined = undefined;
-    try {
-      const existingContractDoc = await firestore
-        .collection("generationContracts")
-        .doc(briefId)
-        .get();
-
-      if (existingContractDoc.exists) {
-        const existingContractData = existingContractDoc.data();
-        if (existingContractData?.rulesVersionUsed) {
-          existingRulesVersion = existingContractData.rulesVersionUsed as string;
-        }
-      }
-    } catch (err) {
-      console.warn(`Could not load existing contract for brief ${briefId}:`, err);
-    }
+    // Reuse existingContract from the first read (Fix Obs 2: removed redundant second Firestore read)
+    const existingRulesVersion: string | undefined = existingContract?.rulesVersionUsed || undefined;
 
     // Update brief with override
     await firestore.collection("storyBriefs").doc(briefId).update({

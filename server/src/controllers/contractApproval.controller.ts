@@ -13,6 +13,7 @@
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
+import { serializeTimestamp } from "../utils/serializeTimestamp";
 import type { GenerationContract, ContractStatus, ApprovalRecord } from "../models/generationContract.model";
 
 // ============================================================================
@@ -383,47 +384,7 @@ export const getContractStatus = async (req: Request, res: Response): Promise<vo
  * Returns the full persisted generation contract.
  * GET /api/agent1/contracts/:briefId/full
  */
-/**
- * Helper function to serialize Firestore Timestamp to ISO string
- * Handles: Firestore Timestamp objects, FieldValue, Date objects, ISO strings, and objects with seconds/_seconds
- */
-function serializeTimestamp(ts: any): string | undefined {
-  if (!ts) return undefined;
-  
-  // Already a string (ISO format)
-  if (typeof ts === "string") return ts;
-  
-  // Date object
-  if (ts instanceof Date) return ts.toISOString();
-  
-  // Firestore Admin SDK Timestamp object (has toDate method)
-  if (ts && typeof ts === "object" && typeof ts.toDate === "function") {
-    try {
-      return ts.toDate().toISOString();
-    } catch (e) {
-      console.warn("Error converting Firestore Timestamp to Date:", e);
-      return undefined;
-    }
-  }
-  
-  // Object with seconds property (Firestore Timestamp format: { seconds: number, nanoseconds?: number })
-  if (ts && typeof ts === "object" && typeof ts.seconds === "number") {
-    return new Date(ts.seconds * 1000).toISOString();
-  }
-  
-  // JSON serialized format with underscore prefix: { _seconds: number, _nanoseconds?: number }
-  if (ts && typeof ts === "object" && typeof ts._seconds === "number") {
-    return new Date(ts._seconds * 1000).toISOString();
-  }
-  
-  // FieldValue.serverTimestamp() - this shouldn't be in the response, but handle gracefully
-  if (ts && typeof ts === "object" && ts.constructor?.name === "FieldValue") {
-    console.warn("Warning: FieldValue.serverTimestamp() found in response - timestamp not resolved yet");
-    return undefined;
-  }
-  
-  return undefined;
-}
+// serializeTimestamp is now imported from ../utils/serializeTimestamp (Fix Obs 5: DRY)
 
 export const getContract = async (req: Request, res: Response): Promise<void> => {
   try {
