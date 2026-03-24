@@ -4,8 +4,7 @@ import admin from "firebase-admin";
 import { firestore } from "../config/firebase";
 import { StoryBrief } from "../models/storyBrief.model";
 import { StoryDraft, GenerateDraftInput, GenerationConfig, DraftPage } from "../models/storyDraft.model";
-import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
-import { loadWritingRules } from "../services/ragWritingRules.service";
+import { buildPromptFromContract } from "../services/contractPromptBuilder";
 import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
 import { AuditTrail } from "../services/auditTrail.service";
@@ -216,7 +215,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
     //       For now, defaulting to Arabic as the primary language
     const generationConfig: GenerationConfig = {
       language: "ar", // TODO: Derive from briefData.language once added to StoryBrief model
-      targetAgeGroup: briefData.childProfile.ageGroup,
+      targetAgeGroup: req.approvedContract!.ageBand,
       length: input.length,
       tone: input.tone,
       emphasis: input.emphasis ?? "balanced",
@@ -266,8 +265,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
     
     try {
       // Build prompt using existing prompt builder
-      const ragContext = await loadWritingRules();
-      const prompt = buildStoryDraftPrompt(briefData, ragContext);
+      const prompt = buildPromptFromContract(req.approvedContract!);
 
       // Call LLM
       rawModelOutput = await generateStoryDraft(prompt);
@@ -586,28 +584,15 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
         return;
       }
 
-      // Validate imagePrompt is present and is a string (required field per DraftPage model)
-      if (page.imagePrompt === undefined || page.imagePrompt === null) {
-        res.status(400).json({
-          success: false,
-          error: `Page ${page.pageNumber} is missing required field 'imagePrompt'`,
-        });
-        return;
-      }
-
-      if (typeof page.imagePrompt !== "string") {
+      // imagePrompt is optional in text-focused generation. If provided, it must be a string.
+      if (
+        page.imagePrompt !== undefined &&
+        page.imagePrompt !== null &&
+        typeof page.imagePrompt !== "string"
+      ) {
         res.status(400).json({
           success: false,
           error: `Page ${page.pageNumber} has invalid 'imagePrompt': must be a string`,
-        });
-        return;
-      }
-
-      // Validate imagePrompt is non-empty after trimming (required field per DraftPage model)
-      if (page.imagePrompt.trim().length === 0) {
-        res.status(400).json({
-          success: false,
-          error: `Page ${page.pageNumber} has empty 'imagePrompt': must contain non-whitespace content`,
         });
         return;
       }
@@ -626,7 +611,7 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
     const normalizedPages = sortedPages.map((page) => ({
       pageNumber: page.pageNumber,
       text: page.text.trim(),
-      imagePrompt: page.imagePrompt.trim(), // Required field, already validated above
+      imagePrompt: typeof page.imagePrompt === "string" ? page.imagePrompt.trim() : "",
       ...(page.emotionalTone && typeof page.emotionalTone === "string" && { emotionalTone: page.emotionalTone.trim() }),
     }));
 

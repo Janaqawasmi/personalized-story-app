@@ -1,12 +1,11 @@
 // src/controllers/storyPrompt.controller.ts
 import { Request, Response } from "express";
 import { firestore } from "../config/firebase";
-import { StoryBrief } from "../models/storyBrief.model";
-import { loadWritingRules } from "../services/ragWritingRules.service";
-import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
+import { GenerationContract } from "../models/generationContract.model";
+import { buildPromptFromContract } from "../services/contractPromptBuilder";
 
 /**
- * Preview the prompt that would be generated for a story brief.
+ * Preview the prompt that would be generated from a contract.
  * Shows the actual prompt as it goes to the LLM (for debugging).
  * This is a read-only operation - no database writes, no LLM calls.
  * 
@@ -24,30 +23,27 @@ export const previewStoryPrompt = async (
       return;
     }
 
-    // Load the story brief
+    // Load the generation contract for this brief
     const snap = await firestore
-      .collection("storyBriefs")
+      .collection("generationContracts")
       .doc(briefId)
       .get();
 
     if (!snap.exists) {
-      res.status(404).json({ success: false, error: "Story brief not found" });
+      res.status(404).json({ success: false, error: "Generation contract not found" });
       return;
     }
 
-    const brief = { id: snap.id, ...snap.data() } as StoryBrief;
-
-    // Load ONLY rag_writing_rules (single RAG source)
-    const ragRulesText = await loadWritingRules();
+    const contract = snap.data() as GenerationContract;
 
     // Build the actual prompt as it goes to the LLM
-    const promptPreview = buildStoryDraftPrompt(brief, ragRulesText);
+    const promptPreview = buildPromptFromContract(contract);
 
     res.status(200).json({
       success: true,
       data: {
         promptPreview,
-        ragSources: ["rag_writing_rules"],
+        ragSources: [],
       },
     });
   } catch (error: any) {

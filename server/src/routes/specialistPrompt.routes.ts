@@ -12,8 +12,8 @@ router.use(requireAuth);
  * Specialist – Prompt Preview (Read-only)
  * GET /api/specialist/story-briefs/:briefId/prompt-preview
  * 
- * Returns a human-readable preview of the prompt that would be generated.
- * Uses ONLY rag_writing_rules collection.
+ * Returns a human-readable preview of the prompt that would be generated
+ * from the saved generation contract for the given brief.
  * No database writes, no LLM calls, no status changes.
  */
 router.get(

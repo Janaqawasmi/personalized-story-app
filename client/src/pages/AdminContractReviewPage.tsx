@@ -10,7 +10,7 @@
 //   - Navigation to generation only possible after backend confirms approval
 
 import React, { useEffect, useState, Fragment, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import {
   Box,
   Button,
@@ -44,6 +44,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import InfoIcon from "@mui/icons-material/Info";
 import SpecialistNav from "../components/SpecialistNav";
+import { useLangNavigate } from "../i18n/navigation";
 import {
   fetchStoryBriefById,
   fetchFullContract,
@@ -198,7 +199,7 @@ function getStatusColor(status: string | undefined): "success" | "error" | "warn
 
 const AdminContractReviewPage: React.FC = () => {
   const { briefId } = useParams<{ briefId: string }>();
-  const navigate = useNavigate();
+  const navigate = useLangNavigate();
 
   // Data state
   const [brief, setBrief] = useState<StoryBrief | null>(null);
@@ -477,7 +478,7 @@ const AdminContractReviewPage: React.FC = () => {
   const handleProceedToGeneration = () => {
     // Only navigate if contract is approved and not expired (belt-and-suspenders with backend guard)
     if (contract?.status === "approved" && !isApprovalExpired) {
-      navigate(`/specialist/generate-draft?briefId=${briefId}`);
+      navigate(`/specialist/story-briefs/${briefId}/prompt-preview`);
     }
   };
 

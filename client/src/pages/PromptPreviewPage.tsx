@@ -191,6 +191,15 @@ const PromptPreviewPage: React.FC = () => {
                   This is a read-only preview of the prompt that would be used for story generation.
                   No changes are made to the database or LLM when viewing this preview.
                 </Typography>
+
+                <Box display="flex" justifyContent="flex-end">
+                  <Button
+                    variant="contained"
+                    onClick={() => navigate(`/specialist/generate-draft?briefId=${briefId}`)}
+                  >
+                    Proceed to Generation
+                  </Button>
+                </Box>
               </Stack>
             </CardContent>
           </Card>

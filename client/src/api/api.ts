@@ -802,7 +802,8 @@ export interface PromptPreviewResponse {
 
 export async function fetchPromptPreview(briefId: string): Promise<PromptPreviewResponse> {
   try {
-    const res = await fetch(`${API_BASE}/api/specialist/story-briefs/${briefId}/prompt-preview`);
+    const headers = await getAuthHeaders();
+    const res = await fetch(`${API_BASE}/api/specialist/story-briefs/${briefId}/prompt-preview`, { headers });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
       throw new Error(errorData.error || errorData.details || `Failed to load prompt preview (${res.status})`);

@@ -70,14 +70,6 @@ export function parseDraftOutput(rawOutput: string): ParsedDraft {
       continue;
     }
 
-    // Validate imagePrompt is present and non-empty (required field per DraftPage model)
-    if (!page.imagePrompt || typeof page.imagePrompt !== "string" || page.imagePrompt.trim().length === 0) {
-      console.warn(`Skipping malformed page: missing or empty imagePrompt`, page);
-      // Increment expectedPageNumber to maintain sequential validation for remaining pages
-      expectedPageNumber = pageNum + 1;
-      continue;
-    }
-
     // Validate page number is sequential
     if (pageNum !== expectedPageNumber) {
       console.warn(`Skipping page with non-sequential number: expected ${expectedPageNumber}, got ${pageNum}`);
@@ -90,7 +82,10 @@ export function parseDraftOutput(rawOutput: string): ParsedDraft {
     const validatedPage: DraftPage = {
       pageNumber: pageNum,
       text: String(page.text),
-      imagePrompt: String(page.imagePrompt).trim(),
+      // imagePrompt is optional in model output for text-focused generation.
+      // Keep DraftPage contract stable by storing empty string when absent.
+      imagePrompt:
+        typeof page.imagePrompt === "string" ? page.imagePrompt.trim() : "",
       ...(page.emotionalTone ? { emotionalTone: String(page.emotionalTone) } : {}),
     };
 
