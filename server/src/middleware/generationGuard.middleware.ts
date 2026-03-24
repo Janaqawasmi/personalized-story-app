@@ -14,6 +14,7 @@ import { Request, Response, NextFunction } from "express";
 import { firestore } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
 import { loadClinicalRules } from "../services/clinicalRules.service";
+import { parseTimestampToMs } from "../utils/parseTimestampToMs";
 import type { GenerationContract } from "../models/generationContract.model";
 
 /**
@@ -235,22 +236,9 @@ export async function requireApprovedContract(
 
     // Check 4: Approval expiry
     if (contract.approval?.expiresAt) {
-      let expiryTime: number | null = null;
-      
-      if (contract.approval.expiresAt instanceof Date) {
-        expiryTime = contract.approval.expiresAt.getTime();
-      } else if (typeof contract.approval.expiresAt === "object" && "toMillis" in contract.approval.expiresAt) {
-        expiryTime = (contract.approval.expiresAt as any).toMillis();
-      } else if (typeof contract.approval.expiresAt === "object" && ("seconds" in (contract.approval.expiresAt as any) || "_seconds" in (contract.approval.expiresAt as any))) {
-        // Handle serialized Firestore Timestamp plain objects { seconds, nanoseconds } or { _seconds, _nanoseconds }
-        const secs = (contract.approval.expiresAt as any).seconds ?? (contract.approval.expiresAt as any)._seconds;
-        expiryTime = typeof secs === "number" ? secs * 1000 : null;
-      } else if (typeof contract.approval.expiresAt === "string") {
-        const parsed = new Date(contract.approval.expiresAt).getTime();
-        expiryTime = Number.isNaN(parsed) ? null : parsed;
-      }
+      const expiryTime = parseTimestampToMs(contract.approval.expiresAt);
 
-      // Fix Obs 4: If expiresAt is present but unparseable, block generation (fail-safe)
+      // If expiresAt is present but unparseable, block generation (fail-safe)
       if (expiryTime === null) {
         console.error("Could not parse approval expiry — blocking generation:", contract.approval.expiresAt);
 

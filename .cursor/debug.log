@@ -1,6 +1,0 @@
-
-{"location":"buildGenerationContract.ts:saveContractToFirestore:afterSave","message":"Contract saved (overwritten) in Firestore","data":{"briefId":"neZn4k4dFGm0xTvnYr9L","newStatus":"valid"},"timestamp":1773607548590,"hypothesisId":"H1"}
-{"location":"storyBrief.controller.ts:buildContract:afterBuild","message":"FIX1: Dead archiving code removed, contract already saved by buildGenerationContractFromBriefId","data":{"briefId":"neZn4k4dFGm0xTvnYr9L","contractStatus":"valid"},"timestamp":1773607548638,"hypothesisId":"H1_fix"}
-{"location":"storyBrief.controller.ts:applyOverride:firstRead","message":"applyOverride FIRST Firestore read of contract","data":{"briefId":"neZn4k4dFGm0xTvnYr9L","exists":true},"timestamp":1773607553499,"hypothesisId":"H2"}
-{"location":"storyBrief.controller.ts:applyOverride:reuseFirstRead","message":"FIX2: Reusing existingContract from first read instead of second Firestore read","data":{"briefId":"neZn4k4dFGm0xTvnYr9L","existingRulesVersion":"v1","hadExistingContract":true},"timestamp":1773607553553,"hypothesisId":"H2_fix"}
-{"location":"buildGenerationContract.ts:saveContractToFirestore:afterSave","message":"Contract saved (overwritten) in Firestore","data":{"briefId":"neZn4k4dFGm0xTvnYr9L","newStatus":"valid"},"timestamp":1773607553801,"hypothesisId":"H1"}
