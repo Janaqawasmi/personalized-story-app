@@ -11,8 +11,6 @@ export function normalizeStoryBriefInput(input: StoryBriefInput): StoryBriefInpu
   return {
     ...input,
 
-    createdBy: trimOnly(input.createdBy) as string,
-
     therapeuticFocus: {
       primaryTopic: lowerTrim(input.therapeuticFocus.primaryTopic) as string,
       specificSituation: lowerTrim(input.therapeuticFocus.specificSituation) as string,

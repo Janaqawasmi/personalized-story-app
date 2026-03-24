@@ -66,7 +66,6 @@ export interface FirestoreTimestampJson {
 }
 
 export interface StoryBriefInput {
-  createdBy: string;
   therapeuticFocus: {
     primaryTopic: string;
     specificSituation: string;
@@ -105,7 +104,7 @@ export interface ApiErrorResponse {
 }
 
 export async function createStoryBrief(
-  data: Omit<StoryBriefInput, "createdBy">
+  data: StoryBriefInput
 ): Promise<CreateStoryBriefResponse> {
   try {
     const headers = await getAuthHeaders();

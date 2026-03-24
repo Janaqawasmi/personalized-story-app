@@ -14,6 +14,7 @@ import { Request, Response, NextFunction } from "express";
 import { firestore } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
 import { loadClinicalRules } from "../services/clinicalRules.service";
+import { parseTimestampToMs } from "../utils/parseTimestampToMs";
 import type { GenerationContract } from "../models/generationContract.model";
 
 /**
@@ -206,25 +207,62 @@ export async function requireApprovedContract(
         return;
       }
     } catch (error) {
-      console.error("Error checking rules version:", error);
-      // Don't block generation if rules check fails - log warning but proceed
-      console.warn("Warning: Could not verify rules version currency, proceeding with generation");
+      // Fix Obs 3: Fail-safe — block generation if rules version cannot be verified.
+      // A clinical governance system must not allow unverified contracts through.
+      console.error("Error checking rules version — blocking generation:", error);
+
+      if (user) {
+        await AuditTrail.log({
+          action: "generation.blocked",
+          actor: AuditTrail.actorFromRequest(user),
+          resourceType: "generationContract",
+          resourceId: briefId,
+          metadata: {
+            reason: "CONTRACT_RULES_OUTDATED" as BlockingReason,
+            detail: "Could not load current clinical rules to verify version currency",
+            error: String(error),
+          },
+        });
+      }
+
+      res.status(503).json({
+        success: false,
+        error: "Cannot verify rules version",
+        details: "Clinical rules could not be loaded to verify contract currency. Generation is blocked as a safety measure. Please try again shortly.",
+        blockingReason: "CONTRACT_RULES_OUTDATED",
+      });
+      return;
     }
 
     // Check 4: Approval expiry
     if (contract.approval?.expiresAt) {
-      let expiryTime: number;
-      
-      if (contract.approval.expiresAt instanceof Date) {
-        expiryTime = contract.approval.expiresAt.getTime();
-      } else if (typeof contract.approval.expiresAt === "object" && "toMillis" in contract.approval.expiresAt) {
-        expiryTime = (contract.approval.expiresAt as any).toMillis();
-      } else if (typeof contract.approval.expiresAt === "string") {
-        expiryTime = new Date(contract.approval.expiresAt).getTime();
-      } else {
-        // Can't parse expiry, log warning but proceed
-        console.warn("Warning: Could not parse approval expiry timestamp");
-        expiryTime = 0;
+      const expiryTime = parseTimestampToMs(contract.approval.expiresAt);
+
+      // If expiresAt is present but unparseable, block generation (fail-safe)
+      if (expiryTime === null) {
+        console.error("Could not parse approval expiry — blocking generation:", contract.approval.expiresAt);
+
+        if (user) {
+          await AuditTrail.log({
+            action: "generation.blocked",
+            actor: AuditTrail.actorFromRequest(user),
+            resourceType: "generationContract",
+            resourceId: briefId,
+            metadata: {
+              reason: "CONTRACT_APPROVAL_EXPIRED" as BlockingReason,
+              detail: "Could not parse approval expiry timestamp",
+              expiresAtRaw: String(contract.approval.expiresAt),
+            },
+          });
+        }
+
+        res.status(403).json({
+          success: false,
+          error: "Cannot verify approval expiry",
+          details: "The approval expiry timestamp could not be parsed. Contract must be re-approved before generation.",
+          blockingReason: "CONTRACT_APPROVAL_EXPIRED",
+        });
+        return;
       }
 
       if (expiryTime > 0 && Date.now() > expiryTime) {

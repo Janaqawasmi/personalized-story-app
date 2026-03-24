@@ -96,7 +96,6 @@ const AdminStoryBriefForm: React.FC = () => {
   const [selectedExclusions, setSelectedExclusions] = useState<string[]>([]);
   const [selectedCaregiverPresence, setSelectedCaregiverPresence] = useState<"included" | "self_guided">("included");
   const [selectedEndingStyle, setSelectedEndingStyle] = useState<"calm_resolution" | "open_ended" | "empowering">("calm_resolution");
-  const [createdBy, setCreatedBy] = useState<string>('');
 
   // Load topics on mount
   useEffect(() => {
@@ -241,13 +240,19 @@ const AdminStoryBriefForm: React.FC = () => {
     setActiveStep(newValue);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError(null);
     setSuccess(null);
 
+    // Prevent accidental form submission before the final step.
+    // This protects against Enter-key submits from focused inputs.
+    if (activeStep < 2) {
+      handleNext();
+      return;
+    }
+
     // Validation
-    if (!selectedTopicKey || !selectedSituationKey || !selectedAgeGroup || !createdBy) {
+    if (!selectedTopicKey || !selectedSituationKey || !selectedAgeGroup) {
       setError('Please fill in all required fields');
       return;
     }
@@ -266,7 +271,6 @@ const AdminStoryBriefForm: React.FC = () => {
 
     try {
       const rawPayload: StoryBriefInput = {
-        createdBy: createdBy,
         therapeuticFocus: {
           primaryTopic: selectedTopicKey,
           specificSituation: selectedSituationKey,
@@ -326,7 +330,7 @@ const AdminStoryBriefForm: React.FC = () => {
             Define the therapeutic parameters for a personalized children's story.
           </Typography>
 
-        <Box component="form" onSubmit={handleSubmit}>
+        <Box>
           <Tabs
             value={activeStep}
             onChange={handleTabChange}
@@ -556,14 +560,6 @@ const AdminStoryBriefForm: React.FC = () => {
                 helperText={`${keyMessage.length} / 200 characters`}
               />
 
-            <TextField
-              label="Created By"
-              required
-              fullWidth
-                value={createdBy}
-                onChange={(e) => setCreatedBy(e.target.value)}
-              placeholder="User ID or name"
-            />
             </Stack>
           </TabPanel>
 
@@ -586,6 +582,7 @@ const AdminStoryBriefForm: React.FC = () => {
           {/* Navigation Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: success || error ? 0 : 4, pt: 3, borderTop: 1, borderColor: 'divider' }}>
             <Button
+              type="button"
               onClick={handleBack}
               disabled={activeStep === 0}
               sx={{ textTransform: 'none' }}
@@ -594,6 +591,7 @@ const AdminStoryBriefForm: React.FC = () => {
             </Button>
             {activeStep < 2 ? (
               <Button
+                type="button"
                 variant="contained"
                 onClick={handleNext}
                 sx={{ textTransform: 'none' }}
@@ -602,7 +600,8 @@ const AdminStoryBriefForm: React.FC = () => {
               </Button>
             ) : (
             <Button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               variant="contained"
               size="large"
               disabled={loading}

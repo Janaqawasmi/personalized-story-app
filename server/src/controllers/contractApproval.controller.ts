@@ -13,6 +13,9 @@
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
+import { serializeTimestamp, serializeContractForResponse } from "../utils/serializeTimestamp";
+import { parseTimestampToMs } from "../utils/parseTimestampToMs";
+import { canTransition, getTransitionError } from "../utils/contractStateMachine";
 import type { GenerationContract, ContractStatus, ApprovalRecord } from "../models/generationContract.model";
 
 // ============================================================================
@@ -61,27 +64,22 @@ export const approveContract = async (req: Request, res: Response): Promise<void
 
     const contract = contractDoc.data() as GenerationContract;
 
-    // Validate contract is in an approvable state
-    // Allow approval if status is "valid" OR if status is "approved" but approval has expired
-    const isExpiredApproval = contract.status === "approved" && 
-      contract.approval?.expiresAt && 
+    // Validate contract is in an approvable state using the centralized state machine.
+    // Allow approval if status is "valid" OR if status is "approved" but approval has expired.
+    const isExpiredApproval = contract.status === "approved" &&
+      contract.approval?.expiresAt != null &&
       (() => {
-        const expiresAt = contract.approval.expiresAt;
-        if (expiresAt instanceof Date) {
-          return expiresAt.getTime() < Date.now();
-        } else if (typeof expiresAt === "object" && "toMillis" in expiresAt) {
-          return (expiresAt as any).toMillis() < Date.now();
-        } else if (typeof expiresAt === "string") {
-          return new Date(expiresAt).getTime() < Date.now();
-        }
-        return false;
+        const expiryMs = parseTimestampToMs(contract.approval.expiresAt);
+        // If expiry can't be parsed, treat as expired (err on the side of allowing re-approval)
+        if (expiryMs === null) return true;
+        return expiryMs < Date.now();
       })();
 
-    if (contract.status !== "valid" && !isExpiredApproval) {
+    if (!canTransition(contract.status as ContractStatus, "approve", { isExpiredApproval })) {
       res.status(409).json({
         success: false,
         error: `Contract cannot be approved in its current state`,
-        details: `Current status: "${contract.status}". Must be "valid" or an expired "approved" contract.`,
+        details: getTransitionError(contract.status as ContractStatus, "approve"),
       });
       return;
     }
@@ -235,12 +233,12 @@ export const rejectContract = async (req: Request, res: Response): Promise<void>
 
     const contract = contractDoc.data() as GenerationContract;
 
-    // Validate contract is in a rejectable state
-    if (contract.status !== "valid") {
+    // Validate contract is in a rejectable state using the centralized state machine
+    if (!canTransition(contract.status as ContractStatus, "reject")) {
       res.status(409).json({
         success: false,
         error: `Contract cannot be rejected in its current state`,
-        details: `Current status: "${contract.status}". Must be "valid".`,
+        details: getTransitionError(contract.status as ContractStatus, "reject"),
       });
       return;
     }
@@ -383,48 +381,6 @@ export const getContractStatus = async (req: Request, res: Response): Promise<vo
  * Returns the full persisted generation contract.
  * GET /api/agent1/contracts/:briefId/full
  */
-/**
- * Helper function to serialize Firestore Timestamp to ISO string
- * Handles: Firestore Timestamp objects, FieldValue, Date objects, ISO strings, and objects with seconds/_seconds
- */
-function serializeTimestamp(ts: any): string | undefined {
-  if (!ts) return undefined;
-  
-  // Already a string (ISO format)
-  if (typeof ts === "string") return ts;
-  
-  // Date object
-  if (ts instanceof Date) return ts.toISOString();
-  
-  // Firestore Admin SDK Timestamp object (has toDate method)
-  if (ts && typeof ts === "object" && typeof ts.toDate === "function") {
-    try {
-      return ts.toDate().toISOString();
-    } catch (e) {
-      console.warn("Error converting Firestore Timestamp to Date:", e);
-      return undefined;
-    }
-  }
-  
-  // Object with seconds property (Firestore Timestamp format: { seconds: number, nanoseconds?: number })
-  if (ts && typeof ts === "object" && typeof ts.seconds === "number") {
-    return new Date(ts.seconds * 1000).toISOString();
-  }
-  
-  // JSON serialized format with underscore prefix: { _seconds: number, _nanoseconds?: number }
-  if (ts && typeof ts === "object" && typeof ts._seconds === "number") {
-    return new Date(ts._seconds * 1000).toISOString();
-  }
-  
-  // FieldValue.serverTimestamp() - this shouldn't be in the response, but handle gracefully
-  if (ts && typeof ts === "object" && ts.constructor?.name === "FieldValue") {
-    console.warn("Warning: FieldValue.serverTimestamp() found in response - timestamp not resolved yet");
-    return undefined;
-  }
-  
-  return undefined;
-}
-
 export const getContract = async (req: Request, res: Response): Promise<void> => {
   try {
     const { briefId } = req.params;
@@ -468,21 +424,7 @@ export const getContract = async (req: Request, res: Response): Promise<void> =>
     }
     
     // Serialize timestamps to ISO strings for JSON response
-    const serializedContract: any = {
-      ...contractData,
-      createdAt: serializeTimestamp(contractData.createdAt),
-      updatedAt: contractData.updatedAt ? serializeTimestamp(contractData.updatedAt) : undefined,
-      // Also serialize approval timestamp if present
-      approval: contractData.approval
-        ? {
-            ...contractData.approval,
-            decidedAt: serializeTimestamp(contractData.approval.decidedAt),
-            expiresAt: contractData.approval.expiresAt
-              ? serializeTimestamp(contractData.approval.expiresAt)
-              : undefined,
-          }
-        : undefined,
-    };
+    const serializedContract = serializeContractForResponse(contractData);
 
     res.status(200).json({
       success: true,
