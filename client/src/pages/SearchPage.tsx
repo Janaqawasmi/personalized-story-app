@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import SearchIcon from "@mui/icons-material/Search";
 import { searchStories, StorySearchResult } from "../api/api";
+import { resolveLocalizedField } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import { formatAgeGroupLabel } from "../data/categories";
 import { useTranslation } from "../i18n/useTranslation";
@@ -162,7 +163,7 @@ export default function SearchPage() {
                     description={
                       ageGroup
                         ? `${t("filters.age")}: ${formatAgeGroupLabel(ageGroup)}`
-                        : story.shortDescription
+                        : resolveLocalizedField(story.shortDescription)
                     }
                     imageUrl={story.coverImage}
                     onClick={() => handleStoryClick(story.id)}

@@ -1,0 +1,54 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ────────────────────────────────────────────────────
+    // Child Photos — backend Admin SDK only
+    // No client reads or writes (privacy protection)
+    // ────────────────────────────────────────────────────
+
+    match /child-photos/{caregiverUid}/{childId}/{photoFile} {
+      allow read, write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Preview Illustrations — read by owning caregiver
+    // Written by backend Admin SDK only
+    // ────────────────────────────────────────────────────
+
+    match /preview-illustrations/{caregiverUid}/{previewId}/{pageFile} {
+      allow read: if request.auth != null
+                  && request.auth.uid == caregiverUid;
+      allow write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Generated Illustrations (full story) — read by owning caregiver
+    // Written by backend Admin SDK only
+    // ────────────────────────────────────────────────────
+
+    match /generated-illustrations/{caregiverUid}/{storyId}/{pageFile} {
+      allow read: if request.auth != null
+                  && request.auth.uid == caregiverUid;
+      allow write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Template Assets — public read
+    // Written by backend Admin SDK only
+    // ────────────────────────────────────────────────────
+
+    match /template-assets/{templateId}/{file} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Default: deny everything else
+    // ────────────────────────────────────────────────────
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -14,6 +14,23 @@ function normalizeAgeGroup(value?: string): string | null {
     .replace(/[–-]/g, "_"); // dash or en-dash → underscore
 }
 
+/**
+ * Resolves a value that may be a plain string, a LocalizedString ({he, ar}),
+ * or undefined into a display string. Falls back through: current page language,
+ * Hebrew, Arabic, first available value, or undefined.
+ */
+export function resolveLocalizedField(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  if (typeof value === "string") return value;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const obj = value as Record<string, string>;
+    // Detect page language from <html dir> or default to Hebrew
+    const pageLang = document.documentElement.lang === "ar" ? "ar" : "he";
+    return obj[pageLang] || obj["he"] || obj["ar"] || Object.values(obj)[0] || undefined;
+  }
+  return undefined;
+}
+
 export type Story = {
   id: string;
   title: string;
@@ -23,6 +40,23 @@ export type Story = {
   topicKey?: string;
   isActive?: boolean;
 };
+
+/**
+ * Maps raw Firestore document data to a Story object,
+ * resolving any localized fields ({he, ar}) to plain strings.
+ */
+function mapDocToStory(doc: { id: string; data: () => Record<string, any> }): Story {
+  const data = doc.data();
+  return {
+    id: doc.id,
+    title: resolveLocalizedField(data.title) || data.title || "",
+    shortDescription: resolveLocalizedField(data.shortDescription),
+    coverImage: data.coverImage || data.coverImageUrl,
+    targetAgeGroup: data.targetAgeGroup || data.ageGroup || data.generationConfig?.targetAgeGroup,
+    topicKey: data.topicKey || data.primaryTopic,
+    isActive: data.isActive,
+  };
+}
 
 /**
  * Fetch stories by age group
@@ -59,10 +93,7 @@ export async function fetchStoriesByAge(ageGroup: string): Promise<Story[]> {
     new Map(allDocs.map((doc) => [doc.id, doc])).values()
   );
 
-  return uniqueDocs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as Omit<Story, "id">),
-  }));
+  return uniqueDocs.map(mapDocToStory);
 }
 
 /**
@@ -92,10 +123,7 @@ export async function fetchStoriesByCategory(
     new Map(allDocs.map((doc) => [doc.id, doc])).values()
   );
 
-  return uniqueDocs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as Omit<Story, "id">),
-  }));
+  return uniqueDocs.map(mapDocToStory);
 }
 
 /**
@@ -123,10 +151,7 @@ export async function fetchStoriesByTopic(topicId: string): Promise<Story[]> {
     new Map(allDocs.map((doc) => [doc.id, doc])).values()
   );
 
-  return uniqueDocs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as Omit<Story, "id">),
-  }));
+  return uniqueDocs.map(mapDocToStory);
 }
 
 /**
@@ -154,9 +179,9 @@ export async function fetchStoriesWithFilters(filters: {
       where("status", "==", "approved")
     );
     const snapshot = await getDocs(baseQ);
-    let allStories = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as any),
+    let allStories: (Story & Record<string, any>)[] = snapshot.docs.map((doc) => ({
+      ...(doc.data()),
+      ...mapDocToStory(doc),
     }));
 
     // Filter by ageGroup in any location (normalize both sides for comparison)
@@ -209,10 +234,7 @@ export async function fetchStoriesWithFilters(filters: {
     const uniqueDocs = Array.from(
       new Map(allDocs.map((doc) => [doc.id, doc])).values()
     );
-    return uniqueDocs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<Story, "id">),
-    }));
+    return uniqueDocs.map(mapDocToStory);
   } else if (filters.situationIds && filters.situationIds.length > 0) {
     // Filter by category - get stories for all situations in that category
     // Firestore 'in' query supports up to 10 items
@@ -223,10 +245,7 @@ export async function fetchStoriesWithFilters(filters: {
         where("specificSituation", "in", filters.situationIds)
       );
       const snapshot = await getDocs(q1);
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as Omit<Story, "id">),
-      }));
+      return snapshot.docs.map(mapDocToStory);
     } else {
       // If more than 10, fetch all and filter client-side
       const baseQ = query(
@@ -235,8 +254,8 @@ export async function fetchStoriesWithFilters(filters: {
       );
       const snapshot = await getDocs(baseQ);
       const allStories = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...(doc.data() as any),
+        ...mapDocToStory(doc),
+        specificSituation: doc.data().specificSituation as string | undefined,
       }));
       return allStories.filter(
         (story) =>
@@ -261,10 +280,7 @@ export async function fetchStoriesWithFilters(filters: {
     const uniqueDocs = Array.from(
       new Map(allDocs.map((doc) => [doc.id, doc])).values()
     );
-    return uniqueDocs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<Story, "id">),
-    }));
+    return uniqueDocs.map(mapDocToStory);
   }
 
   // No filters - return all approved stories
@@ -273,10 +289,7 @@ export async function fetchStoriesWithFilters(filters: {
     where("status", "==", "approved")
   );
   const snapshot = await getDocs(baseQ);
-  return snapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...(doc.data() as Omit<Story, "id">),
-  }));
+  return snapshot.docs.map(mapDocToStory);
 }
 
 // Legacy function for backward compatibility

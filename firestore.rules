@@ -1,13 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
-  // PHASE 1: Firestore Security Rules
-  // These rules provide a SECOND layer of protection at the database level.
-  // Even if the Express middleware is bypassed (e.g., direct Firestore SDK access),
-  // these rules enforce governance constraints.
-  // IMPORTANT: These rules assume Firebase Auth is used for authentication.
-  // Deploy with: firebase deploy --only firestore:rules
-  
   match /databases/{database}/documents {
+
     // ────────────────────────────────────────────────────
     // Helper functions
     // ────────────────────────────────────────────────────
@@ -16,115 +10,154 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function hasRole(role) {
-      return isAuthenticated() && request.auth.token.role == role;
+    function isCaregiver() {
+      return isAuthenticated() && request.auth.token.role == "caregiver";
+    }
+
+    function isSpecialist() {
+      return isAuthenticated() && request.auth.token.role == "specialist";
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == "admin";
     }
 
     function isSpecialistOrAdmin() {
-      return hasRole('specialist') || hasRole('admin');
+      return isSpecialist() || isAdmin();
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
     }
 
     // ────────────────────────────────────────────────────
-    // Story Briefs
+    // Story Templates — public library (published + active)
     // ────────────────────────────────────────────────────
 
-    match /storyBriefs/{briefId} {
-      // Any authenticated user can read
-      allow read: if isAuthenticated();
-
-      // Admin SDK only — all writes go through backend
+    match /story_templates/{templateId} {
+      // Anyone can read published and active templates (no auth required)
+      // Specialists/admins can read all templates
+      allow read: if (resource.data.isPublished == true && resource.data.isActive == true)
+                  || isSpecialistOrAdmin();
+      // Only server (Admin SDK) can write
       allow write: if false;
     }
 
     // ────────────────────────────────────────────────────
-    // Generation Contracts
+    // Caregivers
     // ────────────────────────────────────────────────────
 
-    match /generationContracts/{contractId} {
-      // Any authenticated user can read
-      allow read: if isAuthenticated();
+    match /caregivers/{uid} {
+      allow read: if isOwner(uid) && isCaregiver();
+      allow write: if isOwner(uid) && isCaregiver();
 
-      // Only the server (admin SDK) should write contracts.
-      // Client-side writes are blocked entirely.
-      // The Express backend uses the Admin SDK which bypasses these rules.
-      allow write: if false;
+      // Children subcollection
+      match /children/{childId} {
+        allow read: if isOwner(uid) && isCaregiver();
+        allow write: if isOwner(uid) && isCaregiver();
+      }
 
-      // Contract history subcollection (archived rejected contracts)
-      match /history/{historyId} {
-        allow read: if isAuthenticated();
-        allow write: if false; // Admin SDK only
+      // Cart subcollection
+      match /cart/{cartItemId} {
+        allow read: if isOwner(uid) && isCaregiver();
+        allow write: if isOwner(uid) && isCaregiver();
+      }
+
+      // Purchases subcollection — read only (backend writes via Admin SDK)
+      match /purchases/{purchaseId} {
+        allow read: if isOwner(uid) && isCaregiver();
+        allow write: if false;
       }
     }
 
     // ────────────────────────────────────────────────────
-    // Audit Trail — IMMUTABLE
+    // Story Previews — read only by owning caregiver
+    // ────────────────────────────────────────────────────
+
+    match /storyPreviews/{previewId} {
+      allow read: if isAuthenticated()
+                  && resource.data.caregiverUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Personalized Stories — read only by owning caregiver
+    // with isAccessible check
+    // ────────────────────────────────────────────────────
+
+    match /personalizedStories/{storyId} {
+      allow read: if isAuthenticated()
+                  && resource.data.caregiverUid == request.auth.uid
+                  && resource.data.isAccessible == true;
+      allow write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Specialist collections — specialist/admin only
+    // ────────────────────────────────────────────────────
+
+    match /storyBriefs/{briefId} {
+      allow read: if isSpecialistOrAdmin();
+      allow write: if false;
+    }
+
+    match /generationContracts/{contractId} {
+      allow read: if isSpecialistOrAdmin();
+      allow write: if false;
+
+      match /history/{historyId} {
+        allow read: if isSpecialistOrAdmin();
+        allow write: if false;
+      }
+    }
+
+    match /storyDrafts/{draftId} {
+      allow read: if isSpecialistOrAdmin();
+      allow write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
+    // Audit Trail — admin read only, no client writes
     // ────────────────────────────────────────────────────
 
     match /auditTrail/{entryId} {
-      // Any authenticated user can read audit entries (read-only for clients)
-      // This enables the UI to display audit history, but clients cannot modify it.
-      allow read: if isAuthenticated();
-
-      // Only the server (admin SDK) can write.
-      // No client-side creates, updates, or deletes.
-      // This is critical for audit trail immutability and clinical governance.
+      allow read: if isAdmin();
       allow create: if false;
       allow update: if false;
       allow delete: if false;
     }
 
     // ────────────────────────────────────────────────────
-    // Clinical Rules (read-only for all)
+    // Clinical Rules (read-only for authenticated)
     // ────────────────────────────────────────────────────
 
     match /clinicalRulesVersions/{versionId} {
-      allow read: if isAuthenticated();
-      allow write: if false; // Admin SDK only
+      allow read: if isSpecialistOrAdmin();
+      allow write: if false;
 
       match /{subcollection}/{docId} {
-        allow read: if isAuthenticated();
+        allow read: if isSpecialistOrAdmin();
         allow write: if false;
       }
     }
 
     match /settings/{docId} {
-      allow read: if isAuthenticated();
-      allow write: if false; // Admin SDK only
+      allow read: if isSpecialistOrAdmin();
+      allow write: if false;
     }
 
     // ────────────────────────────────────────────────────
-    // Reference Data (read-only for all)
+    // Reference Data (public read)
     // ────────────────────────────────────────────────────
 
     match /referenceData/{docId} {
-      allow read: if true; // Public reference data
+      allow read: if true;
       allow write: if false;
-      
-      // Allow access to subcollections (topics/items, situations/items)
+
       match /{subcollection}/{itemId} {
-        allow read: if true; // Public reference data subcollections
+        allow read: if true;
         allow write: if false;
       }
-    }
-
-    // ────────────────────────────────────────────────────
-    // Story Drafts
-    // ────────────────────────────────────────────────────
-
-    match /storyDrafts/{draftId} {
-      allow read: if isAuthenticated();
-      allow write: if false; // Admin SDK only (generated by backend)
-    }
-
-    // ────────────────────────────────────────────────────
-    // Story Templates (Public Stories)
-    // ────────────────────────────────────────────────────
-
-    match /story_templates/{templateId} {
-      // Public read access for approved stories
-      allow read: if true;
-      // Only server can write
-      allow write: if false; // Admin SDK only
     }
 
     // ────────────────────────────────────────────────────
