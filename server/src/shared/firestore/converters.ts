@@ -5,7 +5,6 @@ import {
   Timestamp,
 } from "firebase-admin/firestore";
 import { Caregiver } from "../types/caregiver";
-import { ChildProfile } from "../types/childProfile";
 import { StoryTemplate } from "../types/storyTemplate";
 import { StoryPreview } from "../types/storyPreview";
 import { CartItem } from "../types/cartItem";
@@ -46,30 +45,7 @@ export const caregiverConverter: FirestoreDataConverter<Caregiver> = {
       consentVersion: data.consentVersion as string,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
-      childCount: data.childCount as number,
       purchaseCount: data.purchaseCount as number,
-    };
-  },
-};
-
-export const childProfileConverter: FirestoreDataConverter<ChildProfile> = {
-  toFirestore(child: ChildProfile): DocumentData {
-    const { childId: _childId, ...data } = child;
-    return data;
-  },
-  fromFirestore(snapshot: QueryDocumentSnapshot): ChildProfile {
-    const data = snapshot.data();
-    return {
-      childId: snapshot.id,
-      firstName: data.firstName as string,
-      gender: data.gender as ChildProfile["gender"],
-      ageGroup: data.ageGroup as ChildProfile["ageGroup"],
-      photoPath: data.photoPath as string | null,
-      photoStatus: data.photoStatus as ChildProfile["photoStatus"],
-      photoUploadedAt: data.photoUploadedAt as string | null,
-      photoRetainUntil: data.photoRetainUntil as string | null,
-      createdAt: data.createdAt as Timestamp,
-      updatedAt: data.updatedAt as Timestamp,
     };
   },
 };
@@ -85,16 +61,24 @@ export const storyPreviewConverter: FirestoreDataConverter<StoryPreview> = {
     return {
       previewId: snapshot.id,
       caregiverUid: data.caregiverUid as string,
-      childId: data.childId as string,
       templateId: data.templateId as string,
       childFirstName: data.childFirstName as string,
       childGender: data.childGender as StoryPreview["childGender"],
+      childAgeGroup: data.childAgeGroup as StoryPreview["childAgeGroup"],
+
+      photoPath: (data.photoPath as string | null) ?? null,
+      photoStatus: (data.photoStatus as StoryPreview["photoStatus"]) ?? "none",
+      photoUploadedAt: (data.photoUploadedAt as string | null) ?? null,
+      photoRetainUntil: (data.photoRetainUntil as string | null) ?? null,
+
       templateTitle: data.templateTitle as string,
       templateVersion: data.templateVersion as number,
       language: data.language as "ar" | "he",
       previewPageCount: data.previewPageCount as number,
       pages: data.pages as StoryPreview["pages"],
       coverImageUrl: data.coverImageUrl as string | null,
+      dedicationName: (data.dedicationName as string | null) ?? null,
+
       generationStatus: data.generationStatus as StoryPreview["generationStatus"],
       pagesCompleted: data.pagesCompleted as number,
       generationStartedAt: data.generationStartedAt as string | null,
@@ -123,7 +107,6 @@ export const cartItemConverter: FirestoreDataConverter<CartItem> = {
       previewId: data.previewId as string,
       templateId: data.templateId as string,
       templateTitle: data.templateTitle as string,
-      childId: data.childId as string,
       childFirstName: data.childFirstName as string,
       coverImageUrl: data.coverImageUrl as string | null,
       priceCents: data.priceCents as number,
@@ -145,7 +128,6 @@ export const purchaseConverter: FirestoreDataConverter<Purchase> = {
       caregiverUid: data.caregiverUid as string,
       previewId: data.previewId as string,
       templateId: data.templateId as string,
-      childId: data.childId as string,
       personalizedStoryId: data.personalizedStoryId as string | null,
       paymentTransactionId: data.paymentTransactionId as string,
       paymentSessionId: data.paymentSessionId as string | null,
@@ -174,11 +156,11 @@ export const personalizedStoryConverter: FirestoreDataConverter<PersonalizedStor
     return {
       storyId: snapshot.id,
       caregiverUid: data.caregiverUid as string,
-      childId: data.childId as string,
       purchaseId: data.purchaseId as string,
       previewId: data.previewId as string,
       childFirstName: data.childFirstName as string,
       childGender: data.childGender as PersonalizedStory["childGender"],
+      childAgeGroup: data.childAgeGroup as PersonalizedStory["childAgeGroup"],
       templateId: data.templateId as string,
       templateTitle: data.templateTitle as string,
       templateVersion: data.templateVersion as number,

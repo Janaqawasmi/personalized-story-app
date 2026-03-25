@@ -37,14 +37,18 @@ const Timestamp = admin.firestore.Timestamp;
 // ----------------------------------------------------------------------------
 
 const SAMPLE_CAREGIVER_UID = "sample-caregiver-001";
-const SAMPLE_CHILD_ID = "sample-child-001";
-const SAMPLE_CHILD_ID_2 = "sample-child-002";
 const SAMPLE_TEMPLATE_ID = "sample-template-001";
 const SAMPLE_TEMPLATE_ID_2 = "sample-template-002";
-const SAMPLE_PREVIEW_ID = "sample-preview-001";
+const SAMPLE_PREVIEW_ID_1 = "sample-preview-001";
+const SAMPLE_PREVIEW_ID_2 = "sample-preview-002";
+const SAMPLE_PREVIEW_ID_3 = "sample-preview-003";
+const SAMPLE_PREVIEW_ID_4 = "sample-preview-004";
+const SAMPLE_PREVIEW_ID_5 = "sample-preview-005";
 const SAMPLE_CART_ITEM_ID = "sample-cart-001";
 const SAMPLE_PURCHASE_ID = "sample-purchase-001";
+const SAMPLE_PURCHASE_ID_2 = "sample-purchase-002";
 const SAMPLE_STORY_ID = "sample-story-001";
+const SAMPLE_STORY_ID_2 = "sample-story-002";
 
 async function seed() {
   console.log("🌱 Seeding caregiver-side collections...\n");
@@ -63,53 +67,14 @@ async function seed() {
     consentVersion: "1.0",
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-    childCount: 2,
     purchaseCount: 1,
   });
   console.log("   ✅ caregivers/{uid} created");
 
   // ──────────────────────────────────────────────────────────────────
-  // 2. CHILDREN subcollection (caregivers/{uid}/children)
+  // 2. STORY_TEMPLATES collection (with new public library fields)
   // ──────────────────────────────────────────────────────────────────
-  console.log("2️⃣  Creating children subcollection...");
-
-  await db
-    .collection(`caregivers/${SAMPLE_CAREGIVER_UID}/children`)
-    .doc(SAMPLE_CHILD_ID)
-    .set({
-      childId: SAMPLE_CHILD_ID,
-      firstName: "ليان",
-      gender: "female",
-      ageGroup: "3_6",
-      photoPath: null,
-      photoStatus: "none",
-      photoUploadedAt: null,
-      photoRetainUntil: null,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-
-  await db
-    .collection(`caregivers/${SAMPLE_CAREGIVER_UID}/children`)
-    .doc(SAMPLE_CHILD_ID_2)
-    .set({
-      childId: SAMPLE_CHILD_ID_2,
-      firstName: "آدم",
-      gender: "male",
-      ageGroup: "6_9",
-      photoPath: "child-photos/sample-caregiver-001/sample-child-002/1700000000.jpg",
-      photoStatus: "uploaded",
-      photoUploadedAt: new Date().toISOString(),
-      photoRetainUntil: null,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-  console.log("   ✅ caregivers/{uid}/children created (2 children)");
-
-  // ──────────────────────────────────────────────────────────────────
-  // 3. STORY_TEMPLATES collection (with new public library fields)
-  // ──────────────────────────────────────────────────────────────────
-  console.log("3️⃣  Creating story_templates with public library fields...");
+  console.log("2️⃣  Creating story_templates with public library fields...");
 
   await db.collection("story_templates").doc(SAMPLE_TEMPLATE_ID).set({
     // Existing specialist-side fields
@@ -264,35 +229,42 @@ async function seed() {
   console.log("   ✅ story_templates created (2 templates: Arabic + Hebrew)");
 
   // ──────────────────────────────────────────────────────────────────
-  // 4. STORY PREVIEWS collection
+  // 3. STORY PREVIEWS collection
   // ──────────────────────────────────────────────────────────────────
-  console.log("4️⃣  Creating storyPreviews collection...");
+  console.log("3️⃣  Creating storyPreviews collection...");
 
-  await db.collection("storyPreviews").doc(SAMPLE_PREVIEW_ID).set({
-    previewId: SAMPLE_PREVIEW_ID,
+  const now = Date.now();
+
+  // 1) sample-preview-001 (ready, completed, female, 2 pages)
+  await db.collection("storyPreviews").doc(SAMPLE_PREVIEW_ID_1).set({
+    previewId: SAMPLE_PREVIEW_ID_1,
     caregiverUid: SAMPLE_CAREGIVER_UID,
-    childId: SAMPLE_CHILD_ID,
     templateId: SAMPLE_TEMPLATE_ID,
-
-    // Snapshots at creation time
-    childFirstName: "ليان",
-    childGender: "female",
     templateTitle: "الدب الشجاع",
     templateVersion: 2,
     language: "ar",
-
     previewPageCount: 2,
+
+    childFirstName: "ليان",
+    childGender: "female",
+    childAgeGroup: "3_6",
+
+    photoPath: `child-photos/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_1}/1700000000.jpg`,
+    photoStatus: "preview_used",
+    photoUploadedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+    photoRetainUntil: new Date(now + 46 * 60 * 60 * 1000).toISOString(),
+
     pages: [
       {
         pageNumber: 1,
         personalizedText: "كانت ليان تمشي في الغابة. هي شعرت بالخوف.",
         imagePromptUsed:
           "A warm illustration of a young girl named ليان walking through a friendly forest at dusk, soft lighting, children's book style",
-        generatedImagePath: "preview-illustrations/sample-caregiver-001/sample-preview-001/page-1.webp",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_1}/page-1.webp`,
         aiMetadata: {
           providerId: "sample-provider",
           modelId: "sample-model-v1",
-          generatedAt: new Date().toISOString(),
+          generatedAt: new Date(now).toISOString(),
           latencyMs: 3200,
         },
       },
@@ -301,39 +273,263 @@ async function seed() {
         personalizedText: "وجدت ليان دبًا صغيرًا. قالت هي له: 'أنا صديقتك'.",
         imagePromptUsed:
           "a young girl named ليان meeting a cute small bear in a forest clearing, warm and friendly atmosphere, children's book illustration",
-        generatedImagePath: "preview-illustrations/sample-caregiver-001/sample-preview-001/page-2.webp",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_1}/page-2.webp`,
         aiMetadata: {
           providerId: "sample-provider",
           modelId: "sample-model-v1",
-          generatedAt: new Date().toISOString(),
+          generatedAt: new Date(now).toISOString(),
           latencyMs: 2800,
         },
       },
     ],
     coverImageUrl: "https://placeholder.com/bear-story-cover.jpg",
 
-    // Generation tracking
     generationStatus: "completed",
     pagesCompleted: 2,
-    generationStartedAt: new Date(Date.now() - 60000).toISOString(),
-    generationCompletedAt: new Date().toISOString(),
+    generationStartedAt: new Date(now - 60 * 1000).toISOString(),
+    generationCompletedAt: new Date(now).toISOString(),
     failureReason: null,
 
-    // Lifecycle
     status: "ready",
-    expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
     purchaseId: null,
     personalizedStoryId: null,
 
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
   });
-  console.log("   ✅ storyPreviews/{previewId} created");
+
+  // 2) sample-preview-002 (generating, in_progress, male, pagesCompleted 1, 1 page so far)
+  await db.collection("storyPreviews").doc(SAMPLE_PREVIEW_ID_2).set({
+    previewId: SAMPLE_PREVIEW_ID_2,
+    caregiverUid: SAMPLE_CAREGIVER_UID,
+    templateId: SAMPLE_TEMPLATE_ID,
+    templateTitle: "الدب الشجاع",
+    templateVersion: 2,
+    language: "ar",
+    previewPageCount: 2,
+
+    childFirstName: "آدم",
+    childGender: "male",
+    childAgeGroup: "6_9",
+
+    photoPath: `child-photos/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_2}/1700000001.jpg`,
+    photoStatus: "processing",
+    photoUploadedAt: new Date(now - 20 * 60 * 1000).toISOString(),
+    photoRetainUntil: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+
+    pages: [
+      {
+        pageNumber: 1,
+        personalizedText: "كان آدم يمشي في الغابة. هو شعر بالخوف.",
+        imagePromptUsed:
+          "A warm illustration of a young boy named آدم walking through a friendly forest at dusk, soft lighting, children's book style",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_2}/page-1.webp`,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date(now - 5 * 60 * 1000).toISOString(),
+          latencyMs: 3500,
+        },
+      },
+    ],
+    coverImageUrl: "https://placeholder.com/bear-story-cover.jpg",
+
+    generationStatus: "in_progress",
+    pagesCompleted: 1,
+    generationStartedAt: new Date(now - 25 * 60 * 1000).toISOString(),
+    generationCompletedAt: null,
+    failureReason: null,
+
+    status: "generating",
+    expiresAt: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+    purchaseId: null,
+    personalizedStoryId: null,
+
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+
+  // 3) sample-preview-003 (ready, completed, different templateId, different child + age, 2 pages)
+  await db.collection("storyPreviews").doc(SAMPLE_PREVIEW_ID_3).set({
+    previewId: SAMPLE_PREVIEW_ID_3,
+    caregiverUid: SAMPLE_CAREGIVER_UID,
+    templateId: SAMPLE_TEMPLATE_ID_2,
+    templateTitle: "הכוכב הקטן",
+    templateVersion: 1,
+    language: "he",
+    previewPageCount: 2,
+
+    childFirstName: "נועה",
+    childGender: "female",
+    childAgeGroup: "0_3",
+
+    photoPath: `child-photos/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_3}/1700000002.jpg`,
+    photoStatus: "preview_used",
+    photoUploadedAt: new Date(now - 3 * 60 * 60 * 1000).toISOString(),
+    photoRetainUntil: new Date(now + 45 * 60 * 60 * 1000).toISOString(),
+
+    pages: [
+      {
+        pageNumber: 1,
+        personalizedText: "נועה הסתכלה על השמיים. היא ראתה כוכב קטן.",
+        imagePromptUsed:
+          "A dreamy children's book illustration of a young girl named נועה looking up at a starry night sky, one star shining brightly",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_3}/page-1.webp`,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date(now).toISOString(),
+          latencyMs: 3000,
+        },
+      },
+      {
+        pageNumber: 2,
+        personalizedText: "הכוכב אמר לנועה: 'את מיוחדת, בדיוק כמוני'. היא חייכה.",
+        imagePromptUsed:
+          "A magical children's book illustration of a friendly glowing star talking to a young girl named נועה, warm encouraging atmosphere",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_3}/page-2.webp`,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date(now).toISOString(),
+          latencyMs: 2900,
+        },
+      },
+    ],
+    coverImageUrl: "https://placeholder.com/star-story-cover.jpg",
+
+    generationStatus: "completed",
+    pagesCompleted: 2,
+    generationStartedAt: new Date(now - 90 * 1000).toISOString(),
+    generationCompletedAt: new Date(now - 30 * 1000).toISOString(),
+    failureReason: null,
+
+    status: "ready",
+    expiresAt: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+    purchaseId: null,
+    personalizedStoryId: null,
+
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+
+  // 4) sample-preview-004 (expired, completed, photoStatus deleted, old timestamps)
+  const oldNow = now - 10 * 24 * 60 * 60 * 1000; // 10 days ago
+  await db.collection("storyPreviews").doc(SAMPLE_PREVIEW_ID_4).set({
+    previewId: SAMPLE_PREVIEW_ID_4,
+    caregiverUid: SAMPLE_CAREGIVER_UID,
+    templateId: SAMPLE_TEMPLATE_ID,
+    templateTitle: "الدب الشجاع",
+    templateVersion: 2,
+    language: "ar",
+    previewPageCount: 2,
+
+    childFirstName: "سلمى",
+    childGender: "female",
+    childAgeGroup: "9_12",
+
+    photoPath: null,
+    photoStatus: "deleted",
+    photoUploadedAt: new Date(oldNow - 2 * 60 * 60 * 1000).toISOString(),
+    photoRetainUntil: new Date(oldNow + 48 * 60 * 60 * 1000).toISOString(),
+
+    pages: [
+      {
+        pageNumber: 1,
+        personalizedText: "كانت سلمى تمشي في الغابة. هي شعرت بالخوف.",
+        imagePromptUsed:
+          "A warm illustration of a young girl named سلمى walking through a friendly forest at dusk, soft lighting, children's book style",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_4}/page-1.webp`,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date(oldNow).toISOString(),
+          latencyMs: 3100,
+        },
+      },
+      {
+        pageNumber: 2,
+        personalizedText: "وجدت سلمى دبًا صغيرًا. قالت هي له: 'أنا صديقتك'.",
+        imagePromptUsed:
+          "a young girl named سلمى meeting a cute small bear in a forest clearing, warm and friendly atmosphere, children's book illustration",
+        generatedImagePath: `preview-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_4}/page-2.webp`,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date(oldNow).toISOString(),
+          latencyMs: 2700,
+        },
+      },
+    ],
+    coverImageUrl: "https://placeholder.com/bear-story-cover.jpg",
+
+    generationStatus: "completed",
+    pagesCompleted: 2,
+    generationStartedAt: new Date(oldNow - 3 * 60 * 1000).toISOString(),
+    generationCompletedAt: new Date(oldNow).toISOString(),
+    failureReason: null,
+
+    status: "expired",
+    expiresAt: new Date(oldNow + 48 * 60 * 60 * 1000).toISOString(),
+    purchaseId: null,
+    personalizedStoryId: null,
+
+    createdAt: Timestamp.fromMillis(oldNow),
+    updatedAt: Timestamp.fromMillis(oldNow + 5 * 60 * 1000),
+  });
+
+  // 5) sample-preview-005 (failed, failed, failureReason, pagesCompleted 0)
+  await db.collection("storyPreviews").doc(SAMPLE_PREVIEW_ID_5).set({
+    previewId: SAMPLE_PREVIEW_ID_5,
+    caregiverUid: SAMPLE_CAREGIVER_UID,
+    templateId: SAMPLE_TEMPLATE_ID,
+    templateTitle: "الدب الشجاع",
+    templateVersion: 2,
+    language: "ar",
+    previewPageCount: 2,
+
+    childFirstName: "ياسر",
+    childGender: "male",
+    childAgeGroup: "3_6",
+
+    photoPath: `child-photos/${SAMPLE_CAREGIVER_UID}/${SAMPLE_PREVIEW_ID_5}/1700000003.jpg`,
+    photoStatus: "uploaded",
+    photoUploadedAt: new Date(now - 15 * 60 * 1000).toISOString(),
+    photoRetainUntil: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+
+    pages: [],
+    coverImageUrl: "https://placeholder.com/bear-story-cover.jpg",
+
+    generationStatus: "failed",
+    pagesCompleted: 0,
+    generationStartedAt: new Date(now - 10 * 60 * 1000).toISOString(),
+    generationCompletedAt: new Date(now - 9 * 60 * 1000).toISOString(),
+    failureReason: "Image generation failed: provider timeout",
+
+    status: "failed",
+    expiresAt: new Date(now + 48 * 60 * 60 * 1000).toISOString(),
+    purchaseId: null,
+    personalizedStoryId: null,
+
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+
+  console.log(
+    `   ✅ storyPreviews created (${[
+      SAMPLE_PREVIEW_ID_1,
+      SAMPLE_PREVIEW_ID_2,
+      SAMPLE_PREVIEW_ID_3,
+      SAMPLE_PREVIEW_ID_4,
+      SAMPLE_PREVIEW_ID_5,
+    ].join(", ")})`
+  );
 
   // ──────────────────────────────────────────────────────────────────
-  // 5. CART subcollection (caregivers/{uid}/cart)
+  // 4. CART subcollection (caregivers/{uid}/cart)
   // ──────────────────────────────────────────────────────────────────
-  console.log("5️⃣  Creating cart subcollection...");
+  console.log("4️⃣  Creating cart subcollection...");
 
   await db
     .collection(`caregivers/${SAMPLE_CAREGIVER_UID}/cart`)
@@ -341,10 +537,9 @@ async function seed() {
     .set({
       cartItemId: SAMPLE_CART_ITEM_ID,
       caregiverUid: SAMPLE_CAREGIVER_UID,
-      previewId: SAMPLE_PREVIEW_ID,
+      previewId: SAMPLE_PREVIEW_ID_1,
       templateId: SAMPLE_TEMPLATE_ID,
       templateTitle: "الدب الشجاع",
-      childId: SAMPLE_CHILD_ID,
       childFirstName: "ليان",
       coverImageUrl: "https://placeholder.com/bear-story-cover.jpg",
       priceCents: 4990,
@@ -355,9 +550,9 @@ async function seed() {
   console.log("   ✅ caregivers/{uid}/cart/{cartItemId} created");
 
   // ──────────────────────────────────────────────────────────────────
-  // 6. PURCHASES subcollection (caregivers/{uid}/purchases)
+  // 5. PURCHASES subcollection (caregivers/{uid}/purchases)
   // ──────────────────────────────────────────────────────────────────
-  console.log("6️⃣  Creating purchases subcollection...");
+  console.log("5️⃣  Creating purchases subcollection...");
 
   await db
     .collection(`caregivers/${SAMPLE_CAREGIVER_UID}/purchases`)
@@ -365,9 +560,8 @@ async function seed() {
     .set({
       purchaseId: SAMPLE_PURCHASE_ID,
       caregiverUid: SAMPLE_CAREGIVER_UID,
-      previewId: SAMPLE_PREVIEW_ID,
+      previewId: SAMPLE_PREVIEW_ID_1,
       templateId: SAMPLE_TEMPLATE_ID,
-      childId: SAMPLE_CHILD_ID,
       personalizedStoryId: SAMPLE_STORY_ID,
 
       // Generic payment fields (NOT Stripe-specific)
@@ -390,20 +584,50 @@ async function seed() {
     });
   console.log("   ✅ caregivers/{uid}/purchases/{purchaseId} created");
 
+  await db
+    .collection(`caregivers/${SAMPLE_CAREGIVER_UID}/purchases`)
+    .doc(SAMPLE_PURCHASE_ID_2)
+    .set({
+      purchaseId: SAMPLE_PURCHASE_ID_2,
+      caregiverUid: SAMPLE_CAREGIVER_UID,
+      previewId: SAMPLE_PREVIEW_ID_3,
+      templateId: SAMPLE_TEMPLATE_ID_2,
+      personalizedStoryId: SAMPLE_STORY_ID_2,
+
+      // Generic payment fields (NOT Stripe-specific)
+      paymentTransactionId: "txn_sample_002",
+      paymentSessionId: "sess_sample_002",
+      paymentChargeId: "chg_sample_002",
+      amountCents: 4990,
+      currency: "ILS",
+
+      status: "completed",
+      paidAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+      completedAt: new Date(Date.now() - 44 * 60 * 1000).toISOString(),
+      failedAt: null,
+      failureReason: null,
+      refundedAt: null,
+      paymentRefundId: null,
+
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+  console.log("   ✅ caregivers/{uid}/purchases/{purchaseId} created (2nd purchase)");
+
   // ──────────────────────────────────────────────────────────────────
-  // 7. PERSONALIZED STORIES collection
+  // 6. PERSONALIZED STORIES collection
   // ──────────────────────────────────────────────────────────────────
-  console.log("7️⃣  Creating personalizedStories collection...");
+  console.log("6️⃣  Creating personalizedStories collection...");
 
   await db.collection("personalizedStories").doc(SAMPLE_STORY_ID).set({
     storyId: SAMPLE_STORY_ID,
     caregiverUid: SAMPLE_CAREGIVER_UID,
-    childId: SAMPLE_CHILD_ID,
     purchaseId: SAMPLE_PURCHASE_ID,
-    previewId: SAMPLE_PREVIEW_ID,
+    previewId: SAMPLE_PREVIEW_ID_1,
 
     childFirstName: "ليان",
     childGender: "female",
+    childAgeGroup: "3_6",
     templateId: SAMPLE_TEMPLATE_ID,
     templateTitle: "الدب الشجاع",
     templateVersion: 2,
@@ -485,17 +709,92 @@ async function seed() {
   });
   console.log("   ✅ personalizedStories/{storyId} created");
 
+  await db.collection("personalizedStories").doc(SAMPLE_STORY_ID_2).set({
+    storyId: SAMPLE_STORY_ID_2,
+    caregiverUid: SAMPLE_CAREGIVER_UID,
+    purchaseId: SAMPLE_PURCHASE_ID_2,
+    previewId: SAMPLE_PREVIEW_ID_3,
+
+    childFirstName: "נועה",
+    childGender: "female",
+    childAgeGroup: "0_3",
+    templateId: SAMPLE_TEMPLATE_ID_2,
+    templateTitle: "הכוכב הקטן",
+    templateVersion: 1,
+    language: "he",
+    dedicationName: "אמא",
+
+    coverImageUrl: "https://placeholder.com/star-story-cover.jpg",
+
+    generationStatus: "completed",
+    totalPages: 3,
+    pagesCompleted: 3,
+    pagesFromPreview: 2,
+    pagesFailedIndexes: [],
+    generationStartedAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+    generationCompletedAt: new Date(Date.now() - 1 * 60 * 1000).toISOString(),
+
+    pages: [
+      {
+        pageNumber: 1,
+        personalizedText: "נועה הסתכלה על השמיים. היא ראתה כוכב קטן.",
+        imagePromptUsed:
+          "A dreamy children's book illustration of a young girl named נועה looking up at a starry night sky, one star shining brightly",
+        generatedImagePath: `generated-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_STORY_ID_2}/page-1.webp`,
+        fromPreview: true,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date().toISOString(),
+          latencyMs: 3100,
+        },
+      },
+      {
+        pageNumber: 2,
+        personalizedText: "הכוכב אמר לנועה: 'את מיוחדת, בדיוק כמוני'. היא חייכה.",
+        imagePromptUsed:
+          "A magical children's book illustration of a friendly glowing star talking to a young girl named נועה, warm encouraging atmosphere",
+        generatedImagePath: `generated-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_STORY_ID_2}/page-2.webp`,
+        fromPreview: true,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date().toISOString(),
+          latencyMs: 3000,
+        },
+      },
+      {
+        pageNumber: 3,
+        personalizedText: "נועה הרגישה אמיצה. היא ידעה שהכוכב תמיד איתה.",
+        imagePromptUsed:
+          "A warm children's book illustration of a young girl named נועה standing tall and confident with a small star glowing in her pocket, morning light",
+        generatedImagePath: `generated-illustrations/${SAMPLE_CAREGIVER_UID}/${SAMPLE_STORY_ID_2}/page-3.webp`,
+        fromPreview: false,
+        aiMetadata: {
+          providerId: "sample-provider",
+          modelId: "sample-model-v1",
+          generatedAt: new Date().toISOString(),
+          latencyMs: 3400,
+        },
+      },
+    ],
+
+    isAccessible: true,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+  console.log("   ✅ personalizedStories/{storyId} created (2nd story)");
+
   // ──────────────────────────────────────────────────────────────────
   // Done!
   // ──────────────────────────────────────────────────────────────────
   console.log("\n🎉 All collections seeded successfully!\n");
   console.log("Collections created:");
   console.log("  📁 caregivers                          (top-level)");
-  console.log("  📁 caregivers/{uid}/children            (subcollection)");
   console.log("  📁 caregivers/{uid}/cart                (subcollection)");
   console.log("  📁 caregivers/{uid}/purchases           (subcollection)");
   console.log("  📁 story_templates                     (top-level, updated with new fields)");
-  console.log("  📁 storyPreviews                       (top-level)");
+  console.log("  📁 storyPreviews                       (top-level, with inline child data + photo lifecycle)");
   console.log("  📁 personalizedStories                 (top-level)");
   console.log("\nView in Firebase Console:");
   console.log("  https://console.firebase.google.com/project/personalized-story-app/firestore\n");

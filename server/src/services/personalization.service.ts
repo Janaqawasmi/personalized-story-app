@@ -1,4 +1,4 @@
-import { ChildProfile, Gender } from "../shared/types/childProfile";
+import { Gender } from "../shared/types/common";
 import { StoryTemplatePage } from "../shared/types/storyTemplate";
 
 // ============================================================================
@@ -9,6 +9,11 @@ export interface PronounSet {
   subject: string;
   object: string;
   possessive: string;
+}
+
+export interface ChildData {
+  firstName: string;
+  gender: Gender;
 }
 
 const PRONOUN_MAPS: Record<"he" | "ar", Record<Gender, PronounSet>> = {
@@ -79,9 +84,8 @@ export function selectTextVariant(page: StoryTemplatePage, gender: Gender): stri
  */
 export function personalizeText(
   template: string,
-  child: ChildProfile,
+  child: ChildData,
   language: "ar" | "he",
-  dedicationName?: string | null
 ): string {
   const pronouns = getPronounSet(child.gender, language);
 
@@ -90,7 +94,6 @@ export function personalizeText(
   result = result.replace(/\{\{PRONOUN_SUBJECT\}\}/g, pronouns.subject);
   result = result.replace(/\{\{PRONOUN_OBJECT\}\}/g, pronouns.object);
   result = result.replace(/\{\{PRONOUN_POSSESSIVE\}\}/g, pronouns.possessive);
-  result = result.replace(/\{\{DEDICATION_NAME\}\}/g, dedicationName ?? "");
 
   return result;
 }
@@ -102,7 +105,7 @@ export function personalizeText(
  */
 export function buildImagePrompt(
   template: string,
-  child: ChildProfile
+  child: ChildData
 ): string {
   const description = `${CHARACTER_DESCRIPTIONS[child.gender]} named ${child.firstName}`;
   return template.replace(/\{\{CHARACTER_DESCRIPTION\}\}/g, description);

@@ -7,7 +7,7 @@ service firebase.storage {
     // No client reads or writes (privacy protection)
     // ────────────────────────────────────────────────────
 
-    match /child-photos/{caregiverUid}/{childId}/{photoFile} {
+    match /child-photos/{caregiverUid}/{previewId}/{photoFile} {
       allow read, write: if false;
     }
 

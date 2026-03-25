@@ -1,11 +1,10 @@
 export type { Caregiver } from "./caregiver";
 
 export type {
-  ChildProfile,
-  PhotoStatus,
-  AgeGroup,
   Gender,
-} from "./childProfile";
+  AgeGroup,
+  PhotoStatus,
+} from "./common";
 
 export type {
   StoryTemplate,

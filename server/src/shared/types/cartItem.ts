@@ -6,7 +6,6 @@ export interface CartItem {
   previewId: string;
   templateId: string;
   templateTitle: string;
-  childId: string;
   childFirstName: string;
   coverImageUrl: string | null;
   priceCents: number;

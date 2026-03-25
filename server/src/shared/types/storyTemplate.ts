@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { AgeGroup } from "./childProfile";
+import { AgeGroup } from "./common";
 
 export interface LocalizedString {
   ar?: string;

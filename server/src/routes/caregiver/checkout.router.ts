@@ -59,23 +59,48 @@ router.post(
       }
 
       // Validate cart items
-      const { valid, invalid } = await validateCartItems(caregiverUid);
+      const result = await validateCartItems(caregiverUid);
 
-      // Filter to requested items only
-      let checkoutItems = valid;
+      // Filter to requested items only (best-effort for invalid/photos-needed cases)
+      let checkoutItems = result.readyToPay;
+      let photosNeeded = result.photosNeeded;
+      let invalidItems = result.invalid;
+
       if (cartItemIds?.length) {
         const requestedIds = new Set(cartItemIds);
-        checkoutItems = valid.filter((item) => requestedIds.has(item.cartItemId));
+        checkoutItems = result.readyToPay.filter((item) => requestedIds.has(item.cartItemId));
+        invalidItems = result.invalid.filter((e) => requestedIds.has(e.cartItemId));
       } else if (previewIds?.length) {
         const requestedPreviews = new Set(previewIds);
-        checkoutItems = valid.filter((item) => requestedPreviews.has(item.previewId));
+        checkoutItems = result.readyToPay.filter((item) => requestedPreviews.has(item.previewId));
+        photosNeeded = result.photosNeeded.filter((p) => requestedPreviews.has(p.previewId));
+      }
+
+      if (photosNeeded.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: "photos_required",
+          photosNeeded,
+          invalidItems,
+          message: "Please re-upload photos for the listed children before checkout",
+        });
+        return;
+      }
+
+      if (invalidItems.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: "invalid_items",
+          invalidItems,
+        });
+        return;
       }
 
       if (checkoutItems.length === 0) {
         res.status(400).json({
           success: false,
           error: "No valid items for checkout",
-          invalidItems: invalid,
+          invalidItems,
         });
         return;
       }
@@ -102,7 +127,6 @@ router.post(
         metadata: {
           previewId: item.previewId,
           templateId: item.templateId,
-          childId: item.childId,
           cartItemId: item.cartItemId,
         },
       }));
@@ -139,7 +163,6 @@ router.post(
           caregiverUid,
           previewId: item.previewId,
           templateId: item.templateId,
-          childId: item.childId,
           personalizedStoryId: null,
           paymentTransactionId: session.paymentIntentId,
           paymentSessionId: session.sessionId,

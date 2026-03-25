@@ -51,12 +51,6 @@ service cloud.firestore {
       allow read: if isOwner(uid) && isCaregiver();
       allow write: if isOwner(uid) && isCaregiver();
 
-      // Children subcollection
-      match /children/{childId} {
-        allow read: if isOwner(uid) && isCaregiver();
-        allow write: if isOwner(uid) && isCaregiver();
-      }
-
       // Cart subcollection
       match /cart/{cartItemId} {
         allow read: if isOwner(uid) && isCaregiver();
