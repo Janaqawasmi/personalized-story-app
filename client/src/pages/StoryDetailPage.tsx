@@ -41,6 +41,11 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 interface StoryDetail {
   id: string;
   title: string;
+  pricing?: {
+    digital?: number;
+    print?: number;
+  };
+  currency?: string;
   shortDescription?: string;
   coverImage?: string;
   ageGroup?: string;
@@ -64,6 +69,36 @@ function formatAge(ageGroup?: string): string {
   if (!ageGroup) return "";
   const cleaned = ageGroup.replace(/_/g, "–").replace(/-/g, "–");
   return cleaned;
+}
+
+function formatPrice(price: number, currency = "USD"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
+function extractPricing(raw: any): { digital?: number; print?: number } | undefined {
+  const readAmount = (value: unknown): number | undefined => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (
+      value &&
+      typeof value === "object" &&
+      typeof (value as { current?: unknown }).current === "number" &&
+      Number.isFinite((value as { current?: number }).current)
+    ) {
+      return (value as { current: number }).current;
+    }
+    return undefined;
+  };
+
+  const digital = readAmount(raw?.pricing?.digital);
+  const print = readAmount(raw?.pricing?.print);
+
+  if (digital == null && print == null) return undefined;
+  return { digital, print };
 }
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -119,6 +154,8 @@ export default function StoryDetailPage() {
           setStory({
             id: storySnap.id,
             title: resolveLocalizedField(data.title) || data.title || "",
+            pricing: extractPricing(data),
+            currency: typeof data.currency === "string" ? data.currency : "USD",
             shortDescription: resolveLocalizedField(data.shortDescription),
             coverImage: data.coverImage || data.coverImageUrl,
             ageGroup:
@@ -279,6 +316,14 @@ export default function StoryDetailPage() {
           topic: topicLabel,
         })
       : t("storyDetail.descriptionDefault"));
+
+  const hasDigitalPrice =
+    typeof story?.pricing?.digital === "number" &&
+    Number.isFinite(story?.pricing?.digital);
+  const hasPrintPrice =
+    typeof story?.pricing?.print === "number" &&
+    Number.isFinite(story?.pricing?.print);
+  const hasAnyPricing = hasDigitalPrice || hasPrintPrice;
 
   // ── Loading / Error states ─────────────────────────────────────────
   if (loading) {
@@ -490,7 +535,7 @@ export default function StoryDetailPage() {
                 color: "text.secondary",
                 fontSize: "1rem",
                 lineHeight: 1.7,
-                mb: 2.5,
+                mb: 2,
               }}
             >
               {emotionalSubtitle}
@@ -567,7 +612,7 @@ export default function StoryDetailPage() {
             </Typography>
 
             {/* 5. Features list */}
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 3 }}>
               <Typography
                 variant="subtitle2"
                 sx={{ fontWeight: 700, mb: 1.5, color: "text.primary" }}
@@ -597,6 +642,52 @@ export default function StoryDetailPage() {
                   </Typography>
                 </Box>
               ))}
+            </Box>
+
+            {/* Pricing */}
+            <Box
+              sx={{
+                mb: 3.5,
+                p: 2,
+                borderRadius: 3,
+                backgroundColor: "rgba(130,77,92,0.05)",
+                border: "1px solid rgba(130,77,92,0.12)",
+              }}
+            >
+              {hasAnyPricing ? (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: hasDigitalPrice && hasPrintPrice ? { xs: "1fr", sm: "1fr 1fr" } : "1fr",
+                    gap: 1.5,
+                  }}
+                >
+                  {hasDigitalPrice && (
+                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: "#fff" }}>
+                      <Typography sx={{ fontSize: "0.8rem", color: "text.secondary", mb: 0.6 }}>
+                        {t("storyDetail.price.digitalLabel")}
+                      </Typography>
+                      <Typography sx={{ fontSize: "1.3rem", fontWeight: 800, color: brandPrimary }}>
+                        {formatPrice(story.pricing?.digital as number, story.currency || "USD")}
+                      </Typography>
+                    </Box>
+                  )}
+                  {hasPrintPrice && (
+                    <Box sx={{ p: 1.5, borderRadius: 2, backgroundColor: "#fff" }}>
+                      <Typography sx={{ fontSize: "0.8rem", color: "text.secondary", mb: 0.6 }}>
+                        {t("storyDetail.price.printLabel")}
+                      </Typography>
+                      <Typography sx={{ fontSize: "1.3rem", fontWeight: 800, color: brandPrimary }}>
+                        {formatPrice(story.pricing?.print as number, story.currency || "USD")}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  {t("storyDetail.price.comingSoon")}
+                </Typography>
+              )}
             </Box>
 
             {/* 6. Main CTA Button */}

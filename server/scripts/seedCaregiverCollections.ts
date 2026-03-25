@@ -153,6 +153,11 @@ async function seed() {
     isPublished: true,
     publishedAt: Timestamp.now(),
     purchaseCount: 12,
+    pricing: {
+      digital: 19.99,
+      print: 29.99,
+    },
+    currency: "USD",
     previewPageCount: 2,
     totalPageCount: 4,
   });
@@ -223,6 +228,11 @@ async function seed() {
     isPublished: true,
     publishedAt: Timestamp.now(),
     purchaseCount: 8,
+    pricing: {
+      digital: 19.99,
+      print: 29.99,
+    },
+    currency: "USD",
     previewPageCount: 2,
     totalPageCount: 3,
   });

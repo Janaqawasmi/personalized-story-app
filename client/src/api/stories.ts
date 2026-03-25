@@ -34,6 +34,11 @@ export function resolveLocalizedField(value: unknown): string | undefined {
 export type Story = {
   id: string;
   title: string;
+  pricing?: {
+    digital?: number;
+    print?: number;
+  };
+  currency?: string;
   shortDescription?: string;
   coverImage?: string;
   targetAgeGroup?: string;
@@ -47,9 +52,27 @@ export type Story = {
  */
 function mapDocToStory(doc: { id: string; data: () => Record<string, any> }): Story {
   const data = doc.data();
+  const readAmount = (value: unknown): number | undefined => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (
+      value &&
+      typeof value === "object" &&
+      typeof (value as { current?: unknown }).current === "number" &&
+      Number.isFinite((value as { current?: number }).current)
+    ) {
+      return (value as { current: number }).current;
+    }
+    return undefined;
+  };
+
+  const digital = readAmount(data.pricing?.digital);
+  const print = readAmount(data.pricing?.print);
+
   return {
     id: doc.id,
     title: resolveLocalizedField(data.title) || data.title || "",
+    pricing: digital != null || print != null ? { digital, print } : undefined,
+    currency: typeof data.currency === "string" ? data.currency : undefined,
     shortDescription: resolveLocalizedField(data.shortDescription),
     coverImage: data.coverImage || data.coverImageUrl,
     targetAgeGroup: data.targetAgeGroup || data.ageGroup || data.generationConfig?.targetAgeGroup,

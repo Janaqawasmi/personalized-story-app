@@ -4,7 +4,7 @@
  *
  * Also adds missing new fields:
  * - isPublished, slug, shortDescription, coverImageUrl, displayTopic
- * - publishedAt, purchaseCount, previewPageCount, totalPageCount
+ * - publishedAt, purchaseCount, pricing, previewPageCount, totalPageCount
  * - visualConfig (default placeholder)
  * - textVariants, sceneInstruction, locationKey on pages
  * - characterProfile + characterProfileStatus on children
@@ -106,7 +106,34 @@ async function migrateTemplates() {
       missingFields.push("purchaseCount");
     }
 
-    // 9. Fix previewPageCount / totalPageCount
+    // 9. Fix pricing model (future-ready nested object)
+    const rawPricing = data.pricing;
+    const toNumber = (value: unknown): number | undefined => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (
+        value &&
+        typeof value === "object" &&
+        typeof (value as { current?: unknown }).current === "number" &&
+        Number.isFinite((value as { current?: number }).current)
+      ) {
+        return (value as { current: number }).current;
+      }
+      return undefined;
+    };
+    const existingDigital = toNumber(rawPricing?.digital);
+    const existingPrint = toNumber(rawPricing?.print);
+    const fallbackDigital = typeof data.price === "number" ? data.price : 19.99;
+    const fallbackPrint = typeof data.price === "number" ? data.price : 29.99;
+    const needsPricingObject = !rawPricing || existingDigital === undefined || existingPrint === undefined;
+    if (needsPricingObject) {
+      updates.pricing = {
+        digital: existingDigital ?? fallbackDigital,
+        print: existingPrint ?? fallbackPrint,
+      };
+      missingFields.push("pricing");
+    }
+
+    // 10. Fix previewPageCount / totalPageCount
     const pageCount = Array.isArray(data.pages) ? data.pages.length : 0;
     if (data.previewPageCount === undefined) {
       updates.previewPageCount = Math.min(2, pageCount);
@@ -117,7 +144,7 @@ async function migrateTemplates() {
       missingFields.push("totalPageCount");
     }
 
-    // 10. Fix visualConfig
+    // 11. Fix visualConfig
     if (!data.visualConfig) {
       updates.visualConfig = {
         styleAnchor: "Soft watercolor illustration, children's book style, warm muted colors, rounded forms, gentle lighting",
@@ -127,7 +154,7 @@ async function migrateTemplates() {
       missingFields.push("visualConfig");
     }
 
-    // 11. Fix pages: add textVariants, sceneInstruction, locationKey if missing
+    // 12. Fix pages: add textVariants, sceneInstruction, locationKey if missing
     if (Array.isArray(data.pages)) {
       let pagesNeedUpdate = false;
       const updatedPages = data.pages.map((page: any) => {

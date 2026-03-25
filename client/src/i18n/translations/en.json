@@ -326,6 +326,11 @@
     },
     "related": {
       "title": "You May Also Like"
+    },
+    "price": {
+      "comingSoon": "Pricing coming soon",
+      "digitalLabel": "Digital Version",
+      "printLabel": "Printed Book"
     }
   }
 }

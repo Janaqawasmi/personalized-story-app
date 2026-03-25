@@ -15,6 +15,11 @@ const STORY_TEMPLATES_COLLECTION = "story_templates";
 export interface StoryTemplateDetail {
   id: string;
   title: string;
+  pricing?: {
+    digital?: number;
+    print?: number;
+  };
+  currency?: string;
   slug: string;
   shortDescription: { ar?: string; he?: string };
   coverImageUrl: string;
