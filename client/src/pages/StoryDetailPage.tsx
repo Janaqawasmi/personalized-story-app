@@ -33,8 +33,6 @@ import PreviewIcon from "@mui/icons-material/Preview";
 import LocalPrintshopOutlinedIcon from "@mui/icons-material/LocalPrintshopOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
-import VerifiedIcon from "@mui/icons-material/Verified";
-import GroupsIcon from "@mui/icons-material/Groups";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -763,69 +761,8 @@ export default function StoryDetailPage() {
         </Box>
       </Container>
 
-      {/* ─── Trust Strip ──────────────────────────────────────────── */}
-      <Container maxWidth="lg" sx={{ mt: 8 }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr 1fr",
-              md: "repeat(4, 1fr)",
-            },
-            gap: 2.5,
-          }}
-        >
-          {[
-            {
-              icon: <PsychologyIcon sx={{ fontSize: 28 }} />,
-              text: t("storyDetail.trust.professional"),
-            },
-            {
-              icon: <FaceIcon sx={{ fontSize: 28 }} />,
-              text: t("storyDetail.trust.personalized"),
-            },
-            {
-              icon: <TranslateIcon sx={{ fontSize: 28 }} />,
-              text: t("storyDetail.trust.threeLanguages"),
-            },
-            {
-              icon: <PreviewIcon sx={{ fontSize: 28 }} />,
-              text: t("storyDetail.trust.previewFirst"),
-            },
-          ].map((item, i) => (
-            <Box
-              key={i}
-              sx={{
-                backgroundColor: brandSurface,
-                borderRadius: 3,
-                p: 2.5,
-                textAlign: "center",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-                border: `1px solid ${theme.palette.divider}`,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 1,
-              }}
-            >
-              <Box sx={{ color: brandPrimary }}>{item.icon}</Box>
-              <Typography
-                sx={{
-                  fontSize: "0.85rem",
-                  fontWeight: 600,
-                  color: "text.secondary",
-                  lineHeight: 1.4,
-                }}
-              >
-                {item.text}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-      </Container>
-
       {/* ─── Accordion Section ────────────────────────────────────── */}
-      <Container maxWidth="lg" sx={{ mt: 6 }}>
+      <Container maxWidth="lg" sx={{ mt: 8 }}>
         <Box sx={{ maxWidth: 800, mx: "auto" }}>
           {[
             {
