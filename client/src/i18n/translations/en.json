@@ -276,5 +276,56 @@
     "google": "Sign in with Google",
     "notRegistered": "Not registered yet?",
     "goToSignup": "Go to Sign Up"
+  },
+  "storyDetail": {
+    "loading": "Loading story...",
+    "notFound": "Story not found",
+    "notFoundMessage": "This story may have been removed or the link is invalid.",
+    "backToCatalog": "Back to Stories",
+    "galleryLabel": "See Inside the Story",
+    "personalizeButton": "Personalize This Story",
+    "addToFavorites": "Save to Favorites",
+    "previewDigital": "Preview Digital Version",
+    "emotionalSubtitleTemplate": "A personalized therapeutic story that helps children understand and cope with {topic}",
+    "emotionalSubtitleDefault": "A personalized therapeutic story that accompanies your child through their most meaningful moments",
+    "descriptionTemplate": "A warm and touching story written especially to help children ages {age} cope with {topic}. Through relatable characters and gentle language, the story guides your child through a safe experience of understanding, emotional processing, and growth.",
+    "descriptionDefault": "A warm and touching story written especially for your child. Through relatable characters and gentle language, the story guides your child through a safe experience of understanding, emotional processing, and growth.",
+    "badges": {
+      "age": "Ages {age}",
+      "personalized": "Personalized",
+      "previewFirst": "Preview before purchase",
+      "therapeutic": "Therapeutic Story"
+    },
+    "features": {
+      "title": "What's Included",
+      "personalizedName": "Personalized with your child's name",
+      "childImage": "Child's image included in story illustrations",
+      "languages": "Available in Hebrew, Arabic & English",
+      "therapeutic": "Professionally guided therapeutic storytelling",
+      "preview": "Preview before purchase",
+      "digitalPrint": "Digital + print experience"
+    },
+    "trust": {
+      "title": "Why DAMMAH?",
+      "professional": "Professionally guided therapeutic storytelling",
+      "personalized": "Personalized for your child",
+      "threeLanguages": "Available in 3 languages",
+      "previewFirst": "Preview before purchase"
+    },
+    "accordion": {
+      "howPersonalized": "How is the book personalized?",
+      "howPersonalizedContent": "Your child's name and visual identity are integrated into the story. Personalization happens in the next step, after you click \"Personalize This Story\". You'll be able to see a preview before purchasing.",
+      "whatAbout": "What is the story about?",
+      "whatAboutTemplate": "The story addresses {topic} and guides your child through a process of understanding, acceptance, and emotional growth. It's written in warm, soothing language appropriate for their age.",
+      "whatAboutDefault": "The story guides your child through a process of understanding, acceptance, and emotional growth. It's written in warm, soothing language appropriate for their age.",
+      "whoFor": "Who is this story for?",
+      "whoForTemplate": "This story is designed for children ages {age} who are experiencing {topic}. It's ideal for parents, therapists, and educators looking for a warm, accessible tool for emotional work with children.",
+      "whoForDefault": "This story is designed for children and their parents. It's ideal for parents, therapists, and educators looking for a warm, accessible tool for emotional work with children.",
+      "sizeQuality": "Size & Quality",
+      "sizeQualityContent": "The story is available in a high-quality digital format suitable for viewing on tablets, phones, and computers. A premium hardcover print option is coming soon."
+    },
+    "related": {
+      "title": "You May Also Like"
+    }
   }
 }

@@ -27,6 +27,7 @@ import LoginPage from "./pages/LoginPage";
 import SearchPage from "./pages/SearchPage";
 import BookReaderPage from "./pages/BookReaderPage";
 import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
+import StoryDetailPage from "./pages/StoryDetailPage";
 import AllBooksPage from "./pages/AllBooksPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
@@ -66,6 +67,7 @@ function AppContent() {
             element={<CategoryResultsPage />}
           />
           <Route path="stories/topic/:topicId" element={<TopicResultsPage />} />
+          <Route path="stories/:storyId" element={<StoryDetailPage />} />
           <Route
             path="stories/:storyId/personalize"
             element={<PersonalizeStoryPage />}

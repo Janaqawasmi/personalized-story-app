@@ -23,7 +23,7 @@ export default function StoryGridCard({
   const theme = useTheme();
   const { language } = useLanguage();
   
-  const buttonText = language === "en" ? "Personalize" : "התאמה אישית";
+  const buttonText = language === "he" ? "צפו בסיפור" : language === "ar" ? "شاهد القصة" : "View Story";
 
   return (
     <Card

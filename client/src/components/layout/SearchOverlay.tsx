@@ -416,7 +416,7 @@ import {
     };
   
     const handleStoryClick = (storyId: string) => {
-      navigate(`/stories/${storyId}/personalize`);
+      navigate(`/stories/${storyId}`);
       onClose();
     };
   

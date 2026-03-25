@@ -173,7 +173,7 @@ export default function AgeResultsPage() {
               description={story.shortDescription}
               imageUrl={story.coverImage}
               onClick={() => {
-                navigate(`/stories/${story.id}/personalize`);
+                navigate(`/stories/${story.id}`);
               }}
             />
           ))}

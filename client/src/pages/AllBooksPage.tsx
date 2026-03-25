@@ -265,7 +265,7 @@ export default function AllBooksPage() {
               description={story.shortDescription}
               imageUrl={story.coverImage}
               onClick={() => {
-                navigate(`/stories/${story.id}/personalize`);
+                navigate(`/stories/${story.id}`);
               }}
             />
           ))}
