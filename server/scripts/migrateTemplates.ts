@@ -85,6 +85,45 @@ async function migrateTemplates() {
       missingFields.push("coverImageUrl");
     }
 
+    // 5b. Add new public preview assets fields (coverImage + previewSpreads[2])
+    if (data.coverImage === undefined) {
+      updates.coverImage = typeof data.coverImageUrl === "string" ? data.coverImageUrl : "";
+      missingFields.push("coverImage");
+    }
+
+    if (data.previewSpreads === undefined) {
+      const readTextFromPage = (page: any): string => {
+        if (!page) return "";
+        // Prefer textTemplate (draft-approved templates)
+        if (page.textTemplate && typeof page.textTemplate === "object") {
+          return (
+            page.textTemplate.masculine ||
+            page.textTemplate.feminine ||
+            ""
+          );
+        }
+        // Fallback: migrated variants
+        if (page.textVariants && typeof page.textVariants === "object") {
+          return page.textVariants.male || page.textVariants.female || "";
+        }
+        return "";
+      };
+
+      const legacyPreviewImages: string[] = Array.isArray(data.previewImages) ? data.previewImages : [];
+      const spread1Image = legacyPreviewImages[0] || "";
+      const spread2Image = legacyPreviewImages[1] || "";
+
+      const pages: any[] = Array.isArray(data.pages) ? data.pages : [];
+      const spread1Text = readTextFromPage(pages[0]);
+      const spread2Text = readTextFromPage(pages[1]);
+
+      updates.previewSpreads = [
+        { imageUrl: spread1Image, text: spread1Text },
+        { imageUrl: spread2Image, text: spread2Text },
+      ];
+      missingFields.push("previewSpreads");
+    }
+
     // 6. Fix displayTopic
     if (!data.displayTopic) {
       updates.displayTopic = {

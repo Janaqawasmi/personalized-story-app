@@ -10,9 +10,8 @@ import {
   AccordionDetails,
   useTheme,
   useMediaQuery,
-  IconButton,
 } from "@mui/material";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "../firebase";
@@ -46,6 +45,10 @@ interface StoryDetail {
   currency?: string;
   shortDescription?: string;
   coverImage?: string;
+  previewSpreads?: Array<{
+    imageUrl: string;
+    text: string;
+  }>;
   ageGroup?: string;
   topicKey?: string;
   primaryTopic?: string;
@@ -59,7 +62,6 @@ interface StoryDetail {
     imagePromptTemplate?: string;
     emotionalTone?: string;
   }>;
-  previewImages?: string[];
 }
 
 // ─── Age formatting helper ───────────────────────────────────────────
@@ -99,6 +101,12 @@ function extractPricing(raw: any): { digital?: number; print?: number } | undefi
   return { digital, print };
 }
 
+function replacePreviewPlaceholders(input: string): string {
+  // Only for Story Detail Page preview (pre-personalization)
+  if (!input) return input;
+  return input.replace(/\{\{\s*child_name\s*\}\}|\{\{\s*CHILD_NAME\s*\}\}/g, "Your child");
+}
+
 // ─── Component ───────────────────────────────────────────────────────
 export default function StoryDetailPage() {
   const theme = useTheme();
@@ -111,9 +119,6 @@ export default function StoryDetailPage() {
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Gallery state
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   // Related stories
   const [relatedStories, setRelatedStories] = useState<Story[]>([]);
@@ -156,6 +161,7 @@ export default function StoryDetailPage() {
             currency: typeof data.currency === "string" ? data.currency : "USD",
             shortDescription: resolveLocalizedField(data.shortDescription),
             coverImage: data.coverImage || data.coverImageUrl,
+            previewSpreads: Array.isArray(data.previewSpreads) ? data.previewSpreads : undefined,
             ageGroup:
               data.ageGroup ||
               data.targetAgeGroup ||
@@ -168,7 +174,6 @@ export default function StoryDetailPage() {
             previewPageCount: data.previewPageCount,
             totalPageCount: data.totalPageCount,
             pages: data.pages,
-            previewImages: data.previewImages,
           });
         }
       } catch (err) {
@@ -261,42 +266,8 @@ export default function StoryDetailPage() {
     return () => { cancelled = true; };
   }, [story, storyId]);
 
-  // ── Gallery images ─────────────────────────────────────────────────
-  const galleryImages = useMemo(() => {
-    const images: { src: string; label: string }[] = [];
-
-    if (story?.coverImage) {
-      images.push({
-        src: story.coverImage,
-        label: language === "he" ? "כריכה" : language === "ar" ? "الغلاف" : "Cover",
-      });
-    }
-
-    // Add preview images if available
-    if (story?.previewImages && story.previewImages.length > 0) {
-      story.previewImages.forEach((img, i) => {
-        images.push({
-          src: img,
-          label:
-            language === "he"
-              ? `עמוד ${i + 1}`
-              : language === "ar"
-              ? `صفحة ${i + 1}`
-              : `Page ${i + 1}`,
-        });
-      });
-    }
-
-    // If no images at all, add a placeholder
-    if (images.length === 0) {
-      images.push({
-        src: "/book-placeholder.jpg",
-        label: language === "he" ? "כריכה" : language === "ar" ? "الغلاف" : "Cover",
-      });
-    }
-
-    return images;
-  }, [story, language]);
+  // ── Cover image (single hero image — spreads are shown separately below) ──
+  const coverSrc = story?.coverImage || "/book-placeholder.jpg";
 
   // ── Derived content ────────────────────────────────────────────────
   const topicLabel =
@@ -403,106 +374,188 @@ export default function StoryDetailPage() {
             alignItems: "flex-start",
           }}
         >
-          {/* ═══════ LEFT: Gallery ═══════════════════════════════════ */}
+          {/* ═══════ LEFT: Visual storytelling column ═════════════════ */}
           <Box
             sx={{
-              flex: isMobile ? "none" : "0 0 55%",
-              width: isMobile ? "100%" : "55%",
+              flex: isMobile ? "none" : "0 0 52%",
+              width: isMobile ? "100%" : "52%",
             }}
           >
-            {/* Gallery label */}
-            <Typography
-              variant="caption"
+            {/* ── Cover image (compact — introduces, doesn't dominate) ──── */}
+            <Box
               sx={{
-                display: "block",
-                mb: 1.5,
-                fontWeight: 600,
-                color: "text.secondary",
-                letterSpacing: "0.05em",
+                maxWidth: { xs: 320, sm: 360, md: 380 },
+                mx: "auto",
+                mb: 3,
+              }}
+            >
+              <Box
+                sx={{
+                  width: "100%",
+                  aspectRatio: "4 / 3",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                  backgroundColor: theme.palette.grey[100],
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                }}
+              >
+                <Box
+                  component="img"
+                  src={coverSrc}
+                  alt={story.title}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                  onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                    e.currentTarget.src = "/book-placeholder.jpg";
+                  }}
+                />
+              </Box>
+            </Box>
+
+            {/* ── Divider + "See Inside the Story" ─────────────────────── */}
+            <Box
+              sx={{
+                width: 48,
+                height: 3,
+                borderRadius: 2,
+                backgroundColor: brandPrimary,
+                opacity: 0.25,
+                mx: "auto",
+                mb: 2,
+              }}
+            />
+
+            <Typography
+              variant="subtitle2"
+              sx={{
+                mb: 2.5,
+                fontWeight: 700,
+                color: brandPrimary,
+                letterSpacing: "0.03em",
                 textTransform: "uppercase",
-                fontSize: "0.75rem",
+                fontSize: "0.78rem",
+                textAlign: "center",
               }}
             >
               {t("storyDetail.galleryLabel")}
             </Typography>
 
-            {/* Main image */}
-            <Box
-              sx={{
-                width: "100%",
-                aspectRatio: "4 / 3",
-                borderRadius: 4,
-                overflow: "hidden",
-                backgroundColor: theme.palette.grey[100],
-                boxShadow: "0 8px 40px rgba(0,0,0,0.10)",
-                mb: 2,
-                position: "relative",
-              }}
-            >
-              <Box
-                component="img"
-                src={galleryImages[activeImageIndex]?.src || "/book-placeholder.jpg"}
-                alt={story.title}
-                sx={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  display: "block",
-                }}
-                onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                  e.currentTarget.src = "/book-placeholder.jpg";
-                }}
-              />
-            </Box>
+            {Array.isArray(story.previewSpreads) && story.previewSpreads.length >= 2 ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                {[story.previewSpreads[0], story.previewSpreads[1]].map(
+                  (spread, idx) => (
+                    <Box
+                      key={idx}
+                      sx={{
+                        display: "flex",
+                        flexDirection: isMobile
+                          ? "column"
+                          : idx % 2 === 0
+                          ? "row"
+                          : "row-reverse",
+                        gap: 2,
+                        backgroundColor: brandSurface,
+                        borderRadius: 3,
+                        border: `1px solid ${theme.palette.divider}`,
+                        overflow: "hidden",
+                        transition: "box-shadow 0.25s ease",
+                        "&:hover": {
+                          boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+                        },
+                      }}
+                    >
+                      {/* Spread image */}
+                      <Box
+                        sx={{
+                          flex: isMobile ? "none" : "0 0 48%",
+                          width: isMobile ? "100%" : "48%",
+                          aspectRatio: "4 / 3",
+                          overflow: "hidden",
+                          backgroundColor: theme.palette.grey[100],
+                        }}
+                      >
+                        <Box
+                          component="img"
+                          src={spread?.imageUrl || "/book-placeholder.jpg"}
+                          alt={`Preview spread ${idx + 1}`}
+                          sx={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
+                          onError={(
+                            e: React.SyntheticEvent<HTMLImageElement>
+                          ) => {
+                            e.currentTarget.src = "/book-placeholder.jpg";
+                          }}
+                        />
+                      </Box>
 
-            {/* Thumbnails */}
-            {galleryImages.length > 1 && (
+                      {/* Spread text */}
+                      <Box
+                        sx={{
+                          flex: 1,
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          p: { xs: 2, md: 2.5 },
+                        }}
+                      >
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            fontWeight: 700,
+                            color: brandPrimary,
+                            mb: 0.8,
+                            fontSize: "0.7rem",
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {language === "he"
+                            ? `עמוד ${idx + 1}`
+                            : language === "ar"
+                            ? `صفحة ${idx + 1}`
+                            : `Page ${idx + 1}`}
+                        </Typography>
+                        <Typography
+                          sx={{
+                            color: "text.secondary",
+                            lineHeight: 1.85,
+                            whiteSpace: "pre-wrap",
+                            fontSize: "0.88rem",
+                          }}
+                        >
+                          {replacePreviewPlaceholders(spread?.text || "") ||
+                            t("storyDetail.previewComingSoon")}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )
+                )}
+              </Box>
+            ) : (
               <Box
                 sx={{
-                  display: "flex",
-                  gap: 1.5,
-                  overflowX: "auto",
-                  pb: 1,
+                  textAlign: "center",
+                  backgroundColor: brandSurface,
+                  borderRadius: 3,
+                  border: `1px solid ${theme.palette.divider}`,
+                  py: 4,
+                  px: 3,
                 }}
               >
-                {galleryImages.map((img, idx) => (
-                  <Box
-                    key={idx}
-                    onClick={() => setActiveImageIndex(idx)}
-                    sx={{
-                      width: 72,
-                      height: 54,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      cursor: "pointer",
-                      border:
-                        idx === activeImageIndex
-                          ? `3px solid ${brandPrimary}`
-                          : "3px solid transparent",
-                      opacity: idx === activeImageIndex ? 1 : 0.6,
-                      transition: "all 0.2s ease",
-                      "&:hover": {
-                        opacity: 1,
-                        transform: "scale(1.05)",
-                      },
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={img.src}
-                      alt={img.label}
-                      sx={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
-                      onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
-                        e.currentTarget.src = "/book-placeholder.jpg";
-                      }}
-                    />
-                  </Box>
-                ))}
+                <AutoStoriesOutlinedIcon
+                  sx={{ fontSize: 32, color: "text.disabled", mb: 1 }}
+                />
+                <Typography sx={{ color: "text.secondary", fontWeight: 600, fontSize: "0.9rem" }}>
+                  {t("storyDetail.previewComingSoon")}
+                </Typography>
               </Box>
             )}
           </Box>

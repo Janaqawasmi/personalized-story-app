@@ -11,5 +11,9 @@
     "startReading": "ابدأ القراءة",
     "audioReading": "القراءة الصوتية",
     "imageComingSoon": "ستظهر الصورة هنا قريباً"
+  },
+  "storyDetail": {
+    "galleryLabel": "شاهد ما بداخل القصة",
+    "previewComingSoon": "المعاينة قريبًا"
   }
 }

@@ -145,7 +145,25 @@ async function seed() {
       ar: "قصة عن طفل يتغلب على الخوف من الظلام بمساعدة صديق جديد",
       he: "סיפור על ילד שמתגבר על פחד מהחושך בעזרת חבר חדש",
     },
+    // NOTE: In production these should be Firebase Storage download URLs (not base64, not stored in Firestore).
+    // Suggested storage paths:
+    // - story-templates/{storyId}/cover.jpg
+    // - story-templates/{storyId}/preview/spread1.jpg
+    // - story-templates/{storyId}/preview/spread2.jpg
     coverImageUrl: "https://placeholder.com/bear-story-cover.jpg",
+    // New field used by the Story Detail Page (preferred over coverImageUrl).
+    coverImage: "https://placeholder.com/bear-story-cover.jpg",
+    // New: EXACTLY 2 preview spreads (image + matching text)
+    previewSpreads: [
+      {
+        imageUrl: "https://placeholder.com/bear-story-spread1.jpg",
+        text: "كان {{CHILD_NAME}} يمشي في الغابة. {{PRONOUN_SUBJECT}} شعر بالخوف.",
+      },
+      {
+        imageUrl: "https://placeholder.com/bear-story-spread2.jpg",
+        text: "وجد {{CHILD_NAME}} دبًا صغيرًا. قال {{PRONOUN_SUBJECT}} له: 'أنا صديقك'.",
+      },
+    ],
     displayTopic: {
       ar: "التغلب على الخوف",
       he: "התגברות על פחד",
@@ -221,6 +239,17 @@ async function seed() {
       ar: "قصة عن طفل يكتشف أنه مميز كما هو",
     },
     coverImageUrl: "https://placeholder.com/star-story-cover.jpg",
+    coverImage: "https://placeholder.com/star-story-cover.jpg",
+    previewSpreads: [
+      {
+        imageUrl: "https://placeholder.com/star-story-spread1.jpg",
+        text: "{{CHILD_NAME}} הסתכל על השמיים. {{PRONOUN_SUBJECT}} ראה כוכב קטן.",
+      },
+      {
+        imageUrl: "https://placeholder.com/star-story-spread2.jpg",
+        text: "הכוכב אמר ל{{CHILD_NAME}}: 'אתה מיוחד, בדיוק כמוני'. {{PRONOUN_SUBJECT}} חייך.",
+      },
+    ],
     displayTopic: {
       he: "ביטחון עצמי",
       ar: "الثقة بالنفس",
