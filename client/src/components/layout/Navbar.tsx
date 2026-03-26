@@ -1,6 +1,8 @@
 import {
   AppBar,
   Box,
+  Button,
+  CircularProgress,
   IconButton,
   Typography,
   Menu,
@@ -9,7 +11,6 @@ import {
 import dammahLogo from "../../assets/brand/dammah-logo.png";
 import { useTheme } from "@mui/material/styles";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
-import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
@@ -19,6 +20,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
@@ -39,6 +41,7 @@ export default function Navbar({
   const { lang } = useParams<{ lang: string }>();
   const { language, setLanguage } = useLanguage();
   const t = useTranslation();
+  const { currentUser, logout, loading: authLoading } = useAuth();
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
@@ -70,6 +73,15 @@ export default function Navbar({
     navigateDirect(newPath);
     
     handleLangMenuClose();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setSearchOpen(false);
+    } catch (err) {
+      console.error("[Navbar] logout failed:", err);
+    }
   };
 
   return (
@@ -175,14 +187,48 @@ export default function Navbar({
               <SearchOutlinedIcon />
             </IconButton>
 
-            <IconButton
-              onClick={() => {
-                navigate("/login");
-                setSearchOpen(false); // Close search overlay if open
-              }}
-            >
-              <PersonOutlineOutlinedIcon />
-            </IconButton>
+            {authLoading ? (
+              <CircularProgress size={22} />
+            ) : currentUser ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ whiteSpace: "nowrap", fontWeight: 600 }}>
+                  Hello, {currentUser.displayName || currentUser.email}
+                </Typography>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={handleLogout}
+                  sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+                >
+                  Logout
+                </Button>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => {
+                    navigate("/login", { state: { mode: "login" } });
+                    setSearchOpen(false); // Close search overlay if open
+                  }}
+                  sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+                >
+                  {t("login.title")}
+                </Button>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => {
+                    navigate("/login", { state: { mode: "signup" } });
+                    setSearchOpen(false); // Close search overlay if open
+                  }}
+                  sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+                >
+                  {t("login.goToSignup")}
+                </Button>
+              </Box>
+            )}
 
             <IconButton
               onClick={() => {

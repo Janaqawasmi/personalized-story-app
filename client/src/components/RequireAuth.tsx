@@ -1,21 +1,11 @@
-import { useState, useEffect } from "react";
-import { Navigate, Outlet, useParams } from "react-router-dom";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { auth } from "../firebase";
 import { Box, CircularProgress } from "@mui/material";
+import { Navigate, Outlet, useLocation, useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function RequireAuth() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { currentUser, loading } = useAuth();
+  const location = useLocation();
   const { lang } = useParams<{ lang: string }>();
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, []);
 
   if (loading) {
     return (
@@ -25,9 +15,12 @@ export default function RequireAuth() {
     );
   }
 
-  if (!user) {
-    const loginPath = lang ? `/${lang}/login` : "/he/login";
-    return <Navigate to={loginPath} replace />;
+  if (!currentUser) {
+    const loginPath = lang ? `/${lang}/login` : "/login";
+
+    // Redirect back to the originally requested page after login.
+    const from = location.pathname + location.search;
+    return <Navigate to={loginPath} replace state={{ from }} />;
   }
 
   return <Outlet />;

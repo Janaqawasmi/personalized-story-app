@@ -21,6 +21,7 @@ import ReviewDraftPage from "./pages/ReviewDraftPage";
 import PromptPreviewPage from "./pages/PromptPreviewPage";
 import AdminContractReviewPage from "./pages/AdminContractReviewPage";
 import RequireAuth from "./components/RequireAuth";
+import { AuthProvider } from "./contexts/AuthContext";
 
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
@@ -68,10 +69,12 @@ function AppContent() {
           />
           <Route path="stories/topic/:topicId" element={<TopicResultsPage />} />
           <Route path="stories/:storyId" element={<StoryDetailPage />} />
-          <Route
-            path="stories/:storyId/personalize"
-            element={<PersonalizeStoryPage />}
-          />
+          <Route element={<RequireAuth />}>
+            <Route
+              path="stories/:storyId/personalize"
+              element={<PersonalizeStoryPage />}
+            />
+          </Route>
           <Route path="stories/:storyId/read" element={<BookReaderPage />} />
 
           {/* ───────────── USER PAGES ───────────── */}
@@ -121,15 +124,17 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Root redirect to /he */}
-        <Route path="/" element={<Navigate to="/he" replace />} />
-        
-        {/* Language-prefixed routes */}
-        <Route path="/:lang/*" element={<LanguageLayout />}>
-          <Route path="*" element={<AppContent />} />
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          {/* Root redirect to /he */}
+          <Route path="/" element={<Navigate to="/he" replace />} />
+          
+          {/* Language-prefixed routes */}
+          <Route path="/:lang/*" element={<LanguageLayout />}>
+            <Route path="*" element={<AppContent />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
