@@ -30,6 +30,7 @@ import BookReaderPage from "./pages/BookReaderPage";
 import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
 import StoryDetailPage from "./pages/StoryDetailPage";
 import AllBooksPage from "./pages/AllBooksPage";
+import FavoritesPage from "./pages/FavoritesPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -80,6 +81,9 @@ function AppContent() {
           {/* ───────────── USER PAGES ───────────── */}
           <Route path="search" element={<SearchPage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route element={<RequireAuth />}>
+            <Route path="favorites" element={<FavoritesPage />} />
+          </Route>
           <Route
             path="cart"
             element={

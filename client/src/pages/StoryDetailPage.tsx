@@ -32,8 +32,10 @@ import PsychologyIcon from "@mui/icons-material/Psychology";
 import PreviewIcon from "@mui/icons-material/Preview";
 import LocalPrintshopOutlinedIcon from "@mui/icons-material/LocalPrintshopOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { useFavorite } from "../hooks/useFavorite";
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface StoryDetail {
@@ -124,6 +126,20 @@ export default function StoryDetailPage() {
 
   // Related stories
   const [relatedStories, setRelatedStories] = useState<Story[]>([]);
+
+  const { isFavorite, toggle: toggleFavorite, loading: favoriteLoading } = useFavorite(
+    story?.id ?? null,
+    story
+      ? {
+          storyId: story.id,
+          title: story.title ?? null,
+          coverImage: story.coverImage ?? null,
+          category: null,
+          topic: story.primaryTopic ?? null,
+          ageGroup: story.ageGroup ?? null,
+        }
+      : undefined
+  );
 
   // ── Brand colors ───────────────────────────────────────────────────
   const brandPrimary = "#824D5C";
@@ -783,7 +799,9 @@ export default function StoryDetailPage() {
             <Box sx={{ display: "flex", gap: 1.5 }}>
               <Button
                 variant="outlined"
-                startIcon={<FavoriteBorderIcon />}
+                startIcon={isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                onClick={toggleFavorite}
+                disabled={favoriteLoading}
                 sx={{
                   flex: 1,
                   borderColor: theme.palette.divider,
@@ -799,7 +817,7 @@ export default function StoryDetailPage() {
                   },
                 }}
               >
-                {t("storyDetail.addToFavorites")}
+                {isFavorite ? "Saved" : t("storyDetail.addToFavorites")}
               </Button>
               <Button
                 variant="outlined"
@@ -915,9 +933,13 @@ export default function StoryDetailPage() {
             {relatedStories.map((rs) => (
               <StoryGridCard
                 key={rs.id}
+                storyId={rs.id}
                 title={rs.title}
                 description={rs.shortDescription}
                 imageUrl={rs.coverImage}
+                ageGroup={(rs as any).ageGroup ?? null}
+                topic={(rs as any).primaryTopic ?? (rs as any).topicKey ?? null}
+                category={(rs as any).category ?? null}
                 onClick={() => {
                   navigate(`/stories/${rs.id}`);
                   window.scrollTo({ top: 0, behavior: "smooth" });

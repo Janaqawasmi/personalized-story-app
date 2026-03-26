@@ -159,6 +159,7 @@ export default function SearchPage() {
                 return (
                   <StoryGridCard
                     key={story.id}
+                    storyId={story.id}
                     title={story.title || t("search.storyWithoutName")}
                     description={
                       ageGroup
@@ -166,6 +167,9 @@ export default function SearchPage() {
                         : resolveLocalizedField(story.shortDescription)
                     }
                     imageUrl={story.coverImage}
+                    ageGroup={ageGroup ?? null}
+                    topic={(story as any).primaryTopic ?? (story as any).topicKey ?? null}
+                    category={(story as any).category ?? null}
                     onClick={() => handleStoryClick(story.id)}
                   />
                 );

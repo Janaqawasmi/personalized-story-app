@@ -261,9 +261,13 @@ export default function AllBooksPage() {
           {filteredBooks.map((story) => (
             <StoryGridCard
               key={story.id}
+              storyId={story.id}
               title={story.title || t("search.storyWithoutName")}
               description={story.shortDescription}
               imageUrl={story.coverImage}
+              ageGroup={(story as any).ageGroup ?? null}
+              topic={(story as any).primaryTopic ?? (story as any).topicKey ?? null}
+              category={(story as any).category ?? null}
               onClick={() => {
                 navigate(`/stories/${story.id}`);
               }}
