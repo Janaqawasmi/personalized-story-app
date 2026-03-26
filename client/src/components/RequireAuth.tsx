@@ -19,8 +19,13 @@ export default function RequireAuth() {
     const loginPath = lang ? `/${lang}/login` : "/login";
 
     // Redirect back to the originally requested page after login.
-    const from = location.pathname + location.search;
-    return <Navigate to={loginPath} replace state={{ from }} />;
+    console.log("[RequireAuth] protected route attempted:", {
+      path: location.pathname,
+      search: location.search,
+      full: `${location.pathname}${location.search}`,
+    });
+    console.log("[RequireAuth] redirecting to login:", loginPath);
+    return <Navigate to={loginPath} replace state={{ from: location }} />;
   }
 
   return <Outlet />;

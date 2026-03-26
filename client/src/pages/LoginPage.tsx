@@ -8,6 +8,31 @@ import { auth } from "../firebase";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
+type RedirectFromState =
+  | string
+  | {
+      pathname?: string;
+      search?: string;
+      hash?: string;
+    };
+
+type LoginLocationState = {
+  from?: RedirectFromState;
+  mode?: "login" | "signup";
+} | null;
+
+function resolveRedirectTarget(
+  from: RedirectFromState | undefined,
+  fallback: string
+): string {
+  if (!from) return fallback;
+  if (typeof from === "string") return from;
+  const pathname = from.pathname || fallback;
+  const search = from.search || "";
+  const hash = from.hash || "";
+  return `${pathname}${search}${hash}`;
+}
+
 export default function LoginPage() {
   const theme = useTheme();
   const t = useTranslation();
@@ -16,8 +41,9 @@ export default function LoginPage() {
   const location = useLocation();
   const { login, signup, ensureCaregiverDoc } = useAuth();
 
-  const from = (location.state as { from?: string } | null)?.from;
-  const mode = (location.state as { mode?: "login" | "signup" } | null)?.mode;
+  const locationState = location.state as LoginLocationState;
+  const from = locationState?.from;
+  const mode = locationState?.mode;
   
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -53,7 +79,9 @@ export default function LoginPage() {
       setLoading(true);
       setError(null);
 
-      const redirectTo = from ?? (lang ? `/${lang}/specialist` : "/he/specialist");
+      const fallbackPath = lang ? `/${lang}/specialist` : "/he/specialist";
+      const redirectTo = resolveRedirectTarget(from, fallbackPath);
+      console.log("[LoginPage] login redirect target resolved:", { from, redirectTo });
 
       if (isSignUp) {
         // Firebase signup with profile displayName update handled by AuthContext.
@@ -67,7 +95,7 @@ export default function LoginPage() {
       setEmailDialogOpen(false);
       setShowPasswordReset(false);
       setIsSignUp(false);
-      navigate(redirectTo);
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       console.error("Email auth error:", err);
       console.error("Error code:", err.code);
@@ -136,8 +164,10 @@ export default function LoginPage() {
       setLoading(true);
       setError(null);
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const redirectTo = from ?? (lang ? `/${lang}/specialist` : "/he/specialist");
+      await signInWithPopup(auth, provider);
+      const fallbackPath = lang ? `/${lang}/specialist` : "/he/specialist";
+      const redirectTo = resolveRedirectTarget(from, fallbackPath);
+      console.log("[LoginPage] google redirect target resolved:", { from, redirectTo });
       
       // Wait for auth state to be ready before navigating
       // This ensures the token is available for API calls
@@ -163,7 +193,8 @@ export default function LoginPage() {
             console.log("Caregiver doc created");
 
             // Auth state is ready, now navigate
-            navigate(redirectTo);
+            console.log("[LoginPage] google login success; redirecting to:", redirectTo);
+            navigate(redirectTo, { replace: true });
             resolve();
           } else {
             isResolved = true;
