@@ -21,6 +21,7 @@ import { useLanguage } from "../i18n/context/useLanguage";
 import { resolveLocalizedField } from "../api/stories";
 import type { Story } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
+import { useAuth } from "../contexts/AuthContext";
 
 // MUI icons
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -115,6 +116,7 @@ export default function StoryDetailPage() {
   const navigate = useLangNavigate();
   const t = useTranslation();
   const { language, direction, isRTL } = useLanguage();
+  const { currentUser, loading: authLoading } = useAuth();
 
   const [story, setStory] = useState<StoryDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -142,6 +144,13 @@ export default function StoryDetailPage() {
       try {
         setLoading(true);
         setError(null);
+
+        console.log("[StoryDetailPage] auth state:", {
+          authLoading,
+          uid: currentUser?.uid,
+          email: currentUser?.email,
+        });
+        console.log("[StoryDetailPage] getDoc collection: story_templates", { storyId });
 
         const storyRef = doc(db, "story_templates", storyId);
         const storySnap = await getDoc(storyRef);
@@ -201,9 +210,11 @@ export default function StoryDetailPage() {
         let relatedDocs: Story[] = [];
 
         if (topicField) {
+          console.log("[StoryDetailPage] related query: status==approved, isActive==true, primaryTopic==", topicField);
           const q1 = query(
             collection(db, "story_templates"),
             where("status", "==", "approved"),
+            where("isActive", "==", true),
             where("primaryTopic", "==", topicField),
             limit(6)
           );
@@ -231,6 +242,7 @@ export default function StoryDetailPage() {
           const q2 = query(
             collection(db, "story_templates"),
             where("status", "==", "approved"),
+            where("isActive", "==", true),
             limit(8)
           );
           const snap2 = await getDocs(q2);

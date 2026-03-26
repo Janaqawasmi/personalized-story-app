@@ -78,7 +78,8 @@ export function useStoryTemplates(
 
       try {
         const constraints: QueryConstraint[] = [
-          where("isPublished", "==", true),
+          // Public templates are those approved by the server review flow.
+          where("status", "==", "approved"),
           where("isActive", "==", true),
         ];
 

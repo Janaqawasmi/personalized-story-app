@@ -83,7 +83,13 @@ export function useStoryTemplate(slugOrId: string | null): UseStoryTemplateResul
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          if (data.isPublished && data.isActive) {
+          // Public template check:
+          // Server review flow primarily sets `status: "approved"` and `isActive: true`.
+          // Some templates may not set `isPublished`, so rely on `status` as the source of truth.
+          if (
+            data.status === "approved" &&
+            (data.isActive === true || data.isActive === undefined || data.isActive === null)
+          ) {
             if (!cancelled) {
               setTemplate({
                 id: docSnap.id,
@@ -98,7 +104,7 @@ export function useStoryTemplate(slugOrId: string | null): UseStoryTemplateResul
         const q = query(
           collection(db, STORY_TEMPLATES_COLLECTION),
           where("slug", "==", slugOrId),
-          where("isPublished", "==", true),
+          where("status", "==", "approved"),
           where("isActive", "==", true),
           limit(1)
         );
