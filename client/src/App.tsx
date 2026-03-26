@@ -83,6 +83,15 @@ function AppContent() {
           <Route path="login" element={<LoginPage />} />
           <Route element={<RequireAuth />}>
             <Route path="favorites" element={<FavoritesPage />} />
+            <Route
+              path="my-stories"
+              element={
+                <PlaceholderPage
+                  title="My Stories"
+                  message="Your purchased and generated stories library will appear here."
+                />
+              }
+            />
           </Route>
           <Route
             path="cart"
