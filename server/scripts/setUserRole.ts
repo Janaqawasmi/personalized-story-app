@@ -38,7 +38,7 @@ if (!admin.apps.length) {
 // Valid roles
 // ============================================================================
 
-const VALID_ROLES = ["specialist", "admin", "viewer"] as const;
+const VALID_ROLES = ["specialist", "admin", "viewer", "caregiver"] as const;
 type Role = (typeof VALID_ROLES)[number];
 
 // ============================================================================

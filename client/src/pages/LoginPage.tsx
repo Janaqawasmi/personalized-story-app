@@ -14,7 +14,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
   const location = useLocation();
-  const { login, signup } = useAuth();
+  const { login, signup, ensureCaregiverDoc } = useAuth();
 
   const from = (location.state as { from?: string } | null)?.from;
   const mode = (location.state as { mode?: "login" | "signup" } | null)?.mode;
@@ -136,7 +136,7 @@ export default function LoginPage() {
       setLoading(true);
       setError(null);
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
       const redirectTo = from ?? (lang ? `/${lang}/specialist` : "/he/specialist");
       
       // Wait for auth state to be ready before navigating
@@ -145,7 +145,7 @@ export default function LoginPage() {
         let isResolved = false;
         let timeoutId: NodeJS.Timeout | null = null;
         
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (isResolved) return;
           
           unsubscribe();
@@ -156,6 +156,12 @@ export default function LoginPage() {
           
           if (user) {
             isResolved = true;
+
+            // Ensure caregiver doc exists for Google sign-in users too
+            await ensureCaregiverDoc(user, user.displayName || undefined);
+            console.log("User created:", user.uid);
+            console.log("Caregiver doc created");
+
             // Auth state is ready, now navigate
             navigate(redirectTo);
             resolve();
