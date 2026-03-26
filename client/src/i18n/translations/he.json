@@ -2,7 +2,17 @@
   "navbar": {
     "browseStories": "עיון בסיפורים",
     "hebrew": "עברית",
-    "english": "English"
+    "english": "English",
+    "labels": {
+      "favorites": "מועדפים",
+      "cart": "עגלה",
+      "search": "חיפוש"
+    },
+    "userMenu": {
+      "myStories": "הסיפורים שלי",
+      "favorites": "מועדפים",
+      "logout": "התנתקות"
+    }
   },
   "footer": {
     "copyright": "© DAMMAH — All rights reserved"
@@ -141,6 +151,17 @@
     "cart": {
       "title": "עגלת קניות",
       "message": "עגלת הקניות שלך תופיע כאן"
+    },
+    "favorites": {
+      "title": "מועדפים",
+      "emptyTitle": "אין מועדפים עדיין",
+      "emptySubtitle": "פתחו סיפור ולחצו על \"{action}\".",
+      "fallbackStoryTitle": "סיפור"
+    },
+    "myStories": {
+      "title": "הסיפורים שלי",
+      "message": "כאן תופיע ספריית הסיפורים שרכשתם ויצרתם.",
+      "browseStoriesLink": "לעיון בסיפורים"
     }
   },
   "book": {

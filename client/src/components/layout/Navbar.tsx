@@ -8,6 +8,7 @@ import {
   Menu,
   MenuItem,
   Badge,
+  Tooltip,
 } from "@mui/material";
 import dammahLogo from "../../assets/brand/dammah-logo.png";
 import { useTheme } from "@mui/material/styles";
@@ -205,11 +206,13 @@ export default function Navbar({
                     navigate("/favorites");
                     setSearchOpen(false);
                   }}
-                  aria-label="favorites"
+                  aria-label={t("navbar.labels.favorites")}
                 >
-                  <Badge color="error" badgeContent={0} invisible>
-                    <FavoriteBorderIcon />
-                  </Badge>
+                  <Tooltip title={t("navbar.labels.favorites")}>
+                    <Badge color="error" badgeContent={0} invisible>
+                      <FavoriteBorderIcon />
+                    </Badge>
+                  </Tooltip>
                 </IconButton>
 
                 {/* 2) Cart */}
@@ -218,11 +221,13 @@ export default function Navbar({
                     navigate("/cart");
                     setSearchOpen(false);
                   }}
-                  aria-label="cart"
+                  aria-label={t("navbar.labels.cart")}
                 >
-                  <Badge color="primary" badgeContent={0} invisible>
-                    <ShoppingBagOutlinedIcon />
-                  </Badge>
+                  <Tooltip title={t("navbar.labels.cart")}>
+                    <Badge color="primary" badgeContent={0} invisible>
+                      <ShoppingBagOutlinedIcon />
+                    </Badge>
+                  </Tooltip>
                 </IconButton>
 
                 {/* 3) User menu trigger */}
@@ -259,8 +264,10 @@ export default function Navbar({
                 </Button>
 
                 {/* 4) Search */}
-                <IconButton onClick={() => setSearchOpen(true)} aria-label="search">
-                  <SearchOutlinedIcon />
+                <IconButton onClick={() => setSearchOpen(true)} aria-label={t("navbar.labels.search")}>
+                  <Tooltip title={t("navbar.labels.search")}>
+                    <SearchOutlinedIcon />
+                  </Tooltip>
                 </IconButton>
 
                 {/* Language switcher stays available but outside required action sequence */}
@@ -287,7 +294,7 @@ export default function Navbar({
                       handleUserMenuClose();
                     }}
                   >
-                    My Stories
+                    {t("navbar.userMenu.myStories")}
                   </MenuItem>
                   <MenuItem
                     onClick={() => {
@@ -295,9 +302,9 @@ export default function Navbar({
                       handleUserMenuClose();
                     }}
                   >
-                    Favorites
+                    {t("navbar.userMenu.favorites")}
                   </MenuItem>
-                  <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                  <MenuItem onClick={handleLogout}>{t("navbar.userMenu.logout")}</MenuItem>
                 </Menu>
               </Box>
             ) : (

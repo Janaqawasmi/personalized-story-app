@@ -2,7 +2,17 @@
   "navbar": {
     "browseStories": "Browse Stories",
     "hebrew": "עברית",
-    "english": "English"
+    "english": "English",
+    "labels": {
+      "favorites": "Favorites",
+      "cart": "Cart",
+      "search": "Search"
+    },
+    "userMenu": {
+      "myStories": "My Stories",
+      "favorites": "Favorites",
+      "logout": "Logout"
+    }
   },
   "footer": {
     "copyright": "© DAMMAH — All rights reserved"
@@ -141,6 +151,17 @@
     "cart": {
       "title": "Shopping Cart",
       "message": "Your shopping cart will appear here"
+    },
+    "favorites": {
+      "title": "Favorites",
+      "emptyTitle": "No favorites yet",
+      "emptySubtitle": "Open a story and tap \"{action}\".",
+      "fallbackStoryTitle": "Story"
+    },
+    "myStories": {
+      "title": "My Stories",
+      "message": "Your purchased and generated stories library will appear here.",
+      "browseStoriesLink": "Browse stories"
     }
   },
   "book": {

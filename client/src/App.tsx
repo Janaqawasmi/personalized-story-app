@@ -31,6 +31,7 @@ import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
 import StoryDetailPage from "./pages/StoryDetailPage";
 import AllBooksPage from "./pages/AllBooksPage";
 import FavoritesPage from "./pages/FavoritesPage";
+import MyStoriesPage from "./pages/MyStoriesPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -83,15 +84,7 @@ function AppContent() {
           <Route path="login" element={<LoginPage />} />
           <Route element={<RequireAuth />}>
             <Route path="favorites" element={<FavoritesPage />} />
-            <Route
-              path="my-stories"
-              element={
-                <PlaceholderPage
-                  title="My Stories"
-                  message="Your purchased and generated stories library will appear here."
-                />
-              }
-            />
+            <Route path="my-stories" element={<MyStoriesPage />} />
           </Route>
           <Route
             path="cart"

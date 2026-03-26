@@ -1,6 +1,7 @@
 import { Box, CircularProgress, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 import { useAuth } from "../contexts/AuthContext";
 import { listFavorites, type FavoriteStory } from "../api/favorites";
 import StoryGridCard from "../components/StoryGridCard";
@@ -9,6 +10,7 @@ import { useLangNavigate } from "../i18n/navigation";
 export default function FavoritesPage() {
   const t = useTranslation();
   const navigate = useLangNavigate();
+  const { direction } = useLanguage();
   const { currentUser } = useAuth();
 
   const [favorites, setFavorites] = useState<FavoriteStory[]>([]);
@@ -41,9 +43,9 @@ export default function FavoritesPage() {
   }, [currentUser]);
 
   return (
-    <Container maxWidth="lg" sx={{ py: 6 }}>
+    <Container maxWidth="lg" sx={{ py: 6 }} dir={direction}>
       <Typography variant="h4" sx={{ fontWeight: 800, mb: 3 }}>
-        Favorites
+        {t("pages.favorites.title")}
       </Typography>
 
       {loading && (
@@ -63,10 +65,12 @@ export default function FavoritesPage() {
       {!loading && !error && favorites.length === 0 && (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
-            No favorites yet.
+            {t("pages.favorites.emptyTitle")}
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1 }}>
-            Open a story and tap “{t("storyDetail.addToFavorites")}”.
+            {t("pages.favorites.emptySubtitle", {
+              action: t("storyDetail.addToFavorites"),
+            })}
           </Typography>
         </Box>
       )}
@@ -83,7 +87,7 @@ export default function FavoritesPage() {
             <StoryGridCard
               key={fav.storyId}
               storyId={fav.storyId}
-              title={fav.title || "Story"}
+              title={fav.title || t("pages.favorites.fallbackStoryTitle")}
               description={fav.ageGroup || fav.category || fav.topic || undefined}
               imageUrl={fav.coverImage || undefined}
               ageGroup={fav.ageGroup ?? null}
