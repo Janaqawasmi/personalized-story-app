@@ -810,6 +810,12 @@ export default function StoryDetailPage() {
                   borderRadius: 2.5,
                   fontWeight: 500,
                   fontSize: "0.85rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.75, // ~6px icon/text spacing, RTL/LTR safe
+                  "& .MuiButton-startIcon": {
+                    margin: 0,
+                  },
                   "&:hover": {
                     borderColor: brandPrimary,
                     color: brandPrimary,
@@ -830,6 +836,12 @@ export default function StoryDetailPage() {
                   borderRadius: 2.5,
                   fontWeight: 500,
                   fontSize: "0.85rem",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 0.75, // ~6px icon/text spacing, RTL/LTR safe
+                  "& .MuiButton-startIcon": {
+                    margin: 0,
+                  },
                   "&:hover": {
                     borderColor: brandPrimary,
                     color: brandPrimary,
