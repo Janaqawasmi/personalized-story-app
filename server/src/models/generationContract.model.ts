@@ -104,7 +104,7 @@ export interface GenerationContract {
   topic: string;
   situation: string;
   ageBand: string;
-  caregiverPresence: string;
+  caregiverRole: string;
   emotionalSensitivity: string;
   lengthBudget: LengthBudget;
   styleRules: StyleRules;

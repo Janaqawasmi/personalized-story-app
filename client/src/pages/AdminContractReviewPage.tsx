@@ -99,14 +99,9 @@ function formatDisplayText(text: string): string {
     .join(" ");
 }
 
-function formatAgeGroup(ageGroup: string): string {
-  const map: Record<string, string> = {
-    "0_3": "0–3 years",
-    "3_6": "3–6 years",
-    "6_9": "6–9 years",
-    "9_12": "9–12 years",
-  };
-  return map[ageGroup] || ageGroup;
+function formatAgeRange(range?: { min: number; max: number }): string {
+  if (!range) return "N/A";
+  return `${range.min}–${range.max} years`;
 }
 
 /**
@@ -737,31 +732,31 @@ const AdminContractReviewPage: React.FC = () => {
             <Stack spacing={1}>
               <Box>
                 <Typography variant="caption" color="text.secondary">Topic</Typography>
-                <Typography>{formatDisplayText(brief.therapeuticFocus.primaryTopic)}</Typography>
+                <Typography>{formatDisplayText(brief.storyContext.primaryTopic)}</Typography>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">Situation</Typography>
-                <Typography>{formatDisplayText(brief.therapeuticFocus.specificSituation)}</Typography>
+                <Typography>{formatDisplayText(brief.storyContext.specificSituation)}</Typography>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">Age Group</Typography>
-                <Typography>{formatAgeGroup(brief.childProfile.ageGroup)}</Typography>
+                <Typography>{formatAgeRange(brief.storyContext.targetAgeRange)}</Typography>
               </Box>
               <Box>
-                <Typography variant="caption" color="text.secondary">Emotional Sensitivity</Typography>
-                <Typography>{formatDisplayText(brief.childProfile.emotionalSensitivity)}</Typography>
+                <Typography variant="caption" color="text.secondary">Topic Sensitivity</Typography>
+                <Typography>{formatDisplayText(brief.emotionalDesign.topicSensitivity)}</Typography>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">Emotional Goals</Typography>
                 <Box sx={{ mt: 0.5 }}>
-                  {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
+                  {brief.therapeuticDesign.emotionalGoals.map((goal, idx) => (
                     <Chip key={idx} label={formatDisplayText(goal)} size="small" sx={{ mr: 0.5, mb: 0.5 }} />
                   ))}
                 </Box>
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary">Ending Style</Typography>
-                <Typography>{formatDisplayText(brief.storyPreferences.endingStyle)}</Typography>
+                <Typography>{formatDisplayText(brief.emotionalDesign.endingStyle)}</Typography>
               </Box>
               {contract.keyMessage && (
                 <Box>
@@ -770,8 +765,8 @@ const AdminContractReviewPage: React.FC = () => {
                 </Box>
               )}
               <Box>
-                <Typography variant="caption" color="text.secondary">Caregiver Presence</Typography>
-                <Typography>{formatDisplayText(contract.caregiverPresence || brief.storyPreferences.caregiverPresence)}</Typography>
+                <Typography variant="caption" color="text.secondary">Caregiver Role</Typography>
+                <Typography>{formatDisplayText(contract.caregiverRole || brief.characterDesign.caregiverRole)}</Typography>
               </Box>
             </Stack>
           </CardContent>

@@ -15,6 +15,7 @@ export interface SituationRef {
   label_he: string;
   label_en: string;
   label_ar: string;
+  order?: number;
   active: boolean;
 }
 

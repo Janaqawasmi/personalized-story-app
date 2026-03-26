@@ -1,6 +1,5 @@
 // server/src/services/promptPreviewBuilder.service.ts
 import { StoryBrief } from "../models/storyBrief.model";
-import { formatAgeGroupLabel } from "../data/categories";
 
 /**
  * Builds a human-readable prompt preview from a StoryBrief and RAG context.
@@ -29,27 +28,31 @@ export function buildPromptPreview(
 
   // STORY BRIEF section
   parts.push("STORY BRIEF:");
-  parts.push(`Primary Topic: ${formatDisplayText(brief.therapeuticFocus.primaryTopic)}`);
-  parts.push(`Situation: ${formatDisplayText(brief.therapeuticFocus.specificSituation)}`);
-  parts.push(`Age Group: ${formatAgeGroupLabel(brief.childProfile.ageGroup)}`);
-  parts.push(`Emotional Sensitivity: ${formatDisplayText(brief.childProfile.emotionalSensitivity)}`);
-  parts.push(`Tone: ${formatDisplayText(brief.languageTone.emotionalTone)}`);
-  parts.push(`Complexity: ${formatDisplayText(brief.languageTone.complexity)}`);
+  parts.push(`Primary Topic: ${formatDisplayText(brief.storyContext.primaryTopic)}`);
+  parts.push(`Situation: ${formatDisplayText(brief.storyContext.specificSituation)}`);
+  parts.push(
+    `Age Group: ${brief.storyContext.targetAgeRange.min}–${brief.storyContext.targetAgeRange.max} years`
+  );
+  parts.push(`Topic Sensitivity: ${formatDisplayText(brief.emotionalDesign.topicSensitivity)}`);
+  parts.push(`Tone: ${formatDisplayText(brief.emotionalDesign.emotionalTone)}`);
+  parts.push(`Complexity: ${formatDisplayText(brief.storyContext.languageComplexity)}`);
+  parts.push(`Emotional Arc: ${formatDisplayText(brief.emotionalDesign.emotionalArc)}`);
+  parts.push(`Peak Intensity: ${formatDisplayText(brief.emotionalDesign.peakIntensity)}`);
   
   // Emotional Goals
-  if (brief.therapeuticIntent.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0) {
-    parts.push(`Emotional Goals: ${brief.therapeuticIntent.emotionalGoals.map(goal => formatDisplayText(goal)).join(", ")}`);
+  if (brief.therapeuticDesign.emotionalGoals && brief.therapeuticDesign.emotionalGoals.length > 0) {
+    parts.push(`Emotional Goals: ${brief.therapeuticDesign.emotionalGoals.map(goal => formatDisplayText(goal)).join(", ")}`);
   }
 
   // Caregiver Presence
-  parts.push(`Caregiver Presence: ${formatDisplayText(brief.storyPreferences.caregiverPresence)}`);
+  parts.push(`Caregiver Role: ${formatDisplayText(brief.characterDesign.caregiverRole)}`);
   
   // Ending Style
-  parts.push(`Ending Style: ${formatDisplayText(brief.storyPreferences.endingStyle)}`);
+  parts.push(`Ending Style: ${formatDisplayText(brief.emotionalDesign.endingStyle)}`);
   
   // Core Message
-  if (brief.therapeuticIntent.keyMessage) {
-    parts.push(`Core Message: ${brief.therapeuticIntent.keyMessage}`);
+  if (brief.therapeuticDesign.keyMessage) {
+    parts.push(`Core Message: ${brief.therapeuticDesign.keyMessage}`);
   }
 
   return parts.join("\n");

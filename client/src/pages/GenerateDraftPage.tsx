@@ -54,8 +54,8 @@ function formatDisplayText(text: string): string {
 
 // Helper function to derive display title from StoryBrief fields
 function getBriefDisplayTitle(brief: StoryBrief): string {
-  const topic = brief.therapeuticFocus?.primaryTopic;
-  const situation = brief.therapeuticFocus?.specificSituation;
+  const topic = brief.storyContext?.primaryTopic;
+  const situation = brief.storyContext?.specificSituation;
 
   if (topic && situation) {
     return `${formatDisplayText(topic)} → ${formatDisplayText(situation)}`;
@@ -64,16 +64,9 @@ function getBriefDisplayTitle(brief: StoryBrief): string {
   return "Untitled Brief";
 }
 
-// Helper function to format age group keys to readable format
-function formatAgeGroup(ageGroup: string): string {
-  const map: Record<string, string> = {
-    "0_3": "0–3 years",
-    "3_6": "3–6 years",
-    "6_9": "6–9 years",
-    "9_12": "9–12 years",
-  };
-
-  return map[ageGroup] || ageGroup;
+function formatAgeRange(range?: { min: number; max: number }): string {
+  if (!range) return "";
+  return `${range.min}–${range.max} years`;
 }
 
 // Helper function to format emotional sensitivity
@@ -91,13 +84,14 @@ function formatComplexity(complexity: string): string {
   return formatDisplayText(complexity);
 }
 
-// Helper function to format caregiver presence
-function formatCaregiverPresence(presence: string): string {
+function formatCaregiverRole(role: string): string {
   const map: Record<string, string> = {
-    "included": "Caregiver Included",
-    "self_guided": "Self-Guided",
+    "comfort_presence": "Comfort Presence",
+    "active_guide": "Active Guide",
+    "mentioned_not_present": "Mentioned Not Present",
+    "absent": "Absent",
   };
-  return map[presence] || formatDisplayText(presence);
+  return map[role] || formatDisplayText(role);
 }
 
 // Helper function to format ending style
@@ -155,11 +149,11 @@ function formatTimestamp(ts: any): string {
 // Get status icon and color
 function getStatusConfig(status: string) {
   switch (status) {
-    case "draft_generated":
+    case "generated":
       return { icon: <CheckCircle />, color: "success" as const, label: "Draft Ready" };
-    case "draft_generating":
+    case "in_generation":
       return { icon: <Autorenew />, color: "info" as const, label: "Generating" };
-    case "created":
+    case "draft":
       return { icon: <RadioButtonUnchecked />, color: "default" as const, label: "Ready to Generate" };
     default:
       return { icon: null, color: "default" as const, label: status };
@@ -242,11 +236,11 @@ const ConfirmGenerateDialog: React.FC<ConfirmGenerateDialogProps> = ({
   if (!brief) return null;
 
   // Build compact summary string
-  const topic = formatDisplayText(brief.therapeuticFocus?.primaryTopic || "");
-  const situation = formatDisplayText(brief.therapeuticFocus?.specificSituation || "");
-  const ageGroup = formatAgeGroup(brief.childProfile?.ageGroup || "");
-  const complexity = formatComplexity(brief.languageTone?.complexity || "");
-  const tone = formatEmotionalTone(brief.languageTone?.emotionalTone || "");
+  const topic = formatDisplayText(brief.storyContext?.primaryTopic || "");
+  const situation = formatDisplayText(brief.storyContext?.specificSituation || "");
+  const ageGroup = formatAgeRange(brief.storyContext?.targetAgeRange);
+  const complexity = formatComplexity(brief.storyContext?.languageComplexity || "");
+  const tone = formatEmotionalTone(brief.emotionalDesign?.emotionalTone || "");
 
   const summaryParts = [];
   if (topic && situation) {
@@ -437,7 +431,7 @@ const GenerateDraftPage: React.FC = () => {
       // Start the generation API call (don't await yet)
       const resultPromise = generateDraftFromBrief(briefId);
       
-      // The backend updates the brief status to "draft_generating" immediately
+      // The backend updates the brief status to "in_generation" immediately
       // in a transaction before starting the LLM call. Give it a moment to complete,
       // then reload briefs so it appears in the "Generating" tab filter.
       await new Promise<void>((resolve) => {
@@ -456,7 +450,7 @@ const GenerateDraftPage: React.FC = () => {
       const result = await resultPromise;
       setSuccess(`Draft generated successfully! You can now review it.`);
       setSuccessDraftId(result.draftId);
-      // Reload briefs again to show final "draft_generated" status
+      // Reload briefs again to show final "generated" status
       await loadBriefs();
     } catch (err: any) {
       setError(err.message || "Failed to generate draft");
@@ -479,23 +473,28 @@ const GenerateDraftPage: React.FC = () => {
 
     // Filter by status tab
     if (filterTab === "ready") {
-      filtered = filtered.filter((b) => b.status === "created");
+      filtered = filtered.filter((b) => b.status === "draft");
     } else if (filterTab === "generating") {
-      filtered = filtered.filter((b) => b.status === "draft_generating");
+      filtered = filtered.filter((b) => b.status === "in_generation");
     } else if (filterTab === "generated") {
-      filtered = filtered.filter((b) => b.status === "draft_generated");
+      filtered = filtered.filter((b) => b.status === "generated");
     }
 
     // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (brief) =>
+      filtered = filtered.filter((brief) => {
+        const ageSearch =
+          brief.storyContext?.targetAgeRange != null
+            ? `${brief.storyContext.targetAgeRange.min}–${brief.storyContext.targetAgeRange.max}`.toLowerCase()
+            : "";
+        return (
           getBriefDisplayTitle(brief).toLowerCase().includes(query) ||
-          brief.therapeuticFocus?.primaryTopic?.toLowerCase().includes(query) ||
-          brief.therapeuticFocus?.specificSituation?.toLowerCase().includes(query) ||
-          brief.childProfile?.ageGroup?.toLowerCase().includes(query)
-      );
+          brief.storyContext?.primaryTopic?.toLowerCase().includes(query) ||
+          brief.storyContext?.specificSituation?.toLowerCase().includes(query) ||
+          ageSearch.includes(query)
+        );
+      });
     }
 
     return filtered;
@@ -505,18 +504,18 @@ const GenerateDraftPage: React.FC = () => {
   const statusCounts = useMemo(() => {
     return {
       all: briefs.length,
-      ready: briefs.filter((b) => b.status === "created").length,
-      generating: briefs.filter((b) => b.status === "draft_generating").length,
-      generated: briefs.filter((b) => b.status === "draft_generated").length,
+      ready: briefs.filter((b) => b.status === "draft").length,
+      generating: briefs.filter((b) => b.status === "in_generation").length,
+      generated: briefs.filter((b) => b.status === "generated").length,
     };
   }, [briefs]);
 
   // Get tooltip text for disabled Generate button
   const getGenerateButtonTooltip = (brief: StoryBrief): string => {
-    if (brief.status === "draft_generated") {
+    if (brief.status === "generated") {
       return "Draft already generated";
     }
-    if (brief.status === "draft_generating") {
+    if (brief.status === "in_generation") {
       return "Draft is currently generating";
     }
     return "";
@@ -675,9 +674,9 @@ const GenerateDraftPage: React.FC = () => {
           <Stack spacing={3}>
             {filteredBriefs.map((brief) => {
               const statusConfig = getStatusConfig(brief.status);
-              const isGenerating = generating === brief.id || brief.status === "draft_generating";
-              const isGenerated = brief.status === "draft_generated";
-              const isReady = brief.status === "created";
+              const isGenerating = generating === brief.id || brief.status === "in_generation";
+              const isGenerated = brief.status === "generated";
+              const isReady = brief.status === "draft";
               const isDisabled = isGenerating || isGenerated || !isReady;
               const tooltipText = isDisabled ? getGenerateButtonTooltip(brief) : "";
 
@@ -732,7 +731,7 @@ const GenerateDraftPage: React.FC = () => {
                           </Stack>
                           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                         <Chip
-                              label={formatAgeGroup(brief.childProfile.ageGroup)}
+                              label={formatAgeRange(brief.storyContext?.targetAgeRange) || "N/A"}
                           size="small"
                           color="primary"
                           variant="outlined"
@@ -778,25 +777,25 @@ const GenerateDraftPage: React.FC = () => {
                           Writing Style
                       </Typography>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75}>
-                          {brief.childProfile?.emotionalSensitivity && (
+                          {brief.emotionalDesign?.topicSensitivity && (
                             <Chip
-                              label={`Sensitivity: ${formatEmotionalSensitivity(brief.childProfile.emotionalSensitivity)}`}
+                              label={`Sensitivity: ${formatEmotionalSensitivity(brief.emotionalDesign.topicSensitivity)}`}
                               size="small"
                               variant="outlined"
                               color="default"
                             />
                           )}
-                          {brief.languageTone?.emotionalTone && (
+                          {brief.emotionalDesign?.emotionalTone && (
                             <Chip
-                              label={`Tone: ${formatEmotionalTone(brief.languageTone.emotionalTone)}`}
+                              label={`Tone: ${formatEmotionalTone(brief.emotionalDesign.emotionalTone)}`}
                               size="small"
                               variant="outlined"
                               color="default"
                             />
                           )}
-                          {brief.languageTone?.complexity && (
+                          {brief.storyContext?.languageComplexity && (
                             <Chip
-                              label={`Complexity: ${formatComplexity(brief.languageTone.complexity)}`}
+                              label={`Complexity: ${formatComplexity(brief.storyContext.languageComplexity)}`}
                               size="small"
                               variant="outlined"
                               color="default"
@@ -806,8 +805,8 @@ const GenerateDraftPage: React.FC = () => {
                     </Box>
 
                       {/* Core Therapeutic Message (Collapsible) */}
-                      {brief.therapeuticIntent?.keyMessage && (
-                        <MessageCallout message={brief.therapeuticIntent.keyMessage} />
+                      {brief.therapeuticDesign?.keyMessage && (
+                        <MessageCallout message={brief.therapeuticDesign.keyMessage} />
                   )}
 
                       {/* Story Constraints & Structure */}
@@ -816,17 +815,17 @@ const GenerateDraftPage: React.FC = () => {
                           Story Constraints & Structure
                       </Typography>
                         <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75} alignItems="center">
-                          {brief.storyPreferences?.caregiverPresence && (
+                          {brief.characterDesign?.caregiverRole && (
                             <Chip
-                              label={formatCaregiverPresence(brief.storyPreferences.caregiverPresence)}
+                              label={formatCaregiverRole(brief.characterDesign.caregiverRole)}
                               size="small"
                               variant="outlined"
                               color="default"
                             />
                           )}
-                          {brief.storyPreferences?.endingStyle && (
+                          {brief.emotionalDesign?.endingStyle && (
                             <Chip
-                              label={`Ending: ${formatEndingStyle(brief.storyPreferences.endingStyle)}`}
+                              label={`Ending: ${formatEndingStyle(brief.emotionalDesign.endingStyle)}`}
                               size="small"
                               variant="outlined"
                               color="default"
@@ -845,13 +844,13 @@ const GenerateDraftPage: React.FC = () => {
                     </Box>
 
                       {/* Emotional Goals (De-emphasized) */}
-                      {brief.therapeuticIntent?.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0 && (
+                      {brief.therapeuticDesign?.emotionalGoals && brief.therapeuticDesign.emotionalGoals.length > 0 && (
                     <Box>
                           <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
                             Emotional Goals
                           </Typography>
                           <Stack direction="row" spacing={0.75} flexWrap="wrap" gap={0.75}>
-                            {brief.therapeuticIntent.emotionalGoals.map((goal, idx) => (
+                            {brief.therapeuticDesign.emotionalGoals.map((goal, idx) => (
                               <Chip
                                 key={idx}
                                 label={formatDisplayText(goal)}
@@ -879,7 +878,7 @@ const GenerateDraftPage: React.FC = () => {
                             Primary Topic
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {formatDisplayText(brief.therapeuticFocus.primaryTopic) || "—"}
+                            {formatDisplayText(brief.storyContext.primaryTopic) || "—"}
                           </Typography>
                         </Box>
                         <Box>
@@ -887,7 +886,7 @@ const GenerateDraftPage: React.FC = () => {
                             Situation
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {formatDisplayText(brief.therapeuticFocus.specificSituation) || "—"}
+                            {formatDisplayText(brief.storyContext.specificSituation) || "—"}
                           </Typography>
                         </Box>
                         <Box>

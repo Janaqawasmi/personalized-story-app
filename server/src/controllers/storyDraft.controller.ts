@@ -202,10 +202,10 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
     const briefData = briefDoc.data() as StoryBrief;
 
     // Validate brief status before transaction
-    if (briefData.status !== "created") {
+    if (briefData.status !== "draft") {
       res.status(409).json({
         success: false,
-        error: `Cannot generate draft: brief status is "${briefData.status}", expected "created"`,
+        error: `Cannot generate draft: brief status is "${briefData.status}", expected "draft"`,
       });
       return;
     }
@@ -230,13 +230,12 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       }
 
       const briefDataInTx = briefDocInTx.data() as StoryBrief;
-      if (briefDataInTx.status !== "created") {
-        throw new Error(`Cannot generate draft: brief status is "${briefDataInTx.status}", expected "created"`);
+      if (briefDataInTx.status !== "draft") {
+        throw new Error(`Cannot generate draft: brief status is "${briefDataInTx.status}", expected "draft"`);
       }
 
-      // Update brief status to "draft_generating" and lock it
       transaction.update(briefRef, {
-        status: "draft_generating",
+        status: "in_generation",
         lockedAt: now,
         updatedAt: now,
       });
@@ -288,9 +287,8 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
         updatedAt: admin.firestore.Timestamp.now(),
       });
 
-      // Update brief status to "draft_generated"
       await briefRef.update({
-        status: "draft_generated",
+        status: "generated",
         lockedByDraftId: draftId,
         updatedAt: admin.firestore.Timestamp.now(),
       });
@@ -341,9 +339,8 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       
       await draftRef.update(updateData);
 
-      // Reset brief status back to "created" and unlock
       const briefUpdateData: any = {
-        status: "created",
+        status: "draft",
         updatedAt: admin.firestore.Timestamp.now(),
       };
       briefUpdateData.lockedAt = admin.firestore.FieldValue.delete();
@@ -377,7 +374,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       });
     }
 
-    // Check if it's a conflict error (status not "created")
+    // Check if it's a conflict error (status not "draft")
     if (error.message?.includes("Cannot generate draft")) {
       res.status(409).json({
         success: false,
@@ -762,9 +759,9 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
         title: draftDataInTx.title,
         status: "approved",
         // Topic and situation from brief
-        primaryTopic: briefData.therapeuticFocus.primaryTopic,
-        specificSituation: briefData.therapeuticFocus.specificSituation,
-        ageGroup: briefData.childProfile.ageGroup,
+        primaryTopic: briefData.storyContext.primaryTopic,
+        specificSituation: briefData.storyContext.specificSituation,
+        targetAgeRange: briefData.storyContext.targetAgeRange,
         generationConfig: draftDataInTx.generationConfig,
         pages: draftDataInTx.pages.map((page) => ({
           pageNumber: page.pageNumber,

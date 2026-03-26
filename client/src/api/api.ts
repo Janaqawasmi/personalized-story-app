@@ -52,12 +52,24 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 }
 
 // Type aliases for StoryBrief fields
-export type AgeGroup = "0_3" | "3_6" | "6_9" | "9_12";
-export type EmotionalSensitivity = "low" | "medium" | "high";
+export type TopicSensitivity = "low" | "medium" | "high";
 export type Complexity = "very_simple" | "simple" | "moderate";
 export type EmotionalTone = "very_gentle" | "calm" | "encouraging";
-export type CaregiverPresence = "included" | "self_guided";
+export type CaregiverRole = "comfort_presence" | "active_guide" | "mentioned_not_present" | "absent";
+export type ProtagonistType = "child_character" | "animal_character" | "fantasy_character";
+export type ProtagonistAgeRelation = "same_age" | "slightly_older" | "unspecified";
+export type ProtagonistGender = "male" | "female" | "neutral";
+export type SupportCharacterType = "peer" | "sibling" | "teacher" | "animal_friend";
+export type SupportCharacterRole = "mirror" | "model" | "supporter" | "companion";
 export type EndingStyle = "calm_resolution" | "open_ended" | "empowering";
+export type EmotionalArc = "gentle_progression" | "acknowledge_then_resolve" | "discovery_journey" | "supported_transition";
+export type PeakIntensity = "minimal" | "mild" | "moderate";
+export type GenderAdaptation = "allowed" | "not_allowed" | "requires_review";
+
+export interface TargetAgeRange {
+  min: number;
+  max: number;
+}
 
 // Firestore Timestamp JSON representation
 export interface FirestoreTimestampJson {
@@ -66,28 +78,46 @@ export interface FirestoreTimestampJson {
 }
 
 export interface StoryBriefInput {
-  therapeuticFocus: {
+  storyContext: {
     primaryTopic: string;
+    generalSituation: string;
     specificSituation: string;
+    targetAgeRange: TargetAgeRange;
+    languageComplexity: Complexity;
   };
-  childProfile: {
-    ageGroup: AgeGroup;
-    emotionalSensitivity: EmotionalSensitivity;
-  };
-  therapeuticIntent: {
+  therapeuticDesign: {
     emotionalGoals: string[];
     keyMessage?: string;
+    therapeuticMechanism: string[];
+    copingTools: string[];
+    therapeuticBoundaries: string[];
   };
-  languageTone: {
-    complexity: Complexity;
+  emotionalDesign: {
     emotionalTone: EmotionalTone;
-  };
-  safetyConstraints: {
-    exclusions: string[];
-  };
-  storyPreferences: {
-    caregiverPresence: CaregiverPresence;
+    topicSensitivity: TopicSensitivity;
     endingStyle: EndingStyle;
+    emotionalArc: EmotionalArc;
+    peakIntensity: PeakIntensity;
+  };
+  characterDesign: {
+    protagonistType: ProtagonistType;
+    protagonistAgeRelation: ProtagonistAgeRelation;
+    protagonistGender: ProtagonistGender;
+    caregiverRole: CaregiverRole;
+    supportCharacters?: { type: SupportCharacterType; role: SupportCharacterRole }[];
+    characterNotes?: string;
+  };
+  safetyBoundaries: {
+    contentExclusions: string[];
+    clinicalCautions?: string[];
+  };
+  personalizationConfig: {
+    personalizationAllowed: boolean;
+    personalizationReason?: string;
+    namePersonalization: boolean;
+    illustrationPersonalization: boolean;
+    personalizationConstraints?: string[];
+    genderAdaptation?: GenderAdaptation;
   };
 }
 
@@ -352,49 +382,66 @@ export interface StoryBrief {
   createdAt: FirestoreTimestampJson;
   updatedAt: FirestoreTimestampJson;
   createdBy: string;
-  status: "created" | "draft_generating" | "draft_generated" | "archived";
+  status: "draft" | "in_review" | "approved" | "in_generation" | "generated" | "published" | "archived";
   version: number;
+  reviewedBy?: string;
+  reviewedAt?: FirestoreTimestampJson;
+  reviewDecision?: "approved" | "approved_with_changes" | "rejected" | "needs_revision";
+  reviewComments?: string;
+  generationContractId?: string;
 
-  // Therapeutic Focus
-  therapeuticFocus: {
+  // Story Context (v2.0)
+  storyContext: {
     primaryTopic: string;
+    generalSituation: string;
     specificSituation: string;
+    targetAgeRange: TargetAgeRange;
+    languageComplexity: Complexity;
   };
 
-  // Child Profile
-  childProfile: {
-    ageGroup: AgeGroup;
-    emotionalSensitivity: EmotionalSensitivity;
-  };
-
-  // Therapeutic Intent
-  therapeuticIntent: {
+  // Therapeutic Design (v2.0)
+  therapeuticDesign: {
     emotionalGoals: string[];
     keyMessage?: string;
+    therapeuticMechanism: string[];
+    copingTools: string[];
+    therapeuticBoundaries: string[];
   };
 
-  // Language & Tone
-  languageTone: {
-    complexity: Complexity;
+  // Emotional Design (v2.0)
+  emotionalDesign: {
     emotionalTone: EmotionalTone;
-  };
-
-  // Safety Constraints
-  safetyConstraints: {
-    enforced: {
-      noThreateningImagery: true;
-      noShameLanguage: true;
-      noMoralizing: true;
-      validateEmotions: true;
-      externalizeProblem: true;
-    };
-    exclusions: string[];
-  };
-
-  // Story Preferences
-  storyPreferences: {
-    caregiverPresence: CaregiverPresence;
+    topicSensitivity: TopicSensitivity;
     endingStyle: EndingStyle;
+    emotionalArc: EmotionalArc;
+    peakIntensity: PeakIntensity;
+  };
+
+  // Safety & Boundaries (v2.0 — replaces safetyConstraints)
+  safetyBoundaries: {
+    contentExclusions: string[];
+    clinicalCautions?: string[];
+    requiresSpecialistReview: true;
+  };
+
+  // Character Design (v2.0 — new section, absorbs caregiverPresence)
+  characterDesign: {
+    protagonistType: ProtagonistType;
+    protagonistAgeRelation: ProtagonistAgeRelation;
+    protagonistGender: ProtagonistGender;
+    caregiverRole: CaregiverRole;
+    supportCharacters?: { type: SupportCharacterType; role: SupportCharacterRole }[];
+    characterNotes?: string;
+  };
+
+  // Personalization Configuration (v2.0 — new section)
+  personalizationConfig: {
+    personalizationAllowed: boolean;
+    personalizationReason?: string;
+    namePersonalization: boolean;
+    illustrationPersonalization: boolean;
+    personalizationConstraints?: string[];
+    genderAdaptation?: GenderAdaptation;
   };
 
   // Optional fields added later
@@ -506,7 +553,7 @@ export interface GenerationContract {
   topic: string;
   situation: string;
   ageBand: string;
-  caregiverPresence: string;
+  caregiverRole: string;
   emotionalSensitivity: string;
   lengthBudget: {
     minScenes: number;

@@ -2,6 +2,16 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { ReferenceData } from "../types/referenceData";
 
+function byOrderThenLabel(a: any, b: any): number {
+  const orderA = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+  const orderB = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+  if (orderA !== orderB) return orderA - orderB;
+
+  const labelA = (a.label_en || a.label_he || a.label_ar || a.id || "").toString();
+  const labelB = (b.label_en || b.label_he || b.label_ar || b.id || "").toString();
+  return labelA.localeCompare(labelB);
+}
+
 export async function fetchSituationsByTopic(topicKey: string) {
   const ref = collection(db, "referenceData", "situations", "items");
 
@@ -13,10 +23,12 @@ export async function fetchSituationsByTopic(topicKey: string) {
 
   const snap = await getDocs(q);
 
-  return snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as any),
-  }));
+  return snap.docs
+    .map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    }))
+    .sort(byOrderThenLabel);
 }
 
 export async function fetchReferenceData(): Promise<ReferenceData> {
@@ -31,14 +43,22 @@ export async function fetchReferenceData(): Promise<ReferenceData> {
     getDocs(situationsQuery),
   ]);
 
+  const topics = topicsSnap.docs
+    .map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    }))
+    .sort(byOrderThenLabel);
+
+  const situations = situationsSnap.docs
+    .map((d) => ({
+      id: d.id,
+      ...(d.data() as any),
+    }))
+    .sort(byOrderThenLabel);
+
   return {
-    topics: topicsSnap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    })),
-    situations: situationsSnap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    })),
+    topics,
+    situations,
   };
 }

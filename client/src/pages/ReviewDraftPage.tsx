@@ -169,7 +169,11 @@ const ReviewDraftPage: React.FC = () => {
   // Determine if content is RTL (Arabic or Hebrew)
   const isRTL = draft?.generationConfig?.language === "ar" || draft?.generationConfig?.language === "he";
 
-  // Format age group for display
+  const formatAgeRange = (range?: { min: number; max: number }) => {
+    if (!range) return "";
+    return `${range.min}–${range.max} years`;
+  };
+
   const formatAgeGroup = (ageGroup: string) => {
     const mapping: Record<string, string> = {
       "0_3": "0-3",
@@ -690,18 +694,21 @@ const ReviewDraftPage: React.FC = () => {
                 <Divider sx={{ my: 2 }} />
                 <Stack spacing={1.5}>
                   <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-                    {brief?.therapeuticFocus?.primaryTopic && (
+                    {brief?.storyContext?.primaryTopic && (
                       <Typography variant="body2" color="text.secondary">
-                        <strong>Topic:</strong> {formatTopicLabel(brief?.therapeuticFocus?.primaryTopic || "")}
+                        <strong>Topic:</strong> {formatTopicLabel(brief.storyContext.primaryTopic)}
                       </Typography>
                     )}
-                    {brief?.therapeuticFocus?.specificSituation && (
+                    {brief?.storyContext?.specificSituation && (
                       <Typography variant="body2" color="text.secondary">
-                        <strong>Situation:</strong> {formatTopicLabel(brief?.therapeuticFocus?.specificSituation || "")}
+                        <strong>Situation:</strong> {formatTopicLabel(brief.storyContext.specificSituation)}
                       </Typography>
                     )}
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Target reader:</strong> Ages {formatAgeGroup(brief?.childProfile?.ageGroup || draft.generationConfig.targetAgeGroup)}
+                      <strong>Target reader:</strong>{" "}
+                      {brief?.storyContext?.targetAgeRange
+                        ? formatAgeRange(brief.storyContext.targetAgeRange)
+                        : `Ages ${formatAgeGroup(draft.generationConfig.targetAgeGroup)}`}
                     </Typography>
                   </Stack>
                   {draft.briefId && (

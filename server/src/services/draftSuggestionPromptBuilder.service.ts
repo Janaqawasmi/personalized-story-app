@@ -1,6 +1,5 @@
 // server/src/services/draftSuggestionPromptBuilder.service.ts
 import { StoryBrief } from "../models/storyBrief.model";
-import { formatAgeGroupLabel } from "../data/categories";
 
 /**
  * Helper: Format enum key to readable text
@@ -64,27 +63,30 @@ export function buildDraftSuggestionPrompt(params: {
   sections.push("STORY CONTEXT");
   sections.push("═══════════════════════════════════════════════════════════");
   sections.push("");
-  sections.push("Primary Topic: " + formatDisplayText(brief.therapeuticFocus.primaryTopic));
-  sections.push("Specific Situation: " + formatDisplayText(brief.therapeuticFocus.specificSituation));
-  sections.push("Age Group: " + formatAgeGroupLabel(brief.childProfile.ageGroup));
-  sections.push("Emotional Sensitivity: " + formatDisplayText(brief.childProfile.emotionalSensitivity));
-  sections.push("Language Complexity: " + formatDisplayText(brief.languageTone.complexity));
-  sections.push("Emotional Tone: " + formatDisplayText(brief.languageTone.emotionalTone));
+  sections.push("Primary Topic: " + formatDisplayText(brief.storyContext.primaryTopic));
+  sections.push("Specific Situation: " + formatDisplayText(brief.storyContext.specificSituation));
+  sections.push(
+    "Age Group: " +
+      `${brief.storyContext.targetAgeRange.min}–${brief.storyContext.targetAgeRange.max} years`
+  );
+  sections.push("Topic Sensitivity: " + formatDisplayText(brief.emotionalDesign.topicSensitivity));
+  sections.push("Language Complexity: " + formatDisplayText(brief.storyContext.languageComplexity));
+  sections.push("Emotional Tone: " + formatDisplayText(brief.emotionalDesign.emotionalTone));
+  sections.push("Emotional Arc: " + formatDisplayText(brief.emotionalDesign.emotionalArc));
+  sections.push("Peak Intensity: " + formatDisplayText(brief.emotionalDesign.peakIntensity));
   
-  if (brief.therapeuticIntent.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0) {
-    sections.push("Emotional Goals: " + brief.therapeuticIntent.emotionalGoals.map(g => formatDisplayText(g)).join(", "));
+  if (brief.therapeuticDesign.emotionalGoals && brief.therapeuticDesign.emotionalGoals.length > 0) {
+    sections.push("Emotional Goals: " + brief.therapeuticDesign.emotionalGoals.map(g => formatDisplayText(g)).join(", "));
   }
   
-  if (brief.storyPreferences.caregiverPresence) {
-    sections.push("Caregiver Presence: " + formatDisplayText(brief.storyPreferences.caregiverPresence));
+  if (brief.characterDesign.caregiverRole) {
+    sections.push("Caregiver Role: " + formatDisplayText(brief.characterDesign.caregiverRole));
   }
   
-  if (brief.storyPreferences.endingStyle) {
-    sections.push("Ending Style: " + formatDisplayText(brief.storyPreferences.endingStyle));
-  }
+  sections.push("Ending Style: " + formatDisplayText(brief.emotionalDesign.endingStyle));
   
-  if (brief.therapeuticIntent.keyMessage) {
-    sections.push("Core Message: " + brief.therapeuticIntent.keyMessage);
+  if (brief.therapeuticDesign.keyMessage) {
+    sections.push("Core Message: " + brief.therapeuticDesign.keyMessage);
   }
   
   if (pageNumber !== undefined) {

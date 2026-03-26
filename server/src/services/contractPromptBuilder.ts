@@ -47,7 +47,7 @@ export function buildPromptFromContract(
   s.push(`- topic: ${formatDisplayText(contract.topic)}`);
   s.push(`- situation: ${formatDisplayText(contract.situation)}`);
   s.push(`- ageBand: ${formatDisplayText(contract.ageBand)}`);
-  s.push(`- caregiverPresence: ${formatDisplayText(contract.caregiverPresence)}`);
+  s.push(`- caregiverRole: ${formatDisplayText(contract.caregiverRole)}`);
   s.push(`- keyMessage: ${contract.keyMessage ? contract.keyMessage : "none"}`);
   s.push("");
   s.push("DERIVED CLINICAL INSTRUCTIONS (already mapped from brief + rules):");

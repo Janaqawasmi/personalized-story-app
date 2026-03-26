@@ -129,16 +129,16 @@ export const approveDraft = async (req: Request, res: Response) => {
     // Fetch the brief to get topic, situation, and age group
     let primaryTopic: string | undefined;
     let specificSituation: string | undefined;
-    let ageGroup: string | undefined;
+    let targetAgeRange: StoryBrief["storyContext"]["targetAgeRange"] | undefined;
 
     if (draft.briefId) {
       try {
         const briefSnap = await db.collection("storyBriefs").doc(draft.briefId).get();
         if (briefSnap.exists) {
           const briefData = briefSnap.data() as StoryBrief;
-          primaryTopic = briefData.therapeuticFocus?.primaryTopic;
-          specificSituation = briefData.therapeuticFocus?.specificSituation;
-          ageGroup = briefData.childProfile?.ageGroup;
+          primaryTopic = briefData.storyContext?.primaryTopic;
+          specificSituation = briefData.storyContext?.specificSituation;
+          targetAgeRange = briefData.storyContext?.targetAgeRange;
         }
       } catch (error) {
         console.warn("Failed to fetch brief for template:", error);
@@ -155,7 +155,7 @@ export const approveDraft = async (req: Request, res: Response) => {
       // Topic, situation, and age group from brief (if available)
       ...(primaryTopic && { primaryTopic }),
       ...(specificSituation && { specificSituation }),
-      ...(ageGroup && { ageGroup }),
+      ...(targetAgeRange && { targetAgeRange }),
       generationConfig: draft?.generationConfig,
       pages: Array.isArray(draft?.pages)
         ? draft.pages.map((p: any) => ({

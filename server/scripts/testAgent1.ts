@@ -33,43 +33,54 @@ if (!admin.apps.length) {
 // Valid brief: uses existing referenceData keys
 const validBrief = {
   createdBy: "test_specialist_001",
-  therapeuticFocus: {
-    primaryTopic: "fear_anxiety", // Valid topic
-    specificSituation: "fear_of_school", // Valid situation that matches topic
+  storyContext: {
+    primaryTopic: "school_fears",
+    generalSituation: "separation",
+    specificSituation: "afraid_parent_wont_return",
+    targetAgeRange: { min: 3, max: 6 },
+    languageComplexity: "simple",
   },
-  childProfile: {
-    ageGroup: "6_9",
-    emotionalSensitivity: "medium",
+  therapeuticDesign: {
+    emotionalGoals: ["reduce_fear", "build_trust"],
+    keyMessage: "You are brave and can face your fears",
+    therapeuticMechanism: ["normalization", "modeling"],
+    copingTools: ["deep_breathing", "safe_person"],
+    therapeuticBoundaries: ["Never promise the fear will disappear completely"],
   },
-  therapeuticIntent: {
-    emotionalGoals: ["reduce_fear", "build_trust"], // Valid goals (1-3)
-    keyMessage: "You are brave and can face your fears", // < 200 chars
-  },
-  languageTone: {
-    complexity: "simple",
+  emotionalDesign: {
     emotionalTone: "calm",
-  },
-  safetyConstraints: {
-    exclusions: ["medical_imagery"], // Valid exclusion
-  },
-  storyPreferences: {
-    caregiverPresence: "included",
+    topicSensitivity: "medium",
     endingStyle: "calm_resolution",
+    emotionalArc: "gentle_progression",
+    peakIntensity: "mild",
+  },
+  safetyBoundaries: {
+    contentExclusions: ["medical_imagery"],
+  },
+  characterDesign: {
+    protagonistType: "child_character",
+    protagonistAgeRelation: "same_age",
+    protagonistGender: "neutral",
+    caregiverRole: "comfort_presence",
+  },
+  personalizationConfig: {
+    personalizationAllowed: true,
+    namePersonalization: true,
+    illustrationPersonalization: false,
   },
 };
 
 // Invalid brief: missing createdBy, too many goals, keyMessage too long
 const invalidBrief = {
   // Missing createdBy
-  therapeuticFocus: {
+  storyContext: {
     primaryTopic: "fear_anxiety",
+    generalSituation: "separation",
     specificSituation: "fear_of_school",
+    targetAgeRange: { min: 3, max: 6 },
+    languageComplexity: "very_simple",
   },
-  childProfile: {
-    ageGroup: "3_6",
-    emotionalSensitivity: "low",
-  },
-  therapeuticIntent: {
+  therapeuticDesign: {
     emotionalGoals: [
       "normalize_emotions",
       "reduce_fear",
@@ -77,45 +88,73 @@ const invalidBrief = {
       "self_confidence", // Too many goals (4 > 3)
     ],
     keyMessage: "A".repeat(201), // Too long (> 200 chars)
+    therapeuticMechanism: ["normalization"],
+    copingTools: ["deep_breathing"],
+    therapeuticBoundaries: ["Never promise the fear will disappear"],
   },
-  languageTone: {
-    complexity: "very_simple",
+  emotionalDesign: {
     emotionalTone: "very_gentle",
-  },
-  safetyConstraints: {
-    exclusions: [],
-  },
-  storyPreferences: {
-    caregiverPresence: "self_guided",
+    topicSensitivity: "low",
     endingStyle: "open_ended",
+    emotionalArc: "acknowledge_then_resolve",
+    peakIntensity: "minimal",
+  },
+  safetyBoundaries: {
+    contentExclusions: [],
+  },
+  characterDesign: {
+    protagonistType: "animal_character",
+    protagonistAgeRelation: "unspecified",
+    protagonistGender: "female",
+    caregiverRole: "absent",
+  },
+  personalizationConfig: {
+    personalizationAllowed: false,
+    personalizationReason: "Animal protagonist required for therapeutic mechanism",
+    namePersonalization: false,
+    illustrationPersonalization: false,
   },
 };
 
 // Mismatch brief: situation belongs to different topic
 const mismatchBrief = {
   createdBy: "test_specialist_002",
-  therapeuticFocus: {
-    primaryTopic: "fear_anxiety", // Topic is fear_anxiety
-    specificSituation: "doctor_visit", // But situation belongs to medical_experiences
+  storyContext: {
+    primaryTopic: "school_fears",
+    generalSituation: "separation",
+    specificSituation: "doctor_visit", // Mismatch: situation vs topic
+    targetAgeRange: { min: 3, max: 6 },
+    languageComplexity: "simple",
   },
-  childProfile: {
-    ageGroup: "3_6",
-    emotionalSensitivity: "high",
-  },
-  therapeuticIntent: {
+  therapeuticDesign: {
     emotionalGoals: ["normalize_emotions"],
     keyMessage: "Test message",
+    therapeuticMechanism: ["graduated_exposure"],
+    copingTools: ["counting"],
+    therapeuticBoundaries: ["Never suggest the child is being silly"],
   },
-  languageTone: {
-    complexity: "simple",
+  emotionalDesign: {
     emotionalTone: "calm",
-  },
-  safetyConstraints: {
-    exclusions: [],
-  },
-  storyPreferences: {
-    caregiverPresence: "included",
+    topicSensitivity: "high",
     endingStyle: "empowering",
+    emotionalArc: "discovery_journey",
+    peakIntensity: "moderate",
+  },
+  safetyBoundaries: {
+    contentExclusions: [],
+  },
+  characterDesign: {
+    protagonistType: "child_character",
+    protagonistAgeRelation: "slightly_older",
+    protagonistGender: "male",
+    caregiverRole: "active_guide",
+  },
+  personalizationConfig: {
+    personalizationAllowed: true,
+    namePersonalization: true,
+    illustrationPersonalization: true,
+    genderAdaptation: "requires_review",
+    personalizationConstraints: ["Forest setting is essential to the metaphor"],
   },
 };
 

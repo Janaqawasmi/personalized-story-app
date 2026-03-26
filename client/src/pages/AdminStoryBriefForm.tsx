@@ -22,15 +22,18 @@ import {
   FormHelperText,
   Tabs,
   Tab,
+  IconButton,
 } from '@mui/material';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createStoryBrief, StoryBriefInput } from '../api/api';
 import { normalizeStoryBriefInput } from '../utils/briefNormalize';
 import SpecialistNav from '../components/SpecialistNav';
-import { AGE_GROUPS } from '../data/categories';
 import {
   loadReferenceItems,
+  loadReferenceConfig,
   loadSituationsByTopic,
   ReferenceDataItem,
+  ReferencePlatformConfig,
   SituationReferenceItem,
 } from '../services/referenceData.service';
 
@@ -64,18 +67,30 @@ function TabPanel(props: TabPanelProps) {
 
 const AdminStoryBriefForm: React.FC = () => {
   const navigate = useLangNavigate();
+  const DEFAULT_PLATFORM_MIN_AGE = 0;
+  const DEFAULT_PLATFORM_MAX_AGE = 12;
   
   // Reference data state
   const [topics, setTopics] = useState<ReferenceDataItem[]>([]);
-  const [situations, setSituations] = useState<SituationReferenceItem[]>([]);
+  const [generalSituations, setGeneralSituations] = useState<SituationReferenceItem[]>([]);
+  const [specificSituations, setSpecificSituations] = useState<SituationReferenceItem[]>([]);
   const [emotionalGoals, setEmotionalGoals] = useState<ReferenceDataItem[]>([]);
   const [exclusions, setExclusions] = useState<ReferenceDataItem[]>([]);
+  const [therapeuticMechanisms, setTherapeuticMechanisms] = useState<ReferenceDataItem[]>([]);
+  const [copingToolOptions, setCopingToolOptions] = useState<ReferenceDataItem[]>([]);
+  const [platformConfig, setPlatformConfig] = useState<ReferencePlatformConfig>({
+    platformMinAge: DEFAULT_PLATFORM_MIN_AGE,
+    platformMaxAge: DEFAULT_PLATFORM_MAX_AGE,
+  });
   
   // Loading states
   const [loadingTopics, setLoadingTopics] = useState(false);
-  const [loadingSituations, setLoadingSituations] = useState(false);
+  const [loadingGeneralSituations, setLoadingGeneralSituations] = useState(false);
+  const [loadingSpecificSituations, setLoadingSpecificSituations] = useState(false);
   const [loadingEmotionalGoals, setLoadingEmotionalGoals] = useState(false);
   const [loadingExclusions, setLoadingExclusions] = useState(false);
+  const [loadingMechanisms, setLoadingMechanisms] = useState(false);
+  const [loadingCopingTools, setLoadingCopingTools] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // UI state
@@ -86,16 +101,35 @@ const AdminStoryBriefForm: React.FC = () => {
 
   // Form data state (using enum keys only)
   const [selectedTopicKey, setSelectedTopicKey] = useState<string>('');
-  const [selectedSituationKey, setSelectedSituationKey] = useState<string>('');
-  const [selectedAgeGroup, setSelectedAgeGroup] = useState<string>('');
-  const [selectedEmotionalSensitivity, setSelectedEmotionalSensitivity] = useState<"low" | "medium" | "high">("medium");
+  const [selectedGeneralSituationKey, setSelectedGeneralSituationKey] = useState<string>('');
+  const [selectedSpecificSituationKey, setSelectedSpecificSituationKey] = useState<string>('');
+  const [ageMin, setAgeMin] = useState<number>(3);
+  const [ageMax, setAgeMax] = useState<number>(6);
+  const [selectedTopicSensitivity, setSelectedTopicSensitivity] = useState<"low" | "medium" | "high">("medium");
   const [selectedEmotionalGoals, setSelectedEmotionalGoals] = useState<string[]>([]);
   const [keyMessage, setKeyMessage] = useState<string>('');
+  const [selectedMechanisms, setSelectedMechanisms] = useState<string[]>([]);
+  const [selectedCopingTools, setSelectedCopingTools] = useState<string[]>([]);
+  const [therapeuticBoundaries, setTherapeuticBoundaries] = useState<string[]>(['']);
   const [selectedComplexity, setSelectedComplexity] = useState<"very_simple" | "simple" | "moderate">("simple");
   const [selectedEmotionalTone, setSelectedEmotionalTone] = useState<"very_gentle" | "calm" | "encouraging">("calm");
-  const [selectedExclusions, setSelectedExclusions] = useState<string[]>([]);
-  const [selectedCaregiverPresence, setSelectedCaregiverPresence] = useState<"included" | "self_guided">("included");
   const [selectedEndingStyle, setSelectedEndingStyle] = useState<"calm_resolution" | "open_ended" | "empowering">("calm_resolution");
+  const [selectedEmotionalArc, setSelectedEmotionalArc] = useState<"gentle_progression" | "acknowledge_then_resolve" | "discovery_journey" | "supported_transition">("gentle_progression");
+  const [selectedPeakIntensity, setSelectedPeakIntensity] = useState<"minimal" | "mild" | "moderate">("mild");
+  const [selectedExclusions, setSelectedExclusions] = useState<string[]>([]);
+  const [selectedProtagonistType, setSelectedProtagonistType] = useState<"child_character" | "animal_character" | "fantasy_character">("child_character");
+  const [selectedProtagonistAgeRelation, setSelectedProtagonistAgeRelation] = useState<"same_age" | "slightly_older" | "unspecified">("same_age");
+  const [selectedProtagonistGender, setSelectedProtagonistGender] = useState<"male" | "female" | "neutral">("neutral");
+  const [selectedCaregiverRole, setSelectedCaregiverRole] = useState<"comfort_presence" | "active_guide" | "mentioned_not_present" | "absent">("comfort_presence");
+  const [supportCharacters, setSupportCharacters] = useState<{ type: string; role: string }[]>([]);
+  const [characterNotes, setCharacterNotes] = useState<string>('');
+  const [clinicalCautions, setClinicalCautions] = useState<string[]>([]);
+  const [personalizationAllowed, setPersonalizationAllowed] = useState<boolean>(true);
+  const [personalizationReason, setPersonalizationReason] = useState<string>('');
+  const [namePersonalization, setNamePersonalization] = useState<boolean>(true);
+  const [illustrationPersonalization, setIllustrationPersonalization] = useState<boolean>(false);
+  const [personalizationConstraints, setPersonalizationConstraints] = useState<string[]>([]);
+  const [genderAdaptation, setGenderAdaptation] = useState<"allowed" | "not_allowed" | "requires_review" | "">('');
 
   // Load topics on mount
   useEffect(() => {
@@ -114,27 +148,81 @@ const AdminStoryBriefForm: React.FC = () => {
     loadTopics();
   }, []);
 
-  // Load situations when topic changes
+  // Load platform config on mount (age validation boundaries, etc.)
   useEffect(() => {
-    const loadSituations = async () => {
-      if (selectedTopicKey) {
-        setLoadingSituations(true);
-        setSelectedSituationKey(''); // Reset situation when topic changes
-        try {
-          const items = await loadSituationsByTopic(selectedTopicKey);
-          setSituations(items);
-        } catch (err) {
-          console.error('Failed to load situations:', err);
-          setError('Failed to load situations. Please refresh the page.');
-        } finally {
-          setLoadingSituations(false);
+    const loadConfig = async () => {
+      try {
+        const config = await loadReferenceConfig();
+        const min = typeof config.platformMinAge === "number" && Number.isInteger(config.platformMinAge)
+          ? config.platformMinAge
+          : DEFAULT_PLATFORM_MIN_AGE;
+        const max = typeof config.platformMaxAge === "number" && Number.isInteger(config.platformMaxAge)
+          ? config.platformMaxAge
+          : DEFAULT_PLATFORM_MAX_AGE;
+
+        if (min < max) {
+          setPlatformConfig({ platformMinAge: min, platformMaxAge: max });
+        } else {
+          // Keep safe defaults if config is malformed
+          setPlatformConfig({
+            platformMinAge: DEFAULT_PLATFORM_MIN_AGE,
+            platformMaxAge: DEFAULT_PLATFORM_MAX_AGE,
+          });
         }
-      } else {
-        setSituations([]);
+      } catch (err) {
+        // Non-blocking: fallback to defaults
+        console.warn('Failed to load reference config, using default age boundaries');
       }
     };
-    loadSituations();
+    loadConfig();
+  }, []);
+
+  // Load general situations when topic changes
+  useEffect(() => {
+    const load = async () => {
+      if (selectedTopicKey) {
+        setLoadingGeneralSituations(true);
+        setSelectedGeneralSituationKey('');
+        setSelectedSpecificSituationKey('');
+        setSpecificSituations([]);
+        try {
+          const items = await loadSituationsByTopic(selectedTopicKey, "generalSituations");
+          setGeneralSituations(items);
+        } catch (err) {
+          console.error('Failed to load general situations:', err);
+          setError('Failed to load general situations. Please refresh the page.');
+        } finally {
+          setLoadingGeneralSituations(false);
+        }
+      } else {
+        setGeneralSituations([]);
+        setSpecificSituations([]);
+      }
+    };
+    load();
   }, [selectedTopicKey]);
+
+  // Load specific situations when general situation changes
+  useEffect(() => {
+    const load = async () => {
+      if (selectedGeneralSituationKey) {
+        setLoadingSpecificSituations(true);
+        setSelectedSpecificSituationKey('');
+        try {
+          const items = await loadSituationsByTopic(selectedGeneralSituationKey, "specificSituations", "generalSituationKey");
+          setSpecificSituations(items);
+        } catch (err) {
+          console.error('Failed to load specific situations:', err);
+          setError('Failed to load specific situations. Please refresh the page.');
+        } finally {
+          setLoadingSpecificSituations(false);
+        }
+      } else {
+        setSpecificSituations([]);
+      }
+    };
+    load();
+  }, [selectedGeneralSituationKey]);
 
   // Load emotional goals on mount
   useEffect(() => {
@@ -170,6 +258,40 @@ const AdminStoryBriefForm: React.FC = () => {
     loadExclusions();
   }, []);
 
+  // Load therapeutic mechanisms on mount
+  useEffect(() => {
+    const load = async () => {
+      setLoadingMechanisms(true);
+      try {
+        const items = await loadReferenceItems("therapeuticMechanisms");
+        setTherapeuticMechanisms(items);
+      } catch (err) {
+        console.error('Failed to load therapeutic mechanisms:', err);
+        setError('Failed to load therapeutic mechanisms. Please refresh the page.');
+      } finally {
+        setLoadingMechanisms(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Load coping tools on mount
+  useEffect(() => {
+    const load = async () => {
+      setLoadingCopingTools(true);
+      try {
+        const items = await loadReferenceItems("copingTools");
+        setCopingToolOptions(items);
+      } catch (err) {
+        console.error('Failed to load coping tools:', err);
+        setError('Failed to load coping tools. Please refresh the page.');
+      } finally {
+        setLoadingCopingTools(false);
+      }
+    };
+    load();
+  }, []);
+
   // Scroll to messages when they appear
   useEffect(() => {
     if ((success || error) && messageRef.current) {
@@ -189,6 +311,47 @@ const AdminStoryBriefForm: React.FC = () => {
     });
   };
 
+  // Handle therapeutic mechanism toggle (max 2)
+  const handleMechanismToggle = (mechanismKey: string) => {
+    setSelectedMechanisms((prev) => {
+      if (prev.includes(mechanismKey)) {
+        return prev.filter((key) => key !== mechanismKey);
+      } else if (prev.length < 2) {
+        return [...prev, mechanismKey];
+      }
+      return prev;
+    });
+  };
+
+  // Handle coping tool toggle (max 3)
+  const handleCopingToolToggle = (toolKey: string) => {
+    setSelectedCopingTools((prev) => {
+      if (prev.includes(toolKey)) {
+        return prev.filter((key) => key !== toolKey);
+      } else if (prev.length < 3) {
+        return [...prev, toolKey];
+      }
+      return prev;
+    });
+  };
+
+  // Handle therapeutic boundaries
+  const handleBoundaryChange = (index: number, value: string) => {
+    setTherapeuticBoundaries((prev) => {
+      const updated = [...prev];
+      updated[index] = value;
+      return updated;
+    });
+  };
+
+  const addBoundary = () => {
+    setTherapeuticBoundaries((prev) => [...prev, '']);
+  };
+
+  const removeBoundary = (index: number) => {
+    setTherapeuticBoundaries((prev) => prev.filter((_, i) => i !== index));
+  };
+
   // Handle exclusion toggle
   const handleExclusionToggle = (exclusionKey: string) => {
     setSelectedExclusions((prev) => {
@@ -200,10 +363,15 @@ const AdminStoryBriefForm: React.FC = () => {
   };
 
   const handleNext = () => {
-    // Validate current step before moving forward
+    const platformMinAge = platformConfig.platformMinAge ?? DEFAULT_PLATFORM_MIN_AGE;
+    const platformMaxAge = platformConfig.platformMaxAge ?? DEFAULT_PLATFORM_MAX_AGE;
     if (activeStep === 0) {
-      if (!selectedTopicKey || !selectedSituationKey || !selectedAgeGroup) {
+      if (!selectedTopicKey || !selectedGeneralSituationKey || !selectedSpecificSituationKey) {
         setError('Please fill in all required fields in Step 1');
+        return;
+      }
+      if (!Number.isInteger(ageMin) || !Number.isInteger(ageMax) || ageMin < platformMinAge || ageMax > platformMaxAge || ageMin >= ageMax) {
+        setError(`Age range must satisfy: ${platformMinAge} ≤ min < max ≤ ${platformMaxAge}`);
         return;
       }
     } else if (activeStep === 1) {
@@ -211,9 +379,22 @@ const AdminStoryBriefForm: React.FC = () => {
         setError('Please select at least one emotional goal');
         return;
       }
+      if (selectedMechanisms.length === 0) {
+        setError('Please select at least one therapeutic mechanism');
+        return;
+      }
+      if (selectedCopingTools.length === 0) {
+        setError('Please select at least one coping tool');
+        return;
+      }
+      const nonEmptyBoundaries = therapeuticBoundaries.filter((b) => b.trim().length > 0);
+      if (nonEmptyBoundaries.length === 0) {
+        setError('Please add at least one therapeutic boundary');
+        return;
+      }
     }
     setError(null);
-    setActiveStep((prev) => Math.min(prev + 1, 2));
+    setActiveStep((prev) => Math.min(prev + 1, 5));
   };
 
   const handleBack = () => {
@@ -222,16 +403,28 @@ const AdminStoryBriefForm: React.FC = () => {
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    // Validate before allowing tab change
     if (newValue > activeStep) {
       if (activeStep === 0) {
-        if (!selectedTopicKey || !selectedSituationKey || !selectedAgeGroup) {
+        if (!selectedTopicKey || !selectedGeneralSituationKey || !selectedSpecificSituationKey) {
           setError('Please fill in all required fields in Step 1');
           return;
         }
       } else if (activeStep === 1) {
         if (selectedEmotionalGoals.length === 0) {
           setError('Please select at least one emotional goal');
+          return;
+        }
+        if (selectedMechanisms.length === 0) {
+          setError('Please select at least one therapeutic mechanism');
+          return;
+        }
+        if (selectedCopingTools.length === 0) {
+          setError('Please select at least one coping tool');
+          return;
+        }
+        const nonEmptyBoundaries = therapeuticBoundaries.filter((b) => b.trim().length > 0);
+        if (nonEmptyBoundaries.length === 0) {
+          setError('Please add at least one therapeutic boundary');
           return;
         }
       }
@@ -246,13 +439,12 @@ const AdminStoryBriefForm: React.FC = () => {
 
     // Prevent accidental form submission before the final step.
     // This protects against Enter-key submits from focused inputs.
-    if (activeStep < 2) {
+    if (activeStep < 5) {
       handleNext();
       return;
     }
 
-    // Validation
-    if (!selectedTopicKey || !selectedSituationKey || !selectedAgeGroup) {
+    if (!selectedTopicKey || !selectedGeneralSituationKey || !selectedSpecificSituationKey) {
       setError('Please fill in all required fields');
       return;
     }
@@ -267,33 +459,80 @@ const AdminStoryBriefForm: React.FC = () => {
       return;
     }
 
+    const nonEmptyBoundaries = therapeuticBoundaries.filter((b) => b.trim().length > 0);
+    if (nonEmptyBoundaries.length === 0) {
+      setError('Please add at least one therapeutic boundary');
+      return;
+    }
+
     setLoading(true);
 
     try {
+      const characterDesignPayload: StoryBriefInput["characterDesign"] = {
+        protagonistType: selectedProtagonistType,
+        protagonistAgeRelation: selectedProtagonistAgeRelation,
+        protagonistGender: selectedProtagonistGender,
+        caregiverRole: selectedCaregiverRole,
+      };
+      const filteredSupportChars = supportCharacters.filter((sc) => sc.type && sc.role);
+      if (filteredSupportChars.length > 0) {
+        characterDesignPayload.supportCharacters = filteredSupportChars as StoryBriefInput["characterDesign"]["supportCharacters"];
+      }
+      if (characterNotes.trim()) {
+        characterDesignPayload.characterNotes = characterNotes.trim();
+      }
+
       const rawPayload: StoryBriefInput = {
-        therapeuticFocus: {
+        storyContext: {
           primaryTopic: selectedTopicKey,
-          specificSituation: selectedSituationKey,
+          generalSituation: selectedGeneralSituationKey,
+          specificSituation: selectedSpecificSituationKey,
+          targetAgeRange: { min: ageMin, max: ageMax },
+          languageComplexity: selectedComplexity,
         },
-        childProfile: {
-          ageGroup: (selectedAgeGroup as "0_3" | "3_6" | "6_9" | "9_12") || "3_6",
-          emotionalSensitivity: selectedEmotionalSensitivity,
-        },
-        therapeuticIntent: {
+        therapeuticDesign: {
           emotionalGoals: selectedEmotionalGoals,
           ...(keyMessage && { keyMessage: keyMessage }),
+          therapeuticMechanism: selectedMechanisms,
+          copingTools: selectedCopingTools,
+          therapeuticBoundaries: nonEmptyBoundaries,
         },
-        languageTone: {
-          complexity: selectedComplexity,
+        emotionalDesign: {
           emotionalTone: selectedEmotionalTone,
-        },
-        safetyConstraints: {
-          exclusions: selectedExclusions,
-        },
-        storyPreferences: {
-          caregiverPresence: selectedCaregiverPresence,
+          topicSensitivity: selectedTopicSensitivity,
           endingStyle: selectedEndingStyle,
+          emotionalArc: selectedEmotionalArc,
+          peakIntensity: selectedPeakIntensity,
         },
+        characterDesign: characterDesignPayload,
+        safetyBoundaries: (() => {
+          const sb: StoryBriefInput["safetyBoundaries"] = {
+            contentExclusions: selectedExclusions,
+          };
+          const filteredCautions = clinicalCautions.filter((c) => c.trim().length > 0);
+          if (filteredCautions.length > 0) {
+            sb.clinicalCautions = filteredCautions;
+          }
+          return sb;
+        })(),
+        personalizationConfig: (() => {
+          const pc: StoryBriefInput["personalizationConfig"] = {
+            personalizationAllowed,
+            namePersonalization,
+            illustrationPersonalization,
+          };
+          if (personalizationReason.trim()) {
+            pc.personalizationReason = personalizationReason.trim();
+          }
+          const filteredConstraints = personalizationConstraints.filter((c) => c.trim().length > 0);
+          if (filteredConstraints.length > 0) {
+            pc.personalizationConstraints = filteredConstraints;
+          }
+          if (genderAdaptation) {
+            pc.genderAdaptation = genderAdaptation as StoryBriefInput["personalizationConfig"]["genderAdaptation"];
+          }
+          return pc;
+        })(),
       };
 
       // Normalize the input (trim + lowercase where appropriate)
@@ -337,8 +576,11 @@ const AdminStoryBriefForm: React.FC = () => {
             sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}
           >
             <Tab label="Step 1: Story Context" id="step-tab-0" aria-controls="step-tabpanel-0" />
-            <Tab label="Step 2: Emotional & Therapeutic Intent" id="step-tab-1" aria-controls="step-tabpanel-1" />
-            <Tab label="Step 3: Safety & Resolution" id="step-tab-2" aria-controls="step-tabpanel-2" />
+            <Tab label="Step 2: Therapeutic Design" id="step-tab-1" aria-controls="step-tabpanel-1" />
+            <Tab label="Step 3: Emotional Design" id="step-tab-2" aria-controls="step-tabpanel-2" />
+            <Tab label="Step 4: Character Design" id="step-tab-3" aria-controls="step-tabpanel-3" />
+            <Tab label="Step 5: Safety & Boundaries" id="step-tab-4" aria-controls="step-tabpanel-4" />
+            <Tab label="Step 6: Personalization" id="step-tab-5" aria-controls="step-tabpanel-5" />
           </Tabs>
 
           {/* STEP 1: Story Context */}
@@ -347,7 +589,7 @@ const AdminStoryBriefForm: React.FC = () => {
               Story Context
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Define the core situation and target age.
+              Define the topic, situation hierarchy, target age range, and language complexity.
             </Typography>
           <Stack spacing={3}>
             <FormControl fullWidth required>
@@ -370,67 +612,112 @@ const AdminStoryBriefForm: React.FC = () => {
             </FormControl>
 
             <FormControl fullWidth required>
-                <InputLabel>Specific Situation</InputLabel>
+                <InputLabel>General Situation</InputLabel>
               <Select
-                  value={selectedSituationKey}
-                  onChange={(e) => setSelectedSituationKey(e.target.value)}
-                  label="Specific Situation"
-                  disabled={loadingSituations || !selectedTopicKey || situations.length === 0}
+                  value={selectedGeneralSituationKey}
+                  onChange={(e) => setSelectedGeneralSituationKey(e.target.value)}
+                  label="General Situation"
+                  disabled={loadingGeneralSituations || !selectedTopicKey || generalSituations.length === 0}
                 >
-                  {situations.map((situation) => (
-                    <MenuItem key={situation.key} value={situation.key}>
-                      {getLabel(situation, "en")}
+                  {generalSituations.map((gs) => (
+                    <MenuItem key={gs.key} value={gs.key}>
+                      {getLabel(gs, "en")}
                   </MenuItem>
                 ))}
               </Select>
-                {loadingSituations && (
-                  <FormHelperText>Loading situations...</FormHelperText>
+                {loadingGeneralSituations && (
+                  <FormHelperText>Loading general situations...</FormHelperText>
                 )}
-                {!selectedTopicKey && !loadingSituations && (
+                {!selectedTopicKey && !loadingGeneralSituations && (
                   <FormHelperText>Please select a topic first</FormHelperText>
               )}
             </FormControl>
 
-              <FormControl fullWidth required>
-                <InputLabel>Target Age Group</InputLabel>
-                <Select
-                  value={selectedAgeGroup}
-                  onChange={(e) => setSelectedAgeGroup(e.target.value)}
-                  label="Target Age Group"
+            <FormControl fullWidth required>
+                <InputLabel>Specific Situation</InputLabel>
+              <Select
+                  value={selectedSpecificSituationKey}
+                  onChange={(e) => setSelectedSpecificSituationKey(e.target.value)}
+                  label="Specific Situation"
+                  disabled={loadingSpecificSituations || !selectedGeneralSituationKey || specificSituations.length === 0}
                 >
-                  {AGE_GROUPS.map((age) => (
-                    <MenuItem key={age.id} value={age.id}>
-                      {age.label}
-                    </MenuItem>
-                  ))}
+                  {specificSituations.map((ss) => (
+                    <MenuItem key={ss.key} value={ss.key}>
+                      {getLabel(ss, "en")}
+                  </MenuItem>
+                ))}
+              </Select>
+                {loadingSpecificSituations && (
+                  <FormHelperText>Loading specific situations...</FormHelperText>
+                )}
+                {!selectedGeneralSituationKey && !loadingSpecificSituations && (
+                  <FormHelperText>Please select a general situation first</FormHelperText>
+              )}
+            </FormControl>
+
+              <Box>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Target Age Range *</FormLabel>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <TextField
+                    label="Min age"
+                    type="number"
+                    value={ageMin}
+                    onChange={(e) => setAgeMin(Number(e.target.value))}
+                    inputProps={{
+                      min: platformConfig.platformMinAge ?? DEFAULT_PLATFORM_MIN_AGE,
+                      max: (platformConfig.platformMaxAge ?? DEFAULT_PLATFORM_MAX_AGE) - 1,
+                      step: 1,
+                    }}
+                    sx={{ width: 120 }}
+                    required
+                  />
+                  <Typography variant="body1">to</Typography>
+                  <TextField
+                    label="Max age"
+                    type="number"
+                    value={ageMax}
+                    onChange={(e) => setAgeMax(Number(e.target.value))}
+                    inputProps={{
+                      min: (platformConfig.platformMinAge ?? DEFAULT_PLATFORM_MIN_AGE) + 1,
+                      max: platformConfig.platformMaxAge ?? DEFAULT_PLATFORM_MAX_AGE,
+                      step: 1,
+                    }}
+                    sx={{ width: 120 }}
+                    required
+                  />
+                  <Typography variant="body2" color="text.secondary">years</Typography>
+                </Stack>
+                <FormHelperText>
+                  {(platformConfig.platformMinAge ?? DEFAULT_PLATFORM_MIN_AGE)} ≤ min &lt; max ≤ {(platformConfig.platformMaxAge ?? DEFAULT_PLATFORM_MAX_AGE)}
+                </FormHelperText>
+              </Box>
+
+              <FormControl fullWidth required>
+                <InputLabel>Language Complexity</InputLabel>
+                <Select
+                  value={selectedComplexity}
+                  onChange={(e) => setSelectedComplexity(e.target.value as "very_simple" | "simple" | "moderate")}
+                  label="Language Complexity"
+                >
+                  <MenuItem value="very_simple">Very Simple</MenuItem>
+                  <MenuItem value="simple">Simple</MenuItem>
+                  <MenuItem value="moderate">Moderate</MenuItem>
                 </Select>
               </FormControl>
                 </Stack>
           </TabPanel>
 
-          {/* STEP 2: Emotional & Therapeutic Intent */}
+          {/* STEP 2: Therapeutic Design */}
           <TabPanel value={activeStep} index={1}>
-            <Box sx={{ bgcolor: "action.hover", p: 3, borderRadius: 2, border: "1px solid", borderColor: "divider" }}>
-              <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
-                Emotional & Therapeutic Intent
-              </Typography>
-              <Stack spacing={3}>
+            <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+              Therapeutic Design
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Define the therapeutic approach, emotional goals, coping strategies, and clinical boundaries.
+            </Typography>
+            <Stack spacing={3}>
                 <FormControl component="fieldset" required>
-                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Emotional Sensitivity</FormLabel>
-                  <RadioGroup
-                    row
-                    value={selectedEmotionalSensitivity}
-                    onChange={(e) => setSelectedEmotionalSensitivity(e.target.value as "low" | "medium" | "high")}
-                    sx={{ mt: 0.5 }}
-                  >
-                    <FormControlLabel value="low" control={<Radio />} label="Low" />
-                    <FormControlLabel value="medium" control={<Radio />} label="Medium" />
-                    <FormControlLabel value="high" control={<Radio />} label="High" />
-                  </RadioGroup>
-                </FormControl>
-
-                <FormControl component="fieldset" required>
-                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Emotional Goals</FormLabel>
+                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Emotional Goals *</FormLabel>
                   <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
                     {selectedEmotionalGoals.length} / 3 selected
                   </FormHelperText>
@@ -462,76 +749,161 @@ const AdminStoryBriefForm: React.FC = () => {
                   )}
                 </FormControl>
 
-                <FormControl fullWidth required>
-                  <InputLabel>Emotional Tone</InputLabel>
-                  <Select
-                    value={selectedEmotionalTone}
-                    onChange={(e) => setSelectedEmotionalTone(e.target.value as "very_gentle" | "calm" | "encouraging")}
-                    label="Emotional Tone"
-                  >
-                    <MenuItem value="very_gentle">Very Gentle</MenuItem>
-                    <MenuItem value="calm">Calm</MenuItem>
-                    <MenuItem value="encouraging">Encouraging</MenuItem>
-                  </Select>
+                <FormControl component="fieldset" required>
+                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Therapeutic Mechanism *</FormLabel>
+                  <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                    Primary therapeutic approach(es) the story uses. {selectedMechanisms.length} / 2 selected
+                  </FormHelperText>
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                    gap: 1.5,
+                  }}>
+                    {therapeuticMechanisms.map((mechanism) => (
+                      <FormControlLabel
+                        key={mechanism.key}
+                        control={
+                          <Checkbox
+                            checked={selectedMechanisms.includes(mechanism.key)}
+                            onChange={() => handleMechanismToggle(mechanism.key)}
+                            disabled={
+                              !selectedMechanisms.includes(mechanism.key) &&
+                              selectedMechanisms.length >= 2
+                            }
+                          />
+                        }
+                        label={getLabel(mechanism, "en")}
+                        sx={{ m: 0 }}
+                      />
+                    ))}
+                  </Box>
+                  {loadingMechanisms && (
+                    <FormHelperText sx={{ mt: 1 }}>Loading therapeutic mechanisms...</FormHelperText>
+                  )}
                 </FormControl>
 
-                <FormControl fullWidth required>
-                  <InputLabel>Language Complexity</InputLabel>
-                  <Select
-                    value={selectedComplexity}
-                    onChange={(e) => setSelectedComplexity(e.target.value as "very_simple" | "simple" | "moderate")}
-                    label="Language Complexity"
-                  >
-                    <MenuItem value="very_simple">Very Simple</MenuItem>
-                    <MenuItem value="simple">Simple</MenuItem>
-                    <MenuItem value="moderate">Moderate</MenuItem>
-                  </Select>
+                <FormControl component="fieldset" required>
+                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Coping Tools *</FormLabel>
+                  <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                    Specific coping strategies the story should model or teach. {selectedCopingTools.length} / 3 selected
+                  </FormHelperText>
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                    gap: 1.5,
+                  }}>
+                    {copingToolOptions.map((tool) => (
+                      <FormControlLabel
+                        key={tool.key}
+                        control={
+                          <Checkbox
+                            checked={selectedCopingTools.includes(tool.key)}
+                            onChange={() => handleCopingToolToggle(tool.key)}
+                            disabled={
+                              !selectedCopingTools.includes(tool.key) &&
+                              selectedCopingTools.length >= 3
+                            }
+                          />
+                        }
+                        label={getLabel(tool, "en")}
+                        sx={{ m: 0 }}
+                      />
+                    ))}
+                  </Box>
+                  {loadingCopingTools && (
+                    <FormHelperText sx={{ mt: 1 }}>Loading coping tools...</FormHelperText>
+                  )}
                 </FormControl>
-              </Stack>
-                </Box>
+
+              <TextField
+                label="Key Message"
+                fullWidth
+                multiline
+                rows={2}
+                value={keyMessage}
+                onChange={(e) => setKeyMessage(e.target.value)}
+                placeholder="e.g. You are safe, even when things feel new."
+                inputProps={{ maxLength: 200 }}
+                helperText={`${keyMessage.length} / 200 characters (optional)`}
+              />
+
+                <FormControl component="fieldset" required>
+                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Therapeutic Boundaries *</FormLabel>
+                  <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                    Things the story must NEVER say, promise, suggest, or imply. Critical for clinical safety.
+                  </FormHelperText>
+                  <Stack spacing={1.5}>
+                    {therapeuticBoundaries.map((boundary, index) => (
+                      <Stack key={index} direction="row" spacing={1} alignItems="center">
+                        <TextField
+                          fullWidth
+                          size="small"
+                          value={boundary}
+                          onChange={(e) => handleBoundaryChange(index, e.target.value)}
+                          placeholder={index === 0 ? 'e.g. Never promise the fear will disappear completely' : 'e.g. Never suggest the child is being silly for feeling scared'}
+                        />
+                        {therapeuticBoundaries.length > 1 && (
+                          <IconButton
+                            size="small"
+                            onClick={() => removeBoundary(index)}
+                            color="error"
+                            aria-label="Remove boundary"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Stack>
+                    ))}
+                    <Button
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={addBoundary}
+                      sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+                    >
+                      Add boundary
+                    </Button>
+                  </Stack>
+                </FormControl>
+
+            </Stack>
           </TabPanel>
 
-          {/* STEP 3: Safety & Resolution */}
+          {/* STEP 3: Emotional Design */}
           <TabPanel value={activeStep} index={2}>
             <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
-              Safety & Resolution
+              Emotional Design
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Optional safety considerations and story resolution preferences.
-                  </Typography>
+              Define the emotional journey, tone, sensitivity, and resolution style.
+            </Typography>
             <Stack spacing={3}>
-              <FormControl component="fieldset">
-                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Safety Exclusions</FormLabel>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
-                  {exclusions.map((exclusion) => (
-                    <FormControlLabel
-                      key={exclusion.key}
-                      control={
-                        <Checkbox
-                          checked={selectedExclusions.includes(exclusion.key)}
-                          onChange={() => handleExclusionToggle(exclusion.key)}
-                        />
-                      }
-                      label={getLabel(exclusion, "en")}
-                      sx={{ m: 0 }}
-                        />
-                      ))}
-                </Box>
-                {loadingExclusions && (
-                  <FormHelperText sx={{ mt: 1 }}>Loading exclusions...</FormHelperText>
-                )}
+              <FormControl fullWidth required>
+                <InputLabel>Emotional Tone</InputLabel>
+                <Select
+                  value={selectedEmotionalTone}
+                  onChange={(e) => setSelectedEmotionalTone(e.target.value as "very_gentle" | "calm" | "encouraging")}
+                  label="Emotional Tone"
+                >
+                  <MenuItem value="very_gentle">Very Gentle</MenuItem>
+                  <MenuItem value="calm">Calm</MenuItem>
+                  <MenuItem value="encouraging">Encouraging</MenuItem>
+                </Select>
               </FormControl>
 
               <FormControl component="fieldset" required>
-                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Caregiver Presence</FormLabel>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Topic Sensitivity *</FormLabel>
+                <FormHelperText sx={{ mb: 1, mt: 0 }}>
+                  How sensitive the topic is for the target audience.
+                </FormHelperText>
                 <RadioGroup
                   row
-                  value={selectedCaregiverPresence}
-                  onChange={(e) => setSelectedCaregiverPresence(e.target.value as "included" | "self_guided")}
+                  value={selectedTopicSensitivity}
+                  onChange={(e) => setSelectedTopicSensitivity(e.target.value as "low" | "medium" | "high")}
                   sx={{ mt: 0.5 }}
                 >
-                  <FormControlLabel value="included" control={<Radio />} label="Included" />
-                  <FormControlLabel value="self_guided" control={<Radio />} label="Self-Guided" />
+                  <FormControlLabel value="low" control={<Radio />} label="Low" />
+                  <FormControlLabel value="medium" control={<Radio />} label="Medium" />
+                  <FormControlLabel value="high" control={<Radio />} label="High" />
                 </RadioGroup>
               </FormControl>
 
@@ -548,18 +920,359 @@ const AdminStoryBriefForm: React.FC = () => {
                 </Select>
               </FormControl>
 
+              <FormControl fullWidth required>
+                <InputLabel>Emotional Arc</InputLabel>
+                <Select
+                  value={selectedEmotionalArc}
+                  onChange={(e) => setSelectedEmotionalArc(e.target.value as "gentle_progression" | "acknowledge_then_resolve" | "discovery_journey" | "supported_transition")}
+                  label="Emotional Arc"
+                >
+                  <MenuItem value="gentle_progression">Gentle Progression — calm start, gradual challenge, gentle resolution</MenuItem>
+                  <MenuItem value="acknowledge_then_resolve">Acknowledge Then Resolve — validates difficulty first, then coping</MenuItem>
+                  <MenuItem value="discovery_journey">Discovery Journey — curiosity-led, protagonist discovers they can handle it</MenuItem>
+                  <MenuItem value="supported_transition">Supported Transition — receives help and gradually becomes independent</MenuItem>
+                </Select>
+              </FormControl>
+
+              <FormControl fullWidth required>
+                <InputLabel>Peak Intensity</InputLabel>
+                <Select
+                  value={selectedPeakIntensity}
+                  onChange={(e) => setSelectedPeakIntensity(e.target.value as "minimal" | "mild" | "moderate")}
+                  label="Peak Intensity"
+                >
+                  <MenuItem value="minimal">Minimal</MenuItem>
+                  <MenuItem value="mild">Mild</MenuItem>
+                  <MenuItem value="moderate">Moderate</MenuItem>
+                </Select>
+                <FormHelperText>How intense the most challenging emotional moment should be</FormHelperText>
+              </FormControl>
+            </Stack>
+          </TabPanel>
+
+          {/* STEP 4: Character Design */}
+          <TabPanel value={activeStep} index={3}>
+            <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+              Character Design
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Define the protagonist, caregiver role, and optional support characters.
+            </Typography>
+            <Stack spacing={3}>
+              <FormControl fullWidth required>
+                <InputLabel>Protagonist Type</InputLabel>
+                <Select
+                  value={selectedProtagonistType}
+                  onChange={(e) => setSelectedProtagonistType(e.target.value as typeof selectedProtagonistType)}
+                  label="Protagonist Type"
+                >
+                  <MenuItem value="child_character">Child Character</MenuItem>
+                  <MenuItem value="animal_character">Animal Character</MenuItem>
+                  <MenuItem value="fantasy_character">Fantasy Character</MenuItem>
+                </Select>
+                <FormHelperText>What kind of character the protagonist is</FormHelperText>
+              </FormControl>
+
+              <FormControl fullWidth required>
+                <InputLabel>Protagonist Age Relation</InputLabel>
+                <Select
+                  value={selectedProtagonistAgeRelation}
+                  onChange={(e) => setSelectedProtagonistAgeRelation(e.target.value as typeof selectedProtagonistAgeRelation)}
+                  label="Protagonist Age Relation"
+                >
+                  <MenuItem value="same_age">Same Age</MenuItem>
+                  <MenuItem value="slightly_older">Slightly Older</MenuItem>
+                  <MenuItem value="unspecified">Unspecified</MenuItem>
+                </Select>
+                <FormHelperText>How protagonist's age relates to the target child's age</FormHelperText>
+              </FormControl>
+
+              <FormControl component="fieldset" required>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Protagonist Gender</FormLabel>
+                <RadioGroup
+                  row
+                  value={selectedProtagonistGender}
+                  onChange={(e) => setSelectedProtagonistGender(e.target.value as typeof selectedProtagonistGender)}
+                  sx={{ mt: 0.5 }}
+                >
+                  <FormControlLabel value="male" control={<Radio />} label="Male" />
+                  <FormControlLabel value="female" control={<Radio />} label="Female" />
+                  <FormControlLabel value="neutral" control={<Radio />} label="Neutral" />
+                </RadioGroup>
+              </FormControl>
+
+              <FormControl fullWidth required>
+                <InputLabel>Caregiver Role</InputLabel>
+                <Select
+                  value={selectedCaregiverRole}
+                  onChange={(e) => setSelectedCaregiverRole(e.target.value as typeof selectedCaregiverRole)}
+                  label="Caregiver Role"
+                >
+                  <MenuItem value="comfort_presence">Comfort Presence — provides safety and reassurance</MenuItem>
+                  <MenuItem value="active_guide">Active Guide — teaches or models coping</MenuItem>
+                  <MenuItem value="mentioned_not_present">Mentioned Not Present — referenced but not in scene</MenuItem>
+                  <MenuItem value="absent">Absent — story focuses on child's own journey</MenuItem>
+                </Select>
+                <FormHelperText>Therapeutic role of the caregiver in the story</FormHelperText>
+              </FormControl>
+
+              <Box>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Support Characters (optional, max 3)
+                </FormLabel>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                  {supportCharacters.map((sc, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <FormControl sx={{ flex: 1 }}>
+                        <InputLabel>Type</InputLabel>
+                        <Select
+                          value={sc.type}
+                          onChange={(e) => {
+                            const updated = [...supportCharacters];
+                            updated[idx] = { ...updated[idx], type: e.target.value };
+                            setSupportCharacters(updated);
+                          }}
+                          label="Type"
+                        >
+                          <MenuItem value="peer">Peer</MenuItem>
+                          <MenuItem value="sibling">Sibling</MenuItem>
+                          <MenuItem value="teacher">Teacher</MenuItem>
+                          <MenuItem value="animal_friend">Animal Friend</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <FormControl sx={{ flex: 1 }}>
+                        <InputLabel>Role</InputLabel>
+                        <Select
+                          value={sc.role}
+                          onChange={(e) => {
+                            const updated = [...supportCharacters];
+                            updated[idx] = { ...updated[idx], role: e.target.value };
+                            setSupportCharacters(updated);
+                          }}
+                          label="Role"
+                        >
+                          <MenuItem value="mirror">Mirror</MenuItem>
+                          <MenuItem value="model">Model</MenuItem>
+                          <MenuItem value="supporter">Supporter</MenuItem>
+                          <MenuItem value="companion">Companion</MenuItem>
+                        </Select>
+                      </FormControl>
+                      <IconButton onClick={() => setSupportCharacters(supportCharacters.filter((_, i) => i !== idx))} color="error" size="small">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  ))}
+                  {supportCharacters.length < 3 && (
+                    <Button
+                      startIcon={<AddIcon />}
+                      onClick={() => setSupportCharacters([...supportCharacters, { type: '', role: '' }])}
+                      sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+                    >
+                      Add Support Character
+                    </Button>
+                  )}
+                </Stack>
+              </Box>
+
               <TextField
-                label="Key Message"
-                fullWidth
+                label="Character Notes (optional)"
                 multiline
                 rows={3}
-                value={keyMessage}
-                onChange={(e) => setKeyMessage(e.target.value)}
-                placeholder="e.g. You are safe, even when things feel new."
-                inputProps={{ maxLength: 200 }}
-                helperText={`${keyMessage.length} / 200 characters`}
+                value={characterNotes}
+                onChange={(e) => setCharacterNotes(e.target.value)}
+                inputProps={{ maxLength: 500 }}
+                helperText={`${characterNotes.length}/500 — Clinical notes about character design`}
+                fullWidth
               />
+            </Stack>
+          </TabPanel>
 
+          {/* STEP 5: Safety & Boundaries */}
+          <TabPanel value={activeStep} index={4}>
+            <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+              Safety & Boundaries
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Content exclusions, clinical cautions, and review settings.
+            </Typography>
+            <Stack spacing={3}>
+              <FormControl component="fieldset">
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Content Exclusions</FormLabel>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
+                  {exclusions.map((exclusion) => (
+                    <FormControlLabel
+                      key={exclusion.key}
+                      control={
+                        <Checkbox
+                          checked={selectedExclusions.includes(exclusion.key)}
+                          onChange={() => handleExclusionToggle(exclusion.key)}
+                        />
+                      }
+                      label={getLabel(exclusion, "en")}
+                      sx={{ m: 0 }}
+                    />
+                  ))}
+                </Box>
+                {loadingExclusions && (
+                  <FormHelperText sx={{ mt: 1 }}>Loading exclusions...</FormHelperText>
+                )}
+              </FormControl>
+
+              <Box>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Clinical Cautions (optional)
+                </FormLabel>
+                <Stack spacing={1} sx={{ mt: 1 }}>
+                  {clinicalCautions.map((caution, idx) => (
+                    <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        value={caution}
+                        onChange={(e) => {
+                          const updated = [...clinicalCautions];
+                          updated[idx] = e.target.value;
+                          setClinicalCautions(updated);
+                        }}
+                        placeholder="e.g. This situation can trigger real separation trauma..."
+                      />
+                      <IconButton onClick={() => setClinicalCautions(clinicalCautions.filter((_, i) => i !== idx))} color="error" size="small">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
+                  ))}
+                  <Button
+                    startIcon={<AddIcon />}
+                    onClick={() => setClinicalCautions([...clinicalCautions, ''])}
+                    sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+                  >
+                    Add Clinical Caution
+                  </Button>
+                </Stack>
+                <FormHelperText>Specific clinical cautions that go beyond standard exclusions</FormHelperText>
+              </Box>
+
+             
+            </Stack>
+          </TabPanel>
+
+          {/* STEP 6: Personalization Configuration */}
+          <TabPanel value={activeStep} index={5}>
+            <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+              Personalization Configuration
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Controls whether and how this story can be personalized when a parent purchases it.
+            </Typography>
+            <Stack spacing={3}>
+              <FormControl component="fieldset" required>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Personalization Allowed</FormLabel>
+                <RadioGroup
+                  row
+                  value={personalizationAllowed ? "yes" : "no"}
+                  onChange={(e) => setPersonalizationAllowed(e.target.value === "yes")}
+                  sx={{ mt: 0.5 }}
+                >
+                  <FormControlLabel value="yes" control={<Radio />} label="Yes" />
+                  <FormControlLabel value="no" control={<Radio />} label="No" />
+                </RadioGroup>
+                <FormHelperText>Master switch — whether this story can be personalized at all</FormHelperText>
+              </FormControl>
+
+              {!personalizationAllowed && (
+                <TextField
+                  label="Reason Personalization Is Not Allowed"
+                  required
+                  multiline
+                  rows={2}
+                  value={personalizationReason}
+                  onChange={(e) => setPersonalizationReason(e.target.value)}
+                  inputProps={{ maxLength: 300 }}
+                  helperText={`${personalizationReason.length}/300 — Explain why personalization cannot be used`}
+                  fullWidth
+                />
+              )}
+
+              {personalizationAllowed && (
+                <>
+                  <FormControl component="fieldset" required>
+                    <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Name Personalization</FormLabel>
+                    <RadioGroup
+                      row
+                      value={namePersonalization ? "yes" : "no"}
+                      onChange={(e) => setNamePersonalization(e.target.value === "yes")}
+                      sx={{ mt: 0.5 }}
+                    >
+                      <FormControlLabel value="yes" control={<Radio />} label="Yes" />
+                      <FormControlLabel value="no" control={<Radio />} label="No" />
+                    </RadioGroup>
+                    <FormHelperText>Whether the child's name can be inserted into the story</FormHelperText>
+                  </FormControl>
+
+                  <FormControl component="fieldset" required>
+                    <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Illustration Personalization</FormLabel>
+                    <RadioGroup
+                      row
+                      value={illustrationPersonalization ? "yes" : "no"}
+                      onChange={(e) => setIllustrationPersonalization(e.target.value === "yes")}
+                      sx={{ mt: 0.5 }}
+                    >
+                      <FormControlLabel value="yes" control={<Radio />} label="Yes" />
+                      <FormControlLabel value="no" control={<Radio />} label="No" />
+                    </RadioGroup>
+                    <FormHelperText>Whether AI illustrations can use the child's likeness</FormHelperText>
+                  </FormControl>
+
+                  <FormControl fullWidth>
+                    <InputLabel>Gender Adaptation (optional)</InputLabel>
+                    <Select
+                      value={genderAdaptation}
+                      onChange={(e) => setGenderAdaptation(e.target.value as typeof genderAdaptation)}
+                      label="Gender Adaptation (optional)"
+                    >
+                      <MenuItem value="">Not specified</MenuItem>
+                      <MenuItem value="allowed">Allowed</MenuItem>
+                      <MenuItem value="not_allowed">Not Allowed</MenuItem>
+                      <MenuItem value="requires_review">Requires Review</MenuItem>
+                    </Select>
+                    <FormHelperText>Whether the protagonist's gender can change to match the child</FormHelperText>
+                  </FormControl>
+
+                  <Box>
+                    <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                      Personalization Constraints (optional)
+                    </FormLabel>
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      {personalizationConstraints.map((constraint, idx) => (
+                        <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            value={constraint}
+                            onChange={(e) => {
+                              const updated = [...personalizationConstraints];
+                              updated[idx] = e.target.value;
+                              setPersonalizationConstraints(updated);
+                            }}
+                            placeholder="e.g. Protagonist must remain female for therapeutic narrative"
+                          />
+                          <IconButton onClick={() => setPersonalizationConstraints(personalizationConstraints.filter((_, i) => i !== idx))} color="error" size="small">
+                            <DeleteIcon />
+                          </IconButton>
+                        </Box>
+                      ))}
+                      <Button
+                        startIcon={<AddIcon />}
+                        onClick={() => setPersonalizationConstraints([...personalizationConstraints, ''])}
+                        sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+                      >
+                        Add Constraint
+                      </Button>
+                    </Stack>
+                    <FormHelperText>Rules about what cannot be changed during personalization</FormHelperText>
+                  </Box>
+                </>
+              )}
             </Stack>
           </TabPanel>
 
@@ -589,7 +1302,7 @@ const AdminStoryBriefForm: React.FC = () => {
             >
               Back
             </Button>
-            {activeStep < 2 ? (
+            {activeStep < 5 ? (
               <Button
                 type="button"
                 variant="contained"

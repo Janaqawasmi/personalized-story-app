@@ -409,11 +409,11 @@ const SpecialistDraftList: React.FC = () => {
                 ? formatAgeGroup(draft.generationConfig.targetAgeGroup) 
                 : "N/A";
               const brief = getBriefForDraft(draft);
-              const topic = brief?.therapeuticFocus?.primaryTopic 
-                ? formatTopicLabel(brief.therapeuticFocus.primaryTopic) 
+              const topic = brief?.storyContext?.primaryTopic 
+                ? formatTopicLabel(brief.storyContext.primaryTopic) 
                 : null;
-              const situation = brief?.therapeuticFocus?.specificSituation 
-                ? formatTopicLabel(brief.therapeuticFocus.specificSituation) 
+              const situation = brief?.storyContext?.specificSituation 
+                ? formatTopicLabel(brief.storyContext.specificSituation) 
                 : null;
 
               return (

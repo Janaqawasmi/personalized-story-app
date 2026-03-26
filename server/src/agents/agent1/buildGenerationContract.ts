@@ -119,7 +119,7 @@ export async function buildGenerationContract(
       topic: "",
       situation: "",
       ageBand: "",
-      caregiverPresence: "",
+      caregiverRole: "",
       emotionalSensitivity: "",
       lengthBudget: {
         minScenes: 0,
@@ -183,17 +183,20 @@ export async function buildGenerationContract(
   const rules = await loadClinicalRules(rulesVersion, fs);
 
   // 4. Extract normalized values
-  const ageBand = normalized.childProfile.ageGroup;
-  const topic = normalized.therapeuticFocus.primaryTopic;
-  const situation = normalized.therapeuticFocus.specificSituation;
-  const caregiverPresence = normalized.storyPreferences.caregiverPresence;
-  const sensitivity = normalized.childProfile.emotionalSensitivity;
-  const endingStyle = normalized.storyPreferences.endingStyle;
-  const emotionalTone = normalized.languageTone.emotionalTone;
-  const languageComplexity = normalized.languageTone.complexity;
-  const keyMessage = normalized.therapeuticIntent.keyMessage;
-  const exclusions = normalized.safetyConstraints.exclusions;
-  const emotionalGoals = normalized.therapeuticIntent.emotionalGoals;
+  const topic = normalized.storyContext.primaryTopic;
+  const situation = normalized.storyContext.specificSituation;
+  const targetAgeRange = normalized.storyContext.targetAgeRange;
+  const languageComplexity = normalized.storyContext.languageComplexity;
+  const caregiverRole = normalized.characterDesign.caregiverRole;
+  const sensitivity = normalized.emotionalDesign.topicSensitivity;
+  const endingStyle = normalized.emotionalDesign.endingStyle;
+  const emotionalTone = normalized.emotionalDesign.emotionalTone;
+  const keyMessage = normalized.therapeuticDesign.keyMessage;
+  const exclusions = normalized.safetyBoundaries.contentExclusions;
+  const emotionalGoals = normalized.therapeuticDesign.emotionalGoals;
+
+  // Derive age band key for clinical rules lookup (e.g. {min:3,max:6} → "3_6")
+  const ageBand = `${targetAgeRange.min}_${targetAgeRange.max}`;
 
   // 5. Apply rules
 
@@ -401,7 +404,7 @@ export async function buildGenerationContract(
     topic,
     situation,
     ageBand,
-    caregiverPresence,
+    caregiverRole,
     emotionalSensitivity: sensitivity,
     lengthBudget,
     styleRules,

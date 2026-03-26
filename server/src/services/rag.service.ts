@@ -13,22 +13,22 @@ type BriefLike = {
  * Maps StoryBrief to BriefLike format for RAG service compatibility
  */
 function mapStoryBriefToBriefLike(brief: StoryBrief): BriefLike {
-  // Map age group from "0_3" format to expected format if needed
-  // For now, we'll use the ageGroup as-is, but you may need to convert it
   const ageGroupMapping: Record<string, string> = {
     "0_3": "0-3",
-    "3_6": "3-6", 
+    "3_6": "3-6",
     "6_9": "6-9",
-    "9_12": "9-12"
+    "9_12": "9-12",
   };
-  
-  const targetAgeGroup = ageGroupMapping[brief.childProfile.ageGroup] || brief.childProfile.ageGroup;
-  
+
+  const { min, max } = brief.storyContext.targetAgeRange;
+  const ageBandKey = `${min}_${max}`;
+  const targetAgeGroup = ageGroupMapping[ageBandKey] || ageBandKey;
+
   return {
-    topicKey: brief.therapeuticFocus.primaryTopic,
+    topicKey: brief.storyContext.primaryTopic,
     targetAgeGroup: targetAgeGroup,
-    topicTags: brief.therapeuticIntent.emotionalGoals,
-    therapeuticMessages: brief.therapeuticIntent.keyMessage ? [brief.therapeuticIntent.keyMessage] : [],
+    topicTags: brief.therapeuticDesign.emotionalGoals,
+    therapeuticMessages: brief.therapeuticDesign.keyMessage ? [brief.therapeuticDesign.keyMessage] : [],
     ...(brief.id && { briefId: brief.id })
   };
 }
@@ -50,7 +50,7 @@ function compact(items?: string[], max = 8) {
 
 export async function retrieveKnowledgeForStory(brief: BriefLike | StoryBrief) {
   // If it's a StoryBrief, convert it to BriefLike format
-  if ('therapeuticFocus' in brief && 'childProfile' in brief) {
+  if ("storyContext" in brief && "emotionalDesign" in brief) {
     brief = mapStoryBriefToBriefLike(brief as StoryBrief);
   }
   let { topicKey, targetAgeGroup } = brief;

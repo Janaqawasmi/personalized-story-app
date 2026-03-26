@@ -127,8 +127,8 @@ export const createStoryBrief = async (req: Request, res: Response): Promise<voi
       resourceType: "storyBrief",
       resourceId: docRef.id,
       metadata: {
-        topic: input.therapeuticFocus?.primaryTopic,
-        ageGroup: input.childProfile?.ageGroup,
+        topic: input.storyContext?.primaryTopic,
+        targetAgeRange: JSON.stringify(input.storyContext?.targetAgeRange),
       },
     });
 
@@ -367,9 +367,13 @@ async function validateCopingToolForBrief(
     return { status: 404, body: { success: false, error: `Story brief "${briefId}" has no data` } };
   }
 
-  const ageBand = briefData.childProfile?.ageGroup;
+  const range = briefData.storyContext?.targetAgeRange as { min?: number; max?: number } | undefined;
+  const ageBand =
+    range && typeof range.min === "number" && typeof range.max === "number"
+      ? `${range.min}_${range.max}`
+      : undefined;
   if (!ageBand) {
-    return { status: 400, body: { success: false, error: "Cannot validate override: brief missing ageBand" } };
+    return { status: 400, body: { success: false, error: "Cannot validate override: brief missing targetAgeRange" } };
   }
 
   const rules = await loadClinicalRules(undefined, firestore);

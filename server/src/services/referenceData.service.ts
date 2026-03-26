@@ -4,7 +4,13 @@ import { db } from "../config/firebase";
 /**
  * Reference data subcollection types
  */
-export type ReferenceDataCategory = "topics" | "situations" | "emotionalGoals" | "exclusions";
+export type ReferenceDataCategory =
+  | "topics" | "situations" | "emotionalGoals" | "exclusions"
+  | "generalSituations" | "specificSituations" | "contentExclusions"
+  | "therapeuticMechanisms" | "copingTools" | "emotionalArcs"
+  | "languageComplexities" | "emotionalTones" | "topicSensitivities"
+  | "endingStyles" | "protagonistTypes" | "protagonistAgeRelations"
+  | "protagonistGenders" | "caregiverRoles" | "peakIntensities";
 
 /**
  * Base reference data item structure
@@ -20,6 +26,8 @@ export interface ReferenceDataItem {
   label_he: string;
   /** Whether this item is active */
   active: boolean;
+  /** Optional display order (lower first) */
+  order?: number;
 }
 
 /**
@@ -28,6 +36,18 @@ export interface ReferenceDataItem {
 export interface SituationReferenceItem extends ReferenceDataItem {
   /** Topic key this situation belongs to */
   topicKey: string;
+  /** General situation key (for specificSituations only) */
+  generalSituationKey?: string;
+}
+
+function byOrderThenLabel(a: ReferenceDataItem, b: ReferenceDataItem): number {
+  const orderA = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
+  const orderB = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+  if (orderA !== orderB) return orderA - orderB;
+
+  const labelA = a.label_en || a.label_he || a.label_ar || a.key;
+  const labelB = b.label_en || b.label_he || b.label_ar || b.key;
+  return labelA.localeCompare(labelB);
 }
 
 /**
@@ -49,16 +69,18 @@ export async function loadReferenceItems(
 
     const items: ReferenceDataItem[] = snapshot.docs.map((doc) => {
       const data = doc.data();
-      return {
+      const item: ReferenceDataItem = {
         key: doc.id,
         label_en: data.label_en || "",
         label_ar: data.label_ar || "",
         label_he: data.label_he || "",
         active: data.active === true,
       };
+      if (typeof data.order === "number") item.order = data.order;
+      return item;
     });
 
-    return items;
+    return items.sort(byOrderThenLabel);
   } catch (error: any) {
     console.error(`Error loading reference items for category "${category}":`, error);
     throw new Error(`Failed to load ${category}: ${error.message}`);
@@ -81,7 +103,7 @@ export async function loadSituations(): Promise<SituationReferenceItem[]> {
 
     const items: SituationReferenceItem[] = snapshot.docs.map((doc) => {
       const data = doc.data();
-      return {
+      const item: SituationReferenceItem = {
         key: doc.id,
         label_en: data.label_en || "",
         label_ar: data.label_ar || "",
@@ -89,9 +111,11 @@ export async function loadSituations(): Promise<SituationReferenceItem[]> {
         active: data.active === true,
         topicKey: data.topicKey || "",
       };
+      if (typeof data.order === "number") item.order = data.order;
+      return item;
     });
 
-    return items;
+    return items.sort(byOrderThenLabel);
   } catch (error: any) {
     console.error("Error loading situations:", error);
     throw new Error(`Failed to load situations: ${error.message}`);
@@ -118,7 +142,7 @@ export async function loadSituationsByTopic(
 
     const items: SituationReferenceItem[] = snapshot.docs.map((doc) => {
       const data = doc.data();
-      return {
+      const item: SituationReferenceItem = {
         key: doc.id,
         label_en: data.label_en || "",
         label_ar: data.label_ar || "",
@@ -126,9 +150,11 @@ export async function loadSituationsByTopic(
         active: data.active === true,
         topicKey: data.topicKey || "",
       };
+      if (typeof data.order === "number") item.order = data.order;
+      return item;
     });
 
-    return items;
+    return items.sort(byOrderThenLabel);
   } catch (error: any) {
     console.error(`Error loading situations for topic "${topicKey}":`, error);
     throw new Error(`Failed to load situations for topic ${topicKey}: ${error.message}`);
@@ -207,13 +233,14 @@ export async function checkReferenceItem(
  */
 export async function getSituationItem(
   situationKey: string,
-  firestore?: FirebaseFirestore.Firestore
+  firestore?: FirebaseFirestore.Firestore,
+  collection: "situations" | "generalSituations" | "specificSituations" = "situations"
 ): Promise<SituationReferenceItem | null> {
   const fs = firestore || db;
   try {
     const doc = await fs
       .collection("referenceData")
-      .doc("situations")
+      .doc(collection)
       .collection("items")
       .doc(situationKey)
       .get();
@@ -230,9 +257,10 @@ export async function getSituationItem(
       label_he: data?.label_he || "",
       active: data?.active === true,
       topicKey: data?.topicKey || "",
+      generalSituationKey: data?.generalSituationKey || undefined,
     };
   } catch (error: any) {
-    console.error(`Error getting situation "${situationKey}":`, error);
-    throw new Error(`Failed to get situation ${situationKey}: ${error.message}`);
+    console.error(`Error getting situation "${collection}/${situationKey}":`, error);
+    throw new Error(`Failed to get ${collection}/${situationKey}: ${error.message}`);
   }
 }

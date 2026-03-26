@@ -4,14 +4,19 @@ import {
   getReferenceItems,
   getSituations,
   getSituationsByTopic,
+  getFilteredSituations,
+  getReferenceConfig,
 } from "../controllers/referenceData.controller";
 
 const router = Router();
 
-// Get situations (with optional topic filter via query param)
+// Named collection routes (must come before the generic /:category catch-all)
 router.get("/situations", getSituationsByTopic);
+router.get("/generalSituations", getFilteredSituations("generalSituations"));
+router.get("/specificSituations", getFilteredSituations("specificSituations"));
+router.get("/config", getReferenceConfig);
 
-// Get reference items for a category (must come after /situations routes)
+// Generic category route (topics, emotionalGoals, exclusions, contentExclusions, etc.)
 router.get("/:category", getReferenceItems);
 
 export default router;

@@ -1,6 +1,5 @@
 // src/services/storyPromptBuilder.ts
 import { StoryBrief } from "../models/storyBrief.model";
-import { formatAgeGroupLabel } from "../data/categories";
 
 /**
  * Helper: Format enum key to readable text
@@ -11,9 +10,9 @@ function formatDisplayText(text: string): string {
 }
 
 /**
- * Helper: Derive page count from age group (default heuristic)
+ * Helper: Derive page count from target age range (default heuristic)
  */
-function derivePageCount(ageGroup: string): number {
+function derivePageCount(_range: StoryBrief["storyContext"]["targetAgeRange"]): number {
   // Always return 10 pages for all stories
   return 10;
 }
@@ -31,6 +30,7 @@ export function buildStoryDraftPrompt(
   ragContext: string
 ): string {
   const sections: string[] = [];
+  const ageRangeLabel = `${brief.storyContext.targetAgeRange.min}–${brief.storyContext.targetAgeRange.max} years`;
 
   // ─────────────────────────────────────────────────────────────────────────
   // SECTION 1: SYSTEM ROLE
@@ -71,35 +71,37 @@ export function buildStoryDraftPrompt(
   sections.push("STORY BRIEF (FACTUAL DATA ONLY)");
   sections.push("═══════════════════════════════════════════════════════════");
   sections.push("");
-  sections.push(`Primary Topic: ${formatDisplayText(brief.therapeuticFocus.primaryTopic)}`);
-  sections.push(`Specific Situation: ${formatDisplayText(brief.therapeuticFocus.specificSituation)}`);
-  sections.push(`Age Group: ${formatAgeGroupLabel(brief.childProfile.ageGroup)}`);
-  sections.push(`Emotional Sensitivity: ${formatDisplayText(brief.childProfile.emotionalSensitivity)}`);
-  sections.push(`Language Complexity: ${formatDisplayText(brief.languageTone.complexity)}`);
-  sections.push(`Emotional Tone: ${formatDisplayText(brief.languageTone.emotionalTone)}`);
+  sections.push(`Primary Topic: ${formatDisplayText(brief.storyContext.primaryTopic)}`);
+  sections.push(`Specific Situation: ${formatDisplayText(brief.storyContext.specificSituation)}`);
+  sections.push(`Age Group: ${ageRangeLabel}`);
+  sections.push(`Topic Sensitivity: ${formatDisplayText(brief.emotionalDesign.topicSensitivity)}`);
+  sections.push(`Language Complexity: ${formatDisplayText(brief.storyContext.languageComplexity)}`);
+  sections.push(`Emotional Tone: ${formatDisplayText(brief.emotionalDesign.emotionalTone)}`);
   
-  if (brief.therapeuticIntent.emotionalGoals && brief.therapeuticIntent.emotionalGoals.length > 0) {
-    sections.push(`Emotional Goals: ${brief.therapeuticIntent.emotionalGoals.map(goal => formatDisplayText(goal)).join(", ")}`);
+  if (brief.therapeuticDesign.emotionalGoals && brief.therapeuticDesign.emotionalGoals.length > 0) {
+    sections.push(`Emotional Goals: ${brief.therapeuticDesign.emotionalGoals.map(goal => formatDisplayText(goal)).join(", ")}`);
   } else {
     sections.push(`Emotional Goals: None specified`);
   }
   
-  sections.push(`Caregiver Presence: ${formatDisplayText(brief.storyPreferences.caregiverPresence)}`);
-  sections.push(`Ending Style: ${formatDisplayText(brief.storyPreferences.endingStyle)}`);
+  sections.push(`Caregiver Role: ${formatDisplayText(brief.characterDesign.caregiverRole)}`);
+  sections.push(`Ending Style: ${formatDisplayText(brief.emotionalDesign.endingStyle)}`);
+  sections.push(`Emotional Arc: ${formatDisplayText(brief.emotionalDesign.emotionalArc)}`);
+  sections.push(`Peak Intensity: ${formatDisplayText(brief.emotionalDesign.peakIntensity)}`);
   
-  if (brief.therapeuticIntent.keyMessage) {
-    sections.push(`Core Message: ${brief.therapeuticIntent.keyMessage}`);
+  if (brief.therapeuticDesign.keyMessage) {
+    sections.push(`Core Message: ${brief.therapeuticDesign.keyMessage}`);
   }
   
-  if (brief.safetyConstraints.exclusions && brief.safetyConstraints.exclusions.length > 0) {
-    sections.push(`Safety Exclusions: ${brief.safetyConstraints.exclusions.map(exclusion => formatDisplayText(exclusion)).join(", ")}`);
+  if (brief.safetyBoundaries.contentExclusions && brief.safetyBoundaries.contentExclusions.length > 0) {
+    sections.push(`Content Exclusions: ${brief.safetyBoundaries.contentExclusions.map(exclusion => formatDisplayText(exclusion)).join(", ")}`);
   }
   sections.push("");
 
   // ─────────────────────────────────────────────────────────────────────────
   // SECTION 4: OUTPUT CONTRACT (STRUCTURE & FORMAT)
   // ─────────────────────────────────────────────────────────────────────────
-  const pageCount = derivePageCount(brief.childProfile.ageGroup);
+  const pageCount = derivePageCount(brief.storyContext.targetAgeRange);
   
   sections.push("═══════════════════════════════════════════════════════════");
   sections.push("OUTPUT CONTRACT (STRUCTURE & FORMAT)");
@@ -149,10 +151,12 @@ export function buildStoryDraftPrompt(
   sections.push("   - Final pages (last 25%): Support, reassurance, calm resolution");
   sections.push("");
   sections.push("6. STORY STRUCTURE:");
-  if (brief.storyPreferences.caregiverPresence === "included") {
-    sections.push("   - If caregiver presence is included: show emotional support through presence, tone, and proximity (not advice)");
+  if (brief.characterDesign.caregiverRole === "comfort_presence" || brief.characterDesign.caregiverRole === "active_guide") {
+    sections.push(`   - Caregiver role is "${formatDisplayText(brief.characterDesign.caregiverRole)}": show emotional support through presence, tone, and proximity`);
+  } else if (brief.characterDesign.caregiverRole === "mentioned_not_present") {
+    sections.push("   - Caregiver is mentioned but not present: reference their reassurance indirectly");
   } else {
-    sections.push("   - If self-guided: show reassurance through environment and internal calm");
+    sections.push("   - Caregiver is absent: show reassurance through environment and internal calm");
   }
   sections.push("");
   sections.push("7. LANGUAGE CONSTRAINTS:");
@@ -191,15 +195,15 @@ export function buildStoryDraftPrompt(
   sections.push("  - Safety exclusions must not appear directly, indirectly, symbolically, or metaphorically");
   sections.push("");
   sections.push("✓ AGE-APPROPRIATE LANGUAGE:");
-  sections.push(`  - Language complexity matches: ${formatDisplayText(brief.languageTone.complexity)}`);
-  sections.push(`  - Appropriate for age group: ${formatAgeGroupLabel(brief.childProfile.ageGroup)}`);
+  sections.push(`  - Language complexity matches: ${formatDisplayText(brief.storyContext.languageComplexity)}`);
+  sections.push(`  - Appropriate for age group: ${ageRangeLabel}`);
   sections.push("  - Vocabulary is developmentally appropriate");
   sections.push("");
   sections.push("✓ EMOTIONAL VALIDATION (NOT FIXING):");
   sections.push("  - Emotions are validated, not solved or fixed");
   sections.push("  - Emotional tone progresses: gentle → reassuring → calm");
-  sections.push(`  - Matches requested emotional tone: ${formatDisplayText(brief.languageTone.emotionalTone)}`);
-  sections.push(`  - Respects emotional sensitivity: ${formatDisplayText(brief.childProfile.emotionalSensitivity)}`);
+  sections.push(`  - Matches requested emotional tone: ${formatDisplayText(brief.emotionalDesign.emotionalTone)}`);
+  sections.push(`  - Respects topic sensitivity: ${formatDisplayText(brief.emotionalDesign.topicSensitivity)}`);
   sections.push("");
   sections.push("✓ STORY STRUCTURE:");
   sections.push("  - Familiar setting established");
@@ -207,12 +211,14 @@ export function buildStoryDraftPrompt(
   sections.push("  - Emotional validation present");
   sections.push("  - Small supportive steps included");
   sections.push("  - Mild setbacks handled appropriately");
-  sections.push(`  - Ending style matches: ${formatDisplayText(brief.storyPreferences.endingStyle)}`);
+  sections.push(`  - Ending style matches: ${formatDisplayText(brief.emotionalDesign.endingStyle)}`);
   sections.push("  - Calm, non-threatening resolution");
-  if (brief.storyPreferences.caregiverPresence === "included") {
-    sections.push("  - Caregiver presence: emotional support shown through presence, tone, and proximity (not advice)");
+  if (brief.characterDesign.caregiverRole === "comfort_presence" || brief.characterDesign.caregiverRole === "active_guide") {
+    sections.push(`  - Caregiver role (${formatDisplayText(brief.characterDesign.caregiverRole)}): emotional support shown through presence, tone, and proximity`);
+  } else if (brief.characterDesign.caregiverRole === "mentioned_not_present") {
+    sections.push("  - Caregiver mentioned but not present: referenced indirectly for reassurance");
   } else {
-    sections.push("  - Self-guided: reassurance shown through environment and internal calm");
+    sections.push("  - Caregiver absent: reassurance shown through environment and internal calm");
   }
   sections.push("");
   sections.push("✓ TECHNICAL REQUIREMENTS:");
