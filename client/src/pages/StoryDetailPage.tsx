@@ -823,7 +823,7 @@ export default function StoryDetailPage() {
                   },
                 }}
               >
-                {isFavorite ? "Saved" : t("storyDetail.addToFavorites")}
+                {isFavorite ? t("storyDetail.saved") : t("storyDetail.addToFavorites")}
               </Button>
               <Button
                 variant="outlined"
