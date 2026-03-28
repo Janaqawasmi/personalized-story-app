@@ -27,6 +27,12 @@ import {
   ttsIsPaused,
   ttsGetVoices,
 } from "../utils/tts";
+import {
+  buildPersonalizedReaderPages,
+  getStoryPersonalizationStorageKey,
+  normalizeStoryLanguage,
+  resolveGenderForPreview,
+} from "../utils/storyPersonalization";
 
 type Page = {
   pageNumber: number;
@@ -100,7 +106,7 @@ export default function BookReaderPage() {
     }
 
     // Check if personalization session exists and is completed
-    const personalizationKey = `qosati_personalization_${storyId}`;
+    const personalizationKey = getStoryPersonalizationStorageKey(storyId);
     const personalizationStr = localStorage.getItem(personalizationKey);
     
     if (!personalizationStr) {
@@ -109,8 +115,9 @@ export default function BookReaderPage() {
       return;
     }
 
+    let session: { status: string; data?: { childName?: string; gender?: "male" | "female"; photoPreviewUrl?: string } };
     try {
-      const session = JSON.parse(personalizationStr);
+      session = JSON.parse(personalizationStr);
       if (session.status !== "completed") {
         // Draft session or invalid - redirect to personalization
         navigate(`/stories/${storyId}/personalize`);
@@ -144,15 +151,26 @@ export default function BookReaderPage() {
 
         // Get story language (for display, not blocking)
         const storyLanguage = data.language || data.generationConfig?.language;
+        const lang = normalizeStoryLanguage(storyLanguage);
+        const gender = resolveGenderForPreview(session.data?.gender);
+        const placeholderName = t("storyDetail.previewPlaceholderChildName");
+        const displayName = session.data?.childName?.trim()
+          ? session.data.childName.trim()
+          : placeholderName;
+        const photo =
+          session.data?.photoPreviewUrl?.trim() || undefined;
 
-        // Sort pages by pageNumber
-        const pages = (data.pages || []).sort(
-          (a: Page, b: Page) => a.pageNumber - b.pageNumber
-        ).map((page: Page) => ({
-          ...page,
-          // Add temporary placeholder image URL based on page number
-          imageUrl: `/story-images/placeholders/${page.pageNumber}.jpg`,
-        }));
+        const sortedRaw = (data.pages || []).sort(
+          (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
+        );
+
+        const pages: Page[] = buildPersonalizedReaderPages(sortedRaw, {
+          gender,
+          childDisplayName: displayName,
+          language: lang,
+          photoPreviewUrl: photo,
+          fallbackImageUrl: (pageNumber) => `/story-images/placeholders/${pageNumber}.jpg`,
+        });
 
         setStory({
           id: storySnap.id,
@@ -170,14 +188,14 @@ export default function BookReaderPage() {
     };
 
     fetchStory();
-  }, [storyId, CURRENT_LANGUAGE, navigate]);
+  }, [storyId, CURRENT_LANGUAGE, navigate, t]);
 
   // Clear personalization when component unmounts (user leaves the story)
   // This ensures personalization is session-scoped, not persistent
   useEffect(() => {
     if (!storyId) return;
 
-    const personalizationKey = `qosati_personalization_${storyId}`;
+    const personalizationKey = getStoryPersonalizationStorageKey(storyId);
     
     return () => {
       if (!shouldClearPersonalizationRef.current) return;
