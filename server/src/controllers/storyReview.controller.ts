@@ -169,6 +169,11 @@ export const approveDraft = async (req: Request, res: Response) => {
       approvedAt: new Date().toISOString(),
       revisionCount: draft?.revisionCount || 0,
       isActive: true,
+      pricing: {
+        digital: 19.99,
+        print: 29.99,
+      },
+      currency: "USD",
     });
 
     // 2️⃣ Update draft status

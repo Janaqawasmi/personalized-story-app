@@ -9,7 +9,6 @@ export interface CartItemView {
   previewId: string;
   templateId: string;
   templateTitle: string;
-  childId: string;
   childFirstName: string;
   coverImageUrl: string | null;
   priceCents: number;

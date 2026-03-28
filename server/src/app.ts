@@ -33,6 +33,16 @@ import specialistPromptRoutes from "./routes/specialistPrompt.routes";
 import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
 
+// Auth routes (registration)
+import registerCaregiverRouter from "./routes/auth/registerCaregiver.router";
+
+// Caregiver routes (cart/checkout/previews/account)
+import caregiverCartRouter from "./routes/caregiver/cart.router";
+import caregiverPreviewsRouter from "./routes/caregiver/previews.router";
+import caregiverCheckoutRouter from "./routes/caregiver/checkout.router";
+import caregiverAccountRouter from "./routes/caregiver/account.router";
+import caregiverStoriesRouter from "./routes/caregiver/stories.router";
+
 // ---------- APP ----------
 const app = express();
 const port = process.env.PORT || 5000;
@@ -62,11 +72,23 @@ app.use("/api/stories", storiesRoutes);
 app.use("/api/personalized-stories", personalizedStoryRoutes);
 app.use("/api/reference-data", referenceDataRoutes);
 
+// Auth routes (no role required — any authenticated user)
+// Final endpoint:
+//   POST /api/auth/register-caregiver
+app.use("/api/auth", registerCaregiverRouter);
+
 // Protected routes (auth enforced at router level)
 app.use("/api/admin/story-briefs", storyBriefRouter);
 app.use("/api/agent1", agent1Routes);
 app.use("/api/story-drafts", storyDraftRoutes);
 app.use("/api/specialist", specialistPromptRoutes);
+
+// Caregiver endpoints (auth enforced in each router)
+app.use("/api/caregiver/cart", caregiverCartRouter);
+app.use("/api/caregiver/previews", caregiverPreviewsRouter);
+app.use("/api/caregiver/checkout", caregiverCheckoutRouter);
+app.use("/api/caregiver/account", caregiverAccountRouter);
+app.use("/api/caregiver/stories", caregiverStoriesRouter);
 
 // PHASE 1 FIX: Removed duplicate mount of storyDraftRoutes.
 // Previously mounted twice at "/api/story-drafts" — this caused

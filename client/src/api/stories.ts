@@ -1,5 +1,5 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase";
 
 /**
  * Normalize age group value for comparison
@@ -34,6 +34,11 @@ export function resolveLocalizedField(value: unknown): string | undefined {
 export type Story = {
   id: string;
   title: string;
+  pricing?: {
+    digital?: number;
+    print?: number;
+  };
+  currency?: string;
   shortDescription?: string;
   coverImage?: string;
   targetAgeGroup?: string;
@@ -47,9 +52,27 @@ export type Story = {
  */
 function mapDocToStory(doc: { id: string; data: () => Record<string, any> }): Story {
   const data = doc.data();
+  const readAmount = (value: unknown): number | undefined => {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (
+      value &&
+      typeof value === "object" &&
+      typeof (value as { current?: unknown }).current === "number" &&
+      Number.isFinite((value as { current?: number }).current)
+    ) {
+      return (value as { current: number }).current;
+    }
+    return undefined;
+  };
+
+  const digital = readAmount(data.pricing?.digital);
+  const print = readAmount(data.pricing?.print);
+
   return {
     id: doc.id,
     title: resolveLocalizedField(data.title) || data.title || "",
+    pricing: digital != null || print != null ? { digital, print } : undefined,
+    currency: typeof data.currency === "string" ? data.currency : undefined,
     shortDescription: resolveLocalizedField(data.shortDescription),
     coverImage: data.coverImage || data.coverImageUrl,
     targetAgeGroup: data.targetAgeGroup || data.ageGroup || data.generationConfig?.targetAgeGroup,
@@ -59,25 +82,35 @@ function mapDocToStory(doc: { id: string; data: () => Record<string, any> }): St
 }
 
 /**
+ * Shared base constraints for all public story queries.
+ * Firestore rules require BOTH status=="approved" AND isActive==true
+ * in the query constraints for non-admin users (list operations).
+ */
+const PUBLIC_STORY_CONSTRAINTS = [
+  where("status", "==", "approved"),
+  where("isActive", "==", true),
+] as const;
+
+/**
  * Fetch stories by age group
  */
 export async function fetchStoriesByAge(ageGroup: string): Promise<Story[]> {
   // Try both top-level and nested ageGroup fields
   const q1 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("ageGroup", "==", ageGroup)
   );
 
   const q2 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("targetAgeGroup", "==", ageGroup)
   );
 
   const q3 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("generationConfig.targetAgeGroup", "==", ageGroup)
   );
 
@@ -105,13 +138,13 @@ export async function fetchStoriesByCategory(
   // Try both primaryTopic and topicKey fields
   const q1 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("primaryTopic", "==", categoryId)
   );
 
   const q2 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("topicKey", "==", categoryId)
   );
 
@@ -133,13 +166,13 @@ export async function fetchStoriesByTopic(topicId: string): Promise<Story[]> {
   // Try both specificSituation and topicKey fields
   const q1 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("specificSituation", "==", topicId)
   );
 
   const q2 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("topicKey", "==", topicId)
   );
 
@@ -165,131 +198,140 @@ export async function fetchStoriesWithFilters(filters: {
   topicId?: string;
   situationIds?: string[]; // For category filtering - all situation IDs in that category
 }): Promise<Story[]> {
-  // Base query with status filter
-  let q = query(
-    collection(db, "story_templates"),
-    where("status", "==", "approved")
-  );
+  console.log("[fetchStoriesWithFilters] auth:", {
+    uid: auth.currentUser?.uid,
+    email: auth.currentUser?.email,
+  });
+  console.log("[fetchStoriesWithFilters] filters:", filters);
 
-  if (filters.ageGroup) {
-    // Try multiple ageGroup field locations
-    // Note: Firestore doesn't support OR queries easily, so we'll fetch and filter client-side
-    const baseQ = query(
-      collection(db, "story_templates"),
-      where("status", "==", "approved")
-    );
-    const snapshot = await getDocs(baseQ);
-    let allStories: (Story & Record<string, any>)[] = snapshot.docs.map((doc) => ({
-      ...(doc.data()),
-      ...mapDocToStory(doc),
-    }));
-
-    // Filter by ageGroup in any location (normalize both sides for comparison)
-    const normalizedFilterAge = normalizeAgeGroup(filters.ageGroup);
-    allStories = allStories.filter((story) => {
-      const storyAge = story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup;
-      const normalizedStoryAge = normalizeAgeGroup(storyAge);
-      return normalizedStoryAge === normalizedFilterAge;
-    });
-
-    // Apply topic/situation filters if needed
-    if (filters.topicId) {
-      allStories = allStories.filter(
-        (story) =>
-          story.specificSituation === filters.topicId ||
-          story.topicKey === filters.topicId
-      );
-    } else if (filters.situationIds && filters.situationIds.length > 0) {
-      allStories = allStories.filter(
-        (story) =>
-          story.specificSituation &&
-          filters.situationIds?.includes(story.specificSituation)
-      );
-    } else if (filters.categoryId) {
-      allStories = allStories.filter(
-        (story) =>
-          story.primaryTopic === filters.categoryId ||
-          story.topicKey === filters.categoryId
-      );
-    }
-
-    return allStories;
-  }
-
-  // If no ageGroup filter, use Firestore queries
-  if (filters.topicId) {
-    // Filter by specific topic (situation)
-    const q1 = query(
-      collection(db, "story_templates"),
-      where("status", "==", "approved"),
-      where("specificSituation", "==", filters.topicId)
-    );
-    const q2 = query(
-      collection(db, "story_templates"),
-      where("status", "==", "approved"),
-      where("topicKey", "==", filters.topicId)
-    );
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    const allDocs = [...snap1.docs, ...snap2.docs];
-    const uniqueDocs = Array.from(
-      new Map(allDocs.map((doc) => [doc.id, doc])).values()
-    );
-    return uniqueDocs.map(mapDocToStory);
-  } else if (filters.situationIds && filters.situationIds.length > 0) {
-    // Filter by category - get stories for all situations in that category
-    // Firestore 'in' query supports up to 10 items
-    if (filters.situationIds.length <= 10) {
-      const q1 = query(
-        collection(db, "story_templates"),
-        where("status", "==", "approved"),
-        where("specificSituation", "in", filters.situationIds)
-      );
-      const snapshot = await getDocs(q1);
-      return snapshot.docs.map(mapDocToStory);
-    } else {
-      // If more than 10, fetch all and filter client-side
+  try {
+    if (filters.ageGroup) {
+      console.log("[fetchStoriesWithFilters] branch: ageGroup + client-side filter");
+      // Try multiple ageGroup field locations
+      // Note: Firestore doesn't support OR queries easily, so we'll fetch and filter client-side
       const baseQ = query(
         collection(db, "story_templates"),
-        where("status", "==", "approved")
+        ...PUBLIC_STORY_CONSTRAINTS,
       );
       const snapshot = await getDocs(baseQ);
-      const allStories = snapshot.docs.map((doc) => ({
+      let allStories: (Story & Record<string, any>)[] = snapshot.docs.map((doc) => ({
+        ...(doc.data()),
         ...mapDocToStory(doc),
-        specificSituation: doc.data().specificSituation as string | undefined,
       }));
-      return allStories.filter(
-        (story) =>
-          story.specificSituation &&
-          filters.situationIds?.includes(story.specificSituation)
-      );
-    }
-  } else if (filters.categoryId) {
-    // Filter by category (primaryTopic)
-    const q1 = query(
-      collection(db, "story_templates"),
-      where("status", "==", "approved"),
-      where("primaryTopic", "==", filters.categoryId)
-    );
-    const q2 = query(
-      collection(db, "story_templates"),
-      where("status", "==", "approved"),
-      where("topicKey", "==", filters.categoryId)
-    );
-    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-    const allDocs = [...snap1.docs, ...snap2.docs];
-    const uniqueDocs = Array.from(
-      new Map(allDocs.map((doc) => [doc.id, doc])).values()
-    );
-    return uniqueDocs.map(mapDocToStory);
-  }
 
-  // No filters - return all approved stories
-  const baseQ = query(
-    collection(db, "story_templates"),
-    where("status", "==", "approved")
-  );
-  const snapshot = await getDocs(baseQ);
-  return snapshot.docs.map(mapDocToStory);
+      // Filter by ageGroup in any location (normalize both sides for comparison)
+      const normalizedFilterAge = normalizeAgeGroup(filters.ageGroup);
+      allStories = allStories.filter((story) => {
+        const storyAge = story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup;
+        const normalizedStoryAge = normalizeAgeGroup(storyAge);
+        return normalizedStoryAge === normalizedFilterAge;
+      });
+
+      // Apply topic/situation filters if needed
+      if (filters.topicId) {
+        allStories = allStories.filter(
+          (story) =>
+            story.specificSituation === filters.topicId ||
+            story.topicKey === filters.topicId
+        );
+      } else if (filters.situationIds && filters.situationIds.length > 0) {
+        allStories = allStories.filter(
+          (story) =>
+            story.specificSituation &&
+            filters.situationIds?.includes(story.specificSituation)
+        );
+      } else if (filters.categoryId) {
+        allStories = allStories.filter(
+          (story) =>
+            story.primaryTopic === filters.categoryId ||
+            story.topicKey === filters.categoryId
+        );
+      }
+
+      return allStories;
+    }
+
+    // If no ageGroup filter, use Firestore queries
+    if (filters.topicId) {
+      console.log("[fetchStoriesWithFilters] branch: topicId");
+      // Filter by specific topic (situation)
+      const q1 = query(
+        collection(db, "story_templates"),
+        ...PUBLIC_STORY_CONSTRAINTS,
+        where("specificSituation", "==", filters.topicId)
+      );
+      const q2 = query(
+        collection(db, "story_templates"),
+        ...PUBLIC_STORY_CONSTRAINTS,
+        where("topicKey", "==", filters.topicId)
+      );
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const allDocs = [...snap1.docs, ...snap2.docs];
+      const uniqueDocs = Array.from(
+        new Map(allDocs.map((doc) => [doc.id, doc])).values()
+      );
+      return uniqueDocs.map(mapDocToStory);
+    } else if (filters.situationIds && filters.situationIds.length > 0) {
+      console.log("[fetchStoriesWithFilters] branch: situationIds");
+      // Filter by category - get stories for all situations in that category
+      // Firestore 'in' query supports up to 10 items
+      if (filters.situationIds.length <= 10) {
+        const q1 = query(
+          collection(db, "story_templates"),
+          ...PUBLIC_STORY_CONSTRAINTS,
+          where("specificSituation", "in", filters.situationIds)
+        );
+        const snapshot = await getDocs(q1);
+        return snapshot.docs.map(mapDocToStory);
+      } else {
+        // If more than 10, fetch all and filter client-side
+        const baseQ = query(
+          collection(db, "story_templates"),
+          ...PUBLIC_STORY_CONSTRAINTS,
+        );
+        const snapshot = await getDocs(baseQ);
+        const allStories = snapshot.docs.map((doc) => ({
+          ...mapDocToStory(doc),
+          specificSituation: doc.data().specificSituation as string | undefined,
+        }));
+        return allStories.filter(
+          (story) =>
+            story.specificSituation &&
+            filters.situationIds?.includes(story.specificSituation)
+        );
+      }
+    } else if (filters.categoryId) {
+      // Filter by category (primaryTopic)
+      const q1 = query(
+        collection(db, "story_templates"),
+        ...PUBLIC_STORY_CONSTRAINTS,
+        where("primaryTopic", "==", filters.categoryId)
+      );
+      const q2 = query(
+        collection(db, "story_templates"),
+        ...PUBLIC_STORY_CONSTRAINTS,
+        where("topicKey", "==", filters.categoryId)
+      );
+      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+      const allDocs = [...snap1.docs, ...snap2.docs];
+      const uniqueDocs = Array.from(
+        new Map(allDocs.map((doc) => [doc.id, doc])).values()
+      );
+      return uniqueDocs.map(mapDocToStory);
+    }
+
+    // No filters - return all approved + active stories
+    console.log("[fetchStoriesWithFilters] branch: no filters");
+    const baseQ = query(
+      collection(db, "story_templates"),
+      ...PUBLIC_STORY_CONSTRAINTS,
+    );
+    const snapshot = await getDocs(baseQ);
+    return snapshot.docs.map(mapDocToStory);
+  } catch (err) {
+    console.error("[fetchStoriesWithFilters] Firestore error:", err);
+    throw err;
+  }
 }
 
 // Legacy function for backward compatibility
@@ -304,17 +346,17 @@ export async function fetchStories(ageGroup: string, uiTopic: string) {
   // Try multiple field combinations
   const q1 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("ageGroup", "==", ageGroup)
   );
   const q2 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("targetAgeGroup", "==", ageGroup)
   );
   const q3 = query(
     collection(db, "story_templates"),
-    where("status", "==", "approved"),
+    ...PUBLIC_STORY_CONSTRAINTS,
     where("generationConfig.targetAgeGroup", "==", ageGroup)
   );
 

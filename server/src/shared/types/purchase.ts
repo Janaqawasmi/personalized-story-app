@@ -7,7 +7,6 @@ export interface Purchase {
   caregiverUid: string;
   previewId: string;
   templateId: string;
-  childId: string;
   personalizedStoryId: string | null;
 
   // Generic payment fields (not provider-specific)

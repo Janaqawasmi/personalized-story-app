@@ -10,6 +10,5 @@ export interface Caregiver {
   consentVersion: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  childCount: number;
   purchaseCount: number;
 }

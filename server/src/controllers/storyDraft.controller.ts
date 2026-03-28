@@ -790,6 +790,11 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
         createdAt: now,
         approvedAt: now,
         approvedBy: approvedBy,
+        pricing: {
+          digital: 19.99,
+          print: 29.99,
+        },
+        currency: "USD",
       });
     });
 

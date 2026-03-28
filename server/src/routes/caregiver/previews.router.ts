@@ -1,10 +1,28 @@
 import { Router, Request, Response } from "express";
-import { db } from "../../config/firebase";
+import { admin, db } from "../../config/firebase";
 import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware";
-import { COLLECTIONS } from "../../shared/firestore/paths";
+import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
 import { generatePreview } from "../../services/preview.service";
+import multer from "multer";
 
 const router = Router();
+
+// Multer config: memory storage, 10MB max, image types only
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
+    }
+  },
+});
+
+const VALID_AGE_GROUPS = ["0_3", "3_6", "6_9", "9_12"] as const;
+const VALID_GENDERS = ["male", "female"] as const;
 
 /**
  * POST /api/caregiver/previews/generate
@@ -18,23 +36,60 @@ const router = Router();
 router.post(
   "/generate",
   requireCaregiverAuth,
+  upload.single("photo"),
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.caregiverUser!.uid;
-      const { templateId, childId } = req.body as {
+      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
         templateId?: string;
-        childId?: string;
+        childFirstName?: string;
+        childGender?: string;
+        childAgeGroup?: string;
+        dedicationName?: string;
       };
 
-      if (!templateId || !childId) {
+      if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
         res.status(400).json({
           success: false,
-          error: "templateId and childId are required",
+          error: "templateId, childFirstName, childGender, and childAgeGroup are required",
         });
         return;
       }
 
-      const previewId = await generatePreview(caregiverUid, templateId, childId);
+      if (!VALID_GENDERS.includes(childGender as (typeof VALID_GENDERS)[number])) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid childGender. Must be one of: ${VALID_GENDERS.join(", ")}`,
+        });
+        return;
+      }
+
+      if (!VALID_AGE_GROUPS.includes(childAgeGroup as (typeof VALID_AGE_GROUPS)[number])) {
+        res.status(400).json({
+          success: false,
+          error: `Invalid childAgeGroup. Must be one of: ${VALID_AGE_GROUPS.join(", ")}`,
+        });
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: "photo file is required",
+        });
+        return;
+      }
+
+      const previewId = await generatePreview({
+        caregiverUid,
+        templateId,
+        childFirstName,
+        childGender: childGender as "male" | "female",
+        childAgeGroup: childAgeGroup as "0_3" | "3_6" | "6_9" | "9_12",
+        ...(dedicationName ? { dedicationName: String(dedicationName) } : {}),
+        photoBuffer: req.file.buffer,
+        photoMimeType: req.file.mimetype,
+      });
 
       res.status(202).json({
         success: true,
@@ -59,6 +114,91 @@ router.post(
         success: false,
         error: message,
       });
+    }
+  }
+);
+
+/**
+ * POST /api/caregiver/previews/:previewId/reupload-photo
+ *
+ * Re-uploads photo when it has been deleted/expired, but keeps the preview/illustrations.
+ */
+router.post(
+  "/:previewId/reupload-photo",
+  requireCaregiverAuth,
+  upload.single("photo"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const caregiverUid = req.caregiverUser!.uid;
+      const { previewId } = req.params;
+
+      if (!req.file) {
+        res.status(400).json({ success: false, error: "photo file is required" });
+        return;
+      }
+
+      const previewDoc = await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId!).get();
+      if (!previewDoc.exists) {
+        res.status(404).json({ success: false, error: "Preview not found" });
+        return;
+      }
+
+      const preview = previewDoc.data() as any;
+      if (preview.caregiverUid !== caregiverUid) {
+        res.status(403).json({ success: false, error: "Access denied" });
+        return;
+      }
+
+      const allowedStatuses = ["ready", "added_to_cart"];
+      if (!allowedStatuses.includes(preview.status)) {
+        res.status(400).json({
+          success: false,
+          error: `Preview is not in a re-uploadable state. Current status: ${preview.status}`,
+        });
+        return;
+      }
+
+      const allowedPhotoStatuses = ["deleted", "expired"];
+      if (!allowedPhotoStatuses.includes(preview.photoStatus)) {
+        res.status(400).json({
+          success: false,
+          error: `Photo does not require re-upload. Current photoStatus: ${preview.photoStatus}`,
+        });
+        return;
+      }
+
+      const extMap: Record<string, string> = {
+        "image/jpeg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+      };
+      const ext = extMap[req.file.mimetype] ?? "jpg";
+      const filename = `${Date.now()}.${ext}`;
+      const storagePath = STORAGE_PATHS.childPhoto(caregiverUid, previewId!, filename);
+
+      const bucket = admin.storage().bucket();
+      const file = bucket.file(storagePath);
+      await file.save(req.file.buffer, { metadata: { contentType: req.file.mimetype } });
+
+      const now = new Date().toISOString();
+      const retainUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+
+      await previewDoc.ref.update({
+        photoPath: storagePath,
+        photoStatus: "uploaded",
+        photoUploadedAt: now,
+        photoRetainUntil: retainUntil,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      res.status(200).json({
+        success: true,
+        data: { previewId, photoStatus: "uploaded" },
+      });
+    } catch (error) {
+      console.error("Re-upload photo error:", error);
+      const message = error instanceof Error ? error.message : "Re-upload failed";
+      res.status(500).json({ success: false, error: message });
     }
   }
 );

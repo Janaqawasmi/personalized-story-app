@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { AgeGroup } from "./childProfile";
+import { AgeGroup } from "./common";
 
 export interface LocalizedString {
   ar?: string;
@@ -14,6 +14,11 @@ export interface StoryTemplatePage {
   };
   imagePromptTemplate: string;
   emotionalTone: string;
+}
+
+export interface StoryTemplatePreviewSpread {
+  imageUrl: string;
+  text: string;
 }
 
 export interface StoryTemplate {
@@ -41,7 +46,21 @@ export interface StoryTemplate {
   // New fields for public library
   slug: string;
   shortDescription: LocalizedString;
+  /**
+   * Legacy field kept for backward compatibility across older services/routes.
+   * Prefer `coverImage` for new UI.
+   */
   coverImageUrl: string;
+  /**
+   * Public Story Detail Page cover image (download URL from Firebase Storage).
+   * Stored as URL only (the image binary lives in Storage).
+   */
+  coverImage?: string;
+  /**
+   * Exactly the first 2 spreads to show on the Story Detail Page (pre-personalization).
+   * Each spread combines image + matching text.
+   */
+  previewSpreads?: [StoryTemplatePreviewSpread, StoryTemplatePreviewSpread];
   displayTopic: LocalizedString;
   isPublished: boolean;
   publishedAt: Timestamp | null;

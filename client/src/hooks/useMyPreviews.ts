@@ -14,8 +14,8 @@ const STORY_PREVIEWS_COLLECTION = "storyPreviews";
 export interface PreviewListItem {
   previewId: string;
   caregiverUid: string;
-  childId: string;
   templateId: string;
+  childAgeGroup: "0_3" | "3_6" | "6_9" | "9_12";
   childFirstName: string;
   childGender: "male" | "female";
   templateTitle: string;
@@ -24,6 +24,7 @@ export interface PreviewListItem {
   coverImageUrl: string | null;
   generationStatus: string;
   pagesCompleted: number;
+  photoStatus?: string;
   status: string;
   expiresAt: string | null;
   createdAt: unknown;

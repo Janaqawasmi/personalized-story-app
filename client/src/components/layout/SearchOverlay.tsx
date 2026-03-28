@@ -21,6 +21,7 @@ import {
   import { useReferenceData } from "../../hooks/useReferenceData";
   import { useTranslation } from "../../i18n/useTranslation";
   import { useLanguage } from "../../i18n/context/useLanguage";
+  import { useAuth } from "../../contexts/AuthContext";
   
   type SearchOverlayProps = {
     isOpen: boolean;
@@ -64,6 +65,7 @@ import {
     const { data: referenceData } = useReferenceData();
     const t = useTranslation();
     const { language } = useLanguage();
+    const { currentUser } = useAuth();
   
     const CURRENT_LANGUAGE = useMemo(() => getCurrentLanguage(), [isOpen]);
   
@@ -147,8 +149,13 @@ import {
     const fetchAllApprovedStories = async (): Promise<StoryTemplate[]> => {
       const storiesRef = collection(db, "story_templates");
       
-      // Only query by status - we'll filter language in memory
-      const q = query(storiesRef, where("status", "==", "approved"));
+      // Query by status + isActive — Firestore rules require BOTH for non-admin list queries
+      console.log("[SearchOverlay] auth state:", {
+        uid: currentUser?.uid,
+        email: currentUser?.email,
+      });
+      console.log("[SearchOverlay] query: story_templates where(status==approved, isActive==true)");
+      const q = query(storiesRef, where("status", "==", "approved"), where("isActive", "==", true));
       
       const snap = await getDocs(q);
       
@@ -416,7 +423,7 @@ import {
     };
   
     const handleStoryClick = (storyId: string) => {
-      navigate(`/stories/${storyId}/personalize`);
+      navigate(`/stories/${storyId}`);
       onClose();
     };
   

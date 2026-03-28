@@ -1,16 +1,15 @@
 import { admin, db } from "../config/firebase";
 import { COLLECTIONS, STORAGE_PATHS } from "../shared/firestore/paths";
-import { childProfileConverter } from "../shared/firestore/converters";
 import { PersonalizedStory, PersonalizedStoryPage } from "../shared/types/personalizedStory";
 import { StoryPreview, PreviewPage } from "../shared/types/storyPreview";
 import { StoryTemplate } from "../shared/types/storyTemplate";
-import { ChildProfile } from "../shared/types/childProfile";
 import { Purchase } from "../shared/types/purchase";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
 import {
   personalizeText,
   selectTextVariant,
   buildImagePrompt,
+  ChildData,
 } from "./personalization.service";
 
 const CONCURRENCY_LIMIT = 3;
@@ -87,32 +86,27 @@ export async function generateFullStory(
   }
   const template = templateDoc.data() as StoryTemplate;
 
-  // 4. Load child profile
-  const childDoc = await db
-    .collection(COLLECTIONS.children(preview.caregiverUid))
-    .withConverter(childProfileConverter)
-    .doc(preview.childId)
-    .get();
-
-  if (!childDoc.exists) {
-    throw new Error(`Child profile not found: ${preview.childId}`);
+  // 4. Verify photo availability (supports re-upload scenarios)
+  if (preview.photoStatus === "deleted" || preview.photoStatus === "expired") {
+    throw new Error(
+      "Preview photo is no longer available. Re-upload is required before checkout."
+    );
   }
-  const child = childDoc.data()!;
+  if (!preview.photoPath) {
+    throw new Error("Preview photoPath is missing. Re-upload is required before checkout.");
+  }
+
+  const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId);
 
   // 5. Extend photo retention as safety margin
   const extendedRetainUntil = new Date(
     Date.now() + PHOTO_RETAIN_EXTENSION_HOURS * 60 * 60 * 1000
   ).toISOString();
 
-  if (child.photoPath && child.photoStatus !== "deleted" && child.photoStatus !== "expired") {
-    await db
-      .collection(COLLECTIONS.children(preview.caregiverUid))
-      .doc(preview.childId)
-      .update({
-        photoRetainUntil: extendedRetainUntil,
-        updatedAt: admin.firestore.Timestamp.now(),
-      });
-  }
+  await previewRef.update({
+    photoRetainUntil: extendedRetainUntil,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
 
   // 6. Create personalizedStory document
   const storyRef = db.collection(COLLECTIONS.PERSONALIZED_STORIES).doc();
@@ -122,16 +116,16 @@ export async function generateFullStory(
   const storyData: PersonalizedStory = {
     storyId,
     caregiverUid: preview.caregiverUid,
-    childId: preview.childId,
     purchaseId,
     previewId,
     childFirstName: preview.childFirstName,
     childGender: preview.childGender,
+    childAgeGroup: preview.childAgeGroup,
     templateId: preview.templateId,
     templateTitle: preview.templateTitle,
     templateVersion: preview.templateVersion,
     language: preview.language,
-    dedicationName: null,
+    dedicationName: preview.dedicationName ?? null,
     coverImageUrl: preview.coverImageUrl || template.coverImageUrl,
     generationStatus: "in_progress",
     totalPages: template.pages.length,
@@ -156,7 +150,7 @@ export async function generateFullStory(
   });
 
   // 7. Run generation asynchronously
-  runFullStoryGeneration(storyId, storyRef, preview, template, child, purchaseRef).catch(
+  runFullStoryGeneration(storyId, storyRef, preview, template, purchaseRef).catch(
     (error) => {
       console.error(`Full story generation failed for ${storyId}:`, error);
     }
@@ -173,13 +167,16 @@ async function runFullStoryGeneration(
   storyRef: FirebaseFirestore.DocumentReference,
   preview: StoryPreview,
   template: StoryTemplate,
-  child: ChildProfile,
   purchaseRef: FirebaseFirestore.DocumentReference
 ): Promise<void> {
   const language = preview.language;
   const allPages: PersonalizedStoryPage[] = [];
   const failedIndexes: number[] = [];
   const bucket = admin.storage().bucket();
+  const childData: ChildData = {
+    firstName: preview.childFirstName,
+    gender: preview.childGender,
+  };
 
   try {
     const imageProvider = requireImageProvider();
@@ -230,16 +227,20 @@ async function runFullStoryGeneration(
 
     // Load photo for remaining page generation
     let photoBuffer: Buffer | null = null;
-    if (child.photoPath && child.photoStatus !== "deleted" && child.photoStatus !== "expired") {
+    if (
+      preview.photoPath &&
+      preview.photoStatus !== "deleted" &&
+      preview.photoStatus !== "expired"
+    ) {
       try {
-        const photoFile = bucket.file(child.photoPath);
+        const photoFile = bucket.file(preview.photoPath);
         const [exists] = await photoFile.exists();
         if (exists) {
           const [buffer] = await photoFile.download();
           photoBuffer = buffer;
         }
       } catch {
-        console.warn(`Could not load child photo for story ${storyId}`);
+        console.warn(`Could not load preview photo for story ${storyId}`);
       }
     }
 
@@ -249,9 +250,9 @@ async function runFullStoryGeneration(
 
       const results = await Promise.allSettled(
         batch.map(async (templatePage) => {
-          const rawText = selectTextVariant(templatePage, child.gender);
-          const personalizedText = personalizeText(rawText, child, language);
-          const imagePrompt = buildImagePrompt(templatePage.imagePromptTemplate, child);
+          const rawText = selectTextVariant(templatePage, childData.gender);
+          const personalizedText = personalizeText(rawText, childData, language);
+          const imagePrompt = buildImagePrompt(templatePage.imagePromptTemplate, childData);
 
           let generatedImagePath: string | null = null;
           let aiMetadata: PersonalizedStoryPage["aiMetadata"] = null;
@@ -328,9 +329,9 @@ async function runFullStoryGeneration(
 
       for (const templatePage of retryPages) {
         try {
-          const rawText = selectTextVariant(templatePage, child.gender);
-          const personalizedText = personalizeText(rawText, child, language);
-          const imagePrompt = buildImagePrompt(templatePage.imagePromptTemplate, child);
+          const rawText = selectTextVariant(templatePage, childData.gender);
+          const personalizedText = personalizeText(rawText, childData, language);
+          const imagePrompt = buildImagePrompt(templatePage.imagePromptTemplate, childData);
 
           const imageResult = await imageProvider.generateImage({
             textPrompt: imagePrompt,
@@ -416,30 +417,28 @@ async function runFullStoryGeneration(
     });
 
     // Update preview status
-    await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(preview.previewId).update({
+    const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(preview.previewId);
+    await previewRef.update({
       status: "converted",
       personalizedStoryId: storyId,
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    // Delete child photo (privacy)
-    if (child.photoPath) {
+    // Delete preview photo (privacy — photo is biometric-sensitive)
+    if (preview.photoPath) {
       try {
-        const photoFile = bucket.file(child.photoPath);
+        const photoFile = bucket.file(preview.photoPath);
         const [exists] = await photoFile.exists();
         if (exists) {
           await photoFile.delete();
         }
-        await db
-          .collection(COLLECTIONS.children(preview.caregiverUid))
-          .doc(child.childId)
-          .update({
-            photoStatus: "deleted",
-            photoPath: null,
-            updatedAt: admin.firestore.Timestamp.now(),
-          });
+        await previewRef.update({
+          photoPath: null,
+          photoStatus: "deleted",
+          updatedAt: admin.firestore.Timestamp.now(),
+        });
       } catch (deleteError) {
-        console.error(`Failed to delete child photo for ${child.childId}:`, deleteError);
+        console.error(`Failed to delete preview photo for ${preview.previewId}:`, deleteError);
       }
     }
   } catch (error) {

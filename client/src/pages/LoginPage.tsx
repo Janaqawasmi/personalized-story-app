@@ -1,17 +1,49 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Typography, Button, Link, useTheme, Alert, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import EmailIcon from "@mui/icons-material/Email";
 import GoogleIcon from "@mui/icons-material/Google";
 import { useTranslation } from "../i18n/useTranslation";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+
+type RedirectFromState =
+  | string
+  | {
+      pathname?: string;
+      search?: string;
+      hash?: string;
+    };
+
+type LoginLocationState = {
+  from?: RedirectFromState;
+  mode?: "login" | "signup";
+} | null;
+
+function resolveRedirectTarget(
+  from: RedirectFromState | undefined,
+  fallback: string
+): string {
+  if (!from) return fallback;
+  if (typeof from === "string") return from;
+  const pathname = from.pathname || fallback;
+  const search = from.search || "";
+  const hash = from.hash || "";
+  return `${pathname}${search}${hash}`;
+}
 
 export default function LoginPage() {
   const theme = useTheme();
   const t = useTranslation();
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
+  const location = useLocation();
+  const { login, signup, ensureCaregiverDoc } = useAuth();
+
+  const locationState = location.state as LoginLocationState;
+  const from = locationState?.from;
+  const mode = locationState?.mode;
   
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -21,6 +53,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (mode === "signup") {
+      setEmailDialogOpen(true);
+      setIsSignUp(true);
+    } else if (mode === "login") {
+      setEmailDialogOpen(true);
+      setIsSignUp(false);
+    }
+  }, [mode]);
 
   async function handleEmailLogin() {
     if (!email || !password) {
@@ -36,55 +78,24 @@ export default function LoginPage() {
     try {
       setLoading(true);
       setError(null);
-      
+
+      const fallbackPath = lang ? `/${lang}/specialist` : "/he/specialist";
+      const redirectTo = resolveRedirectTarget(from, fallbackPath);
+      console.log("[LoginPage] login redirect target resolved:", { from, redirectTo });
+
       if (isSignUp) {
-        // Create new account
-        await createUserWithEmailAndPassword(auth, email, password);
-        // After account creation, user needs to have role set via setUserRole script
-        setError("Account created! Please contact an administrator to assign your role, then sign in.");
-        setIsSignUp(false);
-        return;
+        // Firebase signup with profile displayName update handled by AuthContext.
+        await signup(email, password);
+        console.log("[LoginPage] signup success; redirecting to:", redirectTo);
       } else {
-        // Sign in existing account
-        await signInWithEmailAndPassword(auth, email, password);
-        
-        // Wait for auth state to be ready before navigating
-        await new Promise<void>((resolve, reject) => {
-          let isResolved = false;
-          let timeoutId: NodeJS.Timeout | null = null;
-          
-          const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (isResolved) return;
-            
-            unsubscribe();
-            if (timeoutId) {
-              clearTimeout(timeoutId);
-              timeoutId = null;
-            }
-            
-            if (user) {
-              isResolved = true;
-              // Auth state is ready, now navigate
-              setEmailDialogOpen(false);
-              const specialistPath = lang ? `/${lang}/specialist` : "/he/specialist";
-              navigate(specialistPath);
-              resolve();
-            } else {
-              isResolved = true;
-              reject(new Error("Authentication failed"));
-            }
-          });
-          
-          // Timeout after 5 seconds
-          timeoutId = setTimeout(() => {
-            if (isResolved) return;
-            
-            isResolved = true;
-            unsubscribe();
-            reject(new Error("Authentication timeout"));
-          }, 5000);
-        });
+        await login(email, password);
+        console.log("[LoginPage] login success; redirecting to:", redirectTo);
       }
+
+      setEmailDialogOpen(false);
+      setShowPasswordReset(false);
+      setIsSignUp(false);
+      navigate(redirectTo, { replace: true });
     } catch (err: any) {
       console.error("Email auth error:", err);
       console.error("Error code:", err.code);
@@ -154,6 +165,9 @@ export default function LoginPage() {
       setError(null);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
+      const fallbackPath = lang ? `/${lang}/specialist` : "/he/specialist";
+      const redirectTo = resolveRedirectTarget(from, fallbackPath);
+      console.log("[LoginPage] google redirect target resolved:", { from, redirectTo });
       
       // Wait for auth state to be ready before navigating
       // This ensures the token is available for API calls
@@ -161,7 +175,7 @@ export default function LoginPage() {
         let isResolved = false;
         let timeoutId: NodeJS.Timeout | null = null;
         
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (isResolved) return;
           
           unsubscribe();
@@ -172,9 +186,15 @@ export default function LoginPage() {
           
           if (user) {
             isResolved = true;
+
+            // Ensure caregiver doc exists for Google sign-in users too
+            await ensureCaregiverDoc(user, user.displayName || undefined);
+            console.log("User created:", user.uid);
+            console.log("Caregiver doc created");
+
             // Auth state is ready, now navigate
-            const specialistPath = lang ? `/${lang}/specialist` : "/he/specialist";
-            navigate(specialistPath);
+            console.log("[LoginPage] google login success; redirecting to:", redirectTo);
+            navigate(redirectTo, { replace: true });
             resolve();
           } else {
             isResolved = true;

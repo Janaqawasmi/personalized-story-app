@@ -21,13 +21,17 @@ import ReviewDraftPage from "./pages/ReviewDraftPage";
 import PromptPreviewPage from "./pages/PromptPreviewPage";
 import AdminContractReviewPage from "./pages/AdminContractReviewPage";
 import RequireAuth from "./components/RequireAuth";
+import { AuthProvider } from "./contexts/AuthContext";
 
 import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
 import SearchPage from "./pages/SearchPage";
 import BookReaderPage from "./pages/BookReaderPage";
 import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
+import StoryDetailPage from "./pages/StoryDetailPage";
 import AllBooksPage from "./pages/AllBooksPage";
+import FavoritesPage from "./pages/FavoritesPage";
+import MyStoriesPage from "./pages/MyStoriesPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -66,15 +70,22 @@ function AppContent() {
             element={<CategoryResultsPage />}
           />
           <Route path="stories/topic/:topicId" element={<TopicResultsPage />} />
-          <Route
-            path="stories/:storyId/personalize"
-            element={<PersonalizeStoryPage />}
-          />
+          <Route path="stories/:storyId" element={<StoryDetailPage />} />
+          <Route element={<RequireAuth />}>
+            <Route
+              path="stories/:storyId/personalize"
+              element={<PersonalizeStoryPage />}
+            />
+          </Route>
           <Route path="stories/:storyId/read" element={<BookReaderPage />} />
 
           {/* ───────────── USER PAGES ───────────── */}
           <Route path="search" element={<SearchPage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route element={<RequireAuth />}>
+            <Route path="favorites" element={<FavoritesPage />} />
+            <Route path="my-stories" element={<MyStoriesPage />} />
+          </Route>
           <Route
             path="cart"
             element={
@@ -119,15 +130,17 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Root redirect to /he */}
-        <Route path="/" element={<Navigate to="/he" replace />} />
-        
-        {/* Language-prefixed routes */}
-        <Route path="/:lang/*" element={<LanguageLayout />}>
-          <Route path="*" element={<AppContent />} />
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          {/* Root redirect to /he */}
+          <Route path="/" element={<Navigate to="/he" replace />} />
+          
+          {/* Language-prefixed routes */}
+          <Route path="/:lang/*" element={<LanguageLayout />}>
+            <Route path="*" element={<AppContent />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

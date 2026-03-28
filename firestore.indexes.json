@@ -87,7 +87,8 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "caregiverUid", "order": "ASCENDING" },
-        { "fieldPath": "childId", "order": "ASCENDING" },
+        { "fieldPath": "childFirstName", "order": "ASCENDING" },
+        { "fieldPath": "childGender", "order": "ASCENDING" },
         { "fieldPath": "templateId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
@@ -97,7 +98,23 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "expiresAt", "order": "ASCENDING" }
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "storyPreviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "photoStatus", "order": "ASCENDING" },
+        { "fieldPath": "photoRetainUntil", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "storyPreviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "photoStatus", "order": "ASCENDING" },
+        { "fieldPath": "photoUploadedAt", "order": "ASCENDING" }
       ]
     },
     {
@@ -122,7 +139,8 @@
       "collectionGroup": "personalizedStories",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "childId", "order": "ASCENDING" },
+        { "fieldPath": "caregiverUid", "order": "ASCENDING" },
+        { "fieldPath": "childFirstName", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },

@@ -1,17 +1,16 @@
 import { admin, db } from "../config/firebase";
 import { COLLECTIONS, STORAGE_PATHS } from "../shared/firestore/paths";
-import { childProfileConverter } from "../shared/firestore/converters";
-import { storyPreviewConverter } from "../shared/firestore/converters";
 import { storyTemplateConverter } from "../shared/firestore/converters";
 import { StoryPreview, PreviewPage } from "../shared/types/storyPreview";
-import { ChildProfile } from "../shared/types/childProfile";
 import { StoryTemplate } from "../shared/types/storyTemplate";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
 import {
+  ChildData,
   personalizeText,
   selectTextVariant,
   buildImagePrompt,
 } from "./personalization.service";
+import { AgeGroup, Gender } from "../shared/types/common";
 
 const MAX_ACTIVE_PREVIEWS = 5;
 const PHOTO_RETAIN_HOURS = 48;
@@ -57,12 +56,37 @@ function requireImageProvider(): ImageGenerationProvider {
  * @returns previewId
  */
 export async function generatePreview(
-  caregiverUid: string,
-  templateId: string,
-  childId: string
+  params: {
+    caregiverUid: string;
+    templateId: string;
+    childFirstName: string;
+    childGender: Gender;
+    childAgeGroup: AgeGroup;
+    dedicationName?: string;
+    photoBuffer: Buffer;
+    photoMimeType: string;
+  }
 ): Promise<string> {
+  const {
+    caregiverUid,
+    templateId,
+    childFirstName,
+    childGender,
+    childAgeGroup,
+    dedicationName,
+    photoBuffer,
+    photoMimeType,
+  } = params;
+
+  const normalizedChildFirstName = childFirstName.trim();
+
   // 1. Check for existing duplicate preview (idempotency)
-  const existingPreview = await findExistingPreview(caregiverUid, childId, templateId);
+  const existingPreview = await findExistingPreview(
+    caregiverUid,
+    normalizedChildFirstName,
+    childGender,
+    templateId
+  );
   if (existingPreview) {
     return existingPreview;
   }
@@ -76,26 +100,7 @@ export async function generatePreview(
     );
   }
 
-  // 3. Load child profile
-  const childDoc = await db
-    .collection(COLLECTIONS.children(caregiverUid))
-    .withConverter(childProfileConverter)
-    .doc(childId)
-    .get();
-
-  if (!childDoc.exists) {
-    throw new Error(`Child profile not found: ${childId}`);
-  }
-  const child = childDoc.data()!;
-
-  // 4. Verify photo status
-  if (child.photoStatus !== "uploaded" && child.photoStatus !== "preview_used") {
-    throw new Error(
-      `Child photo is required for preview generation. Current status: ${child.photoStatus}`
-    );
-  }
-
-  // 5. Load story template
+  // 3. Load story template
   const templateDoc = await db
     .collection(COLLECTIONS.STORY_TEMPLATES)
     .withConverter(storyTemplateConverter)
@@ -111,7 +116,7 @@ export async function generatePreview(
     throw new Error(`Story template is not available: ${templateId}`);
   }
 
-  // 6. Create preview document
+  // 4. Create preview document (photo lifecycle is owned by this preview)
   const now = new Date().toISOString();
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
   const previewId = previewRef.id;
@@ -119,22 +124,27 @@ export async function generatePreview(
   const previewData: Omit<StoryPreview, "previewId"> & { previewId: string } = {
     previewId,
     caregiverUid,
-    childId,
     templateId,
-    childFirstName: child.firstName,
-    childGender: child.gender,
+    childFirstName: normalizedChildFirstName,
+    childGender,
+    childAgeGroup,
+    photoPath: null,
+    photoStatus: "none",
+    photoUploadedAt: null,
+    photoRetainUntil: null,
     templateTitle: template.title,
     templateVersion: template.revisionCount,
     language: template.generationConfig.language,
+    dedicationName: dedicationName ?? null,
     previewPageCount: template.previewPageCount || 2,
     pages: [],
     coverImageUrl: template.coverImageUrl || null,
-    generationStatus: "in_progress",
+    generationStatus: "pending",
     pagesCompleted: 0,
-    generationStartedAt: now,
+    generationStartedAt: null,
     generationCompletedAt: null,
     failureReason: null,
-    status: "generating",
+    status: "created",
     expiresAt: null,
     purchaseId: null,
     personalizedStoryId: null,
@@ -144,10 +154,43 @@ export async function generatePreview(
 
   await previewRef.set(previewData);
 
-  // 7. Generate preview pages asynchronously (fire-and-forget from caller's perspective)
-  generatePreviewPages(previewId, caregiverUid, child, template).catch((error) => {
-    console.error(`Preview generation failed for ${previewId}:`, error);
+  // 5. Upload photo and mark preview as generating
+  const extMap: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  const ext = extMap[photoMimeType] ?? "jpg";
+  const filename = `${Date.now()}.${ext}`;
+  const storagePath = STORAGE_PATHS.childPhoto(caregiverUid, previewId, filename);
+
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(storagePath);
+  await file.save(photoBuffer, {
+    metadata: { contentType: photoMimeType },
   });
+
+  await previewRef.update({
+    photoPath: storagePath,
+    photoStatus: "uploaded",
+    photoUploadedAt: now,
+    status: "generating",
+    generationStatus: "in_progress",
+    generationStartedAt: now,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+
+  // 6. Generate preview pages asynchronously (fire-and-forget)
+  const childData: ChildData = {
+    firstName: normalizedChildFirstName,
+    gender: childGender,
+  };
+
+  generatePreviewPages(previewId, caregiverUid, childData, template, photoBuffer).catch(
+    (error) => {
+      console.error(`Preview generation failed for ${previewId}:`, error);
+    }
+  );
 
   return previewId;
 }
@@ -159,8 +202,9 @@ export async function generatePreview(
 async function generatePreviewPages(
   previewId: string,
   caregiverUid: string,
-  child: ChildProfile,
-  template: StoryTemplate
+  child: ChildData,
+  template: StoryTemplate,
+  photoBuffer: Buffer
 ): Promise<void> {
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId);
   const previewPageCount = template.previewPageCount || 2;
@@ -169,9 +213,6 @@ async function generatePreviewPages(
 
   try {
     const imageProvider = requireImageProvider();
-
-    // Load child photo from Storage
-    const photoBuffer = await loadChildPhoto(caregiverUid, child);
 
     for (let i = 0; i < previewPageCount && i < template.pages.length; i++) {
       const page = template.pages[i]!;
@@ -244,24 +285,19 @@ async function generatePreviewPages(
       });
     }
 
-    // Update photo retention
-    const retainUntil = new Date(Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000).toISOString();
-    const childRef = db
-      .collection(COLLECTIONS.children(caregiverUid))
-      .doc(child.childId);
-    await childRef.update({
+    // Update photo retention (photo is deleted later, but preview/illustrations stay)
+    const retainUntil = new Date(
+      Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000
+    ).toISOString();
+    const completedAt = new Date().toISOString();
+    await previewRef.update({
       photoStatus: "preview_used",
       photoRetainUntil: retainUntil,
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
 
-    // Mark preview as ready
-    const expiresAt = new Date(Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000).toISOString();
-    await previewRef.update({
       generationStatus: "completed",
-      generationCompletedAt: new Date().toISOString(),
+      generationCompletedAt: completedAt,
       status: "ready",
-      expiresAt,
+      expiresAt: retainUntil,
       updatedAt: admin.firestore.Timestamp.now(),
     });
   } catch (error) {
@@ -277,35 +313,13 @@ async function generatePreviewPages(
 }
 
 /**
- * Loads a child's photo from Firebase Storage as a Buffer.
- */
-async function loadChildPhoto(
-  caregiverUid: string,
-  child: ChildProfile
-): Promise<Buffer> {
-  if (!child.photoPath) {
-    throw new Error(`No photo path set for child ${child.childId}`);
-  }
-
-  const bucket = admin.storage().bucket();
-  const file = bucket.file(child.photoPath);
-  const [exists] = await file.exists();
-
-  if (!exists) {
-    throw new Error(`Photo file not found in storage: ${child.photoPath}`);
-  }
-
-  const [buffer] = await file.download();
-  return buffer;
-}
-
-/**
  * Finds an existing non-expired, non-converted preview for the same
  * child + template combination (idempotency check).
  */
 async function findExistingPreview(
   caregiverUid: string,
-  childId: string,
+  childFirstName: string,
+  childGender: Gender,
   templateId: string
 ): Promise<string | null> {
   const excludedStatuses = ["expired", "converted"];
@@ -313,7 +327,8 @@ async function findExistingPreview(
   const snapshot = await db
     .collection(COLLECTIONS.STORY_PREVIEWS)
     .where("caregiverUid", "==", caregiverUid)
-    .where("childId", "==", childId)
+    .where("childFirstName", "==", childFirstName)
+    .where("childGender", "==", childGender)
     .where("templateId", "==", templateId)
     .limit(10)
     .get();

@@ -1,24 +1,29 @@
 import {
   AppBar,
   Box,
+  Button,
+  CircularProgress,
   IconButton,
   Typography,
   Menu,
   MenuItem,
+  Badge,
+  Tooltip,
 } from "@mui/material";
 import dammahLogo from "../../assets/brand/dammah-logo.png";
 import { useTheme } from "@mui/material/styles";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
-import PersonOutlineOutlinedIcon from "@mui/icons-material/PersonOutlineOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
-import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { useAuth } from "../../contexts/AuthContext";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
@@ -37,11 +42,13 @@ export default function Navbar({
   const navigateDirect = useNavigate();
   const { pathname } = useLocation();
   const { lang } = useParams<{ lang: string }>();
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, isRTL } = useLanguage();
   const t = useTranslation();
+  const { currentUser, logout, loading: authLoading } = useAuth();
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const theme = useTheme();
   const megaButtonRef = useRef<HTMLDivElement>(null);
 
@@ -51,6 +58,14 @@ export default function Navbar({
 
   const handleLangMenuClose = () => {
     setLangMenuAnchor(null);
+  };
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
   };
 
   const handleLanguageChange = (newLang: "he" | "en" | "ar") => {
@@ -70,6 +85,16 @@ export default function Navbar({
     navigateDirect(newPath);
     
     handleLangMenuClose();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      handleUserMenuClose();
+      setSearchOpen(false);
+    } catch (err) {
+      console.error("[Navbar] logout failed:", err);
+    }
   };
 
   return (
@@ -161,7 +186,7 @@ export default function Navbar({
             />
           </Box>
 
-          {/* 3️⃣ LEFT SECTION — Utility Icons */}
+          {/* 3️⃣ LEFT SECTION — User Actions */}
           <Box
             sx={{
               display: "flex",
@@ -171,51 +196,160 @@ export default function Navbar({
               justifyContent: "flex-end", // RTL: flex-end = left side
             }}
           >
-            <IconButton onClick={() => setSearchOpen(true)}>
-              <SearchOutlinedIcon />
-            </IconButton>
+            {authLoading ? (
+              <CircularProgress size={22} />
+            ) : currentUser ? (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                {/* 1) Favorites */}
+                <IconButton
+                  onClick={() => {
+                    navigate("/favorites");
+                    setSearchOpen(false);
+                  }}
+                  aria-label={t("navbar.labels.favorites")}
+                >
+                  <Tooltip title={t("navbar.labels.favorites")}>
+                    <Badge color="error" badgeContent={0} invisible>
+                      <FavoriteBorderIcon />
+                    </Badge>
+                  </Tooltip>
+                </IconButton>
 
-            <IconButton
-              onClick={() => {
-                navigate("/login");
-                setSearchOpen(false); // Close search overlay if open
-              }}
-            >
-              <PersonOutlineOutlinedIcon />
-            </IconButton>
+                {/* 2) Cart */}
+                <IconButton
+                  onClick={() => {
+                    navigate("/cart");
+                    setSearchOpen(false);
+                  }}
+                  aria-label={t("navbar.labels.cart")}
+                >
+                  <Tooltip title={t("navbar.labels.cart")}>
+                    <Badge color="primary" badgeContent={0} invisible>
+                      <ShoppingBagOutlinedIcon />
+                    </Badge>
+                  </Tooltip>
+                </IconButton>
 
-            <IconButton
-              onClick={() => {
-                navigate("/cart");
-                setSearchOpen(false); // Close search overlay if open
-              }}
-            >
-              <ShoppingBagOutlinedIcon />
-            </IconButton>
+                {/* 3) User menu trigger */}
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={handleUserMenuOpen}
+                  sx={{
+                    textTransform: "none",
+                    borderRadius: 2,
+                    px: 1,
+                    minWidth: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    color: theme.palette.text.primary,
+                  }}
+                >
+                  <AccountCircleOutlinedIcon fontSize="small" />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      whiteSpace: "nowrap",
+                      fontWeight: 600,
+                      maxWidth: { xs: 90, sm: 140 },
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      display: { xs: "none", sm: "inline" },
+                    }}
+                  >
+                    {currentUser.displayName || currentUser.email}
+                  </Typography>
+                  <KeyboardArrowDownIcon fontSize="small" />
+                </Button>
 
-            <IconButton
-              onClick={() => {
-                navigate("/specialist");
-                setSearchOpen(false); // Close search overlay if open
-              }}
-            >
-              <VerifiedUserIcon />
-            </IconButton>
+                {/* 4) Search */}
+                <IconButton onClick={() => setSearchOpen(true)} aria-label={t("navbar.labels.search")}>
+                  <Tooltip title={t("navbar.labels.search")}>
+                    <SearchOutlinedIcon />
+                  </Tooltip>
+                </IconButton>
 
-            <IconButton onClick={handleLangMenuOpen}>
-              <LanguageOutlinedIcon />
-            </IconButton>
+                {/* Language switcher stays available but outside required action sequence */}
+                <IconButton onClick={handleLangMenuOpen} aria-label="language">
+                  <LanguageOutlinedIcon />
+                </IconButton>
+
+                <Menu
+                  anchorEl={userMenuAnchor}
+                  open={Boolean(userMenuAnchor)}
+                  onClose={handleUserMenuClose}
+                  anchorOrigin={{
+                    vertical: "bottom",
+                    horizontal: isRTL ? "left" : "right",
+                  }}
+                  transformOrigin={{
+                    vertical: "top",
+                    horizontal: isRTL ? "left" : "right",
+                  }}
+                >
+                  <MenuItem
+                    onClick={() => {
+                      navigate("/my-stories");
+                      handleUserMenuClose();
+                    }}
+                  >
+                    {t("navbar.userMenu.myStories")}
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      navigate("/favorites");
+                      handleUserMenuClose();
+                    }}
+                  >
+                    {t("navbar.userMenu.favorites")}
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>{t("navbar.userMenu.logout")}</MenuItem>
+                </Menu>
+              </Box>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => {
+                    navigate("/login", { state: { mode: "login" } });
+                    setSearchOpen(false); // Close search overlay if open
+                  }}
+                  sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+                >
+                  {t("login.title")}
+                </Button>
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={() => {
+                    navigate("/login", { state: { mode: "signup" } });
+                    setSearchOpen(false); // Close search overlay if open
+                  }}
+                  sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+                >
+                  {t("login.goToSignup")}
+                </Button>
+                <IconButton onClick={handleLangMenuOpen} aria-label="language">
+                  <LanguageOutlinedIcon />
+                </IconButton>
+                <IconButton onClick={() => setSearchOpen(true)} aria-label="search">
+                  <SearchOutlinedIcon />
+                </IconButton>
+              </Box>
+            )}
             <Menu
               anchorEl={langMenuAnchor}
               open={Boolean(langMenuAnchor)}
               onClose={handleLangMenuClose}
               anchorOrigin={{
                 vertical: "bottom",
-                horizontal: "right",
+                horizontal: isRTL ? "left" : "right",
               }}
               transformOrigin={{
                 vertical: "top",
-                horizontal: "right",
+                horizontal: isRTL ? "left" : "right",
               }}
             >
               <MenuItem

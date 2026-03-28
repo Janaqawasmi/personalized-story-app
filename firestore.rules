@@ -31,14 +31,21 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────
-    // Story Templates — public library (published + active)
+    // Story Templates — public library (approved + active)
     // ────────────────────────────────────────────────────
 
     match /story_templates/{templateId} {
-      // Anyone can read published and active templates (no auth required)
-      // Specialists/admins can read all templates
-      allow read: if (resource.data.isPublished == true && resource.data.isActive == true)
-                  || isSpecialistOrAdmin();
+      // Public templates:
+      // - The app's client queries and server approval flow use `status: "approved"`.
+      // - Your server sets `isActive: true` when creating approved templates, but may not set `isPublished`.
+      // Regular users (and even unauthenticated users, depending on your product choice) should be able to read approved + active templates.
+      //
+      // Admin/specialists can read all templates, including non-public drafts.
+      allow read: if (
+        (resource.data.status == "approved" && resource.data.isActive == true)
+        || (resource.data.isPublished == true && resource.data.isActive == true)
+        || isSpecialistOrAdmin()
+      );
       // Only server (Admin SDK) can write
       allow write: if false;
     }
@@ -51,10 +58,11 @@ service cloud.firestore {
       allow read: if isOwner(uid) && isCaregiver();
       allow write: if isOwner(uid) && isCaregiver();
 
-      // Children subcollection
-      match /children/{childId} {
-        allow read: if isOwner(uid) && isCaregiver();
-        allow write: if isOwner(uid) && isCaregiver();
+      // Favorites subcollection
+      // Path: caregivers/{uid}/favorites/{storyId}
+      // Owner-only read/write (does NOT require role claim)
+      match /favorites/{favoriteId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
       }
 
       // Cart subcollection

@@ -81,25 +81,7 @@ async function performAccountDeletion(caregiverUid: string): Promise<void> {
 
   try {
     // 1. Delete children subcollection
-    const childrenSnapshot = await db
-      .collection(COLLECTIONS.children(caregiverUid))
-      .get();
-
-    for (const childDoc of childrenSnapshot.docs) {
-      const photoPath = childDoc.data().photoPath as string | undefined;
-      if (photoPath) {
-        try {
-          const file = bucket.file(photoPath);
-          const [exists] = await file.exists();
-          if (exists) {
-            await file.delete();
-          }
-        } catch {
-          // Continue deletion even if photo cleanup fails
-        }
-      }
-      await childDoc.ref.delete();
-    }
+    // Children subcollection no longer exists; photo lifecycle is per preview.
 
     // 2. Delete cart subcollection
     const cartSnapshot = await db

@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { Gender } from "./childProfile";
+import { AgeGroup, Gender } from "./common";
 
 export type StoryGenerationStatus = "pending" | "in_progress" | "completed" | "failed" | "partially_failed";
 
@@ -20,12 +20,12 @@ export interface PersonalizedStoryPage {
 export interface PersonalizedStory {
   storyId: string;
   caregiverUid: string;
-  childId: string;
   purchaseId: string;
   previewId: string;
 
   childFirstName: string;
   childGender: Gender;
+  childAgeGroup: AgeGroup;
   templateId: string;
   templateTitle: string;
   templateVersion: number;
