@@ -1024,10 +1024,8 @@ const AdminStoryBriefForm: React.FC = () => {
                 rows={3}
                 value={keyMessage}
                 onChange={(e) => setKeyMessage(e.target.value)}
-                placeholder={
-                  "e.g. Your parent always comes back for you.\n" +
-                  "e.g. It's okay to feel scared — lots of children feel that way too."
-                }
+                placeholder="e.g. Your parent always comes back for you."
+                InputLabelProps={{ shrink: true }}
                 inputProps={{ maxLength: 200 }}
                 FormHelperTextProps={{ component: "div" }}
                 helperText={
