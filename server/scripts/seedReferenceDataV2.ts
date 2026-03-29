@@ -622,6 +622,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "التنفس العميق",
     label_he: "נשימות עמוקות",
     group: "body_based",
+    suggestedAgeMin: 3,
+    suggestedAgeMax: 12,
     order: 1,
     active: true,
   },
@@ -630,6 +632,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "العد",
     label_he: "ספירה",
     group: "body_based",
+    suggestedAgeMin: 3,
+    suggestedAgeMax: 12,
     order: 2,
     active: true,
   },
@@ -638,6 +642,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "الشخص الآمن",
     label_he: "אדם בטוח",
     group: "relational",
+    suggestedAgeMin: 3,
+    suggestedAgeMax: 12,
     order: 3,
     active: true,
   },
@@ -646,6 +652,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "الشيء الانتقالي",
     label_he: "אובייקט מעבר",
     group: "relational",
+    suggestedAgeMin: 2,
+    suggestedAgeMax: 12,
     order: 4,
     active: true,
   },
@@ -654,6 +662,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "الحديث الذاتي الإيجابي",
     label_he: "דיבור עצמי חיובי",
     group: "cognitive",
+    suggestedAgeMin: 5,
+    suggestedAgeMax: 12,
     order: 5,
     active: true,
   },
@@ -662,6 +672,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "طلب المساعدة",
     label_he: "בקשת עזרה",
     group: "relational",
+    suggestedAgeMin: 3,
+    suggestedAgeMax: 12,
     order: 6,
     active: true,
   },
@@ -670,6 +682,8 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "الوعي بالروتين",
     label_he: "מודعות לשגרה",
     group: "cognitive",
+    suggestedAgeMin: 4,
+    suggestedAgeMax: 12,
     order: 7,
     active: true,
   },
@@ -678,14 +692,18 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_ar: "التأריض من خلال الحواس",
     label_he: "עיגון דרך החושים",
     group: "body_based",
+    suggestedAgeMin: 3,
+    suggestedAgeMax: 12,
     order: 8,
     active: true,
   },
   visualization: {
     label_en: "Visualization",
-    label_ar: "التخيל",
+    label_ar: "التخيل",
     label_he: "דמיון מודרך",
     group: "cognitive",
+    suggestedAgeMin: 4,
+    suggestedAgeMax: 12,
     order: 9,
     active: true,
   },
@@ -1116,14 +1134,16 @@ async function seedReferenceDataV2() {
   console.log();
 
   // ── 6c. Merge "group" field into existing coping tool docs ──
-  console.log("🔀 Merging 'group' field into existing copingTools documents...");
-  const copingToolGroupFields: Record<string, Record<string, unknown>> = {};
+  console.log("🔀 Merging 'group', 'suggestedAgeMin', 'suggestedAgeMax' into existing copingTools documents...");
+  const copingToolMergeFields: Record<string, Record<string, unknown>> = {};
   for (const [toolId, toolData] of Object.entries(copingTools)) {
-    if (toolData["group"]) {
-      copingToolGroupFields[toolId] = { group: toolData["group"] };
-    }
+    const fields: Record<string, unknown> = {};
+    if (typeof toolData["group"] === "string") fields.group = toolData["group"];
+    if (typeof toolData["suggestedAgeMin"] === "number") fields.suggestedAgeMin = toolData["suggestedAgeMin"];
+    if (typeof toolData["suggestedAgeMax"] === "number") fields.suggestedAgeMax = toolData["suggestedAgeMax"];
+    copingToolMergeFields[toolId] = fields;
   }
-  const ctMerge = await mergeFieldsIntoExisting(batch, "copingTools", copingToolGroupFields);
+  const ctMerge = await mergeFieldsIntoExisting(batch, "copingTools", copingToolMergeFields);
   logMergeResult("copingTools", ctMerge);
   console.log();
 

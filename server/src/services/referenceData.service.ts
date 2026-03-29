@@ -32,9 +32,12 @@ export interface ReferenceDataItem {
   group?: string;
   /** Optional recommended coping tool document IDs (therapeuticMechanisms collection) */
   recommendedCopingTools?: string[];
+  /** Coping tools only — typical age range (placeholder; clinician-validated) */
+  suggestedAgeMin?: number;
+  suggestedAgeMax?: number;
 }
 
-/** referenceData/copingTools/items — UI grouping key */
+/** referenceData/copingTools/items — UI grouping key + suggested age band (see ReferenceDataItem) */
 export type CopingToolReferenceItem = Omit<
   ReferenceDataItem,
   "recommendedCopingTools" | "group"
@@ -117,6 +120,8 @@ export async function loadReferenceItems(
           (x: unknown): x is string => typeof x === "string",
         );
       }
+      if (typeof data.suggestedAgeMin === "number") item.suggestedAgeMin = data.suggestedAgeMin;
+      if (typeof data.suggestedAgeMax === "number") item.suggestedAgeMax = data.suggestedAgeMax;
       return item;
     });
 

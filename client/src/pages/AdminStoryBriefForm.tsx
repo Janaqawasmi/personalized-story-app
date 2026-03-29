@@ -26,7 +26,7 @@ import {
   Chip,
   Fade,
 } from '@mui/material';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, WarningAmberOutlined } from '@mui/icons-material';
 import { createStoryBrief, StoryBriefInput } from '../api/api';
 import { normalizeStoryBriefInput } from '../utils/briefNormalize';
 import SpecialistNav from '../components/SpecialistNav';
@@ -45,6 +45,21 @@ import {
 // Helper function for multilingual labels
 function getLabel(item: any, lang: "en" | "ar" | "he" = "en"): string {
   return item[`label_${lang}`] || item.label_en || '';
+}
+
+/** Informational only: story min age is below tool's suggested minimum (selected tools only). */
+function shouldShowCopingToolAgeWarning(
+  tool: CopingToolReferenceItem,
+  isSelected: boolean,
+  storyAgeMin: number,
+  storyAgeMax: number,
+): boolean {
+  if (!isSelected) return false;
+  const smin = tool.suggestedAgeMin;
+  if (typeof smin !== "number" || !Number.isFinite(smin)) return false;
+  if (!Number.isInteger(storyAgeMin) || !Number.isInteger(storyAgeMax)) return false;
+  if (storyAgeMin < 0 || storyAgeMax > 12 || storyAgeMin >= storyAgeMax) return false;
+  return storyAgeMin < smin;
 }
 
 // TabPanel component
@@ -895,15 +910,22 @@ const AdminStoryBriefForm: React.FC = () => {
                           <Stack spacing={0.5}>
                             {toolsInGroup.map((tool) => {
                               const showRecommended = recommendedCopingToolKeys.has(tool.key);
+                              const isToolSelected = selectedCopingTools.includes(tool.key);
+                              const showAgeWarning = shouldShowCopingToolAgeWarning(
+                                tool,
+                                isToolSelected,
+                                ageMin,
+                                ageMax,
+                              );
                               return (
                                 <FormControlLabel
                                   key={tool.key}
                                   control={
                                     <Checkbox
-                                      checked={selectedCopingTools.includes(tool.key)}
+                                      checked={isToolSelected}
                                       onChange={() => handleCopingToolToggle(tool.key)}
                                       disabled={
-                                        !selectedCopingTools.includes(tool.key) &&
+                                        !isToolSelected &&
                                         selectedCopingTools.length >= 3
                                       }
                                     />
@@ -915,6 +937,7 @@ const AdminStoryBriefForm: React.FC = () => {
                                         alignItems: 'center',
                                         flexWrap: 'wrap',
                                         gap: 0.75,
+                                        rowGap: 0.5,
                                       }}
                                     >
                                       <span>{getLabel(tool, "en")}</span>
@@ -945,6 +968,38 @@ const AdminStoryBriefForm: React.FC = () => {
                                             }}
                                           />
                                         </span>
+                                      </Fade>
+                                      <Fade in={showAgeWarning} timeout={200} unmountOnExit>
+                                        <Box
+                                          component="span"
+                                          sx={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: 0.35,
+                                            maxWidth: '100%',
+                                          }}
+                                        >
+                                          <WarningAmberOutlined
+                                            sx={{
+                                              fontSize: 15,
+                                              color: 'warning.main',
+                                              opacity: 0.75,
+                                              flexShrink: 0,
+                                            }}
+                                            aria-hidden
+                                          />
+                                          <Typography
+                                            component="span"
+                                            sx={{
+                                              fontSize: '0.8125rem',
+                                              lineHeight: 1.3,
+                                              color: 'warning.main',
+                                              opacity: 0.88,
+                                            }}
+                                          >
+                                            {`Typically suitable from age ${tool.suggestedAgeMin}+`}
+                                          </Typography>
+                                        </Box>
                                       </Fade>
                                     </Box>
                                   }

@@ -13,6 +13,9 @@ export interface ReferenceDataItem {
   group?: string;
   /** Therapeutic mechanisms only — coping tool document IDs */
   recommendedCopingTools?: string[];
+  /** Coping tools only — typical age range */
+  suggestedAgeMin?: number;
+  suggestedAgeMax?: number;
 }
 
 /** referenceData/copingTools/items */
