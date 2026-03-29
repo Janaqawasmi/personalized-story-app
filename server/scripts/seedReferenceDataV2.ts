@@ -82,6 +82,68 @@ async function seedCollection(
   return result;
 }
 
+interface MergeResult {
+  updated: string[];
+  skippedMissing: string[];
+}
+
+/**
+ * Merges specific fields into EXISTING documents without overwriting other data.
+ * Documents that don't exist are skipped (they'll be created by seedCollection).
+ * Fields already present on the document are overwritten with the new value.
+ */
+async function mergeFieldsIntoExisting(
+  batch: admin.firestore.WriteBatch,
+  collectionName: string,
+  fieldsPerDoc: Record<string, Record<string, unknown>>,
+): Promise<MergeResult> {
+  const result: MergeResult = { updated: [], skippedMissing: [] };
+  const collectionRef = db
+    .collection("referenceData")
+    .doc(collectionName)
+    .collection("items");
+
+  const docIds = Object.keys(fieldsPerDoc);
+  const snapshots = await Promise.all(
+    docIds.map((id) => collectionRef.doc(id).get()),
+  );
+
+  for (const [i, docId] of docIds.entries()) {
+    const snap = snapshots[i];
+    const fields = fieldsPerDoc[docId];
+
+    if (!snap) {
+      throw new Error(
+        `mergeFieldsIntoExisting(${collectionName}): missing snapshot for docId "${docId}" at index ${i}`,
+      );
+    }
+    if (!fields) {
+      throw new Error(
+        `mergeFieldsIntoExisting(${collectionName}): missing fields for docId "${docId}"`,
+      );
+    }
+
+    if (!snap.exists) {
+      result.skippedMissing.push(docId);
+      continue;
+    }
+
+    batch.set(collectionRef.doc(docId), fields, { merge: true });
+    result.updated.push(docId);
+  }
+
+  return result;
+}
+
+function logMergeResult(collectionName: string, result: MergeResult): void {
+  for (const id of result.updated) {
+    console.log(`  🔀 [MERGED] ${collectionName}/items/${id}`);
+  }
+  for (const id of result.skippedMissing) {
+    console.log(`  ⏩ [NOT FOUND] ${collectionName}/items/${id}`);
+  }
+}
+
 function logResult(collectionName: string, result: SeedResult): void {
   for (const id of result.created) {
     console.log(`  ✅ [CREATED] ${collectionName}/items/${id}`);
@@ -492,6 +554,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Helping the child see their experience as common and valid",
     order: 1,
     active: true,
+    recommendedCopingTools: ["safe_person", "positive_self_talk", "asking_for_help"],
   },
   cognitive_reframing: {
     label_en: "Cognitive reframing",
@@ -500,6 +563,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Helping the child think about the situation differently",
     order: 2,
     active: true,
+    recommendedCopingTools: ["positive_self_talk", "visualization", "routine_awareness"],
   },
   graduated_exposure: {
     label_en: "Graduated exposure",
@@ -508,6 +572,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Gradually increasing comfort with the feared situation",
     order: 3,
     active: true,
+    recommendedCopingTools: ["deep_breathing", "grounding_senses", "counting", "safe_person"],
   },
   modeling: {
     label_en: "Modeling",
@@ -516,6 +581,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Character demonstrates how to handle the situation",
     order: 4,
     active: true,
+    recommendedCopingTools: ["asking_for_help", "positive_self_talk", "safe_person"],
   },
   psychoeducation: {
     label_en: "Psychoeducation",
@@ -524,6 +590,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Teaching the child about their emotions and reactions",
     order: 5,
     active: true,
+    recommendedCopingTools: ["routine_awareness", "visualization", "positive_self_talk"],
   },
   self_regulation: {
     label_en: "Self-regulation",
@@ -532,6 +599,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Building skills to manage emotional responses",
     order: 6,
     active: true,
+    recommendedCopingTools: ["deep_breathing", "counting", "grounding_senses", "visualization"],
   },
   reassurance_and_predictability: {
     label_en: "Reassurance & predictability",
@@ -540,6 +608,7 @@ const therapeuticMechanisms: Record<string, Record<string, unknown>> = {
     description_en: "Creating sense of safety through predictable patterns",
     order: 7,
     active: true,
+    recommendedCopingTools: ["safe_person", "transition_object", "routine_awareness"],
   },
 };
 
@@ -552,6 +621,7 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_en: "Deep breathing",
     label_ar: "التنفس العميق",
     label_he: "נשימות עמוקות",
+    group: "body_based",
     order: 1,
     active: true,
   },
@@ -559,6 +629,7 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_en: "Counting",
     label_ar: "العد",
     label_he: "ספירה",
+    group: "body_based",
     order: 2,
     active: true,
   },
@@ -566,6 +637,7 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_en: "Safe person",
     label_ar: "الشخص الآمن",
     label_he: "אדם בטוח",
+    group: "relational",
     order: 3,
     active: true,
   },
@@ -573,6 +645,7 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_en: "Transition object",
     label_ar: "الشيء الانتقالي",
     label_he: "אובייקט מעבר",
+    group: "relational",
     order: 4,
     active: true,
   },
@@ -580,6 +653,7 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_en: "Positive self-talk",
     label_ar: "الحديث الذاتي الإيجابي",
     label_he: "דיבור עצמי חיובי",
+    group: "cognitive",
     order: 5,
     active: true,
   },
@@ -587,28 +661,60 @@ const copingTools: Record<string, Record<string, unknown>> = {
     label_en: "Asking for help",
     label_ar: "طلب المساعدة",
     label_he: "בקשת עזרה",
+    group: "relational",
     order: 6,
     active: true,
   },
   routine_awareness: {
     label_en: "Routine awareness",
     label_ar: "الوعي بالروتين",
-    label_he: "מודעות לשגרה",
+    label_he: "מודعות לשגרה",
+    group: "cognitive",
     order: 7,
     active: true,
   },
   grounding_senses: {
     label_en: "Grounding through senses",
-    label_ar: "التأريض من خلال الحواس",
+    label_ar: "التأריض من خلال الحواس",
     label_he: "עיגון דרך החושים",
+    group: "body_based",
     order: 8,
     active: true,
   },
   visualization: {
     label_en: "Visualization",
-    label_ar: "التخيل",
+    label_ar: "التخيל",
     label_he: "דמיון מודרך",
+    group: "cognitive",
     order: 9,
+    active: true,
+  },
+};
+
+// ----------------------------------------------------------------------------
+// 6b. Coping Tool Groups (NEW collection — group labels for UI)
+// ----------------------------------------------------------------------------
+
+const copingToolGroups: Record<string, Record<string, unknown>> = {
+  body_based: {
+    label_en: "Body-based techniques",
+    label_ar: "تقنيات جسدية",
+    label_he: "טכניקות גופניות",
+    order: 1,
+    active: true,
+  },
+  cognitive: {
+    label_en: "Cognitive techniques",
+    label_ar: "تقنيات معرفية",
+    label_he: "טכניקות קוגניטיביות",
+    order: 2,
+    active: true,
+  },
+  relational: {
+    label_en: "Relational techniques",
+    label_ar: "تقنيات علائقية",
+    label_he: "טכניקות יחסיות",
+    order: 3,
     active: true,
   },
 };
@@ -1001,7 +1107,39 @@ async function seedReferenceDataV2() {
   totalSkipped.push(...ctResult.skipped.map((id) => `copingTools/${id}`));
   console.log();
 
-  // ── 6b. Enum option sets (validateStoryBrief checks these paths) ──
+  // ── 6b. Coping Tool Groups (new collection — group labels for UI) ──
+  console.log("📂 copingToolGroups (new collection)");
+  const ctgResult = await seedCollection(batch, "copingToolGroups", copingToolGroups);
+  logResult("copingToolGroups", ctgResult);
+  totalCreated.push(...ctgResult.created.map((id) => `copingToolGroups/${id}`));
+  totalSkipped.push(...ctgResult.skipped.map((id) => `copingToolGroups/${id}`));
+  console.log();
+
+  // ── 6c. Merge "group" field into existing coping tool docs ──
+  console.log("🔀 Merging 'group' field into existing copingTools documents...");
+  const copingToolGroupFields: Record<string, Record<string, unknown>> = {};
+  for (const [toolId, toolData] of Object.entries(copingTools)) {
+    if (toolData["group"]) {
+      copingToolGroupFields[toolId] = { group: toolData["group"] };
+    }
+  }
+  const ctMerge = await mergeFieldsIntoExisting(batch, "copingTools", copingToolGroupFields);
+  logMergeResult("copingTools", ctMerge);
+  console.log();
+
+  // ── 6d. Merge "recommendedCopingTools" into existing mechanism docs ──
+  console.log("🔀 Merging 'recommendedCopingTools' into existing therapeuticMechanisms documents...");
+  const mechanismRecommendFields: Record<string, Record<string, unknown>> = {};
+  for (const [mechId, mechData] of Object.entries(therapeuticMechanisms)) {
+    if (mechData["recommendedCopingTools"]) {
+      mechanismRecommendFields[mechId] = { recommendedCopingTools: mechData["recommendedCopingTools"] };
+    }
+  }
+  const tmMerge = await mergeFieldsIntoExisting(batch, "therapeuticMechanisms", mechanismRecommendFields);
+  logMergeResult("therapeuticMechanisms", tmMerge);
+  console.log();
+
+  // ── 6e. Enum option sets (validateStoryBrief checks these paths) ──
   const enumSeeds: { name: string; docs: Record<string, Record<string, unknown>> }[] = [
     { name: "languageComplexities", docs: languageComplexities },
     { name: "emotionalTones", docs: emotionalTones },
@@ -1054,6 +1192,7 @@ async function seedReferenceDataV2() {
         "contentExclusions",
         "therapeuticMechanisms",
         "copingTools",
+        "copingToolGroups",
         "languageComplexities",
         "emotionalTones",
         "topicSensitivities",

@@ -12,7 +12,7 @@ import {
 const VALID_CATEGORIES: ReferenceDataCategory[] = [
   "topics", "situations", "emotionalGoals", "exclusions",
   "generalSituations", "specificSituations", "contentExclusions",
-  "therapeuticMechanisms", "copingTools", "emotionalArcs",
+  "therapeuticMechanisms", "copingTools", "copingToolGroups", "emotionalArcs",
   "languageComplexities", "emotionalTones", "topicSensitivities",
   "endingStyles", "protagonistTypes", "protagonistAgeRelations",
   "protagonistGenders", "caregiverRoles", "peakIntensities",
