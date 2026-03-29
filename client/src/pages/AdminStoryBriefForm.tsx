@@ -966,12 +966,25 @@ const AdminStoryBriefForm: React.FC = () => {
                 label="Key Message"
                 fullWidth
                 multiline
-                rows={2}
+                rows={3}
                 value={keyMessage}
                 onChange={(e) => setKeyMessage(e.target.value)}
-                placeholder="e.g. You are safe, even when things feel new."
+                placeholder={
+                  "e.g. Your parent always comes back for you.\n" +
+                  "e.g. It's okay to feel scared — lots of children feel that way too."
+                }
                 inputProps={{ maxLength: 200 }}
-                helperText={`${keyMessage.length} / 200 characters (optional)`}
+                FormHelperTextProps={{ component: "div" }}
+                helperText={
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                    <Typography variant="body2" color="text.secondary" component="span">
+                      {`The core takeaway the child should feel after hearing this story. Write it as a simple, child-facing statement — as if you're whispering it to the child.`}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" component="span" sx={{ opacity: 0.9 }}>
+                      {keyMessage.length} / 200 characters (optional)
+                    </Typography>
+                  </Box>
+                }
               />
 
                 <FormControl component="fieldset" required>
