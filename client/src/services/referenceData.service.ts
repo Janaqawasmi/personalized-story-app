@@ -1,6 +1,7 @@
 // client/src/services/referenceData.service.ts
 const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
 
+/** Base shape returned by GET /api/reference-data/:category */
 export interface ReferenceDataItem {
   key: string;
   label_en: string;
@@ -8,7 +9,33 @@ export interface ReferenceDataItem {
   label_he: string;
   active: boolean;
   order?: number;
+  /** Coping tools only — UI grouping key */
+  group?: string;
+  /** Therapeutic mechanisms only — coping tool document IDs */
+  recommendedCopingTools?: string[];
 }
+
+/** referenceData/copingTools/items */
+export type CopingToolReferenceItem = Omit<
+  ReferenceDataItem,
+  "recommendedCopingTools" | "group"
+> & {
+  group?: string;
+};
+
+/** referenceData/therapeuticMechanisms/items */
+export type TherapeuticMechanismReferenceItem = Omit<
+  ReferenceDataItem,
+  "group" | "recommendedCopingTools"
+> & {
+  recommendedCopingTools?: string[];
+};
+
+/** referenceData/copingToolGroups/items */
+export type CopingToolGroupReferenceItem = Omit<
+  ReferenceDataItem,
+  "group" | "recommendedCopingTools"
+>;
 
 export interface SituationReferenceItem extends ReferenceDataItem {
   topicKey: string;
@@ -19,28 +46,37 @@ export interface ReferencePlatformConfig {
   platformMaxAge?: number;
 }
 
+export type ReferenceDataCategory =
+  | "topics"
+  | "emotionalGoals"
+  | "exclusions"
+  | "therapeuticMechanisms"
+  | "copingTools"
+  | "copingToolGroups"
+  | "emotionalArcs"
+  | "contentExclusions"
+  | "languageComplexities"
+  | "emotionalTones"
+  | "topicSensitivities"
+  | "endingStyles"
+  | "protagonistTypes"
+  | "protagonistAgeRelations"
+  | "protagonistGenders"
+  | "caregiverRoles"
+  | "peakIntensities";
+
 /**
- * Load reference items from a category
+ * Load reference items from a category (includes `group` / `recommendedCopingTools` when present in JSON).
  */
+export async function loadReferenceItems(category: "copingTools"): Promise<CopingToolReferenceItem[]>;
 export async function loadReferenceItems(
-  category:
-    | "topics"
-    | "emotionalGoals"
-    | "exclusions"
-    | "therapeuticMechanisms"
-    | "copingTools"
-    | "emotionalArcs"
-    | "contentExclusions"
-    | "languageComplexities"
-    | "emotionalTones"
-    | "topicSensitivities"
-    | "endingStyles"
-    | "protagonistTypes"
-    | "protagonistAgeRelations"
-    | "protagonistGenders"
-    | "caregiverRoles"
-    | "peakIntensities"
-): Promise<ReferenceDataItem[]> {
+  category: "therapeuticMechanisms",
+): Promise<TherapeuticMechanismReferenceItem[]>;
+export async function loadReferenceItems(
+  category: "copingToolGroups",
+): Promise<CopingToolGroupReferenceItem[]>;
+export async function loadReferenceItems(category: ReferenceDataCategory): Promise<ReferenceDataItem[]>;
+export async function loadReferenceItems(category: ReferenceDataCategory): Promise<ReferenceDataItem[]> {
   try {
     const res = await fetch(`${API_BASE}/api/reference-data/${category}`);
     if (!res.ok) {
@@ -48,7 +84,7 @@ export async function loadReferenceItems(
       throw new Error(errorData.error || errorData.details || `Failed to load ${category} (${res.status})`);
     }
     const data = await res.json();
-    return data.data ?? [];
+    return (data.data ?? []) as ReferenceDataItem[];
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');

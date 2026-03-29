@@ -7,13 +7,13 @@ import { db } from "../config/firebase";
 export type ReferenceDataCategory =
   | "topics" | "situations" | "emotionalGoals" | "exclusions"
   | "generalSituations" | "specificSituations" | "contentExclusions"
-  | "therapeuticMechanisms" | "copingTools" | "emotionalArcs"
+  | "therapeuticMechanisms" | "copingTools" | "copingToolGroups" | "emotionalArcs"
   | "languageComplexities" | "emotionalTones" | "topicSensitivities"
   | "endingStyles" | "protagonistTypes" | "protagonistAgeRelations"
   | "protagonistGenders" | "caregiverRoles" | "peakIntensities";
 
 /**
- * Base reference data item structure
+ * Base reference data item structure (all categories; category-specific fields optional)
  */
 export interface ReferenceDataItem {
   /** Document ID (enum key) */
@@ -28,7 +28,33 @@ export interface ReferenceDataItem {
   active: boolean;
   /** Optional display order (lower first) */
   order?: number;
+  /** Optional group key (copingTools collection) */
+  group?: string;
+  /** Optional recommended coping tool document IDs (therapeuticMechanisms collection) */
+  recommendedCopingTools?: string[];
 }
+
+/** referenceData/copingTools/items — UI grouping key */
+export type CopingToolReferenceItem = Omit<
+  ReferenceDataItem,
+  "recommendedCopingTools" | "group"
+> & {
+  group?: string;
+};
+
+/** referenceData/therapeuticMechanisms/items — pairing hints for coping tools */
+export type TherapeuticMechanismReferenceItem = Omit<
+  ReferenceDataItem,
+  "group" | "recommendedCopingTools"
+> & {
+  recommendedCopingTools?: string[];
+};
+
+/** referenceData/copingToolGroups/items — section labels for coping tool UI */
+export type CopingToolGroupReferenceItem = Omit<
+  ReferenceDataItem,
+  "group" | "recommendedCopingTools"
+>;
 
 /**
  * Situation-specific reference data item (includes topicKey)
@@ -52,12 +78,20 @@ function byOrderThenLabel(a: ReferenceDataItem, b: ReferenceDataItem): number {
 
 /**
  * Load active reference items from a subcollection
- * 
+ *
  * @param category - The subcollection category (topics, situations, emotionalGoals, exclusions)
  * @returns Array of active reference data items with their document IDs
  */
+export async function loadReferenceItems(category: "copingTools"): Promise<CopingToolReferenceItem[]>;
 export async function loadReferenceItems(
-  category: ReferenceDataCategory
+  category: "therapeuticMechanisms",
+): Promise<TherapeuticMechanismReferenceItem[]>;
+export async function loadReferenceItems(
+  category: "copingToolGroups",
+): Promise<CopingToolGroupReferenceItem[]>;
+export async function loadReferenceItems(category: ReferenceDataCategory): Promise<ReferenceDataItem[]>;
+export async function loadReferenceItems(
+  category: ReferenceDataCategory,
 ): Promise<ReferenceDataItem[]> {
   try {
     const snapshot = await db
@@ -77,6 +111,12 @@ export async function loadReferenceItems(
         active: data.active === true,
       };
       if (typeof data.order === "number") item.order = data.order;
+      if (typeof data.group === "string") item.group = data.group;
+      if (Array.isArray(data.recommendedCopingTools)) {
+        item.recommendedCopingTools = data.recommendedCopingTools.filter(
+          (x: unknown): x is string => typeof x === "string",
+        );
+      }
       return item;
     });
 

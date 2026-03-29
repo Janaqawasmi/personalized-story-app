@@ -1,5 +1,5 @@
 // client/src/pages/AdminStoryBriefForm.tsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLangNavigate } from '../i18n/navigation';
 import {
   Box,
@@ -23,6 +23,8 @@ import {
   Tabs,
   Tab,
   IconButton,
+  Chip,
+  Fade,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createStoryBrief, StoryBriefInput } from '../api/api';
@@ -33,6 +35,9 @@ import {
   loadReferenceConfig,
   loadSituationsByTopic,
   ReferenceDataItem,
+  CopingToolReferenceItem,
+  CopingToolGroupReferenceItem,
+  TherapeuticMechanismReferenceItem,
   ReferencePlatformConfig,
   SituationReferenceItem,
 } from '../services/referenceData.service';
@@ -76,8 +81,9 @@ const AdminStoryBriefForm: React.FC = () => {
   const [specificSituations, setSpecificSituations] = useState<SituationReferenceItem[]>([]);
   const [emotionalGoals, setEmotionalGoals] = useState<ReferenceDataItem[]>([]);
   const [exclusions, setExclusions] = useState<ReferenceDataItem[]>([]);
-  const [therapeuticMechanisms, setTherapeuticMechanisms] = useState<ReferenceDataItem[]>([]);
-  const [copingToolOptions, setCopingToolOptions] = useState<ReferenceDataItem[]>([]);
+  const [therapeuticMechanisms, setTherapeuticMechanisms] = useState<TherapeuticMechanismReferenceItem[]>([]);
+  const [copingToolOptions, setCopingToolOptions] = useState<CopingToolReferenceItem[]>([]);
+  const [copingToolGroups, setCopingToolGroups] = useState<CopingToolGroupReferenceItem[]>([]);
   const [platformConfig, setPlatformConfig] = useState<ReferencePlatformConfig>({
     platformMinAge: DEFAULT_PLATFORM_MIN_AGE,
     platformMaxAge: DEFAULT_PLATFORM_MAX_AGE,
@@ -275,13 +281,17 @@ const AdminStoryBriefForm: React.FC = () => {
     load();
   }, []);
 
-  // Load coping tools on mount
+  // Load coping tools + group labels on mount
   useEffect(() => {
     const load = async () => {
       setLoadingCopingTools(true);
       try {
-        const items = await loadReferenceItems("copingTools");
+        const [items, groups] = await Promise.all([
+          loadReferenceItems("copingTools"),
+          loadReferenceItems("copingToolGroups"),
+        ]);
         setCopingToolOptions(items);
+        setCopingToolGroups(groups);
       } catch (err) {
         console.error('Failed to load coping tools:', err);
         setError('Failed to load coping tools. Please refresh the page.');
@@ -291,6 +301,63 @@ const AdminStoryBriefForm: React.FC = () => {
     };
     load();
   }, []);
+
+  /** Union of recommendedCopingTools from all selected mechanisms (visual badges only). */
+  const recommendedCopingToolKeys = useMemo(() => {
+    const keys = new Set<string>();
+    if (selectedMechanisms.length === 0) return keys;
+    for (const mechKey of selectedMechanisms) {
+      const mech = therapeuticMechanisms.find((m) => m.key === mechKey);
+      const rec = mech?.recommendedCopingTools;
+      if (Array.isArray(rec)) {
+        for (const t of rec) {
+          if (typeof t === "string" && t.trim()) keys.add(t.trim());
+        }
+      }
+    }
+    return keys;
+  }, [selectedMechanisms, therapeuticMechanisms]);
+
+  const toolsByGroupId = useMemo(() => {
+    const map = new Map<string, CopingToolReferenceItem[]>();
+    for (const tool of copingToolOptions) {
+      const gid = (tool.group && tool.group.trim()) ? tool.group.trim() : "other";
+      const list = map.get(gid);
+      if (list) list.push(tool);
+      else map.set(gid, [tool]);
+    }
+    map.forEach((list) => {
+      list.sort((a: CopingToolReferenceItem, b: CopingToolReferenceItem) => {
+        const oa = typeof a.order === "number" ? a.order : 999;
+        const ob = typeof b.order === "number" ? b.order : 999;
+        if (oa !== ob) return oa - ob;
+        return getLabel(a, "en").localeCompare(getLabel(b, "en"));
+      });
+    });
+    return map;
+  }, [copingToolOptions]);
+
+  const sortedCopingGroupIds = useMemo(() => {
+    const orderByKey = new Map<string, number>();
+    for (const g of copingToolGroups) {
+      orderByKey.set(g.key, typeof g.order === "number" ? g.order : 999);
+    }
+    const allKeys = Array.from(toolsByGroupId.keys());
+    const nonOther = allKeys.filter((k) => k !== "other");
+    const known = nonOther.filter((k) => orderByKey.has(k));
+    const unknown = nonOther.filter((k) => !orderByKey.has(k));
+    known.sort((a, b) => (orderByKey.get(a)! - orderByKey.get(b)!));
+    unknown.sort();
+    const ordered = [...known, ...unknown];
+    if (allKeys.includes("other")) ordered.push("other");
+    return ordered;
+  }, [copingToolGroups, toolsByGroupId]);
+
+  const getCopingGroupSectionLabel = (groupId: string): string => {
+    if (groupId === "other") return "Other";
+    const def = copingToolGroups.find((g) => g.key === groupId);
+    return def ? getLabel(def, "en") : groupId;
+  };
 
   // Scroll to messages when they appear
   useEffect(() => {
@@ -785,31 +852,111 @@ const AdminStoryBriefForm: React.FC = () => {
                 <FormControl component="fieldset" required>
                   <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Coping Tools *</FormLabel>
                   <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
-                    Specific coping strategies the story should model or teach. {selectedCopingTools.length} / 3 selected
+                    {selectedMechanisms.length > 0
+                      ? (
+                        <>
+                          Specific coping strategies the story should model or teach. Tools marked &lsquo;Recommended&rsquo; are commonly paired with your selected therapeutic mechanism.{' '}
+                          <Box component="span" sx={{ fontWeight: 600 }}>{selectedCopingTools.length} / 3 selected</Box>
+                        </>
+                      )
+                      : (
+                        <>
+                          Specific coping strategies the story should model or teach. Select a therapeutic mechanism above to see recommended pairings.{' '}
+                          <Box component="span" sx={{ fontWeight: 600 }}>{selectedCopingTools.length} / 3 selected</Box>
+                        </>
+                      )}
                   </FormHelperText>
-                  <Box sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                    gap: 1.5,
-                  }}>
-                    {copingToolOptions.map((tool) => (
-                      <FormControlLabel
-                        key={tool.key}
-                        control={
-                          <Checkbox
-                            checked={selectedCopingTools.includes(tool.key)}
-                            onChange={() => handleCopingToolToggle(tool.key)}
-                            disabled={
-                              !selectedCopingTools.includes(tool.key) &&
-                              selectedCopingTools.length >= 3
-                            }
-                          />
-                        }
-                        label={getLabel(tool, "en")}
-                        sx={{ m: 0 }}
-                      />
-                    ))}
-                  </Box>
+                  <Stack spacing={2.5}>
+                    {sortedCopingGroupIds.map((groupId) => {
+                      const toolsInGroup = toolsByGroupId.get(groupId);
+                      if (!toolsInGroup || toolsInGroup.length === 0) return null;
+                      return (
+                        <Box
+                          key={groupId}
+                          sx={{
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            px: 2,
+                            py: 1.5,
+                            bgcolor: (theme) =>
+                              theme.palette.mode === 'dark'
+                                ? 'rgba(255,255,255,0.04)'
+                                : 'rgba(0,0,0,0.02)',
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600, mb: 1, letterSpacing: 0.02 }}
+                          >
+                            {getCopingGroupSectionLabel(groupId)}
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            {toolsInGroup.map((tool) => {
+                              const showRecommended = recommendedCopingToolKeys.has(tool.key);
+                              return (
+                                <FormControlLabel
+                                  key={tool.key}
+                                  control={
+                                    <Checkbox
+                                      checked={selectedCopingTools.includes(tool.key)}
+                                      onChange={() => handleCopingToolToggle(tool.key)}
+                                      disabled={
+                                        !selectedCopingTools.includes(tool.key) &&
+                                        selectedCopingTools.length >= 3
+                                      }
+                                    />
+                                  }
+                                  label={
+                                    <Box
+                                      sx={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        flexWrap: 'wrap',
+                                        gap: 0.75,
+                                      }}
+                                    >
+                                      <span>{getLabel(tool, "en")}</span>
+                                      <Fade in={showRecommended} timeout={200} unmountOnExit>
+                                        <span>
+                                          <Chip
+                                            label="Recommended"
+                                            size="small"
+                                            sx={{
+                                              height: 22,
+                                              fontSize: '0.6875rem',
+                                              fontWeight: 500,
+                                              bgcolor: (theme) =>
+                                                theme.palette.mode === 'dark'
+                                                  ? 'rgba(2, 136, 209, 0.22)'
+                                                  : 'rgba(2, 136, 209, 0.12)',
+                                              color: 'info.dark',
+                                              border: '1px solid',
+                                              borderColor: (theme) =>
+                                                theme.palette.mode === 'dark'
+                                                  ? 'rgba(2, 136, 209, 0.35)'
+                                                  : 'rgba(2, 136, 209, 0.25)',
+                                              '& .MuiChip-label': { px: 0.75 },
+                                              transition: (theme) =>
+                                                theme.transitions.create(['background-color', 'border-color'], {
+                                                  duration: theme.transitions.duration.shorter,
+                                                }),
+                                            }}
+                                          />
+                                        </span>
+                                      </Fade>
+                                    </Box>
+                                  }
+                                  sx={{ m: 0, alignItems: 'flex-start' }}
+                                />
+                              );
+                            })}
+                          </Stack>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
                   {loadingCopingTools && (
                     <FormHelperText sx={{ mt: 1 }}>Loading coping tools...</FormHelperText>
                   )}
