@@ -457,12 +457,12 @@ const AdminStoryBriefForm: React.FC = () => {
         return;
       }
     } else if (activeStep === 1) {
-      if (selectedEmotionalGoals.length === 0) {
-        setError('Please select at least one emotional goal');
-        return;
-      }
       if (selectedMechanisms.length === 0) {
         setError('Please select at least one therapeutic mechanism');
+        return;
+      }
+      if (selectedEmotionalGoals.length === 0) {
+        setError('Please select at least one emotional goal');
         return;
       }
       if (selectedCopingTools.length === 0) {
@@ -492,12 +492,12 @@ const AdminStoryBriefForm: React.FC = () => {
           return;
         }
       } else if (activeStep === 1) {
-        if (selectedEmotionalGoals.length === 0) {
-          setError('Please select at least one emotional goal');
-          return;
-        }
         if (selectedMechanisms.length === 0) {
           setError('Please select at least one therapeutic mechanism');
+          return;
+        }
+        if (selectedEmotionalGoals.length === 0) {
+          setError('Please select at least one emotional goal');
           return;
         }
         if (selectedCopingTools.length === 0) {
@@ -531,6 +531,11 @@ const AdminStoryBriefForm: React.FC = () => {
       return;
     }
 
+    if (selectedMechanisms.length === 0) {
+      setError('Please select at least one therapeutic mechanism');
+      return;
+    }
+
     if (selectedEmotionalGoals.length === 0) {
       setError('Please select at least one emotional goal');
       return;
@@ -538,6 +543,11 @@ const AdminStoryBriefForm: React.FC = () => {
 
     if (selectedEmotionalGoals.length > 3) {
       setError('Please select a maximum of 3 emotional goals');
+      return;
+    }
+
+    if (selectedCopingTools.length === 0) {
+      setError('Please select at least one coping tool');
       return;
     }
 
@@ -795,42 +805,9 @@ const AdminStoryBriefForm: React.FC = () => {
               Therapeutic Design
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Define the therapeutic approach, emotional goals, coping strategies, and clinical boundaries.
+              Start with the therapeutic mechanism, then emotional goals, coping tools, the key message, and therapeutic boundaries.
             </Typography>
             <Stack spacing={3}>
-                <FormControl component="fieldset" required>
-                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Emotional Goals *</FormLabel>
-                  <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
-                    {selectedEmotionalGoals.length} / 3 selected
-                  </FormHelperText>
-                  <Box sx={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                    gap: 1.5,
-                  }}>
-                    {emotionalGoals.map((goal) => (
-                      <FormControlLabel
-                        key={goal.key}
-                        control={
-                          <Checkbox
-                            checked={selectedEmotionalGoals.includes(goal.key)}
-                            onChange={() => handleEmotionalGoalToggle(goal.key)}
-                            disabled={
-                              !selectedEmotionalGoals.includes(goal.key) &&
-                              selectedEmotionalGoals.length >= 3
-                            }
-                          />
-                        }
-                        label={getLabel(goal, "en")}
-                        sx={{ m: 0 }}
-                      />
-                    ))}
-                  </Box>
-                  {loadingEmotionalGoals && (
-                    <FormHelperText sx={{ mt: 1 }}>Loading emotional goals...</FormHelperText>
-                  )}
-                </FormControl>
-
                 <FormControl component="fieldset" required>
                   <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Therapeutic Mechanism *</FormLabel>
                   <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
@@ -861,6 +838,39 @@ const AdminStoryBriefForm: React.FC = () => {
                   </Box>
                   {loadingMechanisms && (
                     <FormHelperText sx={{ mt: 1 }}>Loading therapeutic mechanisms...</FormHelperText>
+                  )}
+                </FormControl>
+
+                <FormControl component="fieldset" required>
+                  <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Emotional Goals *</FormLabel>
+                  <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                    {selectedEmotionalGoals.length} / 3 selected
+                  </FormHelperText>
+                  <Box sx={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+                    gap: 1.5,
+                  }}>
+                    {emotionalGoals.map((goal) => (
+                      <FormControlLabel
+                        key={goal.key}
+                        control={
+                          <Checkbox
+                            checked={selectedEmotionalGoals.includes(goal.key)}
+                            onChange={() => handleEmotionalGoalToggle(goal.key)}
+                            disabled={
+                              !selectedEmotionalGoals.includes(goal.key) &&
+                              selectedEmotionalGoals.length >= 3
+                            }
+                          />
+                        }
+                        label={getLabel(goal, "en")}
+                        sx={{ m: 0 }}
+                      />
+                    ))}
+                  </Box>
+                  {loadingEmotionalGoals && (
+                    <FormHelperText sx={{ mt: 1 }}>Loading emotional goals...</FormHelperText>
                   )}
                 </FormControl>
 
