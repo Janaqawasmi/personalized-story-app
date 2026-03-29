@@ -11,6 +11,7 @@ import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import type { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { StoryBrief, createStoryBrief as createStoryBriefModel, StoryBriefInput } from "../models/storyBrief.model";
+import { validateStoryBriefInput } from "../agents/agent1/validateStoryBrief";
 import { GenerationContract, ApprovalRecord } from "../models/generationContract.model";
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
@@ -112,8 +113,24 @@ export const createStoryBrief = async (req: Request, res: Response): Promise<voi
       createdBy: user.uid,
     };
 
+    const validation = await validateStoryBriefInput(securedInput, { firestore });
+    if (!validation.isValid || !validation.normalizedBrief) {
+      const message =
+        validation.errors.length > 0
+          ? validation.errors.map((e) => e.message).join("; ")
+          : "Validation failed";
+      res.status(400).json({
+        success: false,
+        error: "Failed to create story brief",
+        details: message,
+        validationErrors: validation.errors,
+        validationWarnings: validation.warnings,
+      });
+      return;
+    }
+
     // Use the model's createStoryBrief helper which validates and sets system fields
-    const storyBrief = createStoryBriefModel(securedInput);
+    const storyBrief = createStoryBriefModel(validation.normalizedBrief);
 
     // Save to Firestore
     const docRef = await firestore

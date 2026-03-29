@@ -653,7 +653,235 @@ const emotionalArcs: Record<string, Record<string, unknown>> = {
 };
 
 // ----------------------------------------------------------------------------
-// 8. Emotional Goals — add missing items to existing collection
+// 8. Enum-backed option sets (validateStoryBrief + specialist form)
+//    Paths: referenceData/{category}/items/{docId} with active: true
+// ----------------------------------------------------------------------------
+
+const languageComplexities: Record<string, Record<string, unknown>> = {
+  very_simple: {
+    label_en: "Very simple",
+    label_ar: "بسيط جداً",
+    label_he: "פשוט מאוד",
+    order: 1,
+    active: true,
+  },
+  simple: {
+    label_en: "Simple",
+    label_ar: "بسيط",
+    label_he: "פשוט",
+    order: 2,
+    active: true,
+  },
+  moderate: {
+    label_en: "Moderate",
+    label_ar: "متوسط",
+    label_he: "בינוני",
+    order: 3,
+    active: true,
+  },
+};
+
+const emotionalTones: Record<string, Record<string, unknown>> = {
+  very_gentle: {
+    label_en: "Very gentle",
+    label_ar: "لطيف جداً",
+    label_he: "עדין מאוד",
+    order: 1,
+    active: true,
+  },
+  calm: {
+    label_en: "Calm",
+    label_ar: "هادئ",
+    label_he: "רגוע",
+    order: 2,
+    active: true,
+  },
+  encouraging: {
+    label_en: "Encouraging",
+    label_ar: "مشجع",
+    label_he: "מעודד",
+    order: 3,
+    active: true,
+  },
+};
+
+const topicSensitivities: Record<string, Record<string, unknown>> = {
+  low: {
+    label_en: "Low",
+    label_ar: "منخفض",
+    label_he: "נמוך",
+    order: 1,
+    active: true,
+  },
+  medium: {
+    label_en: "Medium",
+    label_ar: "متوسط",
+    label_he: "בינוני",
+    order: 2,
+    active: true,
+  },
+  high: {
+    label_en: "High",
+    label_ar: "عالٍ",
+    label_he: "גבוה",
+    order: 3,
+    active: true,
+  },
+};
+
+const endingStyles: Record<string, Record<string, unknown>> = {
+  calm_resolution: {
+    label_en: "Calm resolution",
+    label_ar: "حل هادئ",
+    label_he: "פתרון רגוע",
+    order: 1,
+    active: true,
+  },
+  open_ended: {
+    label_en: "Open-ended",
+    label_ar: "نهاية مفتوحة",
+    label_he: "סוף פתוח",
+    order: 2,
+    active: true,
+  },
+  empowering: {
+    label_en: "Empowering",
+    label_ar: "تمكيني",
+    label_he: "מעצים",
+    order: 3,
+    active: true,
+  },
+};
+
+const peakIntensities: Record<string, Record<string, unknown>> = {
+  minimal: {
+    label_en: "Minimal",
+    label_ar: "حد أدنى",
+    label_he: "מינימלי",
+    order: 1,
+    active: true,
+  },
+  mild: {
+    label_en: "Mild",
+    label_ar: "خفيف",
+    label_he: "קל",
+    order: 2,
+    active: true,
+  },
+  moderate: {
+    label_en: "Moderate",
+    label_ar: "متوسط",
+    label_he: "בינוני",
+    order: 3,
+    active: true,
+  },
+};
+
+const protagonistTypes: Record<string, Record<string, unknown>> = {
+  child_character: {
+    label_en: "Child character",
+    label_ar: "شخصية طفل",
+    label_he: "דמות ילד",
+    order: 1,
+    active: true,
+  },
+  animal_character: {
+    label_en: "Animal character",
+    label_ar: "شخصية حيوان",
+    label_he: "דמות חיה",
+    order: 2,
+    active: true,
+  },
+  fantasy_character: {
+    label_en: "Fantasy character",
+    label_ar: "شخصية خيالية",
+    label_he: "דמות פנטזיה",
+    order: 3,
+    active: true,
+  },
+};
+
+const protagonistAgeRelations: Record<string, Record<string, unknown>> = {
+  same_age: {
+    label_en: "Same age as listener",
+    label_ar: "نفس عمر المستمع",
+    label_he: "בגיל המאזין",
+    order: 1,
+    active: true,
+  },
+  slightly_older: {
+    label_en: "Slightly older",
+    label_ar: "أكبر قليلاً",
+    label_he: "מעט מבוגר יותר",
+    order: 2,
+    active: true,
+  },
+  unspecified: {
+    label_en: "Unspecified",
+    label_ar: "غير محدد",
+    label_he: "לא מוגדר",
+    order: 3,
+    active: true,
+  },
+};
+
+const protagonistGenders: Record<string, Record<string, unknown>> = {
+  male: {
+    label_en: "Male",
+    label_ar: "ذكر",
+    label_he: "זכר",
+    order: 1,
+    active: true,
+  },
+  female: {
+    label_en: "Female",
+    label_ar: "أنثى",
+    label_he: "נקבה",
+    order: 2,
+    active: true,
+  },
+  neutral: {
+    label_en: "Neutral",
+    label_ar: "محايد",
+    label_he: "נייטרלי",
+    order: 3,
+    active: true,
+  },
+};
+
+const caregiverRoles: Record<string, Record<string, unknown>> = {
+  comfort_presence: {
+    label_en: "Comfort presence",
+    label_ar: "وجود مريح",
+    label_he: "נוכחות מרגיעה",
+    order: 1,
+    active: true,
+  },
+  active_guide: {
+    label_en: "Active guide",
+    label_ar: "دليل نشط",
+    label_he: "מדריך פעיל",
+    order: 2,
+    active: true,
+  },
+  mentioned_not_present: {
+    label_en: "Mentioned, not present",
+    label_ar: "مذكور، غير حاضر",
+    label_he: "מוזכר, לא נוכח",
+    order: 3,
+    active: true,
+  },
+  absent: {
+    label_en: "Absent",
+    label_ar: "غائب",
+    label_he: "נעדר",
+    order: 4,
+    active: true,
+  },
+};
+
+// ----------------------------------------------------------------------------
+// 9. Emotional Goals — add missing items to existing collection
 // ----------------------------------------------------------------------------
 
 const newEmotionalGoals: Record<string, Record<string, unknown>> = {
@@ -722,7 +950,7 @@ async function seedReferenceDataV2() {
   const totalSkipped: string[] = [];
 
   // Firestore batches are limited to 500 operations.
-  // We have ~60 documents — a single batch is fine.
+  // All writes fit in a single batch.
   const batch = db.batch();
 
   // ── 1. Topics ──
@@ -773,6 +1001,27 @@ async function seedReferenceDataV2() {
   totalSkipped.push(...ctResult.skipped.map((id) => `copingTools/${id}`));
   console.log();
 
+  // ── 6b. Enum option sets (validateStoryBrief checks these paths) ──
+  const enumSeeds: { name: string; docs: Record<string, Record<string, unknown>> }[] = [
+    { name: "languageComplexities", docs: languageComplexities },
+    { name: "emotionalTones", docs: emotionalTones },
+    { name: "topicSensitivities", docs: topicSensitivities },
+    { name: "endingStyles", docs: endingStyles },
+    { name: "peakIntensities", docs: peakIntensities },
+    { name: "protagonistTypes", docs: protagonistTypes },
+    { name: "protagonistAgeRelations", docs: protagonistAgeRelations },
+    { name: "protagonistGenders", docs: protagonistGenders },
+    { name: "caregiverRoles", docs: caregiverRoles },
+  ];
+  for (const { name, docs } of enumSeeds) {
+    console.log(`📂 ${name} (enum options)`);
+    const r = await seedCollection(batch, name, docs);
+    logResult(name, r);
+    totalCreated.push(...r.created.map((id) => `${name}/${id}`));
+    totalSkipped.push(...r.skipped.map((id) => `${name}/${id}`));
+    console.log();
+  }
+
   // ── 7. Emotional Arcs (new collection) ──
   console.log("📂 [7/8] emotionalArcs (new collection)");
   const eaResult = await seedCollection(batch, "emotionalArcs", emotionalArcs);
@@ -805,6 +1054,15 @@ async function seedReferenceDataV2() {
         "contentExclusions",
         "therapeuticMechanisms",
         "copingTools",
+        "languageComplexities",
+        "emotionalTones",
+        "topicSensitivities",
+        "endingStyles",
+        "peakIntensities",
+        "protagonistTypes",
+        "protagonistAgeRelations",
+        "protagonistGenders",
+        "caregiverRoles",
         "emotionalArcs",
       ],
     },

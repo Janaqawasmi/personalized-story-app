@@ -12,16 +12,6 @@ import admin from "firebase-admin";
 // Constants
 // ============================================================================
 
-// TODO: Replace hardcoded emotionalGoals validation
-//       with dynamic validation against referenceData collection
-const ALLOWED_EMOTIONAL_GOALS = [
-  "normalize_emotions",
-  "reduce_fear",
-  "build_trust",
-  "self_confidence",
-  "emotional_regulation"
-];
-
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -380,12 +370,6 @@ export function createStoryBrief(data: StoryBriefInput): Omit<StoryBrief, "id"> 
 
   if (data.therapeuticDesign.emotionalGoals.length > 3) {
     throw new Error("therapeuticDesign.emotionalGoals must contain at most 3 goals");
-  }
-
-  for (const goal of data.therapeuticDesign.emotionalGoals) {
-    if (!ALLOWED_EMOTIONAL_GOALS.includes(goal.trim().toLowerCase())) {
-      throw new Error(`Invalid emotional goal: ${goal}`);
-    }
   }
 
   if (data.therapeuticDesign.keyMessage && data.therapeuticDesign.keyMessage.length > 200) {
