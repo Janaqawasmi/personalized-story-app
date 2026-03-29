@@ -35,6 +35,12 @@ export interface ReferenceDataItem {
   /** Coping tools only — typical age range (placeholder; clinician-validated) */
   suggestedAgeMin?: number;
   suggestedAgeMax?: number;
+  /** Optional English description (emotional arcs, etc.) */
+  description_en?: string;
+  /** Optional Arabic description */
+  description_ar?: string;
+  /** Optional Hebrew description */
+  description_he?: string;
 }
 
 /** referenceData/copingTools/items — UI grouping key + suggested age band (see ReferenceDataItem) */
@@ -122,6 +128,9 @@ export async function loadReferenceItems(
       }
       if (typeof data.suggestedAgeMin === "number") item.suggestedAgeMin = data.suggestedAgeMin;
       if (typeof data.suggestedAgeMax === "number") item.suggestedAgeMax = data.suggestedAgeMax;
+      if (typeof data.description_en === "string") item.description_en = data.description_en;
+      if (typeof data.description_ar === "string") item.description_ar = data.description_ar;
+      if (typeof data.description_he === "string") item.description_he = data.description_he;
       return item;
     });
 

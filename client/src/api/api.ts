@@ -52,19 +52,20 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 }
 
 // Type aliases for StoryBrief fields
-export type TopicSensitivity = "low" | "medium" | "high";
-export type Complexity = "very_simple" | "simple" | "moderate";
-export type EmotionalTone = "very_gentle" | "calm" | "encouraging";
-export type CaregiverRole = "comfort_presence" | "active_guide" | "mentioned_not_present" | "absent";
-export type ProtagonistType = "child_character" | "animal_character" | "fantasy_character";
-export type ProtagonistAgeRelation = "same_age" | "slightly_older" | "unspecified";
-export type ProtagonistGender = "male" | "female" | "neutral";
-export type SupportCharacterType = "peer" | "sibling" | "teacher" | "animal_friend";
-export type SupportCharacterRole = "mirror" | "model" | "supporter" | "companion";
-export type EndingStyle = "calm_resolution" | "open_ended" | "empowering";
-export type EmotionalArc = "gentle_progression" | "acknowledge_then_resolve" | "discovery_journey" | "supported_transition";
-export type PeakIntensity = "minimal" | "mild" | "moderate";
-export type GenderAdaptation = "allowed" | "not_allowed" | "requires_review";
+// Firestore-driven — keys come from referenceData collections, not hardcoded unions.
+export type TopicSensitivity = string;
+export type Complexity = string;
+export type EmotionalTone = string;
+export type CaregiverRole = string;
+export type ProtagonistType = string;
+export type ProtagonistAgeRelation = string;
+export type ProtagonistGender = string;
+export type SupportCharacterType = string;
+export type SupportCharacterRole = string;
+export type EndingStyle = string;
+export type EmotionalArc = string;
+export type PeakIntensity = string;
+export type GenderAdaptation = string;
 
 export interface TargetAgeRange {
   min: number;

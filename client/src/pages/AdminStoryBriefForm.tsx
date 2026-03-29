@@ -26,6 +26,7 @@ import {
   Chip,
   Fade,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import { Add as AddIcon, Delete as DeleteIcon, WarningAmberOutlined } from '@mui/icons-material';
 import { createStoryBrief, StoryBriefInput } from '../api/api';
 import { normalizeStoryBriefInput } from '../utils/briefNormalize';
@@ -84,6 +85,9 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+function getDescription(item: ReferenceDataItem, lang: "en" | "ar" | "he" = "en"): string {
+  return (item as any)[`description_${lang}`] || item.description_en || '';
+}
 
 const AdminStoryBriefForm: React.FC = () => {
   const navigate = useLangNavigate();
@@ -99,6 +103,11 @@ const AdminStoryBriefForm: React.FC = () => {
   const [therapeuticMechanisms, setTherapeuticMechanisms] = useState<TherapeuticMechanismReferenceItem[]>([]);
   const [copingToolOptions, setCopingToolOptions] = useState<CopingToolReferenceItem[]>([]);
   const [copingToolGroups, setCopingToolGroups] = useState<CopingToolGroupReferenceItem[]>([]);
+  const [topicSensitivities, setTopicSensitivities] = useState<ReferenceDataItem[]>([]);
+  const [emotionalArcOptions, setEmotionalArcOptions] = useState<ReferenceDataItem[]>([]);
+  const [peakIntensities, setPeakIntensities] = useState<ReferenceDataItem[]>([]);
+  const [emotionalToneOptions, setEmotionalToneOptions] = useState<ReferenceDataItem[]>([]);
+  const [endingStyleOptions, setEndingStyleOptions] = useState<ReferenceDataItem[]>([]);
   const [platformConfig, setPlatformConfig] = useState<ReferencePlatformConfig>({
     platformMinAge: DEFAULT_PLATFORM_MIN_AGE,
     platformMaxAge: DEFAULT_PLATFORM_MAX_AGE,
@@ -112,6 +121,7 @@ const AdminStoryBriefForm: React.FC = () => {
   const [loadingExclusions, setLoadingExclusions] = useState(false);
   const [loadingMechanisms, setLoadingMechanisms] = useState(false);
   const [loadingCopingTools, setLoadingCopingTools] = useState(false);
+  const [loadingStep3, setLoadingStep3] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // UI state
@@ -126,17 +136,17 @@ const AdminStoryBriefForm: React.FC = () => {
   const [selectedSpecificSituationKey, setSelectedSpecificSituationKey] = useState<string>('');
   const [ageMin, setAgeMin] = useState<number>(3);
   const [ageMax, setAgeMax] = useState<number>(6);
-  const [selectedTopicSensitivity, setSelectedTopicSensitivity] = useState<"low" | "medium" | "high">("medium");
+  const [selectedTopicSensitivity, setSelectedTopicSensitivity] = useState<string>("medium");
   const [selectedEmotionalGoals, setSelectedEmotionalGoals] = useState<string[]>([]);
   const [keyMessage, setKeyMessage] = useState<string>('');
   const [selectedMechanisms, setSelectedMechanisms] = useState<string[]>([]);
   const [selectedCopingTools, setSelectedCopingTools] = useState<string[]>([]);
   const [therapeuticBoundaries, setTherapeuticBoundaries] = useState<string[]>(['']);
   const [selectedComplexity, setSelectedComplexity] = useState<"very_simple" | "simple" | "moderate">("simple");
-  const [selectedEmotionalTone, setSelectedEmotionalTone] = useState<"very_gentle" | "calm" | "encouraging">("calm");
-  const [selectedEndingStyle, setSelectedEndingStyle] = useState<"calm_resolution" | "open_ended" | "empowering">("calm_resolution");
-  const [selectedEmotionalArc, setSelectedEmotionalArc] = useState<"gentle_progression" | "acknowledge_then_resolve" | "discovery_journey" | "supported_transition">("gentle_progression");
-  const [selectedPeakIntensity, setSelectedPeakIntensity] = useState<"minimal" | "mild" | "moderate">("mild");
+  const [selectedEmotionalTone, setSelectedEmotionalTone] = useState<string>("calm");
+  const [selectedEndingStyle, setSelectedEndingStyle] = useState<string>("calm_resolution");
+  const [selectedEmotionalArc, setSelectedEmotionalArc] = useState<string>("gentle_progression");
+  const [selectedPeakIntensity, setSelectedPeakIntensity] = useState<string>("mild");
   const [selectedExclusions, setSelectedExclusions] = useState<string[]>([]);
   const [selectedProtagonistType, setSelectedProtagonistType] = useState<"child_character" | "animal_character" | "fantasy_character">("child_character");
   const [selectedProtagonistAgeRelation, setSelectedProtagonistAgeRelation] = useState<"same_age" | "slightly_older" | "unspecified">("same_age");
@@ -312,6 +322,33 @@ const AdminStoryBriefForm: React.FC = () => {
         setError('Failed to load coping tools. Please refresh the page.');
       } finally {
         setLoadingCopingTools(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Load Step 3 options (emotional design) on mount
+  useEffect(() => {
+    const load = async () => {
+      setLoadingStep3(true);
+      try {
+        const [ts, ea, pi, et, es] = await Promise.all([
+          loadReferenceItems("topicSensitivities"),
+          loadReferenceItems("emotionalArcs"),
+          loadReferenceItems("peakIntensities"),
+          loadReferenceItems("emotionalTones"),
+          loadReferenceItems("endingStyles"),
+        ]);
+        setTopicSensitivities(ts);
+        setEmotionalArcOptions(ea);
+        setPeakIntensities(pi);
+        setEmotionalToneOptions(et);
+        setEndingStyleOptions(es);
+      } catch (err) {
+        console.error('Failed to load emotional design options:', err);
+        setError('Failed to load emotional design options. Please refresh the page.');
+      } finally {
+        setLoadingStep3(false);
       }
     };
     load();
@@ -1096,6 +1133,9 @@ const AdminStoryBriefForm: React.FC = () => {
             <Typography variant="h6" component="h2" sx={{ fontWeight: 600, mb: 3 }}>
               Emotional Design
             </Typography>
+            {loadingStep3 ? (
+              <Typography variant="body2" color="text.secondary">Loading emotional design options...</Typography>
+            ) : (
             <Stack spacing={3}>
               <FormControl component="fieldset" required>
                 <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Topic Sensitivity *</FormLabel>
@@ -1105,56 +1145,183 @@ const AdminStoryBriefForm: React.FC = () => {
                 <RadioGroup
                   row
                   value={selectedTopicSensitivity}
-                  onChange={(e) => setSelectedTopicSensitivity(e.target.value as "low" | "medium" | "high")}
+                  onChange={(e) => setSelectedTopicSensitivity(e.target.value)}
                   sx={{ mt: 0.5 }}
                 >
-                  <FormControlLabel value="low" control={<Radio />} label="Low" />
-                  <FormControlLabel value="medium" control={<Radio />} label="Medium" />
-                  <FormControlLabel value="high" control={<Radio />} label="High" />
+                  {topicSensitivities.map((item) => (
+                    <FormControlLabel key={item.key} value={item.key} control={<Radio />} label={getLabel(item, "en")} />
+                  ))}
                 </RadioGroup>
               </FormControl>
 
-              <FormControl fullWidth required>
-                <InputLabel>Emotional Arc</InputLabel>
-                <Select
+              <FormControl component="fieldset" required fullWidth>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Emotional Arc *
+                </FormLabel>
+                <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                  The macro-structure of the journey — the big-picture design of how the story unfolds.
+                </FormHelperText>
+                <RadioGroup
                   value={selectedEmotionalArc}
-                  onChange={(e) => setSelectedEmotionalArc(e.target.value as "gentle_progression" | "acknowledge_then_resolve" | "discovery_journey" | "supported_transition")}
-                  label="Emotional Arc"
+                  onChange={(e) => setSelectedEmotionalArc(e.target.value)}
+                  sx={{ gap: 1.5 }}
                 >
-                  <MenuItem value="gentle_progression">Gentle Progression — calm start, gradual challenge, gentle resolution</MenuItem>
-                  <MenuItem value="acknowledge_then_resolve">Acknowledge Then Resolve — validates difficulty first, then coping</MenuItem>
-                  <MenuItem value="discovery_journey">Discovery Journey — curiosity-led, protagonist discovers they can handle it</MenuItem>
-                  <MenuItem value="supported_transition">Supported Transition — receives help and gradually becomes independent</MenuItem>
-                </Select>
-                <FormHelperText>The macro-structure of the journey — the big-picture design of how the story unfolds.</FormHelperText>
+                  {emotionalArcOptions.map((arc) => {
+                    const isSelected = selectedEmotionalArc === arc.key;
+                    const desc = getDescription(arc, "en");
+                    return (
+                      <Paper
+                        key={arc.key}
+                        elevation={0}
+                        variant="outlined"
+                        sx={{
+                          borderWidth: 2,
+                          borderColor: (theme) =>
+                            isSelected ? theme.palette.primary.main : theme.palette.divider,
+                          bgcolor: (theme) =>
+                            isSelected
+                              ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.14 : 0.08)
+                              : theme.palette.background.paper,
+                          transition: (theme) =>
+                            theme.transitions.create(["border-color", "background-color"], {
+                              duration: theme.transitions.duration.shorter,
+                            }),
+                        }}
+                      >
+                        <FormControlLabel
+                          value={arc.key}
+                          control={
+                            <Radio
+                              sx={{
+                                alignSelf: "flex-start",
+                                pt: 1.25,
+                              }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ py: 1.25, pr: 1 }}>
+                              <Typography
+                                variant="subtitle1"
+                                component="span"
+                                sx={{ fontWeight: 600, display: "block" }}
+                              >
+                                {getLabel(arc, "en")}
+                              </Typography>
+                              {desc && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.5, lineHeight: 1.45 }}
+                                >
+                                  {desc}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                          sx={{
+                            m: 0,
+                            mx: 0,
+                            ml: 1,
+                            alignItems: "flex-start",
+                            width: "100%",
+                            pr: 2,
+                          }}
+                        />
+                      </Paper>
+                    );
+                  })}
+                </RadioGroup>
               </FormControl>
 
-              <FormControl fullWidth required>
-                <InputLabel>Peak Intensity</InputLabel>
-                <Select
-                  value={selectedPeakIntensity}
-                  onChange={(e) => setSelectedPeakIntensity(e.target.value as "minimal" | "mild" | "moderate")}
-                  label="Peak Intensity"
-                >
-                  <MenuItem value="minimal">Minimal</MenuItem>
-                  <MenuItem value="mild">Mild</MenuItem>
-                  <MenuItem value="moderate">Moderate</MenuItem>
-                </Select>
-                <FormHelperText>
-                  Within the arc, how intense the hardest moment gets. Different arcs have different natural peak points.
+              <FormControl component="fieldset" required fullWidth>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Peak Intensity *
+                </FormLabel>
+                <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                  How intense the most challenging emotional moment should be.
                 </FormHelperText>
+                <RadioGroup
+                  value={selectedPeakIntensity}
+                  onChange={(e) => setSelectedPeakIntensity(e.target.value)}
+                  sx={{ gap: 1.5 }}
+                >
+                  {peakIntensities.map((item) => {
+                    const isSelected = selectedPeakIntensity === item.key;
+                    const desc = getDescription(item, "en");
+                    return (
+                      <Paper
+                        key={item.key}
+                        elevation={0}
+                        variant="outlined"
+                        sx={{
+                          borderWidth: 2,
+                          borderColor: (theme) =>
+                            isSelected ? theme.palette.primary.main : theme.palette.divider,
+                          bgcolor: (theme) =>
+                            isSelected
+                              ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.14 : 0.08)
+                              : theme.palette.background.paper,
+                          transition: (theme) =>
+                            theme.transitions.create(["border-color", "background-color"], {
+                              duration: theme.transitions.duration.shorter,
+                            }),
+                        }}
+                      >
+                        <FormControlLabel
+                          value={item.key}
+                          control={
+                            <Radio
+                              sx={{
+                                alignSelf: "flex-start",
+                                pt: 1.25,
+                              }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ py: 1.25, pr: 1 }}>
+                              <Typography
+                                variant="subtitle1"
+                                component="span"
+                                sx={{ fontWeight: 600, display: "block" }}
+                              >
+                                {getLabel(item, "en")}
+                              </Typography>
+                              {desc && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.5, lineHeight: 1.45 }}
+                                >
+                                  {desc}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                          sx={{
+                            m: 0,
+                            mx: 0,
+                            ml: 1,
+                            alignItems: "flex-start",
+                            width: "100%",
+                            pr: 2,
+                          }}
+                        />
+                      </Paper>
+                    );
+                  })}
+                </RadioGroup>
               </FormControl>
 
               <FormControl fullWidth required>
                 <InputLabel>Emotional Tone</InputLabel>
                 <Select
                   value={selectedEmotionalTone}
-                  onChange={(e) => setSelectedEmotionalTone(e.target.value as "very_gentle" | "calm" | "encouraging")}
+                  onChange={(e) => setSelectedEmotionalTone(e.target.value)}
                   label="Emotional Tone"
                 >
-                  <MenuItem value="very_gentle">Very Gentle</MenuItem>
-                  <MenuItem value="calm">Calm</MenuItem>
-                  <MenuItem value="encouraging">Encouraging</MenuItem>
+                  {emotionalToneOptions.map((item) => (
+                    <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
+                  ))}
                 </Select>
                 <FormHelperText>The overall voice throughout the story — how it sounds, wrapping around arc and intensity.</FormHelperText>
               </FormControl>
@@ -1163,16 +1330,17 @@ const AdminStoryBriefForm: React.FC = () => {
                 <InputLabel>Ending Style</InputLabel>
                 <Select
                   value={selectedEndingStyle}
-                  onChange={(e) => setSelectedEndingStyle(e.target.value as "calm_resolution" | "open_ended" | "empowering")}
+                  onChange={(e) => setSelectedEndingStyle(e.target.value)}
                   label="Ending Style"
                 >
-                  <MenuItem value="calm_resolution">Calm Resolution</MenuItem>
-                  <MenuItem value="open_ended">Open Ended</MenuItem>
-                  <MenuItem value="empowering">Empowering</MenuItem>
+                  {endingStyleOptions.map((item) => (
+                    <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
+                  ))}
                 </Select>
                 <FormHelperText>How the story resolves — the final design choice, shaped by sensitivity, arc, intensity, and tone.</FormHelperText>
               </FormControl>
             </Stack>
+            )}
           </TabPanel>
 
           {/* STEP 4: Character Design */}

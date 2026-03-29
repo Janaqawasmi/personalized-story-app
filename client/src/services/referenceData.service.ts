@@ -16,6 +16,12 @@ export interface ReferenceDataItem {
   /** Coping tools only — typical age range */
   suggestedAgeMin?: number;
   suggestedAgeMax?: number;
+  /** Optional English description (emotional arcs, etc.) */
+  description_en?: string;
+  /** Optional Arabic description */
+  description_ar?: string;
+  /** Optional Hebrew description */
+  description_he?: string;
 }
 
 /** referenceData/copingTools/items */

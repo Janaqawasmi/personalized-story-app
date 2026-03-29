@@ -882,6 +882,12 @@ const peakIntensities: Record<string, Record<string, unknown>> = {
     label_en: "Minimal",
     label_ar: "حد أدنى",
     label_he: "מינימלי",
+    description_en:
+      "The fear is barely acknowledged — story stays light",
+    description_ar:
+      "الخوف يُذكر بالكاد — القصة تبقى خفيفة",
+    description_he:
+      "הפחד כמעט לא נזכר — הסיפור נשאר קליל",
     order: 1,
     active: true,
   },
@@ -889,6 +895,12 @@ const peakIntensities: Record<string, Record<string, unknown>> = {
     label_en: "Mild",
     label_ar: "خفيف",
     label_he: "קל",
+    description_en:
+      "The character feels the emotion briefly but moves past it quickly",
+    description_ar:
+      "الشخصية تشعر بالمشاعر لفترة قصيرة لكنها تتجاوزها بسرعة",
+    description_he:
+      "הדמות מרגישה את הרגש לרגע אבל מתקדמת ממנו במהירות",
     order: 2,
     active: true,
   },
@@ -896,6 +908,12 @@ const peakIntensities: Record<string, Record<string, unknown>> = {
     label_en: "Moderate",
     label_ar: "متوسط",
     label_he: "בינוני",
+    description_en:
+      "The character genuinely struggles before finding their way through",
+    description_ar:
+      "الشخصية تكافح حقاً قبل أن تجد طريقها",
+    description_he:
+      "הדמות באמת מתקשה לפני שהיא מוצאת את דרכה",
     order: 3,
     active: true,
   },
