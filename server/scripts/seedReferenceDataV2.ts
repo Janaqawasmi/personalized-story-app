@@ -29,20 +29,21 @@ const db = admin.firestore();
 
 interface SeedResult {
   created: string[];
-  skipped: string[];
+  /** Existing docs that received a merge write (e.g. new fields like description_en). */
+  updated: string[];
 }
 
 /**
  * Seeds a batch of documents under referenceData/{collectionName}/items/{docId}.
- * Uses get() to check existence first, then set({ merge: true }) for new docs.
- * Existing documents are skipped to preserve manual edits.
+ * Always uses set({ merge: true }): new docs are created; existing docs are merged so
+ * new seed fields (e.g. descriptions) apply without deleting the collection first.
  */
 async function seedCollection(
   batch: admin.firestore.WriteBatch,
   collectionName: string,
   documents: Record<string, Record<string, unknown>>,
 ): Promise<SeedResult> {
-  const result: SeedResult = { created: [], skipped: [] };
+  const result: SeedResult = { created: [], updated: [] };
   const collectionRef = db
     .collection("referenceData")
     .doc(collectionName)
@@ -70,13 +71,13 @@ async function seedCollection(
       );
     }
 
-    if (snap.exists) {
-      result.skipped.push(docId);
-      continue;
-    }
-
+    const existed = snap.exists;
     batch.set(collectionRef.doc(docId), data, { merge: true });
-    result.created.push(docId);
+    if (existed) {
+      result.updated.push(docId);
+    } else {
+      result.created.push(docId);
+    }
   }
 
   return result;
@@ -148,8 +149,8 @@ function logResult(collectionName: string, result: SeedResult): void {
   for (const id of result.created) {
     console.log(`  ✅ [CREATED] ${collectionName}/items/${id}`);
   }
-  for (const id of result.skipped) {
-    console.log(`  ⏭️  [SKIPPED] ${collectionName}/items/${id} (already exists)`);
+  for (const id of result.updated) {
+    console.log(`  🔀 [MERGED] ${collectionName}/items/${id}`);
   }
 }
 
@@ -810,6 +811,12 @@ const emotionalTones: Record<string, Record<string, unknown>> = {
     label_en: "Very gentle",
     label_ar: "لطيف جداً",
     label_he: "עדין מאוד",
+    description_en:
+      "Soft and soothing, like a lullaby. Minimal tension throughout.",
+    description_ar:
+      "ناعم ومهدئ، مثل تهويدة. أقل قدر من التوتر.",
+    description_he:
+      "רך ומרגיע, כמו שיר ערש. מתח מינימלי לאורך כל הסיפור.",
     order: 1,
     active: true,
   },
@@ -817,6 +824,12 @@ const emotionalTones: Record<string, Record<string, unknown>> = {
     label_en: "Calm",
     label_ar: "هادئ",
     label_he: "רגוע",
+    description_en:
+      "Steady and reassuring. Allows some emotional moments while maintaining safety.",
+    description_ar:
+      "ثابت ومطمئن. يسمح ببعض اللحظات العاطفية مع الحفاظ على الأمان.",
+    description_he:
+      "יציב ומרגיע. מאפשר רגעים רגשיים תוך שמירה על תחושת ביטחון.",
     order: 2,
     active: true,
   },
@@ -824,6 +837,12 @@ const emotionalTones: Record<string, Record<string, unknown>> = {
     label_en: "Encouraging",
     label_ar: "مشجع",
     label_he: "מעודד",
+    description_en:
+      "Warm and energizing. Builds the child up with gentle momentum.",
+    description_ar:
+      "دافئ ومحفز. يبني الطفل بزخم لطيف.",
+    description_he:
+      "חם ומעודד. בונה את הילד עם מומנטום עדין.",
     order: 3,
     active: true,
   },
@@ -858,6 +877,12 @@ const endingStyles: Record<string, Record<string, unknown>> = {
     label_en: "Calm resolution",
     label_ar: "حل هادئ",
     label_he: "פתרון רגוע",
+    description_en:
+      "Everything settles peacefully. The child feels safe and the world is in order.",
+    description_ar:
+      "كل شيء يستقر بسلام. الطفل يشعر بالأمان والعالم في نظام.",
+    description_he:
+      "הכל נרגע בשלווה. הילד מרגיש בטוח והעולם מסודר.",
     order: 1,
     active: true,
   },
@@ -865,6 +890,12 @@ const endingStyles: Record<string, Record<string, unknown>> = {
     label_en: "Open-ended",
     label_ar: "نهاية مفتوحة",
     label_he: "סוף פתוח",
+    description_en:
+      "The story doesn't fully resolve — leaves room for the child to imagine their own ending.",
+    description_ar:
+      "القصة لا تنتهي بشكل كامل — تترك مجالاً للطفل لتخيل نهايته الخاصة.",
+    description_he:
+      "הסיפור לא נפתר לגמרי — משאיר מקום לילד לדמיין סיום משלו.",
     order: 2,
     active: true,
   },
@@ -872,6 +903,12 @@ const endingStyles: Record<string, Record<string, unknown>> = {
     label_en: "Empowering",
     label_ar: "تمكيني",
     label_he: "מעצים",
+    description_en:
+      "The character ends with strength and capability. The child feels they can handle what comes next.",
+    description_ar:
+      "الشخصية تنتهي بقوة وقدرة. الطفل يشعر أنه يستطيع التعامل مع ما يأتي.",
+    description_he:
+      "הדמות מסיימת עם כוח ויכולת. הילד מרגיש שהוא יכול להתמודד עם מה שיבוא.",
     order: 3,
     active: true,
   },
@@ -1089,7 +1126,7 @@ async function seedReferenceDataV2() {
   console.log();
 
   const totalCreated: string[] = [];
-  const totalSkipped: string[] = [];
+  const totalMerged: string[] = [];
 
   // Firestore batches are limited to 500 operations.
   // All writes fit in a single batch.
@@ -1100,7 +1137,7 @@ async function seedReferenceDataV2() {
   const topicResult = await seedCollection(batch, "topics", newTopics);
   logResult("topics", topicResult);
   totalCreated.push(...topicResult.created.map((id) => `topics/${id}`));
-  totalSkipped.push(...topicResult.skipped.map((id) => `topics/${id}`));
+  totalMerged.push(...topicResult.updated.map((id) => `topics/${id}`));
   console.log();
 
   // ── 2. General Situations (new collection) ──
@@ -1108,7 +1145,7 @@ async function seedReferenceDataV2() {
   const gSitResult = await seedCollection(batch, "generalSituations", generalSituations);
   logResult("generalSituations", gSitResult);
   totalCreated.push(...gSitResult.created.map((id) => `generalSituations/${id}`));
-  totalSkipped.push(...gSitResult.skipped.map((id) => `generalSituations/${id}`));
+  totalMerged.push(...gSitResult.updated.map((id) => `generalSituations/${id}`));
   console.log();
 
   // ── 3. Specific Situations (new collection) ──
@@ -1116,7 +1153,7 @@ async function seedReferenceDataV2() {
   const sSitResult = await seedCollection(batch, "specificSituations", specificSituations);
   logResult("specificSituations", sSitResult);
   totalCreated.push(...sSitResult.created.map((id) => `specificSituations/${id}`));
-  totalSkipped.push(...sSitResult.skipped.map((id) => `specificSituations/${id}`));
+  totalMerged.push(...sSitResult.updated.map((id) => `specificSituations/${id}`));
   console.log();
 
   // ── 4. Content Exclusions (new collection, old "exclusions" kept) ──
@@ -1124,7 +1161,7 @@ async function seedReferenceDataV2() {
   const ceResult = await seedCollection(batch, "contentExclusions", contentExclusions);
   logResult("contentExclusions", ceResult);
   totalCreated.push(...ceResult.created.map((id) => `contentExclusions/${id}`));
-  totalSkipped.push(...ceResult.skipped.map((id) => `contentExclusions/${id}`));
+  totalMerged.push(...ceResult.updated.map((id) => `contentExclusions/${id}`));
   console.log();
 
   // ── 5. Therapeutic Mechanisms (new collection) ──
@@ -1132,7 +1169,7 @@ async function seedReferenceDataV2() {
   const tmResult = await seedCollection(batch, "therapeuticMechanisms", therapeuticMechanisms);
   logResult("therapeuticMechanisms", tmResult);
   totalCreated.push(...tmResult.created.map((id) => `therapeuticMechanisms/${id}`));
-  totalSkipped.push(...tmResult.skipped.map((id) => `therapeuticMechanisms/${id}`));
+  totalMerged.push(...tmResult.updated.map((id) => `therapeuticMechanisms/${id}`));
   console.log();
 
   // ── 6. Coping Tools (new collection) ──
@@ -1140,7 +1177,7 @@ async function seedReferenceDataV2() {
   const ctResult = await seedCollection(batch, "copingTools", copingTools);
   logResult("copingTools", ctResult);
   totalCreated.push(...ctResult.created.map((id) => `copingTools/${id}`));
-  totalSkipped.push(...ctResult.skipped.map((id) => `copingTools/${id}`));
+  totalMerged.push(...ctResult.updated.map((id) => `copingTools/${id}`));
   console.log();
 
   // ── 6b. Coping Tool Groups (new collection — group labels for UI) ──
@@ -1148,7 +1185,7 @@ async function seedReferenceDataV2() {
   const ctgResult = await seedCollection(batch, "copingToolGroups", copingToolGroups);
   logResult("copingToolGroups", ctgResult);
   totalCreated.push(...ctgResult.created.map((id) => `copingToolGroups/${id}`));
-  totalSkipped.push(...ctgResult.skipped.map((id) => `copingToolGroups/${id}`));
+  totalMerged.push(...ctgResult.updated.map((id) => `copingToolGroups/${id}`));
   console.log();
 
   // ── 6c. Merge "group" field into existing coping tool docs ──
@@ -1194,7 +1231,7 @@ async function seedReferenceDataV2() {
     const r = await seedCollection(batch, name, docs);
     logResult(name, r);
     totalCreated.push(...r.created.map((id) => `${name}/${id}`));
-    totalSkipped.push(...r.skipped.map((id) => `${name}/${id}`));
+    totalMerged.push(...r.updated.map((id) => `${name}/${id}`));
     console.log();
   }
 
@@ -1203,7 +1240,7 @@ async function seedReferenceDataV2() {
   const eaResult = await seedCollection(batch, "emotionalArcs", emotionalArcs);
   logResult("emotionalArcs", eaResult);
   totalCreated.push(...eaResult.created.map((id) => `emotionalArcs/${id}`));
-  totalSkipped.push(...eaResult.skipped.map((id) => `emotionalArcs/${id}`));
+  totalMerged.push(...eaResult.updated.map((id) => `emotionalArcs/${id}`));
   console.log();
 
   // ── 8. Emotional Goals (add missing to existing collection) ──
@@ -1211,7 +1248,7 @@ async function seedReferenceDataV2() {
   const egResult = await seedCollection(batch, "emotionalGoals", newEmotionalGoals);
   logResult("emotionalGoals", egResult);
   totalCreated.push(...egResult.created.map((id) => `emotionalGoals/${id}`));
-  totalSkipped.push(...egResult.skipped.map((id) => `emotionalGoals/${id}`));
+  totalMerged.push(...egResult.updated.map((id) => `emotionalGoals/${id}`));
   console.log();
 
   // ── Metadata document ──
@@ -1258,9 +1295,9 @@ async function seedReferenceDataV2() {
   console.log("═══════════════════════════════════════════════════════════");
   console.log("  SUMMARY");
   console.log("═══════════════════════════════════════════════════════════");
-  console.log(`  Created: ${totalCreated.length} documents`);
-  console.log(`  Skipped: ${totalSkipped.length} documents (already existed)`);
-  console.log(`  Total:   ${totalCreated.length + totalSkipped.length} documents processed`);
+  console.log(`  Created: ${totalCreated.length} documents (new)`);
+  console.log(`  Merged:  ${totalMerged.length} documents (existing — seed fields applied)`);
+  console.log(`  Total:   ${totalCreated.length + totalMerged.length} documents processed`);
   console.log("═══════════════════════════════════════════════════════════");
 
   if (totalCreated.length > 0) {
@@ -1271,11 +1308,11 @@ async function seedReferenceDataV2() {
     }
   }
 
-  if (totalSkipped.length > 0) {
+  if (totalMerged.length > 0) {
     console.log();
-    console.log("  Skipped documents:");
-    for (const path of totalSkipped) {
-      console.log(`    ~ referenceData/${path}`);
+    console.log("  Merged documents (updated in place):");
+    for (const path of totalMerged) {
+      console.log(`    ↻ referenceData/${path}`);
     }
   }
 

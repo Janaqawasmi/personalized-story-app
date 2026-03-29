@@ -136,17 +136,21 @@ const AdminStoryBriefForm: React.FC = () => {
   const [selectedSpecificSituationKey, setSelectedSpecificSituationKey] = useState<string>('');
   const [ageMin, setAgeMin] = useState<number>(3);
   const [ageMax, setAgeMax] = useState<number>(6);
-  const [selectedTopicSensitivity, setSelectedTopicSensitivity] = useState<string>("medium");
+  const [selectedTopicSensitivity, setSelectedTopicSensitivity] = useState<string>("");
   const [selectedEmotionalGoals, setSelectedEmotionalGoals] = useState<string[]>([]);
   const [keyMessage, setKeyMessage] = useState<string>('');
   const [selectedMechanisms, setSelectedMechanisms] = useState<string[]>([]);
   const [selectedCopingTools, setSelectedCopingTools] = useState<string[]>([]);
   const [therapeuticBoundaries, setTherapeuticBoundaries] = useState<string[]>(['']);
   const [selectedComplexity, setSelectedComplexity] = useState<"very_simple" | "simple" | "moderate">("simple");
-  const [selectedEmotionalTone, setSelectedEmotionalTone] = useState<string>("calm");
-  const [selectedEndingStyle, setSelectedEndingStyle] = useState<string>("calm_resolution");
-  const [selectedEmotionalArc, setSelectedEmotionalArc] = useState<string>("gentle_progression");
-  const [selectedPeakIntensity, setSelectedPeakIntensity] = useState<string>("mild");
+  const [selectedEmotionalTone, setSelectedEmotionalTone] = useState<string>("");
+  const [selectedEndingStyle, setSelectedEndingStyle] = useState<string>("");
+  const [selectedEmotionalArc, setSelectedEmotionalArc] = useState<string>("");
+  const [selectedPeakIntensity, setSelectedPeakIntensity] = useState<string>("");
+  /** Inline errors for Step 3 (Emotional Design) required fields — new briefs start empty. */
+  const [step3FieldErrors, setStep3FieldErrors] = useState<
+    Partial<Record<"topicSensitivity" | "emotionalArc" | "peakIntensity" | "emotionalTone" | "endingStyle", string>>
+  >({});
   const [selectedExclusions, setSelectedExclusions] = useState<string[]>([]);
   const [selectedProtagonistType, setSelectedProtagonistType] = useState<"child_character" | "animal_character" | "fantasy_character">("child_character");
   const [selectedProtagonistAgeRelation, setSelectedProtagonistAgeRelation] = useState<"same_age" | "slightly_older" | "unspecified">("same_age");
@@ -471,6 +475,36 @@ const AdminStoryBriefForm: React.FC = () => {
     setTherapeuticBoundaries((prev) => prev.filter((_, i) => i !== index));
   };
 
+  /** Returns true if all Step 3 fields are set; sets inline errors and banner message otherwise. */
+  const validateStep3 = (): boolean => {
+    const next: Partial<
+      Record<"topicSensitivity" | "emotionalArc" | "peakIntensity" | "emotionalTone" | "endingStyle", string>
+    > = {};
+    if (!selectedTopicSensitivity.trim()) {
+      next.topicSensitivity = "Please select topic sensitivity.";
+    }
+    if (!selectedEmotionalArc.trim()) {
+      next.emotionalArc = "Please select an emotional arc.";
+    }
+    if (!selectedPeakIntensity.trim()) {
+      next.peakIntensity = "Please select peak intensity.";
+    }
+    if (!selectedEmotionalTone.trim()) {
+      next.emotionalTone = "Please select emotional tone.";
+    }
+    if (!selectedEndingStyle.trim()) {
+      next.endingStyle = "Please select ending style.";
+    }
+    if (Object.keys(next).length > 0) {
+      setStep3FieldErrors(next);
+      setError("Please complete all Emotional Design fields before continuing.");
+      return false;
+    }
+    setStep3FieldErrors({});
+    setError(null);
+    return true;
+  };
+
   // Handle exclusion toggle
   const handleExclusionToggle = (exclusionKey: string) => {
     setSelectedExclusions((prev) => {
@@ -511,6 +545,10 @@ const AdminStoryBriefForm: React.FC = () => {
         setError('Please add at least one therapeutic boundary');
         return;
       }
+    } else if (activeStep === 2) {
+      if (!validateStep3()) {
+        return;
+      }
     }
     setError(null);
     setActiveStep((prev) => Math.min(prev + 1, 5));
@@ -544,6 +582,10 @@ const AdminStoryBriefForm: React.FC = () => {
         const nonEmptyBoundaries = therapeuticBoundaries.filter((b) => b.trim().length > 0);
         if (nonEmptyBoundaries.length === 0) {
           setError('Please add at least one therapeutic boundary');
+          return;
+        }
+      } else if (activeStep === 2 && newValue > activeStep) {
+        if (!validateStep3()) {
           return;
         }
       }
@@ -591,6 +633,11 @@ const AdminStoryBriefForm: React.FC = () => {
     const nonEmptyBoundaries = therapeuticBoundaries.filter((b) => b.trim().length > 0);
     if (nonEmptyBoundaries.length === 0) {
       setError('Please add at least one therapeutic boundary');
+      return;
+    }
+
+    if (!validateStep3()) {
+      setActiveStep(2);
       return;
     }
 
@@ -1137,7 +1184,7 @@ const AdminStoryBriefForm: React.FC = () => {
               <Typography variant="body2" color="text.secondary">Loading emotional design options...</Typography>
             ) : (
             <Stack spacing={3}>
-              <FormControl component="fieldset" required>
+              <FormControl component="fieldset" required error={!!step3FieldErrors.topicSensitivity}>
                 <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Topic Sensitivity *</FormLabel>
                 <FormHelperText sx={{ mb: 1, mt: 0 }}>
                   How sensitive the topic is for the target audience. High sensitivity limits how intense the peak can be and influences tone and arc.
@@ -1145,16 +1192,22 @@ const AdminStoryBriefForm: React.FC = () => {
                 <RadioGroup
                   row
                   value={selectedTopicSensitivity}
-                  onChange={(e) => setSelectedTopicSensitivity(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedTopicSensitivity(e.target.value);
+                    setStep3FieldErrors((p) => ({ ...p, topicSensitivity: undefined }));
+                  }}
                   sx={{ mt: 0.5 }}
                 >
                   {topicSensitivities.map((item) => (
                     <FormControlLabel key={item.key} value={item.key} control={<Radio />} label={getLabel(item, "en")} />
                   ))}
                 </RadioGroup>
+                {step3FieldErrors.topicSensitivity && (
+                  <FormHelperText error sx={{ mx: 0 }}>{step3FieldErrors.topicSensitivity}</FormHelperText>
+                )}
               </FormControl>
 
-              <FormControl component="fieldset" required fullWidth>
+              <FormControl component="fieldset" required fullWidth error={!!step3FieldErrors.emotionalArc}>
                 <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
                   Emotional Arc *
                 </FormLabel>
@@ -1163,7 +1216,10 @@ const AdminStoryBriefForm: React.FC = () => {
                 </FormHelperText>
                 <RadioGroup
                   value={selectedEmotionalArc}
-                  onChange={(e) => setSelectedEmotionalArc(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedEmotionalArc(e.target.value);
+                    setStep3FieldErrors((p) => ({ ...p, emotionalArc: undefined }));
+                  }}
                   sx={{ gap: 1.5 }}
                 >
                   {emotionalArcOptions.map((arc) => {
@@ -1231,9 +1287,12 @@ const AdminStoryBriefForm: React.FC = () => {
                     );
                   })}
                 </RadioGroup>
+                {step3FieldErrors.emotionalArc && (
+                  <FormHelperText error sx={{ mx: 0 }}>{step3FieldErrors.emotionalArc}</FormHelperText>
+                )}
               </FormControl>
 
-              <FormControl component="fieldset" required fullWidth>
+              <FormControl component="fieldset" required fullWidth error={!!step3FieldErrors.peakIntensity}>
                 <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
                   Peak Intensity *
                 </FormLabel>
@@ -1242,7 +1301,10 @@ const AdminStoryBriefForm: React.FC = () => {
                 </FormHelperText>
                 <RadioGroup
                   value={selectedPeakIntensity}
-                  onChange={(e) => setSelectedPeakIntensity(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedPeakIntensity(e.target.value);
+                    setStep3FieldErrors((p) => ({ ...p, peakIntensity: undefined }));
+                  }}
                   sx={{ gap: 1.5 }}
                 >
                   {peakIntensities.map((item) => {
@@ -1310,34 +1372,179 @@ const AdminStoryBriefForm: React.FC = () => {
                     );
                   })}
                 </RadioGroup>
+                {step3FieldErrors.peakIntensity && (
+                  <FormHelperText error sx={{ mx: 0 }}>{step3FieldErrors.peakIntensity}</FormHelperText>
+                )}
               </FormControl>
 
-              <FormControl fullWidth required>
-                <InputLabel>Emotional Tone</InputLabel>
-                <Select
+              <FormControl component="fieldset" required fullWidth error={!!step3FieldErrors.emotionalTone}>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Emotional Tone *
+                </FormLabel>
+                <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                  The overall voice throughout the story — how it sounds, wrapping around arc and intensity.
+                </FormHelperText>
+                <RadioGroup
                   value={selectedEmotionalTone}
-                  onChange={(e) => setSelectedEmotionalTone(e.target.value)}
-                  label="Emotional Tone"
+                  onChange={(e) => {
+                    setSelectedEmotionalTone(e.target.value);
+                    setStep3FieldErrors((p) => ({ ...p, emotionalTone: undefined }));
+                  }}
+                  sx={{ gap: 1.5 }}
                 >
-                  {emotionalToneOptions.map((item) => (
-                    <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
-                  ))}
-                </Select>
-                <FormHelperText>The overall voice throughout the story — how it sounds, wrapping around arc and intensity.</FormHelperText>
+                  {emotionalToneOptions.map((item) => {
+                    const isSelected = selectedEmotionalTone === item.key;
+                    const desc = getDescription(item, "en");
+                    return (
+                      <Paper
+                        key={item.key}
+                        elevation={0}
+                        variant="outlined"
+                        sx={{
+                          borderWidth: 2,
+                          borderColor: (theme) =>
+                            isSelected ? theme.palette.primary.main : theme.palette.divider,
+                          bgcolor: (theme) =>
+                            isSelected
+                              ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.14 : 0.08)
+                              : theme.palette.background.paper,
+                          transition: (theme) =>
+                            theme.transitions.create(["border-color", "background-color"], {
+                              duration: theme.transitions.duration.shorter,
+                            }),
+                        }}
+                      >
+                        <FormControlLabel
+                          value={item.key}
+                          control={
+                            <Radio
+                              sx={{
+                                alignSelf: "flex-start",
+                                pt: 1.25,
+                              }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ py: 1.25, pr: 1 }}>
+                              <Typography
+                                variant="subtitle1"
+                                component="span"
+                                sx={{ fontWeight: 600, display: "block" }}
+                              >
+                                {getLabel(item, "en")}
+                              </Typography>
+                              {desc && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.5, lineHeight: 1.45 }}
+                                >
+                                  {desc}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                          sx={{
+                            m: 0,
+                            mx: 0,
+                            ml: 1,
+                            alignItems: "flex-start",
+                            width: "100%",
+                            pr: 2,
+                          }}
+                        />
+                      </Paper>
+                    );
+                  })}
+                </RadioGroup>
+                {step3FieldErrors.emotionalTone && (
+                  <FormHelperText error sx={{ mx: 0 }}>{step3FieldErrors.emotionalTone}</FormHelperText>
+                )}
               </FormControl>
 
-              <FormControl fullWidth required>
-                <InputLabel>Ending Style</InputLabel>
-                <Select
+              <FormControl component="fieldset" required fullWidth error={!!step3FieldErrors.endingStyle}>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Ending Style *
+                </FormLabel>
+                <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                  How the story resolves — the final design choice, shaped by sensitivity, arc, intensity, and tone.
+                </FormHelperText>
+                <RadioGroup
                   value={selectedEndingStyle}
-                  onChange={(e) => setSelectedEndingStyle(e.target.value)}
-                  label="Ending Style"
+                  onChange={(e) => {
+                    setSelectedEndingStyle(e.target.value);
+                    setStep3FieldErrors((p) => ({ ...p, endingStyle: undefined }));
+                  }}
+                  sx={{ gap: 1.5 }}
                 >
-                  {endingStyleOptions.map((item) => (
-                    <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
-                  ))}
-                </Select>
-                <FormHelperText>How the story resolves — the final design choice, shaped by sensitivity, arc, intensity, and tone.</FormHelperText>
+                  {endingStyleOptions.map((item) => {
+                    const isSelected = selectedEndingStyle === item.key;
+                    const desc = getDescription(item, "en");
+                    return (
+                      <Paper
+                        key={item.key}
+                        elevation={0}
+                        variant="outlined"
+                        sx={{
+                          borderWidth: 2,
+                          borderColor: (theme) =>
+                            isSelected ? theme.palette.primary.main : theme.palette.divider,
+                          bgcolor: (theme) =>
+                            isSelected
+                              ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.14 : 0.08)
+                              : theme.palette.background.paper,
+                          transition: (theme) =>
+                            theme.transitions.create(["border-color", "background-color"], {
+                              duration: theme.transitions.duration.shorter,
+                            }),
+                        }}
+                      >
+                        <FormControlLabel
+                          value={item.key}
+                          control={
+                            <Radio
+                              sx={{
+                                alignSelf: "flex-start",
+                                pt: 1.25,
+                              }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ py: 1.25, pr: 1 }}>
+                              <Typography
+                                variant="subtitle1"
+                                component="span"
+                                sx={{ fontWeight: 600, display: "block" }}
+                              >
+                                {getLabel(item, "en")}
+                              </Typography>
+                              {desc && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.5, lineHeight: 1.45 }}
+                                >
+                                  {desc}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                          sx={{
+                            m: 0,
+                            mx: 0,
+                            ml: 1,
+                            alignItems: "flex-start",
+                            width: "100%",
+                            pr: 2,
+                          }}
+                        />
+                      </Paper>
+                    );
+                  })}
+                </RadioGroup>
+                {step3FieldErrors.endingStyle && (
+                  <FormHelperText error sx={{ mx: 0 }}>{step3FieldErrors.endingStyle}</FormHelperText>
+                )}
               </FormControl>
             </Stack>
             )}
