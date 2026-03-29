@@ -1093,30 +1093,14 @@ const AdminStoryBriefForm: React.FC = () => {
 
           {/* STEP 3: Emotional Design */}
           <TabPanel value={activeStep} index={2}>
-            <Typography variant="h6" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 1 }}>
+            <Typography variant="h6" component="h2" sx={{ fontWeight: 600, mb: 3 }}>
               Emotional Design
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Define the emotional journey, tone, sensitivity, and resolution style.
-            </Typography>
             <Stack spacing={3}>
-              <FormControl fullWidth required>
-                <InputLabel>Emotional Tone</InputLabel>
-                <Select
-                  value={selectedEmotionalTone}
-                  onChange={(e) => setSelectedEmotionalTone(e.target.value as "very_gentle" | "calm" | "encouraging")}
-                  label="Emotional Tone"
-                >
-                  <MenuItem value="very_gentle">Very Gentle</MenuItem>
-                  <MenuItem value="calm">Calm</MenuItem>
-                  <MenuItem value="encouraging">Encouraging</MenuItem>
-                </Select>
-              </FormControl>
-
               <FormControl component="fieldset" required>
                 <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Topic Sensitivity *</FormLabel>
                 <FormHelperText sx={{ mb: 1, mt: 0 }}>
-                  How sensitive the topic is for the target audience.
+                  How sensitive the topic is for the target audience. High sensitivity limits how intense the peak can be and influences tone and arc.
                 </FormHelperText>
                 <RadioGroup
                   row
@@ -1131,19 +1115,6 @@ const AdminStoryBriefForm: React.FC = () => {
               </FormControl>
 
               <FormControl fullWidth required>
-                <InputLabel>Ending Style</InputLabel>
-                <Select
-                  value={selectedEndingStyle}
-                  onChange={(e) => setSelectedEndingStyle(e.target.value as "calm_resolution" | "open_ended" | "empowering")}
-                  label="Ending Style"
-                >
-                  <MenuItem value="calm_resolution">Calm Resolution</MenuItem>
-                  <MenuItem value="open_ended">Open Ended</MenuItem>
-                  <MenuItem value="empowering">Empowering</MenuItem>
-                </Select>
-              </FormControl>
-
-              <FormControl fullWidth required>
                 <InputLabel>Emotional Arc</InputLabel>
                 <Select
                   value={selectedEmotionalArc}
@@ -1155,6 +1126,7 @@ const AdminStoryBriefForm: React.FC = () => {
                   <MenuItem value="discovery_journey">Discovery Journey — curiosity-led, protagonist discovers they can handle it</MenuItem>
                   <MenuItem value="supported_transition">Supported Transition — receives help and gradually becomes independent</MenuItem>
                 </Select>
+                <FormHelperText>The macro-structure of the journey — the big-picture design of how the story unfolds.</FormHelperText>
               </FormControl>
 
               <FormControl fullWidth required>
@@ -1168,7 +1140,37 @@ const AdminStoryBriefForm: React.FC = () => {
                   <MenuItem value="mild">Mild</MenuItem>
                   <MenuItem value="moderate">Moderate</MenuItem>
                 </Select>
-                <FormHelperText>How intense the most challenging emotional moment should be</FormHelperText>
+                <FormHelperText>
+                  Within the arc, how intense the hardest moment gets. Different arcs have different natural peak points.
+                </FormHelperText>
+              </FormControl>
+
+              <FormControl fullWidth required>
+                <InputLabel>Emotional Tone</InputLabel>
+                <Select
+                  value={selectedEmotionalTone}
+                  onChange={(e) => setSelectedEmotionalTone(e.target.value as "very_gentle" | "calm" | "encouraging")}
+                  label="Emotional Tone"
+                >
+                  <MenuItem value="very_gentle">Very Gentle</MenuItem>
+                  <MenuItem value="calm">Calm</MenuItem>
+                  <MenuItem value="encouraging">Encouraging</MenuItem>
+                </Select>
+                <FormHelperText>The overall voice throughout the story — how it sounds, wrapping around arc and intensity.</FormHelperText>
+              </FormControl>
+
+              <FormControl fullWidth required>
+                <InputLabel>Ending Style</InputLabel>
+                <Select
+                  value={selectedEndingStyle}
+                  onChange={(e) => setSelectedEndingStyle(e.target.value as "calm_resolution" | "open_ended" | "empowering")}
+                  label="Ending Style"
+                >
+                  <MenuItem value="calm_resolution">Calm Resolution</MenuItem>
+                  <MenuItem value="open_ended">Open Ended</MenuItem>
+                  <MenuItem value="empowering">Empowering</MenuItem>
+                </Select>
+                <FormHelperText>How the story resolves — the final design choice, shaped by sensitivity, arc, intensity, and tone.</FormHelperText>
               </FormControl>
             </Stack>
           </TabPanel>
