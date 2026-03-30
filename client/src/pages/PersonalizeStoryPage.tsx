@@ -26,6 +26,7 @@ import semiRealisticImg from "../assets/story-styles/semi-realistic.jpeg";
 import flatCartoonImg from "../assets/story-styles/flat-cartoon.jpeg";
 import paperCraftImg from "../assets/story-styles/paper-craft.jpeg";
 import vintageGoldenImg from "../assets/story-styles/vintage-1950s-little-golden.jpeg";
+import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
 
 type VisualStyle =
   | "watercolor"
@@ -89,12 +90,8 @@ const VISUAL_STYLES = [
   },
 ];
 
-function getPersonalizationKey(storyId: string): string {
-  return `qosati_personalization_${storyId}`;
-}
-
 function loadPersonalizationSession(storyId: string): PersonalizationSession | null {
-  const key = getPersonalizationKey(storyId);
+  const key = getStoryPersonalizationStorageKey(storyId);
   const stored = localStorage.getItem(key);
   if (!stored) return null;
   try {
@@ -109,7 +106,7 @@ function savePersonalizationSession(
   data: StoryPersonalizationData,
   status: "draft" | "completed"
 ): void {
-  const key = getPersonalizationKey(storyId);
+  const key = getStoryPersonalizationStorageKey(storyId);
   const session: PersonalizationSession = {
     status,
     data: {
@@ -125,7 +122,7 @@ function savePersonalizationSession(
 }
 
 function deletePersonalizationSession(storyId: string): void {
-  const key = getPersonalizationKey(storyId);
+  const key = getStoryPersonalizationStorageKey(storyId);
   localStorage.removeItem(key);
 }
 

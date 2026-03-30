@@ -1,5 +1,15 @@
-import { Box, Typography, IconButton, useTheme, Tooltip, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
-import { useEffect, useState, useRef } from "react";
+import {
+  Box,
+  Typography,
+  IconButton,
+  useTheme,
+  Tooltip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+} from "@mui/material";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -15,6 +25,7 @@ import StopIcon from "@mui/icons-material/Stop";
 import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
+import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
 import InstructionModal from "../components/InstructionModal";
 import { useTranslation } from "../i18n/useTranslation";
 import { useReader } from "../contexts/ReaderContext";
@@ -27,6 +38,13 @@ import {
   ttsIsPaused,
   ttsGetVoices,
 } from "../utils/tts";
+import {
+  buildPersonalizedReaderPages,
+  getStoryPersonalizationStorageKey,
+  normalizeStoryLanguage,
+  resolveGenderForPreview,
+  PREVIEW_SPREAD_LIMIT,
+} from "../utils/storyPersonalization";
 
 type Page = {
   pageNumber: number;
@@ -56,6 +74,20 @@ function getCurrentLanguage(): string {
   return "he";
 }
 
+/**
+ * Strong guided scroll: vertically centers the purchase block in the viewport, then nudges
+ * downward so headline + Add to cart sit clearly in view (not just the CTA top edge).
+ */
+function scrollPreviewPurchaseBlockIntoView(el: HTMLElement) {
+  const rect = el.getBoundingClientRect();
+  const elCenterY = rect.top + window.scrollY + rect.height / 2;
+  const vh = window.innerHeight;
+  const downwardBiasPx = Math.min(120, Math.round(vh * 0.18));
+  const stickyNavAllowance = 56;
+  const targetScroll = elCenterY - vh / 2 + downwardBiasPx - stickyNavAllowance;
+  window.scrollTo({ top: Math.max(0, targetScroll), behavior: "smooth" });
+}
+
 export default function BookReaderPage() {
   const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
@@ -69,6 +101,10 @@ export default function BookReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previewCtaSectionRef = useRef<HTMLDivElement>(null);
+  const previewCtaAnchorRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledToPreviewCTARef = useRef(false);
+  const isFullScreenRef = useRef(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const { isFullScreen, toggleFullScreen } = useReader();
   const [isReading, setIsReading] = useState(false);
@@ -76,9 +112,11 @@ export default function BookReaderPage() {
   const [autoRead, setAutoRead] = useState(false);
   const autoReadRef = useRef(autoRead);
   const spreadIndexRef = useRef(spreadIndex);
+  const lastUnlockedSpreadIndexRef = useRef(0);
   const shouldClearPersonalizationRef = useRef(true);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
+  const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
@@ -91,6 +129,61 @@ export default function BookReaderPage() {
     return vLang === target || vLang.startsWith(target.split("-")[0]);
   });
 
+  const lastUnlockedSpreadIndex = useMemo(
+    () => (story ? Math.min(PREVIEW_SPREAD_LIMIT - 1, story.pages.length - 1) : 0),
+    [story]
+  );
+
+  const hasLockedSpreadsBeyondPreview =
+    !!story && story.pages.length > lastUnlockedSpreadIndex + 1;
+
+  useEffect(() => {
+    hasAutoScrolledToPreviewCTARef.current = false;
+    setPreviewUnlockOverlayOpen(false);
+  }, [storyId]);
+
+  useEffect(() => {
+    if (spreadIndex < lastUnlockedSpreadIndex) {
+      setPreviewUnlockOverlayOpen(false);
+    }
+  }, [spreadIndex, lastUnlockedSpreadIndex]);
+
+  useEffect(() => {
+    isFullScreenRef.current = isFullScreen;
+  }, [isFullScreen]);
+
+  // Smooth scroll when unlock overlay opens (normal mode only); reset guard when it closes.
+  useEffect(() => {
+    if (!previewUnlockOverlayOpen) {
+      hasAutoScrolledToPreviewCTARef.current = false;
+      return;
+    }
+    if (loading || showCover || showInstructions || !story || isFullScreen) return;
+    if (hasAutoScrolledToPreviewCTARef.current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      const run = () => {
+        if (hasAutoScrolledToPreviewCTARef.current || isFullScreenRef.current) return;
+        const purchasePanel = previewCtaAnchorRef.current;
+        const outer = previewCtaSectionRef.current;
+        const target = purchasePanel ?? outer;
+        if (!target) return;
+        scrollPreviewPurchaseBlockIntoView(target);
+        hasAutoScrolledToPreviewCTARef.current = true;
+      };
+      requestAnimationFrame(() => requestAnimationFrame(run));
+    }, 650);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    loading,
+    showCover,
+    showInstructions,
+    story,
+    previewUnlockOverlayOpen,
+    isFullScreen,
+  ]);
+
   // Check for personalization before loading story
   useEffect(() => {
     if (!storyId) {
@@ -100,7 +193,7 @@ export default function BookReaderPage() {
     }
 
     // Check if personalization session exists and is completed
-    const personalizationKey = `qosati_personalization_${storyId}`;
+    const personalizationKey = getStoryPersonalizationStorageKey(storyId);
     const personalizationStr = localStorage.getItem(personalizationKey);
     
     if (!personalizationStr) {
@@ -109,8 +202,9 @@ export default function BookReaderPage() {
       return;
     }
 
+    let session: { status: string; data?: { childName?: string; gender?: "male" | "female"; photoPreviewUrl?: string } };
     try {
-      const session = JSON.parse(personalizationStr);
+      session = JSON.parse(personalizationStr);
       if (session.status !== "completed") {
         // Draft session or invalid - redirect to personalization
         navigate(`/stories/${storyId}/personalize`);
@@ -144,15 +238,28 @@ export default function BookReaderPage() {
 
         // Get story language (for display, not blocking)
         const storyLanguage = data.language || data.generationConfig?.language;
+        const lang = normalizeStoryLanguage(storyLanguage);
+        const gender = resolveGenderForPreview(session.data?.gender);
+        const placeholderName = t("storyDetail.previewPlaceholderChildName");
+        const displayName = session.data?.childName?.trim()
+          ? session.data.childName.trim()
+          : placeholderName;
+        const photo =
+          session.data?.photoPreviewUrl?.trim() || undefined;
 
-        // Sort pages by pageNumber
-        const pages = (data.pages || []).sort(
-          (a: Page, b: Page) => a.pageNumber - b.pageNumber
-        ).map((page: Page) => ({
-          ...page,
-          // Add temporary placeholder image URL based on page number
-          imageUrl: `/story-images/placeholders/${page.pageNumber}.jpg`,
-        }));
+        const sortedRaw = (data.pages || []).sort(
+          (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
+        );
+
+        const pages: Page[] = buildPersonalizedReaderPages(sortedRaw, {
+          gender,
+          childDisplayName: displayName,
+          language: lang,
+          photoPreviewUrl: photo,
+          fallbackImageUrl: (pageNumber) => `/story-images/placeholders/${pageNumber}.jpg`,
+          previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
+          lockedPlaceholderName: t("pages.bookReader.lockedChildPlaceholder"),
+        });
 
         setStory({
           id: storySnap.id,
@@ -170,14 +277,14 @@ export default function BookReaderPage() {
     };
 
     fetchStory();
-  }, [storyId, CURRENT_LANGUAGE, navigate]);
+  }, [storyId, CURRENT_LANGUAGE, navigate, t]);
 
   // Clear personalization when component unmounts (user leaves the story)
   // This ensures personalization is session-scoped, not persistent
   useEffect(() => {
     if (!storyId) return;
 
-    const personalizationKey = `qosati_personalization_${storyId}`;
+    const personalizationKey = getStoryPersonalizationStorageKey(storyId);
     
     return () => {
       if (!shouldClearPersonalizationRef.current) return;
@@ -200,6 +307,10 @@ export default function BookReaderPage() {
   useEffect(() => {
     spreadIndexRef.current = spreadIndex;
   }, [spreadIndex]);
+
+  useEffect(() => {
+    lastUnlockedSpreadIndexRef.current = lastUnlockedSpreadIndex;
+  }, [lastUnlockedSpreadIndex]);
 
   // Load voices once
   useEffect(() => {
@@ -255,27 +366,34 @@ export default function BookReaderPage() {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [isFullScreen, toggleFullScreen]);
 
-  // Keyboard navigation
+  // Keyboard navigation (same bounds as tap/drag; works in fullscreen too)
   useEffect(() => {
-    if (loading || showCover || isFullScreen) return; // Don't handle navigation in fullscreen
+    if (loading || showCover) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (previewUnlockOverlayOpen) {
+          e.preventDefault();
+          setPreviewUnlockOverlayOpen(false);
+          return;
+        }
         navigate(-1);
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         if (isRTL) {
-          // RTL: ArrowLeft = next, ArrowRight = prev
-          if (e.key === "ArrowLeft" && spreadIndex < (story?.pages.length || 0) - 1) {
-            handleNext();
+          if (e.key === "ArrowLeft") {
+            if (spreadIndex < (story?.pages.length || 0) - 1) {
+              handleNext();
+            }
           } else if (e.key === "ArrowRight" && spreadIndex > 0) {
             handlePrev();
           }
         } else {
-          // LTR: ArrowLeft = prev, ArrowRight = next
           if (e.key === "ArrowLeft" && spreadIndex > 0) {
             handlePrev();
-          } else if (e.key === "ArrowRight" && spreadIndex < (story?.pages.length || 0) - 1) {
-            handleNext();
+          } else if (e.key === "ArrowRight") {
+            if (spreadIndex < (story?.pages.length || 0) - 1) {
+              handleNext();
+            }
           }
         }
       }
@@ -283,7 +401,15 @@ export default function BookReaderPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [spreadIndex, story, showCover, loading, isRTL, navigate, isFullScreen]);
+  }, [
+    spreadIndex,
+    story,
+    showCover,
+    loading,
+    isRTL,
+    navigate,
+    previewUnlockOverlayOpen,
+  ]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -316,6 +442,7 @@ export default function BookReaderPage() {
     setShowInstructions(false);
     setShowCover(false);
     setSpreadIndex(0);
+    setPreviewUnlockOverlayOpen(false);
   };
 
   const readCurrentPage = () => {
@@ -341,18 +468,20 @@ export default function BookReaderPage() {
           return;
         }
 
-        // Get latest values from refs
         const latestIndex = spreadIndexRef.current;
         const latestStory = story;
+        const lastUnlocked = lastUnlockedSpreadIndexRef.current;
 
-        // If no next page → stop
-        if (!(latestStory && latestIndex < latestStory.pages.length - 1)) {
+        if (
+          !latestStory ||
+          latestIndex >= lastUnlocked ||
+          latestIndex >= latestStory.pages.length - 1
+        ) {
           setIsReading(false);
           setIsPaused(false);
           return;
         }
 
-        // Move to next page directly (bypass handleNext to avoid stopping)
         setSpreadIndex(latestIndex + 1);
 
         // Wait a moment for the next page state to load, then read again
@@ -420,21 +549,31 @@ export default function BookReaderPage() {
     // Keep personalization data — don't navigate away
     setShowCover(true);
     setSpreadIndex(0);
+    setPreviewUnlockOverlayOpen(false);
   };
 
   const handlePrev = () => {
-    // if user manually clicks Prev, stop reading
     if (!autoRead) handleStopReading();
     if (spreadIndex > 0) {
+      setPreviewUnlockOverlayOpen(false);
       setSpreadIndex(spreadIndex - 1);
     }
   };
 
   const handleNext = () => {
-    // if user manually clicks Next, stop reading
     if (!autoRead) handleStopReading();
-    if (story && spreadIndex < story.pages.length - 1) {
+    if (!story) return;
+    if (spreadIndex < lastUnlockedSpreadIndex && spreadIndex < story.pages.length - 1) {
+      setPreviewUnlockOverlayOpen(false);
       setSpreadIndex(spreadIndex + 1);
+      return;
+    }
+    if (
+      spreadIndex === lastUnlockedSpreadIndex &&
+      spreadIndex < story.pages.length - 1
+    ) {
+      setPreviewUnlockOverlayOpen(true);
+      return;
     }
   };
 
@@ -866,6 +1005,29 @@ export default function BookReaderPage() {
                   canGoPrev={canGoPrev}
                   isFullScreen={isFullScreen}
                 />
+
+                {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
+                  <ReaderPreviewGate
+                    variant="overlay"
+                    sectionRef={previewCtaSectionRef}
+                    teaserPage={
+                      hasLockedSpreadsBeyondPreview
+                        ? story.pages[lastUnlockedSpreadIndex + 1]
+                        : undefined
+                    }
+                    title={t("pages.bookReader.previewUnlockTitle")}
+                    subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                    teaserLine={t("pages.bookReader.previewTeaserLine")}
+                    addToCartLabel={t("pages.bookReader.addToCart")}
+                    onAddToCart={() => {
+                      setPreviewUnlockOverlayOpen(false);
+                      navigate("/cart");
+                    }}
+                    onDismiss={() => setPreviewUnlockOverlayOpen(false)}
+                    dismissLabel={t("pages.bookReader.previewEndModalClose")}
+                    ctaAnchorRef={previewCtaAnchorRef}
+                  />
+                ) : null}
 
                 {/* LEFT ARROW — NEXT PAGE (RTL) or PREVIOUS PAGE (LTR) */}
                 {isRTL ? (

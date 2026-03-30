@@ -11,7 +11,7 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { doc, getDoc, collection, query, where, getDocs, limit } from "firebase/firestore";
 import { db } from "../firebase";
@@ -36,6 +36,11 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { useFavorite } from "../hooks/useFavorite";
+import {
+  normalizeStoryLanguage,
+  personalizeStoryTemplateString,
+  pickTextTemplateVariant,
+} from "../utils/storyPersonalization";
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface StoryDetail {
@@ -62,6 +67,7 @@ interface StoryDetail {
   totalPageCount?: number;
   pages?: Array<{
     pageNumber: number;
+    textTemplate?: string | { masculine: string; feminine: string };
     imagePromptTemplate?: string;
     emotionalTone?: string;
   }>;
@@ -102,12 +108,6 @@ function extractPricing(raw: any): { digital?: number; print?: number } | undefi
 
   if (digital == null && print == null) return undefined;
   return { digital, print };
-}
-
-function replacePreviewPlaceholders(input: string): string {
-  // Only for Story Detail Page preview (pre-personalization)
-  if (!input) return input;
-  return input.replace(/\{\{\s*child_name\s*\}\}|\{\{\s*CHILD_NAME\s*\}\}/g, "Your child");
 }
 
 // ─── Component ───────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ export default function StoryDetailPage() {
             language: data.language || data.generationConfig?.language,
             previewPageCount: data.previewPageCount,
             totalPageCount: data.totalPageCount,
-            pages: data.pages,
+            pages: Array.isArray(data.pages) ? data.pages : undefined,
           });
         }
       } catch (err) {
@@ -296,6 +296,35 @@ export default function StoryDetailPage() {
 
   // ── Cover image (single hero image — spreads are shown separately below) ──
   const coverSrc = story?.coverImage || "/book-placeholder.jpg";
+
+  /**
+   * Public / template-only gallery (never reads child session from localStorage).
+   * Prefers CMS `previewSpreads` copy and artwork; falls back to template strings with generic placeholder only.
+   */
+  const storyPreviewSlices = useMemo(() => {
+    if (!story?.previewSpreads || story.previewSpreads.length < 2) return null;
+    const lang = normalizeStoryLanguage(story.language);
+    const placeholderName = t("storyDetail.previewPlaceholderChildName");
+    const publicVariant: "male" = "male";
+
+    return [0, 1].map((i) => {
+      const spread = story.previewSpreads![i];
+      const page = story.pages?.[i];
+      const cmsText = spread?.text?.trim() ?? "";
+      const baseFromTemplate = page?.textTemplate
+        ? pickTextTemplateVariant(page.textTemplate, publicVariant)
+        : "";
+      const textFallback = personalizeStoryTemplateString(
+        baseFromTemplate,
+        placeholderName,
+        publicVariant,
+        lang,
+      );
+      const text = cmsText.length > 0 ? cmsText : textFallback;
+      const imageUrl = spread?.imageUrl || "/book-placeholder.jpg";
+      return { text, imageUrl };
+    });
+  }, [story, t]);
 
   // ── Derived content ────────────────────────────────────────────────
   const topicLabel =
@@ -472,10 +501,9 @@ export default function StoryDetailPage() {
               {t("storyDetail.galleryLabel")}
             </Typography>
 
-            {Array.isArray(story.previewSpreads) && story.previewSpreads.length >= 2 ? (
+            {storyPreviewSlices ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                {[story.previewSpreads[0], story.previewSpreads[1]].map(
-                  (spread, idx) => (
+                {storyPreviewSlices.map((spread, idx) => (
                     <Box
                       key={idx}
                       sx={{
@@ -508,7 +536,7 @@ export default function StoryDetailPage() {
                       >
                         <Box
                           component="img"
-                          src={spread?.imageUrl || "/book-placeholder.jpg"}
+                          src={spread.imageUrl || "/book-placeholder.jpg"}
                           alt={`Preview spread ${idx + 1}`}
                           sx={{
                             width: "100%",
@@ -559,13 +587,11 @@ export default function StoryDetailPage() {
                             fontSize: "0.88rem",
                           }}
                         >
-                          {replacePreviewPlaceholders(spread?.text || "") ||
-                            t("storyDetail.previewComingSoon")}
+                          {spread.text || t("storyDetail.previewComingSoon")}
                         </Typography>
                       </Box>
                     </Box>
-                  )
-                )}
+                  ))}
               </Box>
             ) : (
               <Box

@@ -143,7 +143,15 @@
       "hebrew": "עברית",
       "arabic": "ערבית",
       "fullScreen": "מסך מלא",
-      "exitFullScreen": "יציאה ממסך מלא"
+      "exitFullScreen": "יציאה ממסך מלא",
+      "lockedChildPlaceholder": "הילד שלך",
+      "previewUnlockTitle": "שחררו את הסיפור המלא והמותאם אישית",
+      "previewUnlockSubtitle": "הוסיפו את הספר לעגלה כדי ליצור את כל העמודים עם השם, התמונה והאיורים של ילדכם. שאר הספר נשאר תבנית עד לרכישה.",
+      "previewTeaserLine": "הסיפור ממשיך…",
+      "addToCart": "הוספה לעגלה",
+      "previewEndModalTitle": "סוף התצוגה המקדימה",
+      "previewEndModalBody": "הגעתם לעמוד האחרון בתצוגה המקדימה. רכשו כדי לפתוח את הסיפור המלא והמותאם אישית.",
+      "previewEndModalClose": "המשיכו לקרוא"
     },
     "placeholder": {
       "backToHome": "חזרה לדף הבית"
@@ -304,6 +312,7 @@
     "notFoundMessage": "ייתכן שהסיפור הוסר או שהקישור אינו תקין.",
     "backToCatalog": "חזרה לסיפורים",
     "galleryLabel": "הצצה לתוך הסיפור",
+    "previewPlaceholderChildName": "הילד שלכם",
     "previewComingSoon": "תצוגה מקדימה תגיע בקרוב",
     "personalizeButton": "התאימו את הסיפור לילד שלכם",
     "addToFavorites": "שמור למועדפים",
