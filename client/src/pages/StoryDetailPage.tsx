@@ -40,8 +40,6 @@ import {
   normalizeStoryLanguage,
   personalizeStoryTemplateString,
   pickTextTemplateVariant,
-  readPersonalizationFromStorage,
-  resolveGenderForPreview,
 } from "../utils/storyPersonalization";
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -299,37 +297,34 @@ export default function StoryDetailPage() {
   // ── Cover image (single hero image — spreads are shown separately below) ──
   const coverSrc = story?.coverImage || "/book-placeholder.jpg";
 
-  /** Same personalization object as PersonalizeStoryPage / BookReader (localStorage). */
-  const previewPersonalization = useMemo(
-    () => readPersonalizationFromStorage(storyId),
-    [storyId],
-  );
-
   /**
-   * First two gallery spreads: text from page templates when available (gender-aware),
-   * else from previewSpreads. Images use the uploaded child photo for both when present.
+   * Public / template-only gallery (never reads child session from localStorage).
+   * Prefers CMS `previewSpreads` copy and artwork; falls back to template strings with generic placeholder only.
    */
   const storyPreviewSlices = useMemo(() => {
     if (!story?.previewSpreads || story.previewSpreads.length < 2) return null;
     const lang = normalizeStoryLanguage(story.language);
-    const gender = resolveGenderForPreview(previewPersonalization?.gender);
     const placeholderName = t("storyDetail.previewPlaceholderChildName");
-    const displayName = previewPersonalization?.childName?.trim()
-      ? previewPersonalization.childName.trim()
-      : placeholderName;
-    const childPhoto = previewPersonalization?.photoPreviewUrl?.trim() || "";
+    const publicVariant: "male" = "male";
 
     return [0, 1].map((i) => {
       const spread = story.previewSpreads![i];
       const page = story.pages?.[i];
-      const baseText = page?.textTemplate
-        ? pickTextTemplateVariant(page.textTemplate, gender)
-        : (spread?.text ?? "");
-      const text = personalizeStoryTemplateString(baseText, displayName, gender, lang);
-      const imageUrl = childPhoto || spread?.imageUrl || "/book-placeholder.jpg";
+      const cmsText = spread?.text?.trim() ?? "";
+      const baseFromTemplate = page?.textTemplate
+        ? pickTextTemplateVariant(page.textTemplate, publicVariant)
+        : "";
+      const textFallback = personalizeStoryTemplateString(
+        baseFromTemplate,
+        placeholderName,
+        publicVariant,
+        lang,
+      );
+      const text = cmsText.length > 0 ? cmsText : textFallback;
+      const imageUrl = spread?.imageUrl || "/book-placeholder.jpg";
       return { text, imageUrl };
     });
-  }, [story, previewPersonalization, t]);
+  }, [story, t]);
 
   // ── Derived content ────────────────────────────────────────────────
   const topicLabel =

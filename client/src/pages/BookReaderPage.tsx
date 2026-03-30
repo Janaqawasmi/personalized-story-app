@@ -79,6 +79,21 @@ function getCurrentLanguage(): string {
   return "he";
 }
 
+/** Scroll so a block is visible: honors header offset and ensures the bottom clears the viewport. */
+function scrollPageToShowBlockFully(
+  el: HTMLElement,
+  opts: { headerOffset: number; bottomPad: number }
+) {
+  const rect = el.getBoundingClientRect();
+  const docTop = window.scrollY + rect.top;
+  const docBottom = window.scrollY + rect.bottom;
+  const vh = window.innerHeight;
+  const topAligned = docTop - opts.headerOffset;
+  const minScrollForBottom = docBottom - vh + opts.bottomPad;
+  const targetY = Math.max(topAligned, minScrollForBottom);
+  window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+}
+
 export default function BookReaderPage() {
   const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
@@ -92,6 +107,10 @@ export default function BookReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const previewCtaSectionRef = useRef<HTMLDivElement>(null);
+  const previewCtaAnchorRef = useRef<HTMLDivElement>(null);
+  const hasAutoScrolledToPreviewCTARef = useRef(false);
+  const isFullScreenRef = useRef(false);
   const [showInstructions, setShowInstructions] = useState(false);
   const { isFullScreen, toggleFullScreen } = useReader();
   const [isReading, setIsReading] = useState(false);
@@ -123,6 +142,42 @@ export default function BookReaderPage() {
 
   const hasLockedSpreadsBeyondPreview =
     !!story && story.pages.length > lastUnlockedSpreadIndex + 1;
+
+  useEffect(() => {
+    hasAutoScrolledToPreviewCTARef.current = false;
+  }, [storyId]);
+
+  useEffect(() => {
+    isFullScreenRef.current = isFullScreen;
+  }, [isFullScreen]);
+
+  // One-time smooth scroll to the purchase CTA when entering the last free preview spread (normal mode only).
+  useEffect(() => {
+    if (loading || showCover || showInstructions || !story || isFullScreen) return;
+    if (spreadIndex !== lastUnlockedSpreadIndex) return;
+    if (hasAutoScrolledToPreviewCTARef.current) return;
+
+    const el = previewCtaSectionRef.current;
+    if (!el) return;
+
+    const timeoutId = window.setTimeout(() => {
+      if (hasAutoScrolledToPreviewCTARef.current || isFullScreenRef.current) return;
+      const section = previewCtaSectionRef.current;
+      if (!section) return;
+      scrollPageToShowBlockFully(section, { headerOffset: 112, bottomPad: 56 });
+      hasAutoScrolledToPreviewCTARef.current = true;
+    }, 650);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    loading,
+    showCover,
+    showInstructions,
+    story,
+    spreadIndex,
+    lastUnlockedSpreadIndex,
+    isFullScreen,
+  ]);
 
   // Check for personalization before loading story
   useEffect(() => {
@@ -1158,18 +1213,27 @@ export default function BookReaderPage() {
               </Box>
 
               {spreadIndex === lastUnlockedSpreadIndex && (
-                <ReaderPreviewGate
-                  teaserPage={
-                    hasLockedSpreadsBeyondPreview
-                      ? story.pages[lastUnlockedSpreadIndex + 1]
-                      : undefined
-                  }
-                  title={t("pages.bookReader.previewUnlockTitle")}
-                  subtitle={t("pages.bookReader.previewUnlockSubtitle")}
-                  teaserLine={t("pages.bookReader.previewTeaserLine")}
-                  addToCartLabel={t("pages.bookReader.addToCart")}
-                  onAddToCart={() => navigate("/cart")}
-                />
+                <Box
+                  ref={previewCtaSectionRef}
+                  id="reader-preview-cta"
+                  sx={{
+                    scrollMarginTop: { xs: 96, md: 104 },
+                  }}
+                >
+                  <ReaderPreviewGate
+                    teaserPage={
+                      hasLockedSpreadsBeyondPreview
+                        ? story.pages[lastUnlockedSpreadIndex + 1]
+                        : undefined
+                    }
+                    title={t("pages.bookReader.previewUnlockTitle")}
+                    subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                    teaserLine={t("pages.bookReader.previewTeaserLine")}
+                    addToCartLabel={t("pages.bookReader.addToCart")}
+                    onAddToCart={() => navigate("/cart")}
+                    ctaAnchorRef={previewCtaAnchorRef}
+                  />
+                </Box>
               )}
             </Box>
           </Box>

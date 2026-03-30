@@ -1,4 +1,5 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
+import type { Ref } from "react";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 
@@ -14,6 +15,8 @@ type ReaderPreviewGateProps = {
   teaserLine: string;
   addToCartLabel: string;
   onAddToCart: () => void;
+  /** Optional: lower CTA panel (copy + button) for scroll targets / layout. */
+  ctaAnchorRef?: Ref<HTMLDivElement>;
 };
 
 /**
@@ -27,6 +30,7 @@ export default function ReaderPreviewGate({
   teaserLine,
   addToCartLabel,
   onAddToCart,
+  ctaAnchorRef,
 }: ReaderPreviewGateProps) {
   const theme = useTheme();
   const img = teaserPage?.imageUrl?.trim();
@@ -132,6 +136,7 @@ export default function ReaderPreviewGate({
         )}
 
         <Box
+          ref={ctaAnchorRef}
           sx={{
             p: { xs: 2.5, md: 3 },
             backgroundColor: theme.palette.background.paper,
