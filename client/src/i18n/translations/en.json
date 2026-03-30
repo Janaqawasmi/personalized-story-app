@@ -143,7 +143,15 @@
       "hebrew": "Hebrew",
       "arabic": "Arabic",
       "fullScreen": "Full screen",
-      "exitFullScreen": "Exit full screen"
+      "exitFullScreen": "Exit full screen",
+      "lockedChildPlaceholder": "your child",
+      "previewUnlockTitle": "Unlock the full personalized story",
+      "previewUnlockSubtitle": "Add the book to your cart to generate every spread with your child's name, photo, and illustrations. The rest of the book stays a template until you purchase.",
+      "previewTeaserLine": "Your story continues…",
+      "addToCart": "Add to cart",
+      "previewEndModalTitle": "End of free preview",
+      "previewEndModalBody": "You've reached the last page of your preview. Purchase to unlock the full personalized story.",
+      "previewEndModalClose": "Keep reading"
     },
     "placeholder": {
       "backToHome": "Back to Home"

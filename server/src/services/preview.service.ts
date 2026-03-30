@@ -14,6 +14,8 @@ import { AgeGroup, Gender } from "../shared/types/common";
 
 const MAX_ACTIVE_PREVIEWS = 5;
 const PHOTO_RETAIN_HOURS = 48;
+/** Max spreads (template pages) generated for storyPreviews — matches client reader preview gate. */
+const PREVIEW_SPREAD_LIMIT = 2;
 
 /**
  * Factory function to get the image generation provider.
@@ -47,8 +49,8 @@ function requireImageProvider(): ImageGenerationProvider {
 }
 
 /**
- * Generates a 2-page personalized preview for a caregiver's child
- * using a story template.
+ * Generates a short personalized preview (up to two spreads / template pages)
+ * for a caregiver's child using a story template.
  *
  * Idempotency: If a non-expired, non-converted preview already exists
  * for the same child + template combination, returns the existing previewId.
@@ -136,7 +138,7 @@ export async function generatePreview(
     templateVersion: template.revisionCount,
     language: template.generationConfig.language,
     dedicationName: dedicationName ?? null,
-    previewPageCount: template.previewPageCount || 2,
+    previewPageCount: Math.min(PREVIEW_SPREAD_LIMIT, template.pages.length),
     pages: [],
     coverImageUrl: template.coverImageUrl || null,
     generationStatus: "pending",
@@ -207,7 +209,7 @@ async function generatePreviewPages(
   photoBuffer: Buffer
 ): Promise<void> {
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId);
-  const previewPageCount = template.previewPageCount || 2;
+  const previewPageCount = Math.min(PREVIEW_SPREAD_LIMIT, template.pages.length);
   const language = template.generationConfig.language;
   const completedPages: PreviewPage[] = [];
 

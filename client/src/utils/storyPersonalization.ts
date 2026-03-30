@@ -99,6 +99,9 @@ export type RawReaderPage = {
   emotionalTone?: string;
 };
 
+/** First N spreads in reading order get full name/photo personalization; keep in sync with server preview generation. */
+export const PREVIEW_SPREAD_LIMIT = 2;
+
 export function buildPersonalizedReaderPages(
   pages: RawReaderPage[],
   opts: {
@@ -107,15 +110,20 @@ export function buildPersonalizedReaderPages(
     language: "ar" | "he";
     photoPreviewUrl?: string;
     fallbackImageUrl: (pageNumber: number) => string;
+    /** Only these spreads use the child's name and photo; later spreads use `lockedPlaceholderName` and template art only. */
+    previewSpreadLimit?: number;
+    lockedPlaceholderName?: string;
   }
 ): Array<RawReaderPage & { textTemplate: string; imageUrl: string }> {
-  return pages.map((page) => {
+  const limit = opts.previewSpreadLimit ?? Number.POSITIVE_INFINITY;
+  const lockedName = opts.lockedPlaceholderName ?? "…";
+
+  return pages.map((page, index) => {
+    const inPreview = index < limit;
     const raw = pickTextTemplateVariant(page.textTemplate, opts.gender);
-    const text = personalizeStoryTemplateString(raw, opts.childDisplayName, opts.gender, opts.language);
-    const personalImage =
-      typeof page.pageNumber === "number" && page.pageNumber <= 2 && opts.photoPreviewUrl
-        ? opts.photoPreviewUrl
-        : undefined;
+    const displayName = inPreview ? opts.childDisplayName : lockedName;
+    const text = personalizeStoryTemplateString(raw, displayName, opts.gender, opts.language);
+    const personalImage = inPreview && opts.photoPreviewUrl ? opts.photoPreviewUrl : undefined;
     const imageUrl = personalImage ?? opts.fallbackImageUrl(page.pageNumber);
     return { ...page, textTemplate: text, imageUrl };
   });

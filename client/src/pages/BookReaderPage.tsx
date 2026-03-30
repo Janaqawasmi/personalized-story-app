@@ -1,5 +1,20 @@
-import { Box, Typography, IconButton, useTheme, Tooltip, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
-import { useEffect, useState, useRef } from "react";
+import {
+  Box,
+  Typography,
+  IconButton,
+  useTheme,
+  Tooltip,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from "@mui/material";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -15,6 +30,7 @@ import StopIcon from "@mui/icons-material/Stop";
 import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
+import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
 import InstructionModal from "../components/InstructionModal";
 import { useTranslation } from "../i18n/useTranslation";
 import { useReader } from "../contexts/ReaderContext";
@@ -32,6 +48,7 @@ import {
   getStoryPersonalizationStorageKey,
   normalizeStoryLanguage,
   resolveGenderForPreview,
+  PREVIEW_SPREAD_LIMIT,
 } from "../utils/storyPersonalization";
 
 type Page = {
@@ -82,9 +99,11 @@ export default function BookReaderPage() {
   const [autoRead, setAutoRead] = useState(false);
   const autoReadRef = useRef(autoRead);
   const spreadIndexRef = useRef(spreadIndex);
+  const lastUnlockedSpreadIndexRef = useRef(0);
   const shouldClearPersonalizationRef = useRef(true);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
+  const [previewEndModalOpen, setPreviewEndModalOpen] = useState(false);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
@@ -96,6 +115,14 @@ export default function BookReaderPage() {
     const target = (ttsLang || "").toLowerCase();
     return vLang === target || vLang.startsWith(target.split("-")[0]);
   });
+
+  const lastUnlockedSpreadIndex = useMemo(
+    () => (story ? Math.min(PREVIEW_SPREAD_LIMIT - 1, story.pages.length - 1) : 0),
+    [story]
+  );
+
+  const hasLockedSpreadsBeyondPreview =
+    !!story && story.pages.length > lastUnlockedSpreadIndex + 1;
 
   // Check for personalization before loading story
   useEffect(() => {
@@ -170,6 +197,8 @@ export default function BookReaderPage() {
           language: lang,
           photoPreviewUrl: photo,
           fallbackImageUrl: (pageNumber) => `/story-images/placeholders/${pageNumber}.jpg`,
+          previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
+          lockedPlaceholderName: t("pages.bookReader.lockedChildPlaceholder"),
         });
 
         setStory({
@@ -218,6 +247,10 @@ export default function BookReaderPage() {
   useEffect(() => {
     spreadIndexRef.current = spreadIndex;
   }, [spreadIndex]);
+
+  useEffect(() => {
+    lastUnlockedSpreadIndexRef.current = lastUnlockedSpreadIndex;
+  }, [lastUnlockedSpreadIndex]);
 
   // Load voices once
   useEffect(() => {
@@ -273,27 +306,50 @@ export default function BookReaderPage() {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [isFullScreen, toggleFullScreen]);
 
-  // Keyboard navigation
+  // Keyboard navigation (same bounds as tap/drag; works in fullscreen too)
   useEffect(() => {
-    if (loading || showCover || isFullScreen) return; // Don't handle navigation in fullscreen
+    if (loading || showCover) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (previewEndModalOpen) {
+          e.preventDefault();
+          setPreviewEndModalOpen(false);
+          return;
+        }
         navigate(-1);
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         if (isRTL) {
-          // RTL: ArrowLeft = next, ArrowRight = prev
-          if (e.key === "ArrowLeft" && spreadIndex < (story?.pages.length || 0) - 1) {
-            handleNext();
+          if (e.key === "ArrowLeft") {
+            if (
+              spreadIndex < lastUnlockedSpreadIndex &&
+              spreadIndex < (story?.pages.length || 0) - 1
+            ) {
+              handleNext();
+            } else if (
+              hasLockedSpreadsBeyondPreview &&
+              spreadIndex === lastUnlockedSpreadIndex
+            ) {
+              setPreviewEndModalOpen(true);
+            }
           } else if (e.key === "ArrowRight" && spreadIndex > 0) {
             handlePrev();
           }
         } else {
-          // LTR: ArrowLeft = prev, ArrowRight = next
           if (e.key === "ArrowLeft" && spreadIndex > 0) {
             handlePrev();
-          } else if (e.key === "ArrowRight" && spreadIndex < (story?.pages.length || 0) - 1) {
-            handleNext();
+          } else if (e.key === "ArrowRight") {
+            if (
+              spreadIndex < lastUnlockedSpreadIndex &&
+              spreadIndex < (story?.pages.length || 0) - 1
+            ) {
+              handleNext();
+            } else if (
+              hasLockedSpreadsBeyondPreview &&
+              spreadIndex === lastUnlockedSpreadIndex
+            ) {
+              setPreviewEndModalOpen(true);
+            }
           }
         }
       }
@@ -301,7 +357,17 @@ export default function BookReaderPage() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [spreadIndex, story, showCover, loading, isRTL, navigate, isFullScreen]);
+  }, [
+    spreadIndex,
+    story,
+    showCover,
+    loading,
+    isRTL,
+    navigate,
+    lastUnlockedSpreadIndex,
+    hasLockedSpreadsBeyondPreview,
+    previewEndModalOpen,
+  ]);
 
   // Auto-hide controls
   useEffect(() => {
@@ -359,18 +425,20 @@ export default function BookReaderPage() {
           return;
         }
 
-        // Get latest values from refs
         const latestIndex = spreadIndexRef.current;
         const latestStory = story;
+        const lastUnlocked = lastUnlockedSpreadIndexRef.current;
 
-        // If no next page → stop
-        if (!(latestStory && latestIndex < latestStory.pages.length - 1)) {
+        if (
+          !latestStory ||
+          latestIndex >= lastUnlocked ||
+          latestIndex >= latestStory.pages.length - 1
+        ) {
           setIsReading(false);
           setIsPaused(false);
           return;
         }
 
-        // Move to next page directly (bypass handleNext to avoid stopping)
         setSpreadIndex(latestIndex + 1);
 
         // Wait a moment for the next page state to load, then read again
@@ -530,7 +598,8 @@ export default function BookReaderPage() {
 
   const currentPage = story.pages[spreadIndex];
   const canGoPrev = spreadIndex > 0;
-  const canGoNext = spreadIndex < story.pages.length - 1;
+  const canGoNext =
+    spreadIndex < lastUnlockedSpreadIndex && spreadIndex < story.pages.length - 1;
 
   return (
     <>
@@ -538,6 +607,34 @@ export default function BookReaderPage() {
         open={showInstructions}
         onClose={handleInstructionsClose}
       />
+      <Dialog
+        open={previewEndModalOpen}
+        onClose={() => setPreviewEndModalOpen(false)}
+        aria-labelledby="preview-end-dialog-title"
+      >
+        <DialogTitle id="preview-end-dialog-title">
+          {t("pages.bookReader.previewEndModalTitle")}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: theme.palette.text.secondary, lineHeight: 1.6 }}>
+            {t("pages.bookReader.previewEndModalBody")}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setPreviewEndModalOpen(false)}>
+            {t("pages.bookReader.previewEndModalClose")}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setPreviewEndModalOpen(false);
+              navigate("/cart");
+            }}
+          >
+            {t("pages.bookReader.addToCart")}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Box
         ref={containerRef}
         sx={{
@@ -1059,6 +1156,21 @@ export default function BookReaderPage() {
                   )
                 )}
               </Box>
+
+              {spreadIndex === lastUnlockedSpreadIndex && (
+                <ReaderPreviewGate
+                  teaserPage={
+                    hasLockedSpreadsBeyondPreview
+                      ? story.pages[lastUnlockedSpreadIndex + 1]
+                      : undefined
+                  }
+                  title={t("pages.bookReader.previewUnlockTitle")}
+                  subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                  teaserLine={t("pages.bookReader.previewTeaserLine")}
+                  addToCartLabel={t("pages.bookReader.addToCart")}
+                  onAddToCart={() => navigate("/cart")}
+                />
+              )}
             </Box>
           </Box>
           </>
