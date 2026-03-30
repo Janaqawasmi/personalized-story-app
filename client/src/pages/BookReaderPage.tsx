@@ -8,11 +8,6 @@ import {
   InputLabel,
   MenuItem,
   Select,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
 } from "@mui/material";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
@@ -79,19 +74,18 @@ function getCurrentLanguage(): string {
   return "he";
 }
 
-/** Scroll so a block is visible: honors header offset and ensures the bottom clears the viewport. */
-function scrollPageToShowBlockFully(
-  el: HTMLElement,
-  opts: { headerOffset: number; bottomPad: number }
-) {
+/**
+ * Strong guided scroll: vertically centers the purchase block in the viewport, then nudges
+ * downward so headline + Add to cart sit clearly in view (not just the CTA top edge).
+ */
+function scrollPreviewPurchaseBlockIntoView(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
-  const docTop = window.scrollY + rect.top;
-  const docBottom = window.scrollY + rect.bottom;
+  const elCenterY = rect.top + window.scrollY + rect.height / 2;
   const vh = window.innerHeight;
-  const topAligned = docTop - opts.headerOffset;
-  const minScrollForBottom = docBottom - vh + opts.bottomPad;
-  const targetY = Math.max(topAligned, minScrollForBottom);
-  window.scrollTo({ top: Math.max(0, targetY), behavior: "smooth" });
+  const downwardBiasPx = Math.min(120, Math.round(vh * 0.18));
+  const stickyNavAllowance = 56;
+  const targetScroll = elCenterY - vh / 2 + downwardBiasPx - stickyNavAllowance;
+  window.scrollTo({ top: Math.max(0, targetScroll), behavior: "smooth" });
 }
 
 export default function BookReaderPage() {
@@ -122,7 +116,7 @@ export default function BookReaderPage() {
   const shouldClearPersonalizationRef = useRef(true);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
-  const [previewEndModalOpen, setPreviewEndModalOpen] = useState(false);
+  const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
@@ -145,27 +139,39 @@ export default function BookReaderPage() {
 
   useEffect(() => {
     hasAutoScrolledToPreviewCTARef.current = false;
+    setPreviewUnlockOverlayOpen(false);
   }, [storyId]);
+
+  useEffect(() => {
+    if (spreadIndex < lastUnlockedSpreadIndex) {
+      setPreviewUnlockOverlayOpen(false);
+    }
+  }, [spreadIndex, lastUnlockedSpreadIndex]);
 
   useEffect(() => {
     isFullScreenRef.current = isFullScreen;
   }, [isFullScreen]);
 
-  // One-time smooth scroll to the purchase CTA when entering the last free preview spread (normal mode only).
+  // Smooth scroll when unlock overlay opens (normal mode only); reset guard when it closes.
   useEffect(() => {
+    if (!previewUnlockOverlayOpen) {
+      hasAutoScrolledToPreviewCTARef.current = false;
+      return;
+    }
     if (loading || showCover || showInstructions || !story || isFullScreen) return;
-    if (spreadIndex !== lastUnlockedSpreadIndex) return;
     if (hasAutoScrolledToPreviewCTARef.current) return;
 
-    const el = previewCtaSectionRef.current;
-    if (!el) return;
-
     const timeoutId = window.setTimeout(() => {
-      if (hasAutoScrolledToPreviewCTARef.current || isFullScreenRef.current) return;
-      const section = previewCtaSectionRef.current;
-      if (!section) return;
-      scrollPageToShowBlockFully(section, { headerOffset: 112, bottomPad: 56 });
-      hasAutoScrolledToPreviewCTARef.current = true;
+      const run = () => {
+        if (hasAutoScrolledToPreviewCTARef.current || isFullScreenRef.current) return;
+        const purchasePanel = previewCtaAnchorRef.current;
+        const outer = previewCtaSectionRef.current;
+        const target = purchasePanel ?? outer;
+        if (!target) return;
+        scrollPreviewPurchaseBlockIntoView(target);
+        hasAutoScrolledToPreviewCTARef.current = true;
+      };
+      requestAnimationFrame(() => requestAnimationFrame(run));
     }, 650);
 
     return () => window.clearTimeout(timeoutId);
@@ -174,8 +180,7 @@ export default function BookReaderPage() {
     showCover,
     showInstructions,
     story,
-    spreadIndex,
-    lastUnlockedSpreadIndex,
+    previewUnlockOverlayOpen,
     isFullScreen,
   ]);
 
@@ -367,25 +372,17 @@ export default function BookReaderPage() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (previewEndModalOpen) {
+        if (previewUnlockOverlayOpen) {
           e.preventDefault();
-          setPreviewEndModalOpen(false);
+          setPreviewUnlockOverlayOpen(false);
           return;
         }
         navigate(-1);
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         if (isRTL) {
           if (e.key === "ArrowLeft") {
-            if (
-              spreadIndex < lastUnlockedSpreadIndex &&
-              spreadIndex < (story?.pages.length || 0) - 1
-            ) {
+            if (spreadIndex < (story?.pages.length || 0) - 1) {
               handleNext();
-            } else if (
-              hasLockedSpreadsBeyondPreview &&
-              spreadIndex === lastUnlockedSpreadIndex
-            ) {
-              setPreviewEndModalOpen(true);
             }
           } else if (e.key === "ArrowRight" && spreadIndex > 0) {
             handlePrev();
@@ -394,16 +391,8 @@ export default function BookReaderPage() {
           if (e.key === "ArrowLeft" && spreadIndex > 0) {
             handlePrev();
           } else if (e.key === "ArrowRight") {
-            if (
-              spreadIndex < lastUnlockedSpreadIndex &&
-              spreadIndex < (story?.pages.length || 0) - 1
-            ) {
+            if (spreadIndex < (story?.pages.length || 0) - 1) {
               handleNext();
-            } else if (
-              hasLockedSpreadsBeyondPreview &&
-              spreadIndex === lastUnlockedSpreadIndex
-            ) {
-              setPreviewEndModalOpen(true);
             }
           }
         }
@@ -419,9 +408,7 @@ export default function BookReaderPage() {
     loading,
     isRTL,
     navigate,
-    lastUnlockedSpreadIndex,
-    hasLockedSpreadsBeyondPreview,
-    previewEndModalOpen,
+    previewUnlockOverlayOpen,
   ]);
 
   // Auto-hide controls
@@ -455,6 +442,7 @@ export default function BookReaderPage() {
     setShowInstructions(false);
     setShowCover(false);
     setSpreadIndex(0);
+    setPreviewUnlockOverlayOpen(false);
   };
 
   const readCurrentPage = () => {
@@ -561,21 +549,31 @@ export default function BookReaderPage() {
     // Keep personalization data — don't navigate away
     setShowCover(true);
     setSpreadIndex(0);
+    setPreviewUnlockOverlayOpen(false);
   };
 
   const handlePrev = () => {
-    // if user manually clicks Prev, stop reading
     if (!autoRead) handleStopReading();
     if (spreadIndex > 0) {
+      setPreviewUnlockOverlayOpen(false);
       setSpreadIndex(spreadIndex - 1);
     }
   };
 
   const handleNext = () => {
-    // if user manually clicks Next, stop reading
     if (!autoRead) handleStopReading();
-    if (story && spreadIndex < story.pages.length - 1) {
+    if (!story) return;
+    if (spreadIndex < lastUnlockedSpreadIndex && spreadIndex < story.pages.length - 1) {
+      setPreviewUnlockOverlayOpen(false);
       setSpreadIndex(spreadIndex + 1);
+      return;
+    }
+    if (
+      spreadIndex === lastUnlockedSpreadIndex &&
+      spreadIndex < story.pages.length - 1
+    ) {
+      setPreviewUnlockOverlayOpen(true);
+      return;
     }
   };
 
@@ -653,8 +651,7 @@ export default function BookReaderPage() {
 
   const currentPage = story.pages[spreadIndex];
   const canGoPrev = spreadIndex > 0;
-  const canGoNext =
-    spreadIndex < lastUnlockedSpreadIndex && spreadIndex < story.pages.length - 1;
+  const canGoNext = spreadIndex < story.pages.length - 1;
 
   return (
     <>
@@ -662,34 +659,6 @@ export default function BookReaderPage() {
         open={showInstructions}
         onClose={handleInstructionsClose}
       />
-      <Dialog
-        open={previewEndModalOpen}
-        onClose={() => setPreviewEndModalOpen(false)}
-        aria-labelledby="preview-end-dialog-title"
-      >
-        <DialogTitle id="preview-end-dialog-title">
-          {t("pages.bookReader.previewEndModalTitle")}
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ color: theme.palette.text.secondary, lineHeight: 1.6 }}>
-            {t("pages.bookReader.previewEndModalBody")}
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button onClick={() => setPreviewEndModalOpen(false)}>
-            {t("pages.bookReader.previewEndModalClose")}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={() => {
-              setPreviewEndModalOpen(false);
-              navigate("/cart");
-            }}
-          >
-            {t("pages.bookReader.addToCart")}
-          </Button>
-        </DialogActions>
-      </Dialog>
       <Box
         ref={containerRef}
         sx={{
@@ -1037,6 +1006,29 @@ export default function BookReaderPage() {
                   isFullScreen={isFullScreen}
                 />
 
+                {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
+                  <ReaderPreviewGate
+                    variant="overlay"
+                    sectionRef={previewCtaSectionRef}
+                    teaserPage={
+                      hasLockedSpreadsBeyondPreview
+                        ? story.pages[lastUnlockedSpreadIndex + 1]
+                        : undefined
+                    }
+                    title={t("pages.bookReader.previewUnlockTitle")}
+                    subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                    teaserLine={t("pages.bookReader.previewTeaserLine")}
+                    addToCartLabel={t("pages.bookReader.addToCart")}
+                    onAddToCart={() => {
+                      setPreviewUnlockOverlayOpen(false);
+                      navigate("/cart");
+                    }}
+                    onDismiss={() => setPreviewUnlockOverlayOpen(false)}
+                    dismissLabel={t("pages.bookReader.previewEndModalClose")}
+                    ctaAnchorRef={previewCtaAnchorRef}
+                  />
+                ) : null}
+
                 {/* LEFT ARROW — NEXT PAGE (RTL) or PREVIOUS PAGE (LTR) */}
                 {isRTL ? (
                   // RTL: LEFT arrow = NEXT page
@@ -1211,30 +1203,6 @@ export default function BookReaderPage() {
                   )
                 )}
               </Box>
-
-              {spreadIndex === lastUnlockedSpreadIndex && (
-                <Box
-                  ref={previewCtaSectionRef}
-                  id="reader-preview-cta"
-                  sx={{
-                    scrollMarginTop: { xs: 96, md: 104 },
-                  }}
-                >
-                  <ReaderPreviewGate
-                    teaserPage={
-                      hasLockedSpreadsBeyondPreview
-                        ? story.pages[lastUnlockedSpreadIndex + 1]
-                        : undefined
-                    }
-                    title={t("pages.bookReader.previewUnlockTitle")}
-                    subtitle={t("pages.bookReader.previewUnlockSubtitle")}
-                    teaserLine={t("pages.bookReader.previewTeaserLine")}
-                    addToCartLabel={t("pages.bookReader.addToCart")}
-                    onAddToCart={() => navigate("/cart")}
-                    ctaAnchorRef={previewCtaAnchorRef}
-                  />
-                </Box>
-              )}
             </Box>
           </Box>
           </>
