@@ -89,6 +89,24 @@ function getDescription(item: ReferenceDataItem, lang: "en" | "ar" | "he" = "en"
   return (item as any)[`description_${lang}`] || item.description_en || '';
 }
 
+function getSupportRoleDescriptionFallback(roleKey: string, lang: "en" | "ar" | "he" = "en"): string {
+  // Fallback descriptions in case reference data doesn't include description_* fields yet.
+  // (When moved to Firestore-driven options, description_en can live on the role doc itself.)
+  if (lang !== "en") return "";
+  switch (roleKey) {
+    case "mirror":
+      return "Reflects the protagonist's feelings — shows they're not alone";
+    case "model":
+      return "Demonstrates the coping behavior the protagonist needs to learn";
+    case "supporter":
+      return "Actively helps the protagonist through the challenge";
+    case "companion":
+      return "Present alongside the protagonist — provides comfort through company";
+    default:
+      return "";
+  }
+}
+
 /** Keep selection only if still valid; if empty stay empty; if stale key clear (no auto-pick). */
 function keepValidOrEmpty(items: ReferenceDataItem[], current: string): string {
   if (items.length === 0) return current;
@@ -1886,7 +1904,7 @@ const AdminStoryBriefForm: React.FC = () => {
                             Select role
                           </MenuItem>
                           {supportCharacterRoleOptions.map((item) => {
-                            const desc = getDescription(item, "en");
+                            const desc = getDescription(item, "en") || getSupportRoleDescriptionFallback(item.key, "en");
                             return (
                               <MenuItem key={item.key} value={item.key} sx={{ alignItems: "flex-start", py: 1.25 }}>
                                 <Box>
