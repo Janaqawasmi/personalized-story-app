@@ -10,7 +10,8 @@ export type ReferenceDataCategory =
   | "therapeuticMechanisms" | "copingTools" | "copingToolGroups" | "emotionalArcs"
   | "languageComplexities" | "emotionalTones" | "topicSensitivities"
   | "endingStyles" | "protagonistTypes" | "protagonistAgeRelations"
-  | "protagonistGenders" | "caregiverRoles" | "peakIntensities";
+  | "protagonistGenders" | "caregiverRoles" | "peakIntensities"
+  | "supportCharacterTypes" | "supportCharacterRoles";
 
 /**
  * Base reference data item structure (all categories; category-specific fields optional)

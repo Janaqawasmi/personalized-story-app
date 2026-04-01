@@ -5,12 +5,7 @@ import {
   checkReferenceItem,
   getSituationItem,
 } from "../../services/referenceData.service";
-import type {
-  StoryBriefInput,
-  SupportCharacterType,
-  SupportCharacterRole,
-  GenderAdaptation,
-} from "../../models/storyBrief.model";
+import type { StoryBriefInput, GenderAdaptation, SupportCharacter } from "../../models/storyBrief.model";
 
 // ============================================================================
 // Type Definitions
@@ -39,8 +34,6 @@ export interface ValidationResult {
 // Constants
 // ============================================================================
 
-const ALLOWED_SUPPORT_CHARACTER_TYPE: SupportCharacterType[] = ["peer", "sibling", "teacher", "animal_friend"];
-const ALLOWED_SUPPORT_CHARACTER_ROLE: SupportCharacterRole[] = ["mirror", "model", "supporter", "companion"];
 const ALLOWED_GENDER_ADAPTATION: GenderAdaptation[] = ["allowed", "not_allowed", "requires_review"];
 
 // ============================================================================
@@ -589,12 +582,12 @@ export async function validateStoryBriefInput(
       } else {
         for (let i = 0; i < cd.supportCharacters.length; i++) {
           const sc = cd.supportCharacters[i];
-          if (!sc.type || !ALLOWED_SUPPORT_CHARACTER_TYPE.includes(sc.type as SupportCharacterType)) {
-            addError(errors, ERROR_CODES.INVALID_SUPPORT_CHARACTERS, `characterDesign.supportCharacters[${i}].type`, `supportCharacters[].type must be one of: ${ALLOWED_SUPPORT_CHARACTER_TYPE.join(", ")}`);
+          if (!sc.type || typeof sc.type !== "string") {
+            addError(errors, ERROR_CODES.INVALID_SUPPORT_CHARACTERS, `characterDesign.supportCharacters[${i}].type`, "supportCharacters[].type is required and must be a string");
             cdValid = false;
           }
-          if (!sc.role || !ALLOWED_SUPPORT_CHARACTER_ROLE.includes(sc.role as SupportCharacterRole)) {
-            addError(errors, ERROR_CODES.INVALID_SUPPORT_CHARACTERS, `characterDesign.supportCharacters[${i}].role`, `supportCharacters[].role must be one of: ${ALLOWED_SUPPORT_CHARACTER_ROLE.join(", ")}`);
+          if (!sc.role || typeof sc.role !== "string") {
+            addError(errors, ERROR_CODES.INVALID_SUPPORT_CHARACTERS, `characterDesign.supportCharacters[${i}].role`, "supportCharacters[].role is required and must be a string");
             cdValid = false;
           }
         }
@@ -619,7 +612,10 @@ export async function validateStoryBriefInput(
         caregiverRole: cd.caregiverRole.toLowerCase(),
       };
       if (Array.isArray(cd.supportCharacters) && cd.supportCharacters.length > 0) {
-        normalizedCd.supportCharacters = cd.supportCharacters;
+        normalizedCd.supportCharacters = cd.supportCharacters.map((sc: SupportCharacter) => ({
+          type: sc.type.toLowerCase(),
+          role: sc.role.toLowerCase(),
+        }));
       }
       if (typeof cd.characterNotes === "string" && cd.characterNotes.trim()) {
         normalizedCd.characterNotes = cd.characterNotes.trim();
@@ -1159,6 +1155,48 @@ export async function validateStoryBriefInput(
       }
     } catch (error: any) {
       addError(errors, ERROR_CODES.INVALID_CAREGIVER_ROLE, "characterDesign.caregiverRole", `Failed to verify caregiverRole: ${error.message}`);
+    }
+  }
+
+  if (normalized.characterDesign?.supportCharacters?.length) {
+    for (let i = 0; i < normalized.characterDesign.supportCharacters.length; i++) {
+      const sc = normalized.characterDesign.supportCharacters[i];
+      try {
+        const typeCheck = await checkReferenceItem("supportCharacterTypes", sc.type, fs);
+        if (!typeCheck.exists || !typeCheck.active) {
+          addError(
+            errors,
+            ERROR_CODES.INVALID_SUPPORT_CHARACTERS,
+            `characterDesign.supportCharacters[${i}].type`,
+            `supportCharacters[].type "${sc.type}" is not an active referenceData item`,
+          );
+        }
+      } catch (error: any) {
+        addError(
+          errors,
+          ERROR_CODES.INVALID_SUPPORT_CHARACTERS,
+          `characterDesign.supportCharacters[${i}].type`,
+          `Failed to verify support character type: ${error.message}`,
+        );
+      }
+      try {
+        const roleCheck = await checkReferenceItem("supportCharacterRoles", sc.role, fs);
+        if (!roleCheck.exists || !roleCheck.active) {
+          addError(
+            errors,
+            ERROR_CODES.INVALID_SUPPORT_CHARACTERS,
+            `characterDesign.supportCharacters[${i}].role`,
+            `supportCharacters[].role "${sc.role}" is not an active referenceData item`,
+          );
+        }
+      } catch (error: any) {
+        addError(
+          errors,
+          ERROR_CODES.INVALID_SUPPORT_CHARACTERS,
+          `characterDesign.supportCharacters[${i}].role`,
+          `Failed to verify support character role: ${error.message}`,
+        );
+      }
     }
   }
 

@@ -43,9 +43,11 @@ export type ProtagonistAgeRelation = "same_age" | "slightly_older" | "unspecifie
 
 export type ProtagonistGender = "male" | "female" | "neutral";
 
-export type SupportCharacterType = "peer" | "sibling" | "teacher" | "animal_friend";
+/** Firestore-driven — keys from referenceData/supportCharacterTypes/items */
+export type SupportCharacterType = string;
 
-export type SupportCharacterRole = "mirror" | "model" | "supporter" | "companion";
+/** Firestore-driven — keys from referenceData/supportCharacterRoles/items */
+export type SupportCharacterRole = string;
 
 export type EndingStyle = "calm_resolution" | "open_ended" | "empowering";
 
@@ -437,14 +439,12 @@ export function createStoryBrief(data: StoryBriefInput): Omit<StoryBrief, "id"> 
     if (data.characterDesign.supportCharacters.length > 3) {
       throw new Error("characterDesign.supportCharacters must contain at most 3 characters");
     }
-    const validTypes = ["peer", "sibling", "teacher", "animal_friend"];
-    const validRoles = ["mirror", "model", "supporter", "companion"];
     for (const sc of data.characterDesign.supportCharacters) {
-      if (!sc.type || !validTypes.includes(sc.type)) {
-        throw new Error(`characterDesign.supportCharacters[].type must be one of: ${validTypes.join(", ")}`);
+      if (!sc.type || typeof sc.type !== "string") {
+        throw new Error("characterDesign.supportCharacters[].type is required and must be a string");
       }
-      if (!sc.role || !validRoles.includes(sc.role)) {
-        throw new Error(`characterDesign.supportCharacters[].role must be one of: ${validRoles.join(", ")}`);
+      if (!sc.role || typeof sc.role !== "string") {
+        throw new Error("characterDesign.supportCharacters[].role is required and must be a string");
       }
     }
   }

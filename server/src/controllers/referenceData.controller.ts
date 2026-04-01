@@ -16,6 +16,7 @@ const VALID_CATEGORIES: ReferenceDataCategory[] = [
   "languageComplexities", "emotionalTones", "topicSensitivities",
   "endingStyles", "protagonistTypes", "protagonistAgeRelations",
   "protagonistGenders", "caregiverRoles", "peakIntensities",
+  "supportCharacterTypes", "supportCharacterRoles",
 ];
 
 /**

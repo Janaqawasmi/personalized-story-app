@@ -1033,6 +1033,12 @@ const caregiverRoles: Record<string, Record<string, unknown>> = {
     label_en: "Comfort presence",
     label_ar: "وجود مريح",
     label_he: "נוכחות מרגיעה",
+    description_en:
+      "Provides safety and reassurance in the story — the caregiver is present and emotionally containing.",
+    description_ar:
+      "يوفر الأمان والطمأنينة في القصة — مقدم الرعاية حاضر ويحتوي عاطفياً.",
+    description_he:
+      "מספק בטחון והרגעה בסיפור — המטפל נוכח ומכיל רגשית.",
     order: 1,
     active: true,
   },
@@ -1040,6 +1046,12 @@ const caregiverRoles: Record<string, Record<string, unknown>> = {
     label_en: "Active guide",
     label_ar: "دليل نشط",
     label_he: "מדריך פעיל",
+    description_en:
+      "Teaches or models coping directly — the caregiver shows skills or guides the child through difficulty.",
+    description_ar:
+      "يعلم أو يعرض التأقلم مباشرة — يوضح المهارات أو يرشد الطفل عبر الصعوبة.",
+    description_he:
+      "מלמד או מדגים התמודדות ישירות — מציג מיומנויות או מנחה את הילד דרך הקושי.",
     order: 2,
     active: true,
   },
@@ -1047,6 +1059,12 @@ const caregiverRoles: Record<string, Record<string, unknown>> = {
     label_en: "Mentioned, not present",
     label_ar: "مذكور، غير حاضر",
     label_he: "מוזכר, לא נוכח",
+    description_en:
+      "Referenced in the narrative but not physically in scenes — no on-page interaction.",
+    description_ar:
+      "يُذكر في السرد لكنه ليس حاضراً في المشاهد — لا تفاعل مباشر في المشهد.",
+    description_he:
+      "מוזכר בסיפור אבל לא נוכח בזירה — אין אינטראקציה ישירה במסך.",
     order: 3,
     active: true,
   },
@@ -1054,6 +1072,98 @@ const caregiverRoles: Record<string, Record<string, unknown>> = {
     label_en: "Absent",
     label_ar: "غائب",
     label_he: "נעדר",
+    description_en:
+      "No on-page caregiver — the story focuses on the child's own journey and inner resources.",
+    description_ar:
+      "لا مقدم رعاية في المشهد — القصة تركز على رحلة الطفل وموارده الداخلية.",
+    description_he:
+      "ללא מטפל על המסך — הסיפור מתמקד במסע של הילד ובמשאבים הפנימיים שלו.",
+    order: 4,
+    active: true,
+  },
+};
+
+const supportCharacterTypes: Record<string, Record<string, unknown>> = {
+  peer: {
+    label_en: "Peer",
+    label_ar: "قرين",
+    label_he: "חבר גיל",
+    order: 1,
+    active: true,
+  },
+  sibling: {
+    label_en: "Sibling",
+    label_ar: "أخ أو أخت",
+    label_he: "אח או אחות",
+    order: 2,
+    active: true,
+  },
+  teacher: {
+    label_en: "Teacher",
+    label_ar: "معلم",
+    label_he: "מורה",
+    order: 3,
+    active: true,
+  },
+  animal_friend: {
+    label_en: "Animal friend",
+    label_ar: "صديق حيوان",
+    label_he: "חבר מהחי",
+    order: 4,
+    active: true,
+  },
+};
+
+const supportCharacterRoles: Record<string, Record<string, unknown>> = {
+  mirror: {
+    label_en: "Mirror",
+    label_ar: "مرآة",
+    label_he: "מראה",
+    description_en:
+      "Reflects the protagonist's feelings — shows they're not alone",
+    description_ar:
+      "يعكس مشاعر البطل — يُظهر أنه ليس وحيداً",
+    description_he:
+      "משקף את רגשות הגיבור — מראה שהוא לא לבד",
+    order: 1,
+    active: true,
+  },
+  model: {
+    label_en: "Model",
+    label_ar: "نموذج",
+    label_he: "דוגמה",
+    description_en:
+      "Demonstrates the coping behavior the protagonist needs to learn",
+    description_ar:
+      "يُظهر سلوك التأقلم الذي يحتاج البطل أن يتعلمه",
+    description_he:
+      "מדגים את התנהגות ההתמודדות שהגיבור צריך ללמוד",
+    order: 2,
+    active: true,
+  },
+  supporter: {
+    label_en: "Supporter",
+    label_ar: "داعم",
+    label_he: "תומך",
+    description_en:
+      "Actively helps the protagonist through the challenge",
+    description_ar:
+      "يساعد البطل بنشاط خلال التحدي",
+    description_he:
+      "עוזר לגיבור באופן פעיל בזמן האתגר",
+    order: 3,
+    active: true,
+  },
+  companion: {
+    label_en: "Companion",
+    label_ar: "رفيق",
+    label_he: "בן לוויה",
+    description_en:
+      "Present alongside the protagonist — provides comfort through company",
+    description_ar:
+      "حاضر إلى جانب البطل — يوفر الراحة من خلال المرافقة",
+    description_he:
+      "נוכח לצד הגיבור — מספק נחות דרך נוכחות משותפת",
     order: 4,
     active: true,
   },
@@ -1225,6 +1335,8 @@ async function seedReferenceDataV2() {
     { name: "protagonistAgeRelations", docs: protagonistAgeRelations },
     { name: "protagonistGenders", docs: protagonistGenders },
     { name: "caregiverRoles", docs: caregiverRoles },
+    { name: "supportCharacterTypes", docs: supportCharacterTypes },
+    { name: "supportCharacterRoles", docs: supportCharacterRoles },
   ];
   for (const { name, docs } of enumSeeds) {
     console.log(`📂 ${name} (enum options)`);
@@ -1277,6 +1389,8 @@ async function seedReferenceDataV2() {
         "protagonistAgeRelations",
         "protagonistGenders",
         "caregiverRoles",
+        "supportCharacterTypes",
+        "supportCharacterRoles",
         "emotionalArcs",
       ],
     },

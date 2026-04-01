@@ -72,7 +72,9 @@ export type ReferenceDataCategory =
   | "protagonistAgeRelations"
   | "protagonistGenders"
   | "caregiverRoles"
-  | "peakIntensities";
+  | "peakIntensities"
+  | "supportCharacterTypes"
+  | "supportCharacterRoles";
 
 /**
  * Load reference items from a category (includes `group` / `recommendedCopingTools` when present in JSON).

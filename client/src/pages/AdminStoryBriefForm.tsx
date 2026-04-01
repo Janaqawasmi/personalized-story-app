@@ -89,6 +89,14 @@ function getDescription(item: ReferenceDataItem, lang: "en" | "ar" | "he" = "en"
   return (item as any)[`description_${lang}`] || item.description_en || '';
 }
 
+/** Keep selection only if still valid; if empty stay empty; if stale key clear (no auto-pick). */
+function keepValidOrEmpty(items: ReferenceDataItem[], current: string): string {
+  if (items.length === 0) return current;
+  if (!current.trim()) return "";
+  if (items.some((i) => i.key === current)) return current;
+  return "";
+}
+
 const AdminStoryBriefForm: React.FC = () => {
   const navigate = useLangNavigate();
   const DEFAULT_PLATFORM_MIN_AGE = 0;
@@ -108,6 +116,12 @@ const AdminStoryBriefForm: React.FC = () => {
   const [peakIntensities, setPeakIntensities] = useState<ReferenceDataItem[]>([]);
   const [emotionalToneOptions, setEmotionalToneOptions] = useState<ReferenceDataItem[]>([]);
   const [endingStyleOptions, setEndingStyleOptions] = useState<ReferenceDataItem[]>([]);
+  const [protagonistTypes, setProtagonistTypes] = useState<ReferenceDataItem[]>([]);
+  const [protagonistAgeRelationOptions, setProtagonistAgeRelationOptions] = useState<ReferenceDataItem[]>([]);
+  const [protagonistGenderOptions, setProtagonistGenderOptions] = useState<ReferenceDataItem[]>([]);
+  const [caregiverRoleOptions, setCaregiverRoleOptions] = useState<ReferenceDataItem[]>([]);
+  const [supportCharacterTypeOptions, setSupportCharacterTypeOptions] = useState<ReferenceDataItem[]>([]);
+  const [supportCharacterRoleOptions, setSupportCharacterRoleOptions] = useState<ReferenceDataItem[]>([]);
   const [platformConfig, setPlatformConfig] = useState<ReferencePlatformConfig>({
     platformMinAge: DEFAULT_PLATFORM_MIN_AGE,
     platformMaxAge: DEFAULT_PLATFORM_MAX_AGE,
@@ -122,6 +136,7 @@ const AdminStoryBriefForm: React.FC = () => {
   const [loadingMechanisms, setLoadingMechanisms] = useState(false);
   const [loadingCopingTools, setLoadingCopingTools] = useState(false);
   const [loadingStep3, setLoadingStep3] = useState(false);
+  const [loadingStep4, setLoadingStep4] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // UI state
@@ -152,10 +167,10 @@ const AdminStoryBriefForm: React.FC = () => {
     Partial<Record<"topicSensitivity" | "emotionalArc" | "peakIntensity" | "emotionalTone" | "endingStyle", string>>
   >({});
   const [selectedExclusions, setSelectedExclusions] = useState<string[]>([]);
-  const [selectedProtagonistType, setSelectedProtagonistType] = useState<"child_character" | "animal_character" | "fantasy_character">("child_character");
-  const [selectedProtagonistAgeRelation, setSelectedProtagonistAgeRelation] = useState<"same_age" | "slightly_older" | "unspecified">("same_age");
-  const [selectedProtagonistGender, setSelectedProtagonistGender] = useState<"male" | "female" | "neutral">("neutral");
-  const [selectedCaregiverRole, setSelectedCaregiverRole] = useState<"comfort_presence" | "active_guide" | "mentioned_not_present" | "absent">("comfort_presence");
+  const [selectedProtagonistType, setSelectedProtagonistType] = useState<string>("");
+  const [selectedProtagonistAgeRelation, setSelectedProtagonistAgeRelation] = useState<string>("");
+  const [selectedProtagonistGender, setSelectedProtagonistGender] = useState<string>("");
+  const [selectedCaregiverRole, setSelectedCaregiverRole] = useState<string>("");
   const [supportCharacters, setSupportCharacters] = useState<{ type: string; role: string }[]>([]);
   const [characterNotes, setCharacterNotes] = useState<string>('');
   const [clinicalCautions, setClinicalCautions] = useState<string[]>([]);
@@ -358,6 +373,55 @@ const AdminStoryBriefForm: React.FC = () => {
     load();
   }, []);
 
+  // Load Step 4 options (character design) on mount
+  useEffect(() => {
+    const load = async () => {
+      setLoadingStep4(true);
+      try {
+        const [pt, par, pg, cr, sct, scr] = await Promise.all([
+          loadReferenceItems("protagonistTypes"),
+          loadReferenceItems("protagonistAgeRelations"),
+          loadReferenceItems("protagonistGenders"),
+          loadReferenceItems("caregiverRoles"),
+          loadReferenceItems("supportCharacterTypes"),
+          loadReferenceItems("supportCharacterRoles"),
+        ]);
+        setProtagonistTypes(pt);
+        setProtagonistAgeRelationOptions(par);
+        setProtagonistGenderOptions(pg);
+        setCaregiverRoleOptions(cr);
+        setSupportCharacterTypeOptions(sct);
+        setSupportCharacterRoleOptions(scr);
+      } catch (err) {
+        console.error('Failed to load character design options:', err);
+        setError('Failed to load character design options. Please refresh the page.');
+      } finally {
+        setLoadingStep4(false);
+      }
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    if (protagonistTypes.length === 0) return;
+    setSelectedProtagonistType((prev) => keepValidOrEmpty(protagonistTypes, prev));
+  }, [protagonistTypes]);
+
+  useEffect(() => {
+    if (protagonistAgeRelationOptions.length === 0) return;
+    setSelectedProtagonistAgeRelation((prev) => keepValidOrEmpty(protagonistAgeRelationOptions, prev));
+  }, [protagonistAgeRelationOptions]);
+
+  useEffect(() => {
+    if (protagonistGenderOptions.length === 0) return;
+    setSelectedProtagonistGender((prev) => keepValidOrEmpty(protagonistGenderOptions, prev));
+  }, [protagonistGenderOptions]);
+
+  useEffect(() => {
+    if (caregiverRoleOptions.length === 0) return;
+    setSelectedCaregiverRole((prev) => keepValidOrEmpty(caregiverRoleOptions, prev));
+  }, [caregiverRoleOptions]);
+
   /** Union of recommendedCopingTools from all selected mechanisms (visual badges only). */
   const recommendedCopingToolKeys = useMemo(() => {
     const keys = new Set<string>();
@@ -414,6 +478,27 @@ const AdminStoryBriefForm: React.FC = () => {
     const def = copingToolGroups.find((g) => g.key === groupId);
     return def ? getLabel(def, "en") : groupId;
   };
+
+  const selectedMechanismLabels = useMemo(
+    () =>
+      selectedMechanisms
+        .map((k) => {
+          const m = therapeuticMechanisms.find((x) => x.key === k);
+          return m ? getLabel(m, "en") : k;
+        })
+        .filter(Boolean),
+    [selectedMechanisms, therapeuticMechanisms],
+  );
+
+  /** Step 6 soft warning: likeness personalization rarely fits non-human protagonists. */
+  const illustrationLikenessMayNotApply = useMemo(
+    () =>
+      personalizationAllowed &&
+      illustrationPersonalization &&
+      (selectedProtagonistType === "animal_character" ||
+        selectedProtagonistType === "fantasy_character"),
+    [personalizationAllowed, illustrationPersonalization, selectedProtagonistType],
+  );
 
   // Scroll to messages when they appear
   useEffect(() => {
@@ -505,6 +590,27 @@ const AdminStoryBriefForm: React.FC = () => {
     return true;
   };
 
+  const validateStep4 = (): boolean => {
+    if (!selectedProtagonistType.trim()) {
+      setError("Please select protagonist type.");
+      return false;
+    }
+    if (!selectedCaregiverRole.trim()) {
+      setError("Please select caregiver role.");
+      return false;
+    }
+    if (!selectedProtagonistAgeRelation.trim()) {
+      setError("Please select protagonist age relation.");
+      return false;
+    }
+    if (!selectedProtagonistGender.trim()) {
+      setError("Please select protagonist gender.");
+      return false;
+    }
+    setError(null);
+    return true;
+  };
+
   // Handle exclusion toggle
   const handleExclusionToggle = (exclusionKey: string) => {
     setSelectedExclusions((prev) => {
@@ -549,6 +655,10 @@ const AdminStoryBriefForm: React.FC = () => {
       if (!validateStep3()) {
         return;
       }
+    } else if (activeStep === 3) {
+      if (!validateStep4()) {
+        return;
+      }
     }
     setError(null);
     setActiveStep((prev) => Math.min(prev + 1, 5));
@@ -586,6 +696,10 @@ const AdminStoryBriefForm: React.FC = () => {
         }
       } else if (activeStep === 2 && newValue > activeStep) {
         if (!validateStep3()) {
+          return;
+        }
+      } else if (activeStep === 3 && newValue > activeStep) {
+        if (!validateStep4()) {
           return;
         }
       }
@@ -638,6 +752,11 @@ const AdminStoryBriefForm: React.FC = () => {
 
     if (!validateStep3()) {
       setActiveStep(2);
+      return;
+    }
+
+    if (!validateStep4()) {
+      setActiveStep(3);
       return;
     }
 
@@ -1558,33 +1677,154 @@ const AdminStoryBriefForm: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               Define the protagonist, caregiver role, and optional support characters.
             </Typography>
+            {loadingStep4 ? (
+              <Typography variant="body2" color="text.secondary">Loading character design options...</Typography>
+            ) : (
             <Stack spacing={3}>
-              <FormControl fullWidth required>
-                <InputLabel>Protagonist Type</InputLabel>
-                <Select
-                  value={selectedProtagonistType}
-                  onChange={(e) => setSelectedProtagonistType(e.target.value as typeof selectedProtagonistType)}
-                  label="Protagonist Type"
+              {selectedMechanismLabels.length > 0 && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderColor: "divider",
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                  }}
                 >
-                  <MenuItem value="child_character">Child Character</MenuItem>
-                  <MenuItem value="animal_character">Animal Character</MenuItem>
-                  <MenuItem value="fantasy_character">Fantasy Character</MenuItem>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    Selected therapeutic approach (from Step 2)
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {selectedMechanismLabels.join(" · ")}
+                  </Typography>
+                </Paper>
+              )}
+
+              <FormControl fullWidth required>
+                <InputLabel shrink>Protagonist Type</InputLabel>
+                <Select
+                  displayEmpty
+                  notched
+                  value={selectedProtagonistType}
+                  onChange={(e) => setSelectedProtagonistType(e.target.value)}
+                  label="Protagonist Type"
+                  renderValue={(v) => {
+                    if (!v) return <em style={{ opacity: 0.7 }}>Select protagonist type</em>;
+                    const item = protagonistTypes.find((i) => i.key === v);
+                    return item ? getLabel(item, "en") : v;
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Select protagonist type
+                  </MenuItem>
+                  {protagonistTypes.map((item) => (
+                    <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
+                  ))}
                 </Select>
                 <FormHelperText>What kind of character the protagonist is</FormHelperText>
               </FormControl>
 
-              <FormControl fullWidth required>
-                <InputLabel>Protagonist Age Relation</InputLabel>
-                <Select
-                  value={selectedProtagonistAgeRelation}
-                  onChange={(e) => setSelectedProtagonistAgeRelation(e.target.value as typeof selectedProtagonistAgeRelation)}
-                  label="Protagonist Age Relation"
+              <FormControl component="fieldset" required fullWidth>
+                <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+                  Caregiver Role *
+                </FormLabel>
+                <FormHelperText sx={{ mb: 1.5, mt: 0 }}>
+                  Therapeutic role of the caregiver in the story — aligns with the therapeutic approach you chose earlier.
+                </FormHelperText>
+                <RadioGroup
+                  value={selectedCaregiverRole}
+                  onChange={(e) => setSelectedCaregiverRole(e.target.value)}
+                  sx={{ gap: 1.5 }}
                 >
-                  <MenuItem value="same_age">Same Age</MenuItem>
-                  <MenuItem value="slightly_older">Slightly Older</MenuItem>
-                  <MenuItem value="unspecified">Unspecified</MenuItem>
+                  {caregiverRoleOptions.map((role) => {
+                    const isSelected = selectedCaregiverRole === role.key;
+                    const desc = getDescription(role, "en");
+                    return (
+                      <Paper
+                        key={role.key}
+                        elevation={0}
+                        variant="outlined"
+                        sx={{
+                          borderWidth: 2,
+                          borderColor: (theme) =>
+                            isSelected ? theme.palette.primary.main : theme.palette.divider,
+                          bgcolor: (theme) =>
+                            isSelected
+                              ? alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.14 : 0.08)
+                              : theme.palette.background.paper,
+                          transition: (theme) =>
+                            theme.transitions.create(["border-color", "background-color"], {
+                              duration: theme.transitions.duration.shorter,
+                            }),
+                        }}
+                      >
+                        <FormControlLabel
+                          value={role.key}
+                          control={
+                            <Radio
+                              sx={{
+                                alignSelf: "flex-start",
+                                pt: 1.25,
+                              }}
+                            />
+                          }
+                          label={
+                            <Box sx={{ py: 1.25, pr: 1 }}>
+                              <Typography
+                                variant="subtitle1"
+                                component="span"
+                                sx={{ fontWeight: 600, display: "block" }}
+                              >
+                                {getLabel(role, "en")}
+                              </Typography>
+                              {desc && (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{ mt: 0.5, lineHeight: 1.45 }}
+                                >
+                                  {desc}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                          sx={{
+                            m: 0,
+                            mx: 0,
+                            ml: 1,
+                            alignItems: "flex-start",
+                            width: "100%",
+                            pr: 2,
+                          }}
+                        />
+                      </Paper>
+                    );
+                  })}
+                </RadioGroup>
+              </FormControl>
+
+              <FormControl fullWidth required>
+                <InputLabel shrink>Protagonist Age Relation</InputLabel>
+                <Select
+                  displayEmpty
+                  notched
+                  value={selectedProtagonistAgeRelation}
+                  onChange={(e) => setSelectedProtagonistAgeRelation(e.target.value)}
+                  label="Protagonist Age Relation"
+                  renderValue={(v) => {
+                    if (!v) return <em style={{ opacity: 0.7 }}>Select age relation</em>;
+                    const item = protagonistAgeRelationOptions.find((i) => i.key === v);
+                    return item ? getLabel(item, "en") : v;
+                  }}
+                >
+                  <MenuItem value="" disabled>
+                    Select age relation
+                  </MenuItem>
+                  {protagonistAgeRelationOptions.map((item) => (
+                    <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
+                  ))}
                 </Select>
-                <FormHelperText>How protagonist's age relates to the target child's age</FormHelperText>
+                <FormHelperText>{`How the protagonist's age relates to the target child's age`}</FormHelperText>
               </FormControl>
 
               <FormControl component="fieldset" required>
@@ -1592,28 +1832,13 @@ const AdminStoryBriefForm: React.FC = () => {
                 <RadioGroup
                   row
                   value={selectedProtagonistGender}
-                  onChange={(e) => setSelectedProtagonistGender(e.target.value as typeof selectedProtagonistGender)}
+                  onChange={(e) => setSelectedProtagonistGender(e.target.value)}
                   sx={{ mt: 0.5 }}
                 >
-                  <FormControlLabel value="male" control={<Radio />} label="Male" />
-                  <FormControlLabel value="female" control={<Radio />} label="Female" />
-                  <FormControlLabel value="neutral" control={<Radio />} label="Neutral" />
+                  {protagonistGenderOptions.map((item) => (
+                    <FormControlLabel key={item.key} value={item.key} control={<Radio />} label={getLabel(item, "en")} />
+                  ))}
                 </RadioGroup>
-              </FormControl>
-
-              <FormControl fullWidth required>
-                <InputLabel>Caregiver Role</InputLabel>
-                <Select
-                  value={selectedCaregiverRole}
-                  onChange={(e) => setSelectedCaregiverRole(e.target.value as typeof selectedCaregiverRole)}
-                  label="Caregiver Role"
-                >
-                  <MenuItem value="comfort_presence">Comfort Presence — provides safety and reassurance</MenuItem>
-                  <MenuItem value="active_guide">Active Guide — teaches or models coping</MenuItem>
-                  <MenuItem value="mentioned_not_present">Mentioned Not Present — referenced but not in scene</MenuItem>
-                  <MenuItem value="absent">Absent — story focuses on child's own journey</MenuItem>
-                </Select>
-                <FormHelperText>Therapeutic role of the caregiver in the story</FormHelperText>
               </FormControl>
 
               <Box>
@@ -1634,15 +1859,16 @@ const AdminStoryBriefForm: React.FC = () => {
                           }}
                           label="Type"
                         >
-                          <MenuItem value="peer">Peer</MenuItem>
-                          <MenuItem value="sibling">Sibling</MenuItem>
-                          <MenuItem value="teacher">Teacher</MenuItem>
-                          <MenuItem value="animal_friend">Animal Friend</MenuItem>
+                          {supportCharacterTypeOptions.map((item) => (
+                            <MenuItem key={item.key} value={item.key}>{getLabel(item, "en")}</MenuItem>
+                          ))}
                         </Select>
                       </FormControl>
                       <FormControl sx={{ flex: 1 }}>
-                        <InputLabel>Role</InputLabel>
+                        <InputLabel shrink>Role</InputLabel>
                         <Select
+                          displayEmpty
+                          notched
                           value={sc.role}
                           onChange={(e) => {
                             const updated = [...supportCharacters];
@@ -1650,11 +1876,32 @@ const AdminStoryBriefForm: React.FC = () => {
                             setSupportCharacters(updated);
                           }}
                           label="Role"
+                          renderValue={(v) => {
+                            if (!v) return <em style={{ opacity: 0.7 }}>Select role</em>;
+                            const item = supportCharacterRoleOptions.find((i) => i.key === v);
+                            return item ? getLabel(item, "en") : v;
+                          }}
                         >
-                          <MenuItem value="mirror">Mirror</MenuItem>
-                          <MenuItem value="model">Model</MenuItem>
-                          <MenuItem value="supporter">Supporter</MenuItem>
-                          <MenuItem value="companion">Companion</MenuItem>
+                          <MenuItem value="" disabled>
+                            Select role
+                          </MenuItem>
+                          {supportCharacterRoleOptions.map((item) => {
+                            const desc = getDescription(item, "en");
+                            return (
+                              <MenuItem key={item.key} value={item.key} sx={{ alignItems: "flex-start", py: 1.25 }}>
+                                <Box>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {getLabel(item, "en")}
+                                  </Typography>
+                                  {desc ? (
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25, lineHeight: 1.4, whiteSpace: "normal" }}>
+                                      {desc}
+                                    </Typography>
+                                  ) : null}
+                                </Box>
+                              </MenuItem>
+                            );
+                          })}
                         </Select>
                       </FormControl>
                       <IconButton onClick={() => setSupportCharacters(supportCharacters.filter((_, i) => i !== idx))} color="error" size="small">
@@ -1685,6 +1932,7 @@ const AdminStoryBriefForm: React.FC = () => {
                 fullWidth
               />
             </Stack>
+            )}
           </TabPanel>
 
           {/* STEP 5: Safety & Boundaries */}
@@ -1822,6 +2070,12 @@ const AdminStoryBriefForm: React.FC = () => {
                     </RadioGroup>
                     <FormHelperText>Whether AI illustrations can use the child's likeness</FormHelperText>
                   </FormControl>
+
+                  {illustrationLikenessMayNotApply && (
+                    <Alert severity="warning" sx={{ py: 1 }}>
+                      You selected an animal or fantasy protagonist — illustration personalization with the child&apos;s likeness may not apply. Consider turning illustration personalization off unless you have a specific creative approach in mind.
+                    </Alert>
+                  )}
 
                   <FormControl fullWidth>
                     <InputLabel>Gender Adaptation (optional)</InputLabel>
