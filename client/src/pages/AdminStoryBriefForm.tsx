@@ -314,7 +314,7 @@ const AdminStoryBriefForm: React.FC = () => {
     const loadExclusions = async () => {
       setLoadingExclusions(true);
       try {
-        const items = await loadReferenceItems("exclusions");
+        const items = await loadReferenceItems("contentExclusions");
         setExclusions(items);
       } catch (err) {
         console.error('Failed to load exclusions:', err);
@@ -506,6 +506,17 @@ const AdminStoryBriefForm: React.FC = () => {
         })
         .filter(Boolean),
     [selectedMechanisms, therapeuticMechanisms],
+  );
+
+  const selectedTopicSensitivityLabel = useMemo(() => {
+    if (!selectedTopicSensitivity.trim()) return "";
+    const item = topicSensitivities.find((x) => x.key === selectedTopicSensitivity);
+    return item ? getLabel(item, "en") : selectedTopicSensitivity;
+  }, [selectedTopicSensitivity, topicSensitivities]);
+
+  const nonEmptyTherapeuticBoundaries = useMemo(
+    () => therapeuticBoundaries.map((b) => b.trim()).filter((b) => b.length > 0),
+    [therapeuticBoundaries],
   );
 
   /** Step 6 soft warning: likeness personalization rarely fits non-human protagonists. */
@@ -1962,6 +1973,43 @@ const AdminStoryBriefForm: React.FC = () => {
               Content exclusions, clinical cautions, and review settings.
             </Typography>
             <Stack spacing={3}>
+              {(selectedTopicSensitivityLabel || nonEmptyTherapeuticBoundaries.length > 0) && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderColor: "divider",
+                    bgcolor: (theme) =>
+                      theme.palette.mode === "dark" ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.02)",
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    Context from earlier steps (read-only)
+                  </Typography>
+                  {selectedTopicSensitivityLabel && (
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Topic sensitivity: {selectedTopicSensitivityLabel}
+                    </Typography>
+                  )}
+                  {nonEmptyTherapeuticBoundaries.length > 0 && (
+                    <Box sx={{ mt: selectedTopicSensitivityLabel ? 1.25 : 0.5 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        Therapeutic boundaries (from Step 2)
+                      </Typography>
+                      <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                        {nonEmptyTherapeuticBoundaries.map((b, i) => (
+                          <Box key={`${i}-${b}`} component="li" sx={{ mt: i === 0 ? 0 : 0.5 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {b}
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </Box>
+                  )}
+                </Paper>
+              )}
+
               <FormControl component="fieldset">
                 <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>Content Exclusions</FormLabel>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 1 }}>
