@@ -27,6 +27,13 @@ import flatCartoonImg from "../assets/story-styles/flat-cartoon.jpeg";
 import paperCraftImg from "../assets/story-styles/paper-craft.jpeg";
 import vintageGoldenImg from "../assets/story-styles/vintage-1950s-little-golden.jpeg";
 import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
+import {
+  sanitizeChildName,
+  validateChildName,
+  detectNameScriptFamily,
+  getExpectedNameScriptForStoryLanguage,
+  shouldWarnNameScriptMismatch,
+} from "../utils/childNameValidation";
 
 type VisualStyle =
   | "watercolor"
@@ -160,6 +167,41 @@ export default function PersonalizeStoryPage() {
   const [showResumeScreen, setShowResumeScreen] = useState(false);
   const [showCompletedScreen, setShowCompletedScreen] = useState(false);
   const [showFinalError, setShowFinalError] = useState(false);
+  const [childNameBlurred, setChildNameBlurred] = useState(false);
+
+  const childNameValue = personalization.childName ?? "";
+  const childNameValidation = useMemo(() => validateChildName(childNameValue), [childNameValue]);
+  const childNameScriptFamily = useMemo(
+    () => detectNameScriptFamily(childNameValue),
+    [childNameValue]
+  );
+  const expectedNameScriptForStory = useMemo(
+    () => getExpectedNameScriptForStoryLanguage(story?.language),
+    [story?.language]
+  );
+  const showChildNameScriptWarning = useMemo(
+    () =>
+      childNameValidation.ok &&
+      shouldWarnNameScriptMismatch(expectedNameScriptForStory, childNameScriptFamily),
+    [childNameValidation.ok, expectedNameScriptForStory, childNameScriptFamily]
+  );
+
+  const childNameFieldHelperText = useMemo(() => {
+    if (childNameValidation.ok) return null;
+    if (childNameValidation.error === "required") {
+      return childNameBlurred ? t("personalize.nameRequired") : null;
+    }
+    if (childNameValidation.error === "tooShort") {
+      if (childNameValue.length > 0 || childNameBlurred) {
+        return t("personalize.nameMinLength");
+      }
+      return null;
+    }
+    if (childNameValidation.error === "tooLong") {
+      return t("personalize.nameMaxLength");
+    }
+    return null;
+  }, [childNameValidation, childNameValue.length, childNameBlurred, t]);
 
   // Diagnostic: Log mount/unmount and state changes
   useEffect(() => {
@@ -210,7 +252,7 @@ export default function PersonalizeStoryPage() {
             setShowCompletedScreen(true);
             if (existingSession.data) {
               setPersonalization({
-                childName: existingSession.data.childName || "",
+                childName: sanitizeChildName(existingSession.data.childName || ""),
                 gender: existingSession.data.gender,
                 visualStyle: existingSession.data.visualStyle || "watercolor",
               });
@@ -236,7 +278,7 @@ export default function PersonalizeStoryPage() {
   const validateCurrentStep = (step: number): boolean => {
     switch (step) {
       case 0:
-        return (personalization.childName?.trim().length ?? 0) >= 2;
+        return validateChildName(personalization.childName ?? "").ok;
       case 1:
         return !!personalization.gender;
       case 2:
@@ -252,7 +294,7 @@ export default function PersonalizeStoryPage() {
   // Global validation (only for final submit)
   const validateAllSteps = (): boolean => {
     return !!(
-      personalization.childName &&
+      validateChildName(personalization.childName ?? "").ok &&
       personalization.gender &&
       personalization.photoFile &&
       personalization.photoPreviewUrl &&
@@ -262,7 +304,7 @@ export default function PersonalizeStoryPage() {
 
   // Infer step from data (for resume logic)
   const inferStepFromData = (data: StoryPersonalizationData): number => {
-    if (!data.childName || data.childName.trim().length < 2) return 0;
+    if (!validateChildName(sanitizeChildName(data.childName || "")).ok) return 0;
     if (!data.gender) return 1;
     if (!data.photoPreviewUrl) return 2;
     if (!data.visualStyle) return 3;
@@ -308,11 +350,11 @@ export default function PersonalizeStoryPage() {
       setPersonalization(updated);
       
       // Auto-save as draft after photo upload
-      if (storyId && updated.childName && updated.gender && updated.visualStyle) {
+      if (storyId && validateChildName(updated.childName ?? "").ok && updated.gender && updated.visualStyle) {
         savePersonalizationSession(
           storyId,
           {
-            childName: updated.childName,
+            childName: updated.childName!,
             gender: updated.gender,
             photoPreviewUrl: reader.result as string,
             visualStyle: updated.visualStyle,
@@ -356,8 +398,11 @@ export default function PersonalizeStoryPage() {
   const handleResume = () => {
     if (!session || session.status !== "draft") return;
     
-    // Restore personalization data
-    setPersonalization(session.data);
+    // Restore personalization data (normalize stored name)
+    setPersonalization({
+      ...session.data,
+      childName: sanitizeChildName(session.data.childName || ""),
+    });
     
     // Infer step from data (where user left off)
     const step = inferStepFromData(session.data);
@@ -379,6 +424,7 @@ export default function PersonalizeStoryPage() {
 
       visualStyle: "watercolor",
     });
+    setChildNameBlurred(false);
     setActiveStep(0);
     setShowResumeScreen(false);
   };
@@ -393,6 +439,7 @@ export default function PersonalizeStoryPage() {
       gender: undefined,
       visualStyle: "watercolor",
     });
+    setChildNameBlurred(false);
     setActiveStep(0);
     setShowCompletedScreen(false);
   };
@@ -658,20 +705,14 @@ export default function PersonalizeStoryPage() {
                   variant="filled"
                   value={personalization.childName || ""}
                   onChange={(e) => {
-                    const newValue = e.target.value;
-                    console.log("[Step1] onChange - newValue:", newValue, "current state:", personalization.childName, "timestamp:", Date.now());
-                    // Use functional update to ensure we have the latest state
+                    const sanitized = sanitizeChildName(e.target.value);
                     setPersonalization((prev) => {
-                      const updated = { ...prev, childName: newValue };
-                      console.log("[Step1] setPersonalization - prev:", prev.childName, "updated:", updated.childName);
-                      
-                      // Auto-save draft on change (only if we have both name and gender)
-                      // This ensures we have valid data for StoryPersonalizationData type
-                      if (storyId && newValue.trim().length >= 2 && prev.gender) {
+                      const updated = { ...prev, childName: sanitized };
+                      if (storyId && validateChildName(sanitized).ok && prev.gender) {
                         savePersonalizationSession(
                           storyId,
                           {
-                            childName: newValue,
+                            childName: sanitized,
                             gender: prev.gender,
                             photoPreviewUrl: prev.photoPreviewUrl || "",
                             visualStyle: prev.visualStyle || "watercolor",
@@ -679,13 +720,47 @@ export default function PersonalizeStoryPage() {
                           "draft"
                         );
                       }
-                      
                       return updated;
                     });
                   }}
+                  onBlur={() => setChildNameBlurred(true)}
+                  error={Boolean(childNameFieldHelperText)}
+                  helperText={
+                    childNameFieldHelperText || showChildNameScriptWarning ? (
+                      <>
+                        {childNameFieldHelperText ? (
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{ color: "error.main", display: "block", textAlign: isRTL ? "right" : "left" }}
+                          >
+                            {childNameFieldHelperText}
+                          </Typography>
+                        ) : null}
+                        {showChildNameScriptWarning ? (
+                          <Typography
+                            component="span"
+                            variant="caption"
+                            sx={{
+                              color: "warning.main",
+                              display: "block",
+                              mt: childNameFieldHelperText ? 0.75 : 0,
+                              textAlign: isRTL ? "right" : "left",
+                            }}
+                          >
+                            {t("personalize.nameScriptMismatchWarning")}
+                          </Typography>
+                        ) : null}
+                      </>
+                    ) : undefined
+                  }
+                  FormHelperTextProps={{
+                    component: "div",
+                    sx: { textAlign: isRTL ? "right" : "left" },
+                  }}
                   placeholder={t("personalize.enterName")}
                   sx={{ mb: 2 }}
-                  inputProps={{ maxLength: 50 }}
+                  inputProps={{ maxLength: 30 }}
                   InputProps={{
                     disableUnderline: true,
                     sx: {
@@ -698,13 +773,6 @@ export default function PersonalizeStoryPage() {
                     },
                   }}
                 />
-                {personalization.childName &&
-                  personalization.childName.length > 0 &&
-                  personalization.childName.length < 2 && (
-                    <Typography variant="caption" color="error" sx={{ textAlign: "center" }}>
-                      {t("personalize.nameMinLength")}
-                    </Typography>
-                  )}
               </Box>
             )}
 
@@ -731,11 +799,11 @@ export default function PersonalizeStoryPage() {
                         const updated = { ...personalization, gender: option.value };
                         setPersonalization(updated);
                         // Auto-save draft
-                        if (storyId && personalization.childName && personalization.childName.trim().length >= 2) {
+                        if (storyId && validateChildName(personalization.childName ?? "").ok) {
                           savePersonalizationSession(
                             storyId,
                             {
-                              childName: personalization.childName,
+                              childName: personalization.childName!,
                               gender: option.value,
                               photoPreviewUrl: personalization.photoPreviewUrl || "",
                               visualStyle: personalization.visualStyle || "watercolor",
