@@ -15,7 +15,7 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
   const navigate = useLangNavigate();
   const t = useTranslation();
 
-  if (stories.length === 0) return null;
+  if (!stories || stories.length === 0) return null;
 
   const inner = (
     <Box sx={{ mb: 6 }}>
@@ -36,6 +36,8 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
             imageUrl={s.coverImage}
             ageGroup={s.targetAgeGroup ?? null}
             topic={s.topicKey ?? null}
+            topicLabel={s.topicLabel ?? null}
+            catalogVariant
             category={null}
             onClick={() => {
               navigate(`/stories/${s.id}`);
@@ -51,8 +53,9 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
     return inner;
   }
 
+  // Animate on mount (not only whileInView) so the section never stays opacity:0 if in-view detection fails.
   return (
-    <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
+    <motion.div variants={fadeUpVariant} initial="hidden" animate="visible">
       {inner}
     </motion.div>
   );

@@ -84,7 +84,13 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
     description: shortDesc,
     coverUrl: (typeof data.coverImage === "string" && data.coverImage) || (typeof data.coverImageUrl === "string" && data.coverImageUrl) || "",
     ageRange: formatAgeGroup(data.ageGroup || data.targetAgeGroup || data.generationConfig?.targetAgeGroup),
+    ageGroupRaw:
+      (typeof data.ageGroup === "string" && data.ageGroup) ||
+      (typeof data.targetAgeGroup === "string" && data.targetAgeGroup) ||
+      (typeof data.generationConfig?.targetAgeGroup === "string" && data.generationConfig.targetAgeGroup) ||
+      "",
     primaryTopic: typeof data.primaryTopic === "string" ? data.primaryTopic : "",
+    topicKey: typeof data.topicKey === "string" ? data.topicKey : "",
     topicLabel: toLangRecord(data.displayTopic || data.specificSituation || data.primaryTopic || data.topicKey),
     priceDigital: digital,
     pricePrint: print,

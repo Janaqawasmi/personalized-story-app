@@ -42,8 +42,8 @@ export default function StoryDetailPage() {
   const prefersReducedMotion = useReducedMotion();
   const reducedMotion = Boolean(prefersReducedMotion);
 
-  const { story, loading, error, storyId } = useStoryDetail();
-  const related = useRelatedStories(story?.primaryTopic, storyId);
+  const { story, loading, error } = useStoryDetail();
+  const related = useRelatedStories(story);
 
   const favoriteDraft = useMemo(
     () =>
@@ -209,7 +209,7 @@ export default function StoryDetailPage() {
 
         <FaqSection items={faqRows} reducedMotion={reducedMotion} />
 
-        <RelatedStories stories={related} reducedMotion={reducedMotion} />
+        {related.length > 0 && <RelatedStories stories={related} reducedMotion={reducedMotion} />}
       </Container>
 
       <StickyMobileCta

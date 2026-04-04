@@ -19,8 +19,18 @@ type Props = {
   ageGroup?: string | null;
   category?: string | null;
   topic?: string | null;
+  /** Human-readable topic line (story detail related grid); falls back to formatted `topic` */
+  topicLabel?: string | null;
+  /** Catalog-style card: uppercase topic, Playfair title, outlined purple CTA */
+  catalogVariant?: boolean;
   onClick: () => void;
 };
+
+function formatTopicLine(topicLabel: string | null | undefined, topic: string | null | undefined): string | null {
+  const raw = (topicLabel || topic || "").trim();
+  if (!raw) return null;
+  return raw.replace(/_/g, " ").toUpperCase();
+}
 
 export default function StoryGridCard({
   storyId,
@@ -30,12 +40,15 @@ export default function StoryGridCard({
   ageGroup,
   category,
   topic,
+  topicLabel,
+  catalogVariant = false,
   onClick,
 }: Props) {
   const theme = useTheme();
   const { language } = useLanguage();
-  
+
   const buttonText = language === "he" ? "צפו בסיפור" : language === "ar" ? "شاهد القصة" : "View Story";
+  const topicLine = catalogVariant ? formatTopicLine(topicLabel, topic) : null;
 
   const { isFavorite, toggle, loading: favoriteLoading } = useFavorite(storyId, {
     storyId,
@@ -45,6 +58,35 @@ export default function StoryGridCard({
     category: category ?? null,
     topic: topic ?? null,
   });
+
+  const imageAreaSx = catalogVariant
+    ? {
+        position: "relative" as const,
+        height: 240,
+        width: "100%",
+        backgroundColor: theme.palette.grey[100],
+        ...(imageUrl
+          ? {
+              backgroundImage: `url(${imageUrl})`,
+              backgroundSize: "100% auto" as const,
+              backgroundRepeat: "no-repeat" as const,
+              backgroundPosition: "center" as const,
+            }
+          : {
+              backgroundImage:
+                "linear-gradient(145deg, #e8e4f7 0%, #c9c0ee 45%, #b8aee8 100%)",
+            }),
+      }
+    : {
+        position: "relative" as const,
+        height: 240,
+        width: "100%",
+        backgroundColor: theme.palette.grey[100],
+        backgroundImage: `url(${imageUrl || "/book-placeholder.jpg"})`,
+        backgroundSize: "100% auto" as const,
+        backgroundRepeat: "no-repeat" as const,
+        backgroundPosition: "center" as const,
+      };
 
   return (
     <Card
@@ -56,7 +98,7 @@ export default function StoryGridCard({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        minHeight: 380,                // 🔹 smaller card
+        minHeight: catalogVariant ? 360 : 380,
         overflow: "hidden",
         border: `1px solid ${theme.palette.divider}`,
         boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
@@ -68,18 +110,7 @@ export default function StoryGridCard({
       }}
     >
       {/* Image */}
-      <Box
-        sx={{
-          position: "relative",
-          height: 240,                  // 🔹 taller to better match book cover aspect ratio
-          width: "100%",
-          backgroundColor: theme.palette.grey[100], // Subtle background to fill space
-          backgroundImage: `url(${imageUrl || "/book-placeholder.jpg"})`,
-          backgroundSize: "100% auto",  // Fill width completely, height scales proportionally
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-        }}
-      >
+      <Box sx={imageAreaSx}>
         {/* Favorite toggle (top-right overlay) */}
         <IconButton
           aria-label="toggle favorite"
@@ -114,16 +145,31 @@ export default function StoryGridCard({
           pb: 2.5,
           display: "flex",
           flexDirection: "column",
-          gap: 1.2,
+          gap: catalogVariant ? 1 : 1.2,
           flexGrow: 1,
           textAlign: "center",
         }}
       >
+        {catalogVariant && topicLine && (
+          <Typography
+            sx={{
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              color: "#888",
+              lineHeight: 1.3,
+            }}
+          >
+            {topicLine}
+          </Typography>
+        )}
+
         {/* Title */}
         <Typography
           sx={{
-            fontSize: "0.95rem",
-            fontWeight: 600,
+            fontSize: catalogVariant ? "1.05rem" : "0.95rem",
+            fontWeight: catalogVariant ? 600 : 600,
+            fontFamily: catalogVariant ? "'Playfair Display', Georgia, serif" : "inherit",
             lineHeight: 1.4,
             display: "-webkit-box",
             WebkitLineClamp: 2,
@@ -134,8 +180,14 @@ export default function StoryGridCard({
           {title}
         </Typography>
 
+        {catalogVariant && ageGroup && (
+          <Typography sx={{ fontSize: "0.8rem", color: theme.palette.text.secondary, lineHeight: 1.4 }}>
+            {ageGroup}
+          </Typography>
+        )}
+
         {/* Situation (now has space) */}
-        {description && (
+        {!catalogVariant && description && (
           <Typography
             sx={{
               fontSize: "0.85rem",
@@ -145,7 +197,7 @@ export default function StoryGridCard({
               WebkitLineClamp: 2,
               WebkitBoxOrient: "vertical",
               overflow: "hidden",
-              minHeight: "2.8em",        // 🔹 reserves space
+              minHeight: "2.8em", // 🔹 reserves space
             }}
           >
             {description}
@@ -154,10 +206,10 @@ export default function StoryGridCard({
 
         {/* Button pushed DOWN */}
         <Button
-          variant="contained"
+          variant={catalogVariant ? "outlined" : "contained"}
           onClick={onClick}
           sx={{
-            mt: "auto",                 // 🔹 pushes button to bottom
+            mt: "auto",
             alignSelf: "center",
             px: 2.8,
             py: 0.7,
@@ -165,10 +217,24 @@ export default function StoryGridCard({
             fontWeight: 500,
             borderRadius: 6,
             textTransform: "none",
-            backgroundColor: theme.palette.primary.main,
-            "&:hover": {
-              backgroundColor: theme.palette.primary.dark,
-            },
+            ...(catalogVariant
+              ? {
+                  borderWidth: 1.5,
+                  borderColor: "#7F77DD",
+                  color: "#534AB7",
+                  backgroundColor: "transparent",
+                  "&:hover": {
+                    borderWidth: 1.5,
+                    borderColor: "#6a62c9",
+                    backgroundColor: "rgba(127, 119, 221, 0.06)",
+                  },
+                }
+              : {
+                  backgroundColor: theme.palette.primary.main,
+                  "&:hover": {
+                    backgroundColor: theme.palette.primary.dark,
+                  },
+                }),
           }}
         >
           {buttonText}

@@ -23,7 +23,10 @@ export interface StoryDetailVM {
   description: Record<string, string>;
   coverUrl: string;
   ageRange: string;
+  /** Raw Firestore age key (e.g. `3_6`) for matching related stories. */
+  ageGroupRaw: string;
   primaryTopic: string;
+  topicKey: string;
   topicLabel: Record<string, string>;
   priceDigital?: number;
   pricePrint?: number;
@@ -44,4 +47,6 @@ export interface RelatedStoryCardVM {
   coverImage?: string;
   targetAgeGroup?: string;
   topicKey?: string;
+  /** Resolved or fallback label for uppercase topic line on catalog cards */
+  topicLabel?: string;
 }
