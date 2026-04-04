@@ -71,11 +71,6 @@ export default function SearchPage() {
     }
   };
 
-  const handleStoryClick = (storyId: string) => {
-    // Navigate to story detail or personalization page
-    navigate(`/story/${storyId}`);
-  };
-
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Search Header */}
@@ -159,18 +154,22 @@ export default function SearchPage() {
                 return (
                   <StoryGridCard
                     key={story.id}
-                    storyId={story.id}
-                    title={story.title || t("search.storyWithoutName")}
-                    description={
-                      ageGroup
+                    catalogVariant
+                    story={{
+                      ...story,
+                      title: story.title || t("search.storyWithoutName"),
+                      shortDescription: ageGroup
                         ? `${t("filters.age")}: ${formatAgeGroupLabel(ageGroup)}`
-                        : resolveLocalizedField(story.shortDescription)
-                    }
-                    imageUrl={story.coverImage}
-                    ageGroup={ageGroup ?? null}
-                    topic={(story as any).primaryTopic ?? (story as any).topicKey ?? null}
-                    category={(story as any).category ?? null}
-                    onClick={() => handleStoryClick(story.id)}
+                        : resolveLocalizedField(story.shortDescription) || story.shortDescription,
+                      ageGroup: story.ageGroup || ageGroup,
+                      targetAgeGroup: story.targetAgeGroup,
+                      generationConfig: story.generationConfig,
+                      primaryTopic: (story as any).primaryTopic,
+                      specificSituation: (story as any).specificSituation,
+                      topicKey: story.topicKey,
+                      coverImageUrl: (story as any).coverImageUrl,
+                      category: (story as any).category ?? null,
+                    }}
                   />
                 );
               })}

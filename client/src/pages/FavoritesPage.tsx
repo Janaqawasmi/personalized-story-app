@@ -5,11 +5,9 @@ import { useLanguage } from "../i18n/context/useLanguage";
 import { useAuth } from "../contexts/AuthContext";
 import { listFavorites, type FavoriteStory } from "../api/favorites";
 import StoryGridCard from "../components/StoryGridCard";
-import { useLangNavigate } from "../i18n/navigation";
 
 export default function FavoritesPage() {
   const t = useTranslation();
-  const navigate = useLangNavigate();
   const { direction } = useLanguage();
   const { currentUser } = useAuth();
 
@@ -86,14 +84,20 @@ export default function FavoritesPage() {
           {favorites.map((fav) => (
             <StoryGridCard
               key={fav.storyId}
-              storyId={fav.storyId}
-              title={fav.title || t("pages.favorites.fallbackStoryTitle")}
-              description={fav.ageGroup || fav.category || fav.topic || undefined}
-              imageUrl={fav.coverImage || undefined}
-              ageGroup={fav.ageGroup ?? null}
-              category={fav.category ?? null}
-              topic={fav.topic ?? null}
-              onClick={() => navigate(`/stories/${fav.storyId}`)}
+              catalogVariant
+              story={{
+                id: fav.storyId,
+                title: fav.title || t("pages.favorites.fallbackStoryTitle"),
+                shortDescription:
+                  fav.ageGroup || fav.category || fav.topic
+                    ? String(fav.ageGroup || fav.category || fav.topic)
+                    : undefined,
+                coverImage: fav.coverImage || undefined,
+                ageGroup: fav.ageGroup ?? undefined,
+                topicKey: fav.topic ?? undefined,
+                primaryTopic: fav.category ?? undefined,
+                category: fav.category ?? null,
+              }}
             />
           ))}
         </Box>

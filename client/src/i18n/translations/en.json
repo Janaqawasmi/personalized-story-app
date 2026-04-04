@@ -105,7 +105,9 @@
     "allAges": "All Ages",
     "allCategories": "All Categories",
     "allTopics": "All Topics",
-    "clearFilters": "Clear Filters"
+    "clearFilters": "Clear Filters",
+    "filterBy": "Filter by:",
+    "clear": "Clear"
   },
   "pages": {
     "ageResults": {
@@ -127,12 +129,15 @@
       "loading": "Loading..."
     },
     "allBooks": {
+      "eyebrow": "Browse our collection",
       "title": "All Stories",
+      "subtitle": "Find the perfect story for your child's emotional journey",
       "storiesFound": "{count} stories found",
       "loading": "Loading stories...",
       "error": "Error loading stories",
       "errorMessage": "Try refreshing the page or return to the home page",
-      "noStories": "No stories found"
+      "noStories": "No stories found",
+      "noStoriesSub": "Try adjusting or clearing your filters to see more stories"
     },
     "bookReader": {
       "loading": "Loading...",

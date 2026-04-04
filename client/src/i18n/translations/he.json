@@ -105,7 +105,9 @@
     "allAges": "כל הגילאים",
     "allCategories": "כל הקטגוריות",
     "allTopics": "כל הנושאים",
-    "clearFilters": "נקה מסננים"
+    "clearFilters": "נקה מסננים",
+    "filterBy": "סנן לפי:",
+    "clear": "נקה"
   },
   "pages": {
     "ageResults": {
@@ -127,12 +129,15 @@
       "loading": "טוען..."
     },
     "allBooks": {
+      "eyebrow": "עיון באוסף שלנו",
       "title": "כל הסיפורים",
+      "subtitle": "מצאו את הסיפור המתאים למסע הרגשי של ילדכם",
       "storiesFound": "{count} סיפורים נמצאו",
       "loading": "טוען סיפורים...",
       "error": "שגיאה בטעינת הסיפורים",
       "errorMessage": "נסה לרענן את הדף או חזור לדף הבית",
-      "noStories": "לא נמצאו סיפורים"
+      "noStories": "לא נמצאו סיפורים",
+      "noStoriesSub": "נסו לשנות או לנקות את המסננים כדי לראות עוד סיפורים"
     },
     "bookReader": {
       "loading": "טוען...",

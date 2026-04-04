@@ -2,15 +2,16 @@ import {
   Box,
   Typography,
   Container,
-  CircularProgress,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Button,
+  Skeleton,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useEffect, useState, useMemo } from "react";
-import { useLangNavigate } from "../i18n/navigation";
+import { useLanguage } from "../i18n/context/useLanguage";
 import { fetchStoriesWithFilters } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
@@ -28,8 +29,76 @@ function normalizeAgeGroup(value?: string): string | null {
     .replace(/[–-]/g, "_"); // dash or en-dash → underscore (database uses "0_3" format)
 }
 
+const filterBarSurfaceSx = {
+  bgcolor: (theme: { palette: { primary: { main: string } } }) =>
+    alpha(theme.palette.primary.main, 0.04),
+  border: "0.5px solid",
+  borderColor: "divider",
+  borderRadius: 3,
+  px: 2.5,
+  py: 1.75,
+  mb: 5,
+  display: "flex",
+  alignItems: "center",
+  gap: 2,
+  flexWrap: "wrap" as const,
+};
+
+function CatalogHeader({
+  t,
+  count,
+  showCountChip,
+}: {
+  t: (key: string, params?: Record<string, string | number>) => string;
+  count: number;
+  showCountChip: boolean;
+}) {
+  return (
+    <Box sx={{ mb: 4 }}>
+      <Typography
+        variant="overline"
+        sx={{
+          fontSize: "0.7rem",
+          letterSpacing: "0.1em",
+          color: "text.secondary",
+          display: "block",
+          mb: 0.75,
+        }}
+      >
+        {t("pages.allBooks.eyebrow")}
+      </Typography>
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+        <Typography variant="h4" fontWeight={500} color="text.primary">
+          {t("pages.allBooks.title")}
+        </Typography>
+
+        {showCountChip && (
+          <Box
+            component="span"
+            sx={{
+              fontSize: "0.75rem",
+              px: 1.25,
+              py: 0.4,
+              borderRadius: "20px",
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+              color: "primary.main",
+            }}
+          >
+            {t("pages.allBooks.storiesFound", { count })}
+          </Box>
+        )}
+      </Box>
+
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        {t("pages.allBooks.subtitle")}
+      </Typography>
+    </Box>
+  );
+}
+
 export default function AllBooksPage() {
-  const navigate = useLangNavigate();
+  const { isRTL } = useLanguage();
   const [allBooks, setAllBooks] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +106,8 @@ export default function AllBooksPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   const t = useTranslation();
+
+  const filterDirection = isRTL ? "rtl" : "ltr";
 
   // Fetch all books once
   useEffect(() => {
@@ -54,6 +125,7 @@ export default function AllBooksPage() {
     };
 
     loadStories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once on mount; t() only used for error fallback
   }, []);
 
   // Extract unique categories and topics from allBooks
@@ -83,7 +155,6 @@ export default function AllBooksPage() {
   const filteredBooks = useMemo(() => {
     let filtered = [...allBooks];
 
-    // Age filter
     if (selectedAge) {
       const normalizedSelectedAge = normalizeAgeGroup(selectedAge);
       filtered = filtered.filter((book) => {
@@ -96,7 +167,6 @@ export default function AllBooksPage() {
       });
     }
 
-    // Category filter
     if (selectedCategory) {
       filtered = filtered.filter(
         (book) =>
@@ -105,7 +175,6 @@ export default function AllBooksPage() {
       );
     }
 
-    // Topic filter
     if (selectedTopic) {
       filtered = filtered.filter(
         (book) =>
@@ -123,54 +192,94 @@ export default function AllBooksPage() {
     setSelectedTopic("");
   };
 
-  const hasActiveFilters = selectedAge || selectedCategory || selectedTopic;
+  const hasActiveFilters = Boolean(selectedAge || selectedCategory || selectedTopic);
+
+  const gridSx = {
+    display: "grid",
+    gridTemplateColumns: {
+      xs: "1fr",
+      sm: "repeat(2, 1fr)",
+      md: "repeat(3, 1fr)",
+    },
+    gap: 3.5,
+    mt: 1,
+  };
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
-        <CircularProgress />
-        <Typography sx={{ mt: 2 }}>{t("pages.allBooks.loading")}</Typography>
+      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 4 }}>
+        <CatalogHeader t={t} count={0} showCountChip={false} />
+
+        <Box sx={filterBarSurfaceSx}>
+          <Typography
+            variant="caption"
+            color="text.disabled"
+            sx={{ marginInlineEnd: 0.5, whiteSpace: "nowrap" }}
+          >
+            {t("filters.filterBy")}
+          </Typography>
+          <Skeleton variant="rounded" width={140} height={40} />
+          <Skeleton variant="rounded" width={160} height={40} />
+          <Skeleton variant="rounded" width={160} height={40} />
+        </Box>
+
+        <Box sx={{ ...gridSx, mt: 2 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Box
+              key={i}
+              sx={{
+                border: "0.5px solid",
+                borderColor: "divider",
+                borderRadius: 3,
+                overflow: "hidden",
+              }}
+            >
+              <Skeleton variant="rectangular" width="100%" sx={{ aspectRatio: "4/3" }} />
+              <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+                <Skeleton variant="text" width="45%" height={12} />
+                <Skeleton variant="text" width="75%" height={18} />
+                <Skeleton variant="text" width="100%" height={12} />
+                <Skeleton variant="text" width="88%" height={12} />
+                <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+                  <Skeleton variant="rounded" width={60} height={22} />
+                  <Skeleton variant="rounded" width={80} height={28} />
+                </Box>
+              </Box>
+            </Box>
+          ))}
+        </Box>
       </Container>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 8, textAlign: "center" }}>
         <Typography variant="h5" color="error" sx={{ mb: 2 }}>
           {error}
         </Typography>
-        <Typography color="text.secondary">
-          {t("pages.allBooks.errorMessage")}
-        </Typography>
+        <Typography color="text.secondary">{t("pages.allBooks.errorMessage")}</Typography>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          {t("pages.allBooks.title")}
-        </Typography>
-        <Typography color="text.secondary">
-          {t("pages.allBooks.storiesFound", { count: filteredBooks.length })}
-        </Typography>
-      </Box>
+    <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 4 }}>
+      <CatalogHeader t={t} count={filteredBooks.length} showCountChip />
 
-      {/* Filters */}
-      <Box
-        sx={{
-          mb: 4,
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: 2,
-          alignItems: { xs: "flex-start", md: "flex-end" },
-        }}
-      >
-        {/* Age Filter */}
-        <FormControl sx={{ minWidth: { xs: "100%", md: 180 }, direction: "rtl" }}>
+      <Box sx={filterBarSurfaceSx}>
+        <Typography
+          variant="caption"
+          color="text.disabled"
+          sx={{ marginInlineEnd: 0.5, whiteSpace: "nowrap" }}
+        >
+          {t("filters.filterBy")}
+        </Typography>
+
+        <FormControl
+          size="small"
+          sx={{ direction: filterDirection, minWidth: { xs: "100%", sm: 140 } }}
+        >
           <InputLabel>{t("filters.age")}</InputLabel>
           <Select
             value={selectedAge}
@@ -186,15 +295,16 @@ export default function AllBooksPage() {
           </Select>
         </FormControl>
 
-        {/* Category Filter */}
-        <FormControl sx={{ minWidth: { xs: "100%", md: 180 }, direction: "rtl" }}>
+        <FormControl
+          size="small"
+          sx={{ direction: filterDirection, minWidth: { xs: "100%", sm: 160 } }}
+        >
           <InputLabel>{t("filters.category")}</InputLabel>
           <Select
             value={selectedCategory}
             label={t("filters.category")}
             onChange={(e) => {
               setSelectedCategory(e.target.value);
-              // Clear topic when category changes
               setSelectedTopic("");
             }}
           >
@@ -207,8 +317,10 @@ export default function AllBooksPage() {
           </Select>
         </FormControl>
 
-        {/* Topic Filter */}
-        <FormControl sx={{ minWidth: { xs: "100%", md: 180 }, direction: "rtl" }}>
+        <FormControl
+          size="small"
+          sx={{ direction: filterDirection, minWidth: { xs: "100%", sm: 160 } }}
+        >
           <InputLabel>{t("filters.topic")}</InputLabel>
           <Select
             value={selectedTopic}
@@ -224,61 +336,72 @@ export default function AllBooksPage() {
           </Select>
         </FormControl>
 
-        {/* Clear Filters Button */}
         {hasActiveFilters && (
           <Button
-            variant="outlined"
+            size="small"
             onClick={handleClearFilters}
             sx={{
+              marginInlineStart: "auto",
+              color: "text.disabled",
+              fontSize: "0.75rem",
               minWidth: "auto",
-              height: "28px",
-              fontSize: "12px",
-              px: 1.25,
-              py: 0,
-              lineHeight: 1,
-              borderRadius: "8px",
-              alignSelf: "flex-end",
+              "&:hover": { color: "text.secondary", bgcolor: "transparent" },
             }}
+            disableRipple
           >
-            {t("filters.clearFilters")}
+            {t("filters.clear")}
           </Button>
         )}
       </Box>
 
-      {/* Stories Grid */}
       {filteredBooks.length > 0 ? (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "1fr 1fr",
-              md: "repeat(3, 1fr)",
-            },
-            gap: 4,
-          }}
-        >
+        <Box sx={gridSx}>
           {filteredBooks.map((story) => (
             <StoryGridCard
               key={story.id}
-              storyId={story.id}
-              title={story.title || t("search.storyWithoutName")}
-              description={story.shortDescription}
-              imageUrl={story.coverImage}
-              ageGroup={(story as any).ageGroup ?? null}
-              topic={(story as any).primaryTopic ?? (story as any).topicKey ?? null}
-              category={(story as any).category ?? null}
-              onClick={() => {
-                navigate(`/stories/${story.id}`);
+              story={{
+                ...story,
+                title: story.title || t("search.storyWithoutName"),
+                ageGroup: (story as any).ageGroup,
+                primaryTopic: (story as any).primaryTopic,
+                specificSituation: (story as any).specificSituation,
+                coverImageUrl: (story as any).coverImageUrl,
+                category: (story as any).category ?? null,
               }}
             />
           ))}
         </Box>
       ) : (
-        <Box sx={{ textAlign: "center", py: 8 }}>
-          <Typography variant="h6" color="text.secondary">
+        <Box
+          sx={{
+            textAlign: "center",
+            py: 10,
+            px: 3,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <Box sx={{ fontSize: "2.5rem", opacity: 0.4, mb: 1 }} aria-hidden>
+            📚
+          </Box>
+          <Typography variant="h6" fontWeight={500} color="text.primary">
             {t("pages.allBooks.noStories")}
           </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t("pages.allBooks.noStoriesSub")}
+          </Typography>
+          {hasActiveFilters && (
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleClearFilters}
+              sx={{ mt: 1, borderRadius: 2 }}
+            >
+              {t("filters.clear")}
+            </Button>
+          )}
         </Box>
       )}
     </Container>

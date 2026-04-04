@@ -1,7 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import StoryGridCard from "../../../components/StoryGridCard";
-import { useLangNavigate } from "../../../i18n/navigation";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
 import type { RelatedStoryCardVM } from "../types/story";
@@ -13,7 +12,6 @@ interface RelatedStoriesProps {
 }
 
 export default function RelatedStories({ stories, reducedMotion }: RelatedStoriesProps) {
-  const navigate = useLangNavigate();
   const t = useTranslation();
 
   if (!stories || stories.length === 0) return null;
@@ -31,19 +29,17 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
         {stories.map((s) => (
           <StoryGridCard
             key={s.id}
-            storyId={s.id}
-            title={s.title}
-            description={s.shortDescription}
-            imageUrl={s.coverImage}
-            ageGroup={s.targetAgeGroup ?? null}
-            topic={s.topicKey ?? null}
-            topicLabel={s.topicLabel ?? null}
             catalogVariant
-            category={null}
-            onClick={() => {
-              navigate(`/stories/${s.id}`);
-              window.scrollTo({ top: 0, behavior: "smooth" });
+            story={{
+              id: s.id,
+              title: s.title,
+              shortDescription: s.shortDescription,
+              coverImage: s.coverImage,
+              targetAgeGroup: s.targetAgeGroup,
+              topicKey: s.topicKey,
+              topicLabel: s.topicLabel ?? null,
             }}
+            onView={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           />
         ))}
       </Box>
