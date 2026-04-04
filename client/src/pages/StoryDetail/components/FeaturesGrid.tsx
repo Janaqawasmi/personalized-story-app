@@ -1,11 +1,13 @@
-import { Box, Typography } from "@mui/material";
+import { useMemo } from "react";
+import { Box, Typography, useTheme } from "@mui/material";
 import { motion } from "framer-motion";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import ShieldIcon from "@mui/icons-material/Shield";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LanguageIcon from "@mui/icons-material/Language";
 import { useTranslation } from "../../../i18n/useTranslation";
-import { SDRadii } from "../StoryDetail.styles";
+import { COLORS } from "../../../theme";
+import { SDRadii, colorWithAlpha } from "../StoryDetail.styles";
 import { featureStagger, featureItemLtr, featureItemRtl } from "../animations/variants";
 
 interface FeaturesGridProps {
@@ -13,17 +15,45 @@ interface FeaturesGridProps {
   reducedMotion: boolean;
 }
 
-const items = [
-  { key: "ai", iconBg: "#EEEDFE", iconColor: "#534AB7", Icon: PlayArrowIcon, tKey: "features.aiNamePhoto" as const },
-  { key: "psych", iconBg: "#E1F5EE", iconColor: "#1D9E75", Icon: ShieldIcon, tKey: "features.psychDesigned" as const },
-  { key: "preview", iconBg: "#E6F1FB", iconColor: "#378ADD", Icon: VisibilityIcon, tKey: "features.previewFirst" as const },
-  { key: "lang", iconBg: "#FAECE7", iconColor: "#D85A30", Icon: LanguageIcon, tKey: "features.bilingualAvail" as const },
-];
-
 export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps) {
   const t = useTranslation();
+  const theme = useTheme();
   const itemVariant = reducedMotion ? undefined : isRTL ? featureItemRtl : featureItemLtr;
   const staggerVariant = reducedMotion ? undefined : featureStagger;
+
+  const items = useMemo(
+    () => [
+      {
+        key: "ai",
+        iconBg: theme.palette.primary.light,
+        iconColor: COLORS.primary,
+        Icon: PlayArrowIcon,
+        tKey: "features.aiNamePhoto" as const,
+      },
+      {
+        key: "psych",
+        iconBg: colorWithAlpha(COLORS.success, 0.12),
+        iconColor: COLORS.success,
+        Icon: ShieldIcon,
+        tKey: "features.psychDesigned" as const,
+      },
+      {
+        key: "preview",
+        iconBg: theme.palette.primary.light,
+        iconColor: COLORS.primary,
+        Icon: VisibilityIcon,
+        tKey: "features.previewFirst" as const,
+      },
+      {
+        key: "lang",
+        iconBg: colorWithAlpha(COLORS.secondary, 0.1),
+        iconColor: COLORS.secondary,
+        Icon: LanguageIcon,
+        tKey: "features.bilingualAvail" as const,
+      },
+    ],
+    [theme],
+  );
 
   const grid = (
     <Box
@@ -55,7 +85,7 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
             sx={{
               fontSize: "13px",
               fontWeight: 600,
-              color: "#555",
+              color: COLORS.textSecondary,
               lineHeight: 1.4,
               paddingTop: "6px",
             }}
@@ -103,7 +133,7 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
                 sx={{
                   fontSize: "13px",
                   fontWeight: 600,
-                  color: "#555",
+                  color: COLORS.textSecondary,
                   lineHeight: 1.4,
                   paddingTop: "6px",
                 }}

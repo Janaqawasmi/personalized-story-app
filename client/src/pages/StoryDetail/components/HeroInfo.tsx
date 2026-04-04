@@ -1,5 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import { useTranslation } from "../../../i18n/useTranslation";
+import { COLORS } from "../../../theme";
 import type { StoryDetailVM } from "../types/story";
 import ChipsRow from "./ChipsRow";
 import FeaturesGrid from "./FeaturesGrid";
@@ -47,7 +48,7 @@ export default function HeroInfo({
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "1.2px",
-          color: "#888",
+          color: COLORS.textSecondary,
           mb: 1.25,
         }}
       >
@@ -61,14 +62,14 @@ export default function HeroInfo({
           fontSize: "32px",
           fontWeight: 700,
           lineHeight: 1.2,
-          color: "#1a1a2e",
+          color: COLORS.textPrimary,
           mb: 1,
         }}
       >
         {title}
       </Typography>
 
-      <Typography sx={{ fontSize: "16px", fontWeight: 400, lineHeight: 1.5, color: "#555", mb: 2 }}>
+      <Typography sx={{ fontSize: "16px", fontWeight: 400, lineHeight: 1.5, color: COLORS.textSecondary, mb: 2 }}>
         {subtitle}
       </Typography>
 
@@ -79,7 +80,7 @@ export default function HeroInfo({
           fontSize: "15px",
           fontWeight: 400,
           lineHeight: 1.7,
-          color: "#444",
+          color: COLORS.textSecondary,
           mb: 2.5,
           fontFamily: language === "he" ? "'Assistant', sans-serif" : undefined,
         }}

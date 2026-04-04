@@ -2,6 +2,7 @@ import { Box, Typography, Accordion, AccordionSummary, AccordionDetails } from "
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { motion } from "framer-motion";
 import { useTranslation } from "../../../i18n/useTranslation";
+import { COLORS } from "../../../theme";
 import { SDRadii } from "../StoryDetail.styles";
 import { fadeUpVariant } from "../animations/variants";
 
@@ -20,7 +21,7 @@ export default function FaqSection({ items, reducedMotion }: FaqSectionProps) {
 
   const inner = (
     <Box>
-      <Typography sx={{ fontSize: "22px", fontWeight: 700, mb: 2.5 }}>{t("faq.title")}</Typography>
+      <Typography sx={{ fontSize: "22px", fontWeight: 700, mb: 2.5, color: COLORS.textPrimary }}>{t("faq.title")}</Typography>
       <Box sx={{ display: "flex", flexDirection: "column", gap: "8px" }}>
         {items.map((item, i) => (
           <Accordion
@@ -29,18 +30,19 @@ export default function FaqSection({ items, reducedMotion }: FaqSectionProps) {
             elevation={0}
             sx={{
               borderRadius: `${SDRadii.faqItem} !important`,
-              border: "1px solid #e8e4f0",
+              border: `1px solid ${COLORS.border}`,
               boxShadow: "none",
               mb: 0,
               "&:before": { display: "none" },
               "&.Mui-expanded": { margin: 0 },
+              "&:hover": { bgcolor: COLORS.background },
             }}
           >
             <AccordionSummary
-              expandIcon={<ExpandMoreIcon />}
+              expandIcon={<ExpandMoreIcon sx={{ color: COLORS.textSecondary }} />}
               sx={{
                 px: 2.5,
-                "&.Mui-expanded": { bgcolor: "#faf9ff" },
+                "&.Mui-expanded": { bgcolor: COLORS.background },
                 "& .MuiAccordionSummary-expandIconWrapper": {
                   transition: "transform 0.3s ease",
                 },
@@ -50,13 +52,23 @@ export default function FaqSection({ items, reducedMotion }: FaqSectionProps) {
                 "& .MuiAccordionSummary-content": {
                   fontSize: "15px",
                   fontWeight: 600,
-                  color: "#1a1a2e",
+                  color: COLORS.textPrimary,
                 },
               }}
             >
               {item.question}
             </AccordionSummary>
-            <AccordionDetails sx={{ px: 2.5, pb: 2.25, fontSize: "14px", lineHeight: 1.7, color: "#555", borderTop: "1px solid #f0eeff" }}>
+            <AccordionDetails
+              sx={{
+                px: 2.5,
+                pb: 2.25,
+                fontSize: "14px",
+                lineHeight: 1.7,
+                color: COLORS.textSecondary,
+                borderTop: `1px solid ${COLORS.border}`,
+                bgcolor: COLORS.background,
+              }}
+            >
               {item.answer}
             </AccordionDetails>
           </Accordion>

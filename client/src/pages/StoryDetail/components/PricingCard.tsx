@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Box, Typography, ToggleButton, ToggleButtonGroup, Chip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import { useTranslation } from "../../../i18n/useTranslation";
+import { COLORS } from "../../../theme";
 import { SDRadii } from "../StoryDetail.styles";
 
 interface PricingCardProps {
@@ -43,8 +45,8 @@ export default function PricingCard({
   return (
     <Box
       sx={{
-        background: "#f9f8fc",
-        border: "1px solid #e8e4f8",
+        background: COLORS.background,
+        border: `1px solid ${COLORS.border}`,
         borderRadius: SDRadii.card,
         padding: "20px",
         mb: 2.25,
@@ -58,7 +60,7 @@ export default function PricingCard({
           sx={{
             mb: 2,
             padding: "3px",
-            background: "#eee",
+            background: alpha(COLORS.textPrimary, 0.06),
             borderRadius: "20px",
             gap: 0,
             "& .MuiToggleButtonGroup-grouped": { border: 0, margin: 0 },
@@ -72,8 +74,8 @@ export default function PricingCard({
               px: 2,
               fontWeight: 600,
               ...(mode === "digital"
-                ? { background: "#1a1a2e !important", color: "white" }
-                : { background: "transparent", color: "#666" }),
+                ? { background: `${COLORS.textPrimary} !important`, color: `${COLORS.surface} !important` }
+                : { background: "transparent", color: COLORS.textSecondary }),
             }}
           >
             {t("pricing.digital")}
@@ -86,8 +88,8 @@ export default function PricingCard({
               px: 2,
               fontWeight: 600,
               ...(mode === "print"
-                ? { background: "#1a1a2e !important", color: "white" }
-                : { background: "transparent", color: "#666" }),
+                ? { background: `${COLORS.textPrimary} !important`, color: `${COLORS.surface} !important` }
+                : { background: "transparent", color: COLORS.textSecondary }),
             }}
           >
             {t("pricing.print")}
@@ -100,10 +102,10 @@ export default function PricingCard({
           <Chip label={t("pricing.comingSoon")} sx={{ fontWeight: 700, fontSize: "14px" }} />
         ) : hasActivePrice ? (
           <>
-            <Typography sx={{ fontSize: "36px", fontWeight: 800, color: "#1a1a2e", lineHeight: 1.1 }}>
+            <Typography sx={{ fontSize: "36px", fontWeight: 800, color: COLORS.textPrimary, lineHeight: 1.1 }}>
               {formatMoney(activePrice!, currency)}
             </Typography>
-            <Typography sx={{ fontSize: "13px", color: "#888", mt: 0.5 }}>
+            <Typography sx={{ fontSize: "13px", color: COLORS.textSecondary, mt: 0.5 }}>
               {mode === "print" && hasPrint ? t("pricing.shipped") : t("pricing.oneTime")}
             </Typography>
           </>
@@ -113,8 +115,8 @@ export default function PricingCard({
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}>
-        <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "#1D9E75" }} />
-        <Typography sx={{ fontSize: "13px", fontWeight: 600, color: "#085041" }}>
+        <CheckCircleOutlineIcon sx={{ fontSize: 14, color: COLORS.success }} />
+        <Typography sx={{ fontSize: "13px", fontWeight: 600, color: COLORS.success }}>
           {t("pricing.previewBeforePaying")}
         </Typography>
       </Box>

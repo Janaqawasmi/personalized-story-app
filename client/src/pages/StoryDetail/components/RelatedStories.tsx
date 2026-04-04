@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import StoryGridCard from "../../../components/StoryGridCard";
 import { useLangNavigate } from "../../../i18n/navigation";
 import { useTranslation } from "../../../i18n/useTranslation";
+import { COLORS } from "../../../theme";
 import type { RelatedStoryCardVM } from "../types/story";
 import { fadeUpVariant } from "../animations/variants";
 
@@ -19,7 +20,7 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
 
   const inner = (
     <Box sx={{ mb: 6 }}>
-      <Typography sx={{ fontSize: "22px", fontWeight: 700, mb: 2.5 }}>{t("related.title")}</Typography>
+      <Typography sx={{ fontSize: "22px", fontWeight: 700, mb: 2.5, color: COLORS.textPrimary }}>{t("related.title")}</Typography>
       <Box
         sx={{
           display: "grid",
@@ -53,7 +54,6 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
     return inner;
   }
 
-  // Animate on mount (not only whileInView) so the section never stays opacity:0 if in-view detection fails.
   return (
     <motion.div variants={fadeUpVariant} initial="hidden" animate="visible">
       {inner}

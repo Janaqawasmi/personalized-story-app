@@ -1,12 +1,7 @@
-import {
-  Card,
-  Box,
-  Typography,
-  Button,
-  useTheme,
-  IconButton,
-} from "@mui/material";
+import { Card, Box, Typography, Button, useTheme, IconButton } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { useLanguage } from "../i18n/context/useLanguage";
+import { COLORS } from "../theme";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { useFavorite } from "../hooks/useFavorite";
@@ -59,6 +54,8 @@ export default function StoryGridCard({
     topic: topic ?? null,
   });
 
+  const catalogPlaceholderGradient = `linear-gradient(145deg, ${alpha(COLORS.primary, 0.14)} 0%, ${alpha(COLORS.primary, 0.22)} 45%, ${alpha(COLORS.secondary, 0.16)} 100%)`;
+
   const imageAreaSx = catalogVariant
     ? {
         position: "relative" as const,
@@ -73,8 +70,7 @@ export default function StoryGridCard({
               backgroundPosition: "center" as const,
             }
           : {
-              backgroundImage:
-                "linear-gradient(145deg, #e8e4f7 0%, #c9c0ee 45%, #b8aee8 100%)",
+              backgroundImage: catalogPlaceholderGradient,
             }),
       }
     : {
@@ -93,19 +89,19 @@ export default function StoryGridCard({
       elevation={0}
       sx={{
         position: "relative",
-        backgroundColor: "transparent",
+        backgroundColor: catalogVariant ? COLORS.surface : "transparent",
         borderRadius: 6,
         display: "flex",
         flexDirection: "column",
         height: "100%",
         minHeight: catalogVariant ? 360 : 380,
         overflow: "hidden",
-        border: `1px solid ${theme.palette.divider}`,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+        border: `1px solid ${catalogVariant ? COLORS.border : theme.palette.divider}`,
+        boxShadow: `0 2px 8px ${alpha(COLORS.textPrimary, 0.08)}`,
         transition: "all 0.3s ease",
         "&:hover": {
           transform: "translateY(-4px)",
-          boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
+          boxShadow: `0 10px 24px ${alpha(COLORS.textPrimary, 0.12)}`,
         },
       }}
     >
@@ -124,13 +120,13 @@ export default function StoryGridCard({
             position: "absolute",
             top: 10,
             right: 10,
-            backgroundColor: "rgba(255,255,255,0.92)",
-            border: `1px solid ${theme.palette.divider}`,
-            "&:hover": { backgroundColor: "rgba(255,255,255,1)" },
+            backgroundColor: alpha(COLORS.surface, 0.92),
+            border: `1px solid ${catalogVariant ? COLORS.border : theme.palette.divider}`,
+            "&:hover": { backgroundColor: COLORS.surface },
           }}
         >
           {isFavorite ? (
-            <FavoriteIcon sx={{ color: theme.palette.error.main }} />
+            <FavoriteIcon sx={{ color: COLORS.error }} />
           ) : (
             <FavoriteBorderIcon sx={{ color: theme.palette.text.secondary }} />
           )}
@@ -156,7 +152,7 @@ export default function StoryGridCard({
               fontSize: "0.65rem",
               fontWeight: 700,
               letterSpacing: "0.08em",
-              color: "#888",
+              color: COLORS.textSecondary,
               lineHeight: 1.3,
             }}
           >
@@ -171,6 +167,7 @@ export default function StoryGridCard({
             fontWeight: catalogVariant ? 600 : 600,
             fontFamily: catalogVariant ? "'Playfair Display', Georgia, serif" : "inherit",
             lineHeight: 1.4,
+            ...(catalogVariant ? { color: COLORS.textPrimary } : {}),
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
@@ -181,7 +178,7 @@ export default function StoryGridCard({
         </Typography>
 
         {catalogVariant && ageGroup && (
-          <Typography sx={{ fontSize: "0.8rem", color: theme.palette.text.secondary, lineHeight: 1.4 }}>
+          <Typography sx={{ fontSize: "0.8rem", color: COLORS.textSecondary, lineHeight: 1.4 }}>
             {ageGroup}
           </Typography>
         )}
@@ -220,13 +217,13 @@ export default function StoryGridCard({
             ...(catalogVariant
               ? {
                   borderWidth: 1.5,
-                  borderColor: "#7F77DD",
-                  color: "#534AB7",
+                  borderColor: COLORS.primary,
+                  color: COLORS.primary,
                   backgroundColor: "transparent",
                   "&:hover": {
                     borderWidth: 1.5,
-                    borderColor: "#6a62c9",
-                    backgroundColor: "rgba(127, 119, 221, 0.06)",
+                    borderColor: COLORS.primary,
+                    backgroundColor: theme.palette.primary.light,
                   },
                 }
               : {

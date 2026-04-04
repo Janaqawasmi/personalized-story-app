@@ -16,6 +16,7 @@ import FaqSection from "./components/FaqSection";
 import RelatedStories from "./components/RelatedStories";
 import StickyMobileCta from "./components/StickyMobileCta";
 import { heroVariant, fadeUpVariant } from "./animations/variants";
+import { COLORS } from "../../theme";
 
 function pickLang(rec: Record<string, string>, lang: string): string {
   return rec[lang] ?? rec.en ?? rec.he ?? rec.ar ?? "";
@@ -109,8 +110,8 @@ export default function StoryDetailPage() {
   if (loading) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 2 }}>
-        <CircularProgress sx={{ color: "#7F77DD" }} />
-        <Typography sx={{ fontSize: "14px", color: "#888" }}>{t("states.loading")}</Typography>
+        <CircularProgress sx={{ color: COLORS.primary }} />
+        <Typography sx={{ fontSize: "14px", color: COLORS.textSecondary }}>{t("states.loading")}</Typography>
       </Box>
     );
   }
@@ -118,8 +119,8 @@ export default function StoryDetailPage() {
   if (error || !story) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 2 }}>
-        <Typography sx={{ fontSize: "18px", fontWeight: 600 }}>{t("states.notFound")}</Typography>
-        <Button onClick={() => navigate("/books")} sx={{ color: "#534AB7", textTransform: "none" }}>
+        <Typography sx={{ fontSize: "18px", fontWeight: 600, color: COLORS.error }}>{t("states.notFound")}</Typography>
+        <Button onClick={() => navigate("/books")} sx={{ color: COLORS.primary, textTransform: "none" }}>
           {t("storyDetail.backToCatalog")}
         </Button>
       </Box>
@@ -164,7 +165,7 @@ export default function StoryDetailPage() {
       dir={direction}
       lang={language}
       sx={{
-        bgcolor: "#f4f2ef",
+        bgcolor: COLORS.background,
         minHeight: "100vh",
         fontFamily:
           language === "he" ? "'Assistant', 'Nunito', sans-serif" : "'Nunito', 'Segoe UI', sans-serif",
@@ -237,7 +238,7 @@ function BackNav({ onBack, isRTL, label }: { onBack: () => void; isRTL: boolean;
         pt: 1,
         fontSize: "14px",
         fontWeight: 600,
-        color: "#534AB7",
+        color: COLORS.primary,
         background: "none",
         border: "none",
         cursor: "pointer",

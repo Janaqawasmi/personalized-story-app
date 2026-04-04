@@ -1,11 +1,12 @@
-import { Box, Button, IconButton, GlobalStyles } from "@mui/material";
+import { Box, Button, IconButton, GlobalStyles, useTheme } from "@mui/material";
 import { motion } from "framer-motion";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { useTranslation } from "../../../i18n/useTranslation";
-import { SDColors, SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
+import { COLORS } from "../../../theme";
+import { SDRadii, SDShadows, colorWithAlpha } from "../StoryDetail.styles";
 
 interface CtaRowProps {
   onPersonalize: () => void;
@@ -25,6 +26,7 @@ export default function CtaRow({
   reducedMotion,
 }: CtaRowProps) {
   const t = useTranslation();
+  const theme = useTheme();
   const comingSoon = status === "coming_soon";
 
   return (
@@ -32,8 +34,8 @@ export default function CtaRow({
       <GlobalStyles
         styles={{
           "@keyframes ctaPulse": {
-            "0%, 100%": { boxShadow: "0 0 0 0 rgba(125,119,221,0)" },
-            "50%": { boxShadow: "0 0 0 10px rgba(125,119,221,0.3)" },
+            "0%, 100%": { boxShadow: `0 0 0 0 ${colorWithAlpha(COLORS.primary, 0)}` },
+            "50%": { boxShadow: `0 0 0 10px ${colorWithAlpha(COLORS.primary, 0.3)}` },
           },
         }}
       />
@@ -44,8 +46,8 @@ export default function CtaRow({
           onClick={onPersonalize}
           sx={{
             flex: 1,
-            background: SDGradients.cta,
-            color: "white",
+            background: COLORS.secondary,
+            color: COLORS.surface,
             fontSize: "17px",
             fontWeight: 700,
             borderRadius: SDRadii.cta,
@@ -59,6 +61,7 @@ export default function CtaRow({
             "&:hover": {
               animation: "none",
               transform: "translateY(-2px)",
+              background: theme.palette.secondary.dark,
               boxShadow: SDShadows.ctaHover,
             },
           }}
@@ -82,14 +85,14 @@ export default function CtaRow({
             flexShrink: 0,
             ...(isFavorite
               ? {
-                  border: `1px solid ${SDColors.pink.main}`,
-                  backgroundColor: SDColors.favActive,
-                  color: SDColors.pink.main,
+                  border: `1px solid ${COLORS.secondary}`,
+                  backgroundColor: colorWithAlpha(COLORS.secondary, 0.08),
+                  color: COLORS.secondary,
                 }
               : {
-                  border: "1px solid #ddd",
-                  backgroundColor: "white",
-                  color: "#999",
+                  border: `1px solid ${COLORS.border}`,
+                  backgroundColor: COLORS.surface,
+                  color: COLORS.textSecondary,
                 }),
           }}
         >

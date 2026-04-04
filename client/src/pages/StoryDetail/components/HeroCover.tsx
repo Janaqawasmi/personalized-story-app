@@ -1,8 +1,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { Box, Typography, GlobalStyles } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import ShieldIcon from "@mui/icons-material/Shield";
 import { useTranslation } from "../../../i18n/useTranslation";
-import { SDColors, SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
+import { COLORS } from "../../../theme";
+import { SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
 
 interface HeroCoverProps {
   coverUrl: string;
@@ -49,7 +51,7 @@ export default function HeroCover({ coverUrl, title, reducedMotion }: HeroCoverP
             aspectRatio: "3 / 4",
             borderRadius: SDRadii.cover,
             overflow: "hidden",
-            background: showImg ? "#111" : SDGradients.coverBg,
+            background: showImg ? alpha(COLORS.textPrimary, 0.93) : SDGradients.coverBg,
             boxShadow: showImg ? SDShadows.cover : "none",
           }}
         >
@@ -83,7 +85,7 @@ export default function HeroCover({ coverUrl, title, reducedMotion }: HeroCoverP
                       width: s.size,
                       height: s.size,
                       borderRadius: "50%",
-                      bgcolor: "rgba(255,255,255,0.9)",
+                      bgcolor: alpha(COLORS.surface, 0.9),
                       animation: reducedMotion ? "none" : `starTwinkle ${s.duration} ease-in-out infinite alternate`,
                       animationDelay: s.delay,
                       pointerEvents: "none",
@@ -102,8 +104,8 @@ export default function HeroCover({ coverUrl, title, reducedMotion }: HeroCoverP
             position: "absolute",
             bottom: "-12px",
             insetInlineEnd: "16px",
-            backgroundColor: "white",
-            border: "1px solid #e0e0e0",
+            backgroundColor: COLORS.surface,
+            border: `1px solid ${COLORS.border}`,
             borderRadius: SDRadii.trustBadge,
             padding: "8px 14px",
             display: "flex",
@@ -113,8 +115,8 @@ export default function HeroCover({ coverUrl, title, reducedMotion }: HeroCoverP
             zIndex: 2,
           }}
         >
-          <ShieldIcon sx={{ fontSize: 14, color: SDColors.green.dark }} />
-          <Typography sx={{ fontSize: "12px", fontWeight: 700, color: SDColors.green.dark }}>
+          <ShieldIcon sx={{ fontSize: 14, color: COLORS.success }} />
+          <Typography sx={{ fontSize: "12px", fontWeight: 700, color: COLORS.success }}>
             {t("storyDetail.therapistApproved")}
           </Typography>
         </Box>

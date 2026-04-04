@@ -1,10 +1,12 @@
-import React, { useState, useMemo, forwardRef } from "react";
-import { Box, Typography, Button } from "@mui/material";
+import React, { useState, useMemo, forwardRef, useCallback } from "react";
+import { Box, Typography, Button, useTheme } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import type { PreviewSpreadVM, StoryTemplatePageVM } from "../types/story";
 import { useTranslation } from "../../../i18n/useTranslation";
+import { COLORS } from "../../../theme";
 import { SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
 import {
   normalizeStoryLanguage,
@@ -22,48 +24,6 @@ function pickLang(rec: Record<string, string>, lang: string): string {
   return rec[lang] ?? rec.en ?? rec.he ?? rec.ar ?? "";
 }
 
-function renderSpreadText(text: string): React.ReactNode {
-  const token = "[Child's name]";
-  const parts = text.split(token);
-  const pill = (key: number) => (
-    <Box
-      key={key}
-      component="span"
-      sx={{
-        color: "#534AB7",
-        fontWeight: 700,
-        fontStyle: "normal",
-        fontFamily: "'Nunito', sans-serif",
-        fontSize: "15px",
-        background: "#EEEDFE",
-        px: "6px",
-        py: "1px",
-        borderRadius: "4px",
-      }}
-    >
-      [Child&apos;s name]
-    </Box>
-  );
-  if (parts.length === 1) {
-    const p2 = text.split("{{CHILD_NAME}}");
-    if (p2.length === 1) {
-      return text;
-    }
-    return p2.map((part, i) => (
-      <React.Fragment key={i}>
-        {part}
-        {i < p2.length - 1 ? pill(i) : null}
-      </React.Fragment>
-    ));
-  }
-  return parts.map((part, i) => (
-    <React.Fragment key={i}>
-      {part}
-      {i < parts.length - 1 ? pill(i) : null}
-    </React.Fragment>
-  ));
-}
-
 interface PreviewGalleryProps {
   spreads: PreviewSpreadVM[];
   language: string;
@@ -78,9 +38,55 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
   ref,
 ) {
   const t = useTranslation();
+  const theme = useTheme();
   const [activeSpread, setActiveSpread] = useState(0);
   const systemReduced = useReducedMotion();
   const reducedMotion = Boolean(systemReduced);
+
+  const renderSpreadText = useCallback(
+    (text: string): React.ReactNode => {
+      const token = "[Child's name]";
+      const parts = text.split(token);
+      const pill = (key: number) => (
+        <Box
+          key={key}
+          component="span"
+          sx={{
+            color: COLORS.primary,
+            fontWeight: 700,
+            fontStyle: "normal",
+            fontFamily: "'Nunito', sans-serif",
+            fontSize: "15px",
+            background: theme.palette.primary.light,
+            px: "6px",
+            py: "1px",
+            borderRadius: "4px",
+          }}
+        >
+          [Child&apos;s name]
+        </Box>
+      );
+      if (parts.length === 1) {
+        const p2 = text.split("{{CHILD_NAME}}");
+        if (p2.length === 1) {
+          return text;
+        }
+        return p2.map((part, i) => (
+          <React.Fragment key={i}>
+            {part}
+            {i < p2.length - 1 ? pill(i) : null}
+          </React.Fragment>
+        ));
+      }
+      return parts.map((part, i) => (
+        <React.Fragment key={i}>
+          {part}
+          {i < parts.length - 1 ? pill(i) : null}
+        </React.Fragment>
+      ));
+    },
+    [theme.palette.primary.light],
+  );
 
   const langNorm = normalizeStoryLanguage(storyLanguage);
   const publicVariant = "male" as const;
@@ -107,11 +113,11 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
             py: 6,
             px: 3,
             borderRadius: SDRadii.spreadCard,
-            border: "1px solid #e5e0f8",
-            bgcolor: "white",
+            border: `1px solid ${COLORS.border}`,
+            bgcolor: COLORS.surface,
           }}
         >
-          <AutoStoriesOutlinedIcon sx={{ fontSize: 40, color: "#ccc", mb: 1 }} />
+          <AutoStoriesOutlinedIcon sx={{ fontSize: 40, color: alpha(COLORS.textSecondary, 0.45), mb: 1 }} />
           <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>{t("storyDetail.previewComingSoon")}</Typography>
         </Box>
       </Box>
@@ -135,8 +141,8 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
         sx={{
           position: "relative",
           minHeight: { xs: 200, md: "auto" },
-          borderInlineEnd: { md: "1px solid #f0eeff" },
-          background: spread.imageUrl ? "#000" : SDGradients.coverBg,
+          borderInlineEnd: { md: `1px solid ${COLORS.border}` },
+          background: spread.imageUrl ? COLORS.textPrimary : SDGradients.coverBg,
         }}
       >
         {spread.imageUrl ? (
@@ -161,7 +167,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
             <Typography sx={{ fontSize: "3rem" }} aria-hidden>
               📖
             </Typography>
-            <Typography sx={{ fontSize: "11px", textTransform: "uppercase", color: "rgba(255,255,255,0.4)" }}>
+            <Typography sx={{ fontSize: "11px", textTransform: "uppercase", color: alpha(COLORS.surface, 0.4) }}>
               {t("preview.illustrationPreview")}
             </Typography>
           </Box>
@@ -173,6 +179,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
+          bgcolor: COLORS.surface,
         }}
       >
         <Box>
@@ -181,7 +188,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
               fontSize: "11px",
               textTransform: "uppercase",
               letterSpacing: "1.5px",
-              color: "#aaa",
+              color: alpha(COLORS.textSecondary, 0.75),
               mb: 1.75,
             }}
           >
@@ -194,7 +201,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
               fontSize: "18px",
               fontStyle: language === "he" ? "normal" : "italic",
               lineHeight: 1.7,
-              color: "#2a2050",
+              color: COLORS.textPrimary,
               flex: 1,
               whiteSpace: "pre-wrap",
             }}
@@ -205,15 +212,15 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
         <Box
           sx={{
             paddingTop: 2,
-            borderTop: "1px solid #f0eeff",
+            borderTop: `1px solid ${COLORS.border}`,
             marginTop: 2,
             display: "flex",
             gap: 1,
             alignItems: "center",
           }}
         >
-          <AutoAwesomeIcon sx={{ fontSize: 14, color: "#7F77DD" }} />
-          <Typography sx={{ fontSize: "12px", fontWeight: 600, color: "#534AB7" }}>{t("preview.childNameHint")}</Typography>
+          <AutoAwesomeIcon sx={{ fontSize: 14, color: COLORS.primary }} />
+          <Typography sx={{ fontSize: "12px", fontWeight: 600, color: COLORS.primary }}>{t("preview.childNameHint")}</Typography>
         </Box>
       </Box>
     </Box>
@@ -223,8 +230,8 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
     <Box ref={ref} sx={{ mt: 4, mb: 4 }}>
       <Box
         sx={{
-          background: "linear-gradient(135deg, #EEEDFE 0%, #f5f3ff 100%)",
-          border: "1.5px solid #c8c3f5",
+          background: COLORS.background,
+          border: `1.5px solid ${COLORS.border}`,
           borderRadius: SDRadii.previewBanner,
           padding: "24px 28px",
           mb: 2.5,
@@ -242,20 +249,20 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "1.5px",
-              color: "#7F77DD",
+              color: COLORS.primary,
               mb: 0.5,
             }}
           >
             {t("preview.stepLabel")}
           </Typography>
-          <Typography sx={{ fontSize: "20px", fontWeight: 700, color: "#1a1a2e" }}>{t("preview.seeInside")}</Typography>
-          <Typography sx={{ fontSize: "14px", color: "#666", mt: 0.5 }}>{t("preview.genericVersionNote")}</Typography>
+          <Typography sx={{ fontSize: "20px", fontWeight: 700, color: COLORS.textPrimary }}>{t("preview.seeInside")}</Typography>
+          <Typography sx={{ fontSize: "14px", color: COLORS.textSecondary, mt: 0.5 }}>{t("preview.genericVersionNote")}</Typography>
         </Box>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0, flexWrap: "wrap" }}>
           <Box
             sx={{
-              background: "#534AB7",
-              color: "white",
+              background: COLORS.primary,
+              color: COLORS.surface,
               fontSize: "12px",
               fontWeight: 700,
               padding: "5px 14px",
@@ -276,13 +283,17 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
                   height: 36,
                   padding: 0,
                   borderRadius: SDRadii.spreadNav,
-                  border: "1.5px solid #ddd",
-                  background: "white",
+                  border: `1.5px solid ${COLORS.border}`,
+                  background: COLORS.surface,
                   fontSize: "13px",
                   fontWeight: 700,
-                  color: activeSpread === i ? "#534AB7" : "#333",
-                  borderColor: activeSpread === i ? "#7F77DD" : "#ddd",
-                  bgcolor: activeSpread === i ? "#EEEDFE" : "white",
+                  color: activeSpread === i ? COLORS.primary : COLORS.textPrimary,
+                  borderColor: activeSpread === i ? COLORS.primary : COLORS.border,
+                  bgcolor: activeSpread === i ? theme.palette.primary.light : COLORS.surface,
+                  "&:hover": {
+                    borderColor: activeSpread === i ? COLORS.primary : COLORS.border,
+                    bgcolor: activeSpread === i ? theme.palette.primary.light : alpha(COLORS.textPrimary, 0.04),
+                  },
                 }}
               >
                 {i + 1}
@@ -295,8 +306,8 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
       <Box
         sx={{
           borderRadius: SDRadii.spreadCard,
-          border: "1px solid #e5e0f8",
-          background: "white",
+          border: `1px solid ${COLORS.border}`,
+          background: COLORS.surface,
           overflow: "hidden",
           transition: "box-shadow 0.2s",
           "&:hover": { boxShadow: SDShadows.spreadHover },
@@ -322,8 +333,8 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
       <Box
         sx={{
           mt: 2,
-          background: "white",
-          border: "1.5px solid #c8c3f5",
+          background: COLORS.surface,
+          border: `1.5px solid ${COLORS.border}`,
           borderRadius: SDRadii.bridgeCta,
           padding: "18px 22px",
           display: "flex",
@@ -334,16 +345,16 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
         }}
       >
         <Box>
-          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: "#1a1a2e", mb: 0.4 }}>
+          <Typography sx={{ fontSize: "14px", fontWeight: 700, color: COLORS.textPrimary, mb: 0.4 }}>
             {t("preview.bridgeTitle")}
           </Typography>
-          <Typography sx={{ fontSize: "13px", color: "#888" }}>{t("preview.bridgeSub")}</Typography>
+          <Typography sx={{ fontSize: "13px", color: COLORS.textSecondary }}>{t("preview.bridgeSub")}</Typography>
         </Box>
         <Button
           onClick={onPersonalize}
           sx={{
-            background: SDGradients.cta,
-            color: "white",
+            background: COLORS.secondary,
+            color: COLORS.surface,
             fontSize: "14px",
             fontWeight: 700,
             borderRadius: "12px",
@@ -354,6 +365,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
             gap: 1,
             "&:hover": {
               transform: "translateY(-1px)",
+              background: theme.palette.secondary.dark,
               boxShadow: SDShadows.ctaHover,
             },
           }}
