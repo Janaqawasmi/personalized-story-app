@@ -27,7 +27,7 @@ export const SDGradients = {
 };
 
 export const SDRadii = {
-  chip: "20px",
+  chip: "24px",
   card: "16px",
   cover: "20px",
   cta: "14px",

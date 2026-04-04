@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Box, Typography, useTheme } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import ShieldIcon from "@mui/icons-material/Shield";
@@ -7,7 +7,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import LanguageIcon from "@mui/icons-material/Language";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
-import { SDRadii, colorWithAlpha } from "../StoryDetail.styles";
+import { colorWithAlpha } from "../StoryDetail.styles";
 import { featureStagger, featureItemLtr, featureItemRtl } from "../animations/variants";
 
 interface FeaturesGridProps {
@@ -15,44 +15,42 @@ interface FeaturesGridProps {
   reducedMotion: boolean;
 }
 
+/** Soft icon tints — same family as COLORS, lower saturation feel */
+const SOFT_ICON = {
+  ai: colorWithAlpha(COLORS.primary, 0.42),
+  psych: colorWithAlpha(COLORS.success, 0.48),
+  preview: colorWithAlpha(COLORS.primary, 0.34),
+  lang: colorWithAlpha(COLORS.secondary, 0.46),
+} as const;
+
 export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps) {
   const t = useTranslation();
-  const theme = useTheme();
   const itemVariant = reducedMotion ? undefined : isRTL ? featureItemRtl : featureItemLtr;
   const staggerVariant = reducedMotion ? undefined : featureStagger;
 
   const items = useMemo(
     () => [
-      {
-        key: "ai",
-        iconBg: theme.palette.primary.light,
-        iconColor: COLORS.primary,
-        Icon: PlayArrowIcon,
-        tKey: "features.aiNamePhoto" as const,
-      },
-      {
-        key: "psych",
-        iconBg: colorWithAlpha(COLORS.success, 0.12),
-        iconColor: COLORS.success,
-        Icon: ShieldIcon,
-        tKey: "features.psychDesigned" as const,
-      },
-      {
-        key: "preview",
-        iconBg: theme.palette.primary.light,
-        iconColor: COLORS.primary,
-        Icon: VisibilityIcon,
-        tKey: "features.previewFirst" as const,
-      },
-      {
-        key: "lang",
-        iconBg: colorWithAlpha(COLORS.secondary, 0.1),
-        iconColor: COLORS.secondary,
-        Icon: LanguageIcon,
-        tKey: "features.bilingualAvail" as const,
-      },
+      { key: "ai", iconColor: SOFT_ICON.ai, Icon: PlayArrowIcon, tKey: "features.aiNamePhoto" as const },
+      { key: "psych", iconColor: SOFT_ICON.psych, Icon: ShieldIcon, tKey: "features.psychDesigned" as const },
+      { key: "preview", iconColor: SOFT_ICON.preview, Icon: VisibilityIcon, tKey: "features.previewFirst" as const },
+      { key: "lang", iconColor: SOFT_ICON.lang, Icon: LanguageIcon, tKey: "features.bilingualAvail" as const },
     ],
-    [theme],
+    [],
+  );
+
+  const iconSlot = (Icon: typeof PlayArrowIcon, iconColor: string) => (
+    <Box
+      sx={{
+        width: 32,
+        height: 32,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <Icon sx={{ fontSize: 22, color: iconColor }} />
+    </Box>
   );
 
   const grid = (
@@ -65,27 +63,14 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
         mb: 2.5,
       }}
     >
-      {items.map(({ key, iconBg, iconColor, Icon, tKey }) => (
+      {items.map(({ key, iconColor, Icon, tKey }) => (
         <Box key={key} sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-          <Box
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: SDRadii.featIcon,
-              backgroundColor: iconBg,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Icon sx={{ fontSize: 16, color: iconColor }} />
-          </Box>
+          {iconSlot(Icon, iconColor)}
           <Typography
             sx={{
               fontSize: "13px",
               fontWeight: 600,
-              color: COLORS.textSecondary,
+              color: colorWithAlpha(COLORS.textSecondary, 0.88),
               lineHeight: 1.4,
               paddingTop: "6px",
             }}
@@ -112,28 +97,15 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
           mb: 2.5,
         }}
       >
-        {items.map(({ key, iconBg, iconColor, Icon, tKey }) => (
+        {items.map(({ key, iconColor, Icon, tKey }) => (
           <motion.div key={key} variants={itemVariant}>
             <Box sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-              <Box
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: SDRadii.featIcon,
-                  backgroundColor: iconBg,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <Icon sx={{ fontSize: 16, color: iconColor }} />
-              </Box>
+              {iconSlot(Icon, iconColor)}
               <Typography
                 sx={{
                   fontSize: "13px",
                   fontWeight: 600,
-                  color: COLORS.textSecondary,
+                  color: colorWithAlpha(COLORS.textSecondary, 0.88),
                   lineHeight: 1.4,
                   paddingTop: "6px",
                 }}
