@@ -163,11 +163,11 @@ function CoverIllustration({ story, topicStyle }: CoverIllustrationProps) {
 function getCtaLabel(language: string): { view: string; preview: string } {
   switch (language) {
     case "he":
-      return { view: "לצפות בסיפור", preview: "תצוגה מקדימה" };
+      return { view: "על הסיפור הזה", preview: "תצוגה מקדימה" };
     case "ar":
-      return { view: "عرض القصة", preview: "معاينة" };
+      return { view: "عن هذه القصة", preview: "معاينة" };
     default:
-      return { view: "View story", preview: "Preview" };
+      return { view: "About this story", preview: "Preview" };
   }
 }
 
