@@ -11,7 +11,7 @@ type Translations = typeof heTranslations;
 const translations: Record<"he" | "en" | "ar", Translations> = {
   he: heTranslations,
   en: enTranslations,
-  ar: arTranslations as Translations, // Type assertion: partial translations with fallback
+  ar: arTranslations as unknown as Translations, // Partial AR locale; missing keys fall back to Hebrew
 };
 
 /**

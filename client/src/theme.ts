@@ -51,10 +51,13 @@ export function createAppTheme(direction: Direction = "rtl"): Theme {
     },
 
     typography: {
-      fontFamily: `"Tajawal", "Alef", "Roboto", sans-serif`,
-      h1: {
-        fontWeight: 700,
-      },
+      fontFamily: "'Nunito', 'Segoe UI', sans-serif",
+      h1: { fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700 },
+      h2: { fontFamily: "'Playfair Display', Georgia, serif" },
+      h3: { fontFamily: "'Playfair Display', Georgia, serif" },
+      h4: { fontFamily: "'Playfair Display', Georgia, serif" },
+      h5: { fontFamily: "'Playfair Display', Georgia, serif" },
+      h6: { fontFamily: "'Playfair Display', Georgia, serif" },
       button: {
         textTransform: "none",
         fontWeight: 600,

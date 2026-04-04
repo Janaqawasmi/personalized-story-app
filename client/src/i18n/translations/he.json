@@ -313,7 +313,10 @@
     "loading": "טוען סיפור...",
     "notFound": "הסיפור לא נמצא",
     "notFoundMessage": "ייתכן שהסיפור הוסר או שהקישור אינו תקין.",
-    "backToCatalog": "חזרה לסיפורים",
+    "backToCatalog": "חזרה לקטלוג",
+    "breadcrumb": "סיפור מותאם אישית",
+    "personalize": "התאימו את הסיפור",
+    "therapistApproved": "מאושר מטפלים",
     "galleryLabel": "הצצה לתוך הסיפור",
     "previewPlaceholderChildName": "הילד שלכם",
     "previewComingSoon": "תצוגה מקדימה תגיע בקרוב",
@@ -366,6 +369,125 @@
       "comingSoon": "המחירים יופיעו בקרוב",
       "digitalLabel": "גרסה דיגיטלית",
       "printLabel": "ספר מודפס"
+    },
+    "v2": {
+      "metaCbt": "מבוסס CBT",
+      "metaPreviewAvailable": "תצוגה מקדימה זמינה",
+      "badgeTherapeuticShort": "טיפולי",
+      "pricingSubline": "חד-פעמי · סיפור מלא מותאם אישית",
+      "pricingDigitalReader": "קורא דיגיטלי",
+      "pricingPdfDownload": "הורדת PDF",
+      "pricingLifetime": "גישה לכל החיים",
+      "comingSoonBadge": "בקרוב",
+      "feature1Label": "שם הילד",
+      "feature1Sub": "הילד הופך לגיבור הסיפור",
+      "feature2Label": "אפשרות לתמונה",
+      "feature2Sub": "הוספת תמונת ילד (אופציונלי)",
+      "feature3Label": "נכתב על ידי מטפלים",
+      "feature3Sub": "עקרונות CBT משולבים",
+      "feature4Label": "עברית / אנגלית",
+      "feature4Sub": "תמיכה מלאה ב-RTL",
+      "feature5Label": "קורא דיגיטלי",
+      "feature5Sub": "לקרוא מכל מקום, לתמיד",
+      "feature6Label": "תצוגה מקדימה קודם",
+      "feature6Sub": "2 פריסות חינם לפני הרכישה",
+      "trustTherapistBody": "כל סיפור נכתב ונבדק על ידי מטפלים בילדים מורשים בשיטות CBT מבוססות מחקר.",
+      "trustSafeBody": "נתוני הילד והתמונה משמשים רק להתאמה אישית של הסיפור ולא משותפים.",
+      "trustPreviewBody": "צפו בשתי פריסות אמיתיות לפני שמתחייבים. בלי הפתעות ובלי לחץ.",
+      "trustGuaranteeBody": "אם הסיפור לא מרגיש מתאים — נפתור את זה יחד, החזר מלא תוך 30 יום.",
+      "faqPersonalizationQ": "איך עובדת ההתאמה האישית?",
+      "faqPersonalizationBody": "מזינים שם ומגדר, ואפשר להעלות תמונה. תקבלו שתי פריסות תצוגה מקדימה בחינם עם מצייני מקום שהוחלפו. כשמוכנים — פותחים את הסיפור המלא תמורת {price}.",
+      "faqEmotionalQ": "לאיזו אתגר רגשי הסיפור מתייחס?",
+      "faqEmotionalBodyTopic": "הסיפור מתמקד ב{topic} לילדים בגילאי {age}. שפה מותאמת גיל וכלים מהעולם ה-CBT לתמיכה בילד.",
+      "faqEmotionalBodyFallback": "הסיפור משתמש בשפה מותאמת גיל ובטכניקות מעולם ה-CBT לתמיכה באתגרים רגשיים יומיומיים.",
+      "faqReceiveQ": "מה בפועל מקבלים אחרי הרכישה?",
+      "faqReceiveBody": "מקבלים את הסיפור המלא ב-8 פריסות בקורא הדיגיטלי, הורדת PDF וגישה לכל החיים.",
+      "faqWhoWroteQ": "מי כתב את הסיפור?",
+      "faqWhoWroteBody": "הסיפורים נכתבים על ידי מומחי התפתחות הילד, נבדקים על ידי פסיכולוגים לילדים מורשים, ומיושרים לעקרונות CBT."
     }
+  },
+  "backToCatalog": "כל הסיפורים",
+  "personalizeThisStory": "התאימו את הסיפור",
+  "seeInsideFirst": "הציצו פנים קודם (תצוגה חינם)",
+  "noAccountNeeded": "אין צורך בחשבון לתצוגה מקדימה",
+  "thirtyDayGuarantee": "אחריות 30 יום",
+  "instantDelivery": "משלוח מיידי",
+  "seeInside": "הצצה פנימה",
+  "aGlimpseIntoTheStory": "מבט אל תוך הסיפור",
+  "previewSpreadsNote": "שתי פריסות חינם ללא התאמה אישית. שם ותמונת הילד יחליפו את המציינים אחרי ההתאמה.",
+  "spread": "פריסה",
+  "opening": "פתיחה",
+  "theChallenge": "האתגר",
+  "readyToPutChildInStory": "מוכנים לשים את הילד בתוך הסיפור?",
+  "personalizeBeforeBuy": "התאימו שם, מגדר ותמונה — לפני הרכישה.",
+  "personalizedDigitalPDF": "מותאם אישית · דיגיטלי + PDF",
+  "questions": "שאלות",
+  "everythingYouNeedToKnow": "כל מה שחשוב לדעת",
+  "moreStories": "עוד סיפורים",
+  "parentsAlsoLoved": "הורים אהבו גם",
+  "therapistApproved": "מאושר מטפלים",
+  "safeAndPrivate": "בטוח ופרטי",
+  "previewBeforePaying": "תצוגה לפני תשלום",
+  "thirtyDayGuaranteeTitle": "אחריות 30 יום",
+  "chips": {
+    "aiPersonalized": "מותאם אישית עם AI",
+    "therapeutic": "טיפולי",
+    "age": "גילאי {age}"
+  },
+  "features": {
+    "aiNamePhoto": "שם ותמונה מותאמים אישית",
+    "psychDesigned": "פרוטוקול שעוצב על ידי פסיכולוגים",
+    "previewFirst": "תצוגה מקדימה לפני הרכישה",
+    "bilingualAvail": "זמין בעברית ובאנגלית"
+  },
+  "pricing": {
+    "digital": "דיגיטלי",
+    "print": "מודפס",
+    "oneTime": "חד-פעמי",
+    "shipped": "נשלח אליך",
+    "previewBeforePaying": "תצוגה לפני תשלום",
+    "comingSoon": "בקרוב",
+    "notifyMe": "עדכנו אותי כשיהיה זמין"
+  },
+  "preview": {
+    "preview": "תצוגה מקדימה",
+    "seeInside": "הצצה פנימה",
+    "stepLabel": "שלב 1 — נסו קודם",
+    "genericVersionNote": "קראו שתי פריסות חינם לפני ההתאמה. בלי צורך בחשבון.",
+    "freePreview": "תצוגה חינם",
+    "illustrationPreview": "תצוגת איור",
+    "pageRange": "עמודים {start}–{end}",
+    "childNameHint": "הטקסט יכלול את שם ילדכם",
+    "bridgeTitle": "מוכנים שזה יהיה על הילד שלכם?",
+    "bridgeSub": "שלב 2 — הוסיפו שם, מגדר ותמונה",
+    "spreadNav": "פריסה"
+  },
+  "faq": {
+    "title": "שאלות נפוצות",
+    "q1": "איך עובדת ההתאמה האישית?",
+    "a1": "מזינים שם, מגדר ואפשר להעלות תמונה. רואים תצוגה מקדימה של שתי פריסות בחינם לפני תשלום — ואז פותחים את הסיפור המלא בתשלום חד-פעמי.",
+    "q2": "על מה מדובר בסיפור?",
+    "a2": "הסיפור משתמש בשפה חמה ומותאמת גיל כדי לעזור לילד להבין רגשות ולבנות ביטחון.",
+    "q3": "למי הספר הזה מתאים?",
+    "a3": "מיועד לילדים צעירים ולמבוגרים שקוראים איתם — הורים, מטפלים ומחנכים.",
+    "q4": "מה לגבי איכות הדפסה?",
+    "a4": "הגרסה הדיגיטלית באיכות גבוהה. אפשרויות הדפסה, כשקיימות, בחומרים מתאימים לספרי ילדים."
+  },
+  "related": {
+    "title": "עוד סיפורים שתאהבו"
+  },
+  "storyCard": {
+    "viewStory": "צפו בסיפור"
+  },
+  "states": {
+    "loading": "טוען סיפור…",
+    "notFound": "הסיפור לא נמצא"
+  },
+  "cta": {
+    "addFavorite": "הוספה למועדפים",
+    "removeFavorite": "הסרה מהמועדפים"
+  },
+  "sticky": {
+    "subline": "דיגיטלי · חד-פעמי"
   }
 }

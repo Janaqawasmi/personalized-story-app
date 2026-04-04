@@ -15,6 +15,137 @@
   "storyDetail": {
     "galleryLabel": "شاهد ما بداخل القصة",
     "previewPlaceholderChildName": "طفلك",
-    "previewComingSoon": "المعاينة قريبًا"
+    "previewComingSoon": "المعاينة قريبًا",
+    "loading": "جاري تحميل القصة...",
+    "notFound": "القصة غير موجودة",
+    "notFoundMessage": "ربما أُزيلت القصة أو أن الرابط غير صالح.",
+    "backToCatalog": "العودة إلى الكتالوج",
+    "breadcrumb": "قصة مخصصة",
+    "personalize": "خصص هذه القصة",
+    "therapistApproved": "معتمد من المعالجين",
+    "personalizeButton": "خصص هذه القصة",
+    "emotionalSubtitleTemplate": "قصة علاجية مخصصة تساعد الأطفال على فهم {topic} والتعامل معه",
+    "emotionalSubtitleDefault": "قصة علاجية مخصصة ترافق طفلك في أهم لحظاته",
+    "descriptionDefault": "قصة دافئة كُتبت خصيصاً لطفلك.",
+    "descriptionTemplate": "قصة دافئة لمساعدة الأطفال في سن {age} على التعامل مع {topic}.",
+    "v2": {
+      "metaCbt": "مبني على العلاج المعرفي السلوكي",
+      "metaPreviewAvailable": "معاينة متاحة",
+      "badgeTherapeuticShort": "علاجي",
+      "pricingSubline": "دفعة واحدة · قصة كاملة مخصصة",
+      "pricingDigitalReader": "قارئ رقمي",
+      "pricingPdfDownload": "تنزيل PDF",
+      "pricingLifetime": "وصول مدى الحياة",
+      "comingSoonBadge": "قريباً",
+      "feature1Label": "اسم الطفل",
+      "feature1Sub": "يصبح طفلك بطل القصة",
+      "feature2Label": "خيار الصورة",
+      "feature2Sub": "أضف صورة الطفل (اختياري)",
+      "feature3Label": "بقلم معالجين",
+      "feature3Sub": "مبادئ CBT مدمجة",
+      "feature4Label": "عبرية / إنجليزية",
+      "feature4Sub": "دعم كامل لـ RTL",
+      "feature5Label": "قارئ رقمي",
+      "feature5Sub": "اقرأ من أي مكان، للأبد",
+      "feature6Label": "معاينة أولاً",
+      "feature6Sub": "صفحتان مجانيتان قبل الشراء",
+      "trustTherapistBody": "تُكتب كل قصة وتُراجع من معالجين أطفال مرخّصين بأساليب CBT مبنية على الأدلة.",
+      "trustSafeBody": "تُستخدم بيانات طفلك وصورته فقط لتخصيص قصته ولا تُشارك.",
+      "trustPreviewBody": "شاهد صفحتين حقيقيتين قبل الالتزام. بلا مفاجآت ولا ضغط.",
+      "trustGuaranteeBody": "إن لم تناسبك القصة، سنعالج الأمر — استرداد كامل خلال 30 يوماً.",
+      "faqPersonalizationQ": "كيف يعمل التخصيص؟",
+      "faqPersonalizationBody": "أدخل اسم الطفل والجنس، ويمكنك رفع صورة. ستحصل على معاينتين مجانيتين. عند الجاهزية، افتح القصة الكاملة مقابل {price}.",
+      "faqEmotionalQ": "ما التحدي العاطفي الذي تعالجه هذه القصة؟",
+      "faqEmotionalBodyTopic": "تركز القصة على {topic} لأطفال {age}. بلغة مناسبة للعمر وتقنيات مستوحاة من CBT.",
+      "faqEmotionalBodyFallback": "تستخدم القصة لغة مناسبة للعمر وتقنيات لدعم التحديات العاطفية اليومية.",
+      "faqReceiveQ": "ماذا أستلم بعد الشراء؟",
+      "faqReceiveBody": "القصة كاملة بثماني صفحات في القارئ الرقمي، وتنزيل PDF، ووصول مدى الحياة.",
+      "faqWhoWroteQ": "من كتب هذه القصة؟",
+      "faqWhoWroteBody": "تُكتب القصص من متخصصي نمو الأطفال، وتُراجع من أخصائيي نفس مرخّصين للأطفال، ومتوافقة مع مبادئ CBT."
+    }
+  },
+  "backToCatalog": "كل القصص",
+  "personalizeThisStory": "خصص هذه القصة",
+  "seeInsideFirst": "اطلع من الداخل أولاً (معاينة مجانية)",
+  "noAccountNeeded": "لا حاجة لحساب للمعاينة",
+  "thirtyDayGuarantee": "ضمان 30 يوماً",
+  "instantDelivery": "تسليم فوري",
+  "seeInside": "اطلع من الداخل",
+  "aGlimpseIntoTheStory": "لمحة داخل القصة",
+  "previewSpreadsNote": "صفحتان مجانيتان غير مخصصتين. سيحل اسم طفلك وصورته محل العناصر النائبة بعد التخصيص.",
+  "spread": "الفتحة",
+  "opening": "البداية",
+  "theChallenge": "التحدي",
+  "readyToPutChildInStory": "هل أنت مستعد لجعل طفلك في هذه القصة؟",
+  "personalizeBeforeBuy": "خصص الاسم والجنس والصورة — قبل الشراء.",
+  "personalizedDigitalPDF": "مخصص · رقمي + PDF",
+  "questions": "أسئلة",
+  "everythingYouNeedToKnow": "كل ما تحتاج معرفته",
+  "moreStories": "المزيد من القصص",
+  "parentsAlsoLoved": "أحب الآباء أيضاً",
+  "therapistApproved": "معتمد من المعالجين",
+  "safeAndPrivate": "آمن وخاص",
+  "previewBeforePaying": "معاينة قبل الدفع",
+  "thirtyDayGuaranteeTitle": "ضمان 30 يوماً",
+  "chips": {
+    "aiPersonalized": "مخصص بالذكاء الاصطناعي",
+    "therapeutic": "علاجي",
+    "age": "الأعمار {age}"
+  },
+  "features": {
+    "aiNamePhoto": "اسم وصورة مخصصان",
+    "psychDesigned": "بروتوكول صممه أخصائيون",
+    "previewFirst": "معاينة قبل الشراء",
+    "bilingualAvail": "متاح بالعبرية والإنجليزية"
+  },
+  "pricing": {
+    "digital": "رقمي",
+    "print": "مطبوع",
+    "oneTime": "مرة واحدة",
+    "shipped": "يُشحن إليك",
+    "previewBeforePaying": "معاينة قبل الدفع",
+    "comingSoon": "قريباً",
+    "notifyMe": "أعلمني عند التوفر"
+  },
+  "preview": {
+    "preview": "معاينة",
+    "seeInside": "اطلع من الداخل",
+    "stepLabel": "الخطوة 1 — جرّب أولاً",
+    "genericVersionNote": "اقرأ صفحتين مجانيتين قبل التخصيص. لا حاجة لحساب.",
+    "freePreview": "معاينة مجانية",
+    "illustrationPreview": "معاينة الرسم",
+    "pageRange": "الصفحات {start}–{end}",
+    "childNameHint": "سيظهر اسم طفلك في النص",
+    "bridgeTitle": "هل تريد أن تدور القصة حول طفلك؟",
+    "bridgeSub": "الخطوة 2 — أضف الاسم والجنس والصورة",
+    "spreadNav": "الفتحة"
+  },
+  "faq": {
+    "title": "أسئلة شائعة",
+    "q1": "كيف يعمل التخصيص؟",
+    "a1": "تدخل اسم الطفل والجنس ويمكنك رفع صورة. ترى معاينتين مجانيتين قبل الدفع — ثم تفتح القصة الكاملة برسوم لمرة واحدة.",
+    "q2": "عما تتحدث هذه القصة؟",
+    "a2": "تستخدم القصة لغة دافئة مناسبة للعمر لتساعد طفلك على فهم المشاعر وبناء الثقة.",
+    "q3": "لمن هذا الكتاب؟",
+    "a3": "للأطفال الصغار والبالغين الذين يقرأون معهم.",
+    "q4": "وماذا عن جودة الطباعة؟",
+    "a4": "النسخة الرقمية عالية الدقة. خيارات الطباعة، عند توفرها، بمواد مناسبة لكتب الأطفال."
+  },
+  "related": {
+    "title": "قصص أخرى قد تعجبك"
+  },
+  "storyCard": {
+    "viewStory": "عرض القصة"
+  },
+  "states": {
+    "loading": "جاري تحميل القصة…",
+    "notFound": "القصة غير موجودة"
+  },
+  "cta": {
+    "addFavorite": "إضافة إلى المفضلة",
+    "removeFavorite": "إزالة من المفضلة"
+  },
+  "sticky": {
+    "subline": "رقمي · لمرة واحدة"
   }
 }
