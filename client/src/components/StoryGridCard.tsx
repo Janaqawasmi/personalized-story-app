@@ -237,7 +237,11 @@ export default function StoryGridCard({
   };
 
   const handlePreview = () => {
-    navigate(`/stories/${story.id}?preview=true`);
+    navigate(`/stories/${story.id}`);
+    setTimeout(() => {
+      const el = document.getElementById("story-preview-section");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 400);
   };
 
   const handleFavorite = (e: React.MouseEvent) => {

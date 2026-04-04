@@ -186,8 +186,20 @@ export default function StoryDetailPage() {
 
         {!reducedMotion ? (
           <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
+            <Box id="story-preview-section" ref={previewRef}>
+              <PreviewGallery
+                spreads={story.previewSpreads}
+                language={language}
+                onPersonalize={handlePersonalize}
+                templatePages={story.templatePages}
+                storyLanguage={story.storyLanguage}
+                childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
+              />
+            </Box>
+          </motion.div>
+        ) : (
+          <Box id="story-preview-section" ref={previewRef}>
             <PreviewGallery
-              ref={previewRef}
               spreads={story.previewSpreads}
               language={language}
               onPersonalize={handlePersonalize}
@@ -195,17 +207,7 @@ export default function StoryDetailPage() {
               storyLanguage={story.storyLanguage}
               childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
             />
-          </motion.div>
-        ) : (
-          <PreviewGallery
-            ref={previewRef}
-            spreads={story.previewSpreads}
-            language={language}
-            onPersonalize={handlePersonalize}
-            templatePages={story.templatePages}
-            storyLanguage={story.storyLanguage}
-            childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
-          />
+          </Box>
         )}
 
         <FaqSection items={faqRows} reducedMotion={reducedMotion} />
