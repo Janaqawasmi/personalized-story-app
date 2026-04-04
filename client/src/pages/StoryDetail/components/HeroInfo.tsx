@@ -73,9 +73,9 @@ export default function HeroInfo({
       <Typography
         sx={{
           fontSize: "17px",
-          fontWeight: 500,
+          fontWeight: 600,
           lineHeight: 1.55,
-          color: colorWithAlpha(COLORS.textSecondary, 0.94),
+          color: colorWithAlpha(COLORS.textPrimary, 0.72),
           mb: 2.75,
         }}
       >

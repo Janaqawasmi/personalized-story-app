@@ -11,7 +11,7 @@ interface ChipsRowProps {
   topicLabel: string;
 }
 
-const chipShadow = `0 1px 3px ${colorWithAlpha(COLORS.textPrimary, 0.05)}`;
+const chipShadow = `0 1px 3px ${colorWithAlpha(COLORS.textPrimary, 0.07)}, inset 0 1px 0 ${colorWithAlpha(COLORS.surface, 0.55)}`;
 
 const chipSx = {
   display: "inline-flex",
@@ -23,7 +23,10 @@ const chipSx = {
   fontWeight: 600,
   transition: "transform 0.2s, box-shadow 0.2s",
   boxShadow: chipShadow,
-  "&:hover": { transform: "translateY(-1px)", boxShadow: `0 2px 6px ${colorWithAlpha(COLORS.textPrimary, 0.07)}` },
+  "&:hover": {
+    transform: "translateY(-1px)",
+    boxShadow: `0 2px 8px ${colorWithAlpha(COLORS.textPrimary, 0.09)}, inset 0 1px 0 ${colorWithAlpha(COLORS.surface, 0.6)}`,
+  },
 };
 
 export default function ChipsRow({ ageRange, topicLabel }: ChipsRowProps) {
@@ -47,12 +50,12 @@ export default function ChipsRow({ ageRange, topicLabel }: ChipsRowProps) {
       <Box
         sx={{
           ...chipSx,
-          backgroundColor: colorWithAlpha(COLORS.success, 0.12),
-          color: colorWithAlpha(COLORS.success, 0.76),
-          border: `1px solid ${alpha(COLORS.success, 0.22)}`,
+          backgroundColor: colorWithAlpha(COLORS.success, 0.18),
+          color: colorWithAlpha(COLORS.success, 0.9),
+          border: `1px solid ${alpha(COLORS.success, 0.32)}`,
         }}
       >
-        <ShieldIcon sx={{ fontSize: 16, opacity: 0.9 }} />
+        <ShieldIcon sx={{ fontSize: 16 }} />
         <Typography component="span" sx={{ fontSize: "inherit", fontWeight: 600 }}>
           {t("chips.therapeutic")}
         </Typography>
@@ -75,9 +78,9 @@ export default function ChipsRow({ ageRange, topicLabel }: ChipsRowProps) {
         <Box
           sx={{
             ...chipSx,
-            backgroundColor: colorWithAlpha(COLORS.secondary, 0.11),
-            color: colorWithAlpha(COLORS.secondary, 0.72),
-            border: `1px solid ${alpha(COLORS.secondary, 0.2)}`,
+            backgroundColor: colorWithAlpha(COLORS.secondary, 0.16),
+            color: colorWithAlpha(COLORS.secondary, 0.88),
+            border: `1px solid ${alpha(COLORS.secondary, 0.3)}`,
           }}
         >
           <Typography component="span" sx={{ fontSize: "inherit", fontWeight: 600 }}>

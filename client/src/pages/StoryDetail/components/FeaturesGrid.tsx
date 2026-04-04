@@ -15,12 +15,12 @@ interface FeaturesGridProps {
   reducedMotion: boolean;
 }
 
-/** Soft icon tints — same family as COLORS, lower saturation feel */
+/** Soft but visible anchors — same hues, higher presence than pastel */
 const SOFT_ICON = {
-  ai: colorWithAlpha(COLORS.primary, 0.42),
-  psych: colorWithAlpha(COLORS.success, 0.48),
-  preview: colorWithAlpha(COLORS.primary, 0.34),
-  lang: colorWithAlpha(COLORS.secondary, 0.46),
+  ai: colorWithAlpha(COLORS.primary, 0.58),
+  psych: colorWithAlpha(COLORS.success, 0.64),
+  preview: colorWithAlpha(COLORS.primary, 0.5),
+  lang: colorWithAlpha(COLORS.secondary, 0.6),
 } as const;
 
 export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps) {
@@ -69,8 +69,8 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
           <Typography
             sx={{
               fontSize: "13px",
-              fontWeight: 600,
-              color: colorWithAlpha(COLORS.textSecondary, 0.88),
+              fontWeight: 700,
+              color: colorWithAlpha(COLORS.textPrimary, 0.78),
               lineHeight: 1.4,
               paddingTop: "6px",
             }}
@@ -104,8 +104,8 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
               <Typography
                 sx={{
                   fontSize: "13px",
-                  fontWeight: 600,
-                  color: colorWithAlpha(COLORS.textSecondary, 0.88),
+                  fontWeight: 700,
+                  color: colorWithAlpha(COLORS.textPrimary, 0.78),
                   lineHeight: 1.4,
                   paddingTop: "6px",
                 }}
