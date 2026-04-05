@@ -1728,7 +1728,7 @@ export function createLegacyStoryBrief(
   if (!data.storyPreferences.endingStyle || !["calm_resolution", "open_ended", "empowering"].includes(data.storyPreferences.endingStyle)) {
     throw new Error("storyPreferences.endingStyle is required and must be one of: calm_resolution, open_ended, empowering");
   }
-
+  
   const now = admin.firestore.Timestamp.now();
 
   return {

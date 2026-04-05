@@ -245,9 +245,6 @@ export default function Section1AgeAndScope({
             Field 1.1 — Target Age Range
         ═══════════════════════════════════════════════════════════════ */}
         <FieldGroup id="field-1-1-label" label="Target age range">
-          <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            5 appears in two ranges — select the developmental level you are targeting.
-          </Typography>
           <Box
             display="grid"
             gridTemplateColumns="repeat(4, 1fr)"

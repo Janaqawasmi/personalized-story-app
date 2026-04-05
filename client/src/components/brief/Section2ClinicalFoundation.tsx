@@ -11,12 +11,14 @@
 //
 // Spec: /docs/dammah-story-brief-spec-v1.2.md §4
 
-import React, { useId } from "react";
+import React, { useId, useState } from "react";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import LightbulbOutlinedIcon from "@mui/icons-material/LightbulbOutlined";
 import {
   Alert,
   Box,
   Button,
-  Chip,
+  Collapse,
   Divider,
   InputBase,
   Stack,
@@ -25,7 +27,7 @@ import {
 import { COLORS } from "../../theme";
 import {
   POPULATION_CHAR_LIMIT,
-  POPULATION_STARTER_PROMPTS,
+  POPULATION_THINKING_SCAFFOLDS,
   TRIGGER_CHAR_LIMIT,
   TRIGGER_LABELS,
   TRIGGER_NUDGE,
@@ -45,6 +47,8 @@ import {
 // ============================================================================
 
 const CARD_TINT = "#EEF2F5";
+const SCAFFOLD_BG = "#F3F6F9";
+const SCAFFOLD_BORDER = "#D6DEE8";
 
 // ============================================================================
 // Props
@@ -129,7 +133,8 @@ interface TextAreaProps {
 }
 
 function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4 }: TextAreaProps) {
-  const remaining = maxChars - value.length;
+  const used = value.length;
+  const remaining = maxChars - used;
   const nearLimit = remaining <= Math.ceil(maxChars * 0.1);
 
   return (
@@ -173,9 +178,112 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4 }: T
           color={nearLimit ? COLORS.secondary : COLORS.textSecondary}
           fontWeight={nearLimit ? 600 : 400}
         >
-          {remaining} / {maxChars} characters remaining
+          {used} / {maxChars} characters
         </Typography>
       </Box>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ThinkingGuide — collapsible scaffold shown above Field 2.1 text area.
+// Sub-questions are for the psychologist only — never persisted or sent to
+// the agent.
+// ---------------------------------------------------------------------------
+
+interface ThinkingGuideProps {
+  title: string;
+  subQuestions: string[];
+}
+
+function ThinkingGuide({ title, subQuestions }: ThinkingGuideProps) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Box
+      sx={{
+        mb: 1.75,
+        border: `1px solid ${SCAFFOLD_BORDER}`,
+        borderRadius: 2,
+        backgroundColor: SCAFFOLD_BG,
+        overflow: "hidden",
+      }}
+    >
+      {/* ── Trigger row ─────────────────────────────────────────────────── */}
+      <Box
+        component="button"
+        onClick={() => setOpen((p) => !p)}
+        aria-expanded={open}
+        sx={{
+          all: "unset",
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          cursor: "pointer",
+          px: 2,
+          py: 1.25,
+          gap: 1,
+          "&:focus-visible": { outline: `2px solid ${COLORS.primary}`, outlineOffset: -2 },
+        }}
+      >
+        <LightbulbOutlinedIcon
+          sx={{ fontSize: 18, color: COLORS.primary, flexShrink: 0 }}
+        />
+        <Box flex={1}>
+          <Typography variant="body2" fontWeight={600} color={COLORS.primary} lineHeight={1.3}>
+            {title}
+          </Typography>
+        </Box>
+        <KeyboardArrowDownIcon
+          sx={{
+            fontSize: 20,
+            color: COLORS.textSecondary,
+            flexShrink: 0,
+            transition: "transform 0.2s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+          }}
+        />
+      </Box>
+
+      {/* ── Expanded content ────────────────────────────────────────────── */}
+      <Collapse in={open}>
+        <Box
+          sx={{
+            borderTop: `1px solid ${SCAFFOLD_BORDER}`,
+            px: 2,
+            pt: 1.5,
+            pb: 2,
+          }}
+        >
+          <Stack spacing={1}>
+            {subQuestions.map((q, i) => (
+              <Box key={q} display="flex" alignItems="flex-start" gap={1.25}>
+                <Box
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    backgroundColor: COLORS.primary,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    mt: "1px",
+                  }}
+                >
+                  <Typography sx={{ fontSize: "0.65rem", fontWeight: 700, lineHeight: 1 }}>
+                    {i + 1}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color={COLORS.textPrimary} sx={{ pt: 0.2 }}>
+                  {q}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+        </Box>
+      </Collapse>
     </Box>
   );
 }
@@ -247,7 +355,7 @@ export default function Section2ClinicalFoundation({
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const triggerLabel = TRIGGER_LABELS[storyType] ?? "The specific trigger";
-  const starterPrompt = POPULATION_STARTER_PROMPTS[storyType];
+  const thinkingScaffold = POPULATION_THINKING_SCAFFOLDS[storyType];
   const goodExamples = INTENTION_GOOD_EXAMPLES[storyType] ?? [];
   const badExamples = INTENTION_BAD_EXAMPLES[storyType] ?? [];
 
@@ -300,48 +408,12 @@ export default function Section2ClinicalFoundation({
             feeling, what are they avoiding, what do they need that they can't ask for?
           </Typography>
 
-          {/* Starter prompt chip */}
-          {starterPrompt && (
-            <Box mb={1.5}>
-              <Typography
-                variant="caption"
-                color={COLORS.textSecondary}
-                display="block"
-                mb={0.75}
-                fontStyle="italic"
-              >
-                Starter prompt — click to add to your response:
-              </Typography>
-              <Chip
-                label={starterPrompt}
-                variant="outlined"
-                onClick={() => {
-                  const joined = population.trim()
-                    ? `${population.trim()}\n\n${starterPrompt}`
-                    : starterPrompt;
-                  if (joined.length <= POPULATION_CHAR_LIMIT) {
-                    onChange({ population: joined });
-                  }
-                }}
-                sx={{
-                  height: "auto",
-                  borderColor: COLORS.primary,
-                  color: COLORS.primary,
-                  whiteSpace: "normal",
-                  "& .MuiChip-label": {
-                    whiteSpace: "normal",
-                    py: 0.75,
-                    px: 1.5,
-                    fontSize: "0.78rem",
-                    lineHeight: 1.5,
-                  },
-                  "&:hover": {
-                    backgroundColor: CARD_TINT,
-                  },
-                  cursor: "pointer",
-                }}
-              />
-            </Box>
+          {/* Thinking scaffold — collapses; never written to the field or payload */}
+          {thinkingScaffold && (
+            <ThinkingGuide
+              title={thinkingScaffold.summaryTitle}
+              subQuestions={thinkingScaffold.subQuestions}
+            />
           )}
 
           <TextArea

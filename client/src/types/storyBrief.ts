@@ -138,12 +138,26 @@ export interface AgeAndScope {
 export const POPULATION_CHAR_LIMIT = 600;
 
 /**
- * Clickable starter prompt text shown for each story type.
- * Pilot: only fear_anxiety is needed.
+ * Collapsible thinking scaffold for Field 2.1 — not persisted, not sent to the agent.
+ * Sub-questions guide the psychologist only.
  */
-export const POPULATION_STARTER_PROMPTS: Partial<Record<StoryType, string>> = {
-  fear_anxiety:
-    "Think about: What are they afraid will happen? What do they do to avoid it? What do adults misunderstand about this fear?",
+export interface PopulationThinkingScaffold {
+  /** Header text when the panel is collapsed */
+  summaryTitle: string;
+  subQuestions: string[];
+}
+
+export const POPULATION_THINKING_SCAFFOLDS: Partial<
+  Record<StoryType, PopulationThinkingScaffold>
+> = {
+  fear_anxiety: {
+    summaryTitle: "Thinking scaffold — what to consider",
+    subQuestions: [
+      "What are they afraid will happen?",
+      "What do they do to avoid it?",
+      "What do adults misunderstand about this fear?",
+    ],
+  },
 };
 
 // ---------------------------------------------------------------------------

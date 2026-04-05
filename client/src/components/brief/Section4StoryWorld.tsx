@@ -243,7 +243,8 @@ interface TextAreaProps {
 }
 
 function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: TextAreaProps) {
-  const remaining = maxChars - value.length;
+  const used = value.length;
+  const remaining = maxChars - used;
   const nearLimit = remaining <= Math.ceil(maxChars * 0.1);
 
   return (
@@ -287,7 +288,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: T
           color={nearLimit ? COLORS.secondary : COLORS.textSecondary}
           fontWeight={nearLimit ? 600 : 400}
         >
-          {remaining} / {maxChars} characters remaining
+          {used} / {maxChars} characters
         </Typography>
       </Box>
     </Box>
