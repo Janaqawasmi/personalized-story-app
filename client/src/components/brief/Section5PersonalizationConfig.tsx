@@ -29,6 +29,9 @@ import {
   Typography,
 } from "@mui/material";
 import { COLORS } from "../../theme";
+import BriefValidationSummary, {
+  type BriefMissingField,
+} from "./BriefValidationSummary";
 import {
   PERSONALIZATION_CONSTRAINTS_DEFAULTS,
   WHY_NOT_CHAR_LIMIT,
@@ -195,6 +198,14 @@ export default function Section5PersonalizationConfig({
   const isComplete = isPersonalized
     ? true // constraints are optional
     : whyNot.trim().length > 0;
+
+  const missingFields: BriefMissingField[] = [];
+  if (!isPersonalized && !whyNot.trim()) {
+    missingFields.push({
+      label: "Why is this story better with a fixed protagonist?",
+      targetId: id("5-2-label"),
+    });
+  }
 
   // ── Constraint list handlers ───────────────────────────────────────────────
 
@@ -404,6 +415,8 @@ export default function Section5PersonalizationConfig({
             the draft before it's published.
           </Typography>
         </Box>
+
+        <BriefValidationSummary missing={submitting ? [] : missingFields} />
 
         {/* ── Navigation ─────────────────────────────────────────────────── */}
         <Box

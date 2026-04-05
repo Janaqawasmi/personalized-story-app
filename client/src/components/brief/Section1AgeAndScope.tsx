@@ -21,6 +21,9 @@ import {
   Typography,
 } from "@mui/material";
 import { COLORS } from "../../theme";
+import BriefValidationSummary, {
+  type BriefMissingField,
+} from "./BriefValidationSummary";
 import {
   AGE_RANGES,
   AGE_RANGE_LABELS,
@@ -199,6 +202,14 @@ export default function Section1AgeAndScope({
       : null;
 
   const isComplete = ageRange !== null && peakIntensity !== null;
+
+  const missingFields: BriefMissingField[] = [];
+  if (ageRange === null) {
+    missingFields.push({ label: "Target age range", targetId: "field-1-1-label" });
+  }
+  if (peakIntensity === null) {
+    missingFields.push({ label: "Peak emotional intensity", targetId: "field-1-2-label" });
+  }
 
   function handleAgeRange(v: AgeRange) {
     onChange({ ageRange: v });
@@ -413,6 +424,8 @@ export default function Section1AgeAndScope({
             )}
           </Box>
         </FieldGroup>
+
+        <BriefValidationSummary missing={missingFields} />
 
         {/* ── Navigation ─────────────────────────────────────────────────── */}
         <Box

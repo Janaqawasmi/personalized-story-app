@@ -25,6 +25,9 @@ import {
   Typography,
 } from "@mui/material";
 import { COLORS } from "../../theme";
+import BriefValidationSummary, {
+  type BriefMissingField,
+} from "./BriefValidationSummary";
 import {
   POPULATION_CHAR_LIMIT,
   POPULATION_THINKING_SCAFFOLDS,
@@ -374,6 +377,23 @@ export default function Section2ClinicalFoundation({
     intentionBecause.trim().length > 0 &&
     creativeVision.trim().length > 0;
 
+  const missingFields: BriefMissingField[] = [];
+  if (!population.trim()) {
+    missingFields.push({
+      label: "Emotional world of the population",
+      targetId: id("2-1-label"),
+    });
+  }
+  if (!trigger.trim()) {
+    missingFields.push({ label: triggerLabel, targetId: id("2-2-label") });
+  }
+  if (!intentionFeel.trim() || !intentionBecause.trim()) {
+    missingFields.push({ label: "Therapeutic intention", targetId: id("2-3-label") });
+  }
+  if (!creativeVision.trim()) {
+    missingFields.push({ label: "Clinical creative vision", targetId: id("2-4-label") });
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -678,6 +698,8 @@ export default function Section2ClinicalFoundation({
             minRows={3}
           />
         </FieldGroup>
+
+        <BriefValidationSummary missing={missingFields} />
 
         {/* ── Navigation ─────────────────────────────────────────────────── */}
         <Box

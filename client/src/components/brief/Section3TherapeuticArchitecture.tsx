@@ -27,6 +27,9 @@ import {
   Typography,
 } from "@mui/material";
 import { COLORS } from "../../theme";
+import BriefValidationSummary, {
+  type BriefMissingField,
+} from "./BriefValidationSummary";
 import {
   THERAPEUTIC_APPROACHES_BY_TYPE,
   THERAPEUTIC_APPROACH_LABELS,
@@ -342,6 +345,32 @@ export default function Section3TherapeuticArchitecture({
     resolutionCompleteness !== null &&
     mustNeverList.length > 0 &&
     mustNeverList.every((item) => item.trim().length > 0);
+
+  const mustNeverIncomplete =
+    mustNeverList.length === 0 || !mustNeverList.every((item) => item.trim().length > 0);
+
+  const missingFields: BriefMissingField[] = [];
+  if (primaryApproach === null) {
+    missingFields.push({ label: "Primary therapeutic approach", targetId: id("3-1-label") });
+  }
+  if (shameDimension === null) {
+    missingFields.push({ label: "Shame dimension", targetId: id("3-3-label") });
+  }
+  if (somaticExpressions.length === 0) {
+    missingFields.push({
+      label: "How does the anxiety show up in the body?",
+      targetId: id("3-4-label"),
+    });
+  }
+  if (copingTool === null) {
+    missingFields.push({ label: "The coping tool", targetId: id("3-5-label") });
+  }
+  if (resolutionCompleteness === null) {
+    missingFields.push({ label: "Resolution completeness", targetId: id("3-6-label") });
+  }
+  if (mustNeverIncomplete) {
+    missingFields.push({ label: "What this story must never do", targetId: id("3-7-label") });
+  }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -921,6 +950,8 @@ export default function Section3TherapeuticArchitecture({
             + Add constraint
           </Button>
         </FieldGroup>
+
+        <BriefValidationSummary missing={missingFields} />
 
         {/* ── Navigation ─────────────────────────────────────────────────── */}
         <Box

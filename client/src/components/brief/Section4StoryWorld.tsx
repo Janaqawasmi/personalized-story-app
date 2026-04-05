@@ -28,6 +28,9 @@ import {
   Typography,
 } from "@mui/material";
 import { COLORS } from "../../theme";
+import BriefValidationSummary, {
+  type BriefMissingField,
+} from "./BriefValidationSummary";
 import {
   PERSONALIZATION_DEFAULT,
   PERSONALIZATION_OPTION_DESCRIPTIONS,
@@ -339,6 +342,22 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
     (!isPersonalized
       ? protagonistGender !== null
       : true);
+
+  const rawProtagonistType = value.protagonistType ?? null;
+
+  const missingFields: BriefMissingField[] = [];
+  if (!isPersonalized && protagonistGender === null) {
+    missingFields.push({ label: "Protagonist gender", targetId: id("4-1-label") });
+  }
+  if (!isPersonalized && rawProtagonistType === null) {
+    missingFields.push({ label: "Protagonist type", targetId: id("4-2-label") });
+  }
+  if (caregiverPresence === null) {
+    missingFields.push({ label: "Caregiver's presence", targetId: id("4-4-label") });
+  }
+  if (narrativeDistance === null) {
+    missingFields.push({ label: "Narrative distance", targetId: id("4-5-label") });
+  }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -922,6 +941,8 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
             minRows={3}
           />
         </FieldGroup>
+
+        <BriefValidationSummary missing={missingFields} />
 
         {/* ── Navigation ─────────────────────────────────────────────────── */}
         <Box
