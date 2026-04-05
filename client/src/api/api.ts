@@ -13,7 +13,7 @@ import { getAuth } from "firebase/auth";
 // Configuration
 // ============================================================================
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+export const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
 
 // ============================================================================
 // Auth Helper
@@ -24,7 +24,7 @@ const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
  * Returns headers object with Authorization bearer token.
  * Throws if user is not authenticated.
  */
-async function getAuthHeaders(): Promise<Record<string, string>> {
+export async function getAuthHeaders(): Promise<Record<string, string>> {
   const auth = getAuth();
   const user = auth.currentUser;
 

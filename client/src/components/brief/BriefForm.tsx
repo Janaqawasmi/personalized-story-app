@@ -38,6 +38,8 @@ import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
+import BriefSubmitSuccess from "./BriefSubmitSuccess";
+import { submitDammaStoryBriefForm } from "../../api/dammaStoryBrief";
 
 import {
   STORY_TYPES,
@@ -109,10 +111,11 @@ function formatSavedAt(ts: number): string {
 
 interface Props {
   /**
-   * Called when the psychologist submits the complete brief.
-   * The consumer is responsible for sending it to the backend.
+   * Called when the psychologist submits the complete brief after safety checks.
+   * Must resolve with `{ briefId }` on success (HTTP 2xx equivalent).
+   * If omitted, the form POSTs to `/api/admin/damma-story-briefs`.
    */
-  onSubmit?: (brief: CompleteBrief) => Promise<void>;
+  onSubmit?: (brief: CompleteBrief) => Promise<{ briefId: string }>;
 }
 
 // ============================================================================
@@ -345,6 +348,12 @@ export default function BriefForm({ onSubmit }: Props) {
   const [gateHardWarnings, setGateHardWarnings] = useState<SubmitGateItem[]>([]);
   const [hardWarningAck, setHardWarningAck] = useState(false);
 
+  /** Set after successful API submit — local draft is cleared only from "Create another brief". */
+  const [submitSuccess, setSubmitSuccess] = useState<{ briefId: string; jsonText: string } | null>(
+    null,
+  );
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   // Ref to scroll to the top of the section content on navigation
   const sectionTopRef = useRef<HTMLDivElement | null>(null);
 
@@ -488,25 +497,41 @@ export default function BriefForm({ onSubmit }: Props) {
   async function submitBrief(brief: CompleteBrief) {
     if (submitting) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       const finalDraft = normalizeBriefDefaults(brief);
       if (finalDraft !== brief) {
         setDraft(finalDraft);
         saveDraftToStorage(finalDraft);
       }
+      const jsonText = JSON.stringify(finalDraft, null, 2);
+      let briefId: string;
       if (onSubmit) {
-        await onSubmit(finalDraft);
+        const result = await onSubmit(finalDraft);
+        briefId = result.briefId;
       } else {
-        // No handler provided — log and clear draft
-        console.info("[BriefForm] Brief submitted:", finalDraft);
+        const result = await submitDammaStoryBriefForm(finalDraft);
+        briefId = result.briefId;
       }
-      clearDraftFromStorage();
-      setSavedDraft(null);
+      setSubmitSuccess({ briefId, jsonText });
+      // Intentionally keep localStorage until the user explicitly starts a new brief.
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong while submitting. Please try again.";
+      setSubmitError(message);
       console.error("[BriefForm] Submission failed:", err);
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleCreateAnotherBrief() {
+    clearDraftFromStorage();
+    setSavedDraft(null);
+    setSubmitSuccess(null);
+    setSubmitError(null);
+    setDraft(createEmptyBrief());
+    setActiveStep(0);
   }
 
   // ── Resume / discard ──────────────────────────────────────────────────────
@@ -532,6 +557,30 @@ export default function BriefForm({ onSubmit }: Props) {
   function handleDiscardDraft() {
     clearDraftFromStorage();
     setSavedDraft(null);
+  }
+
+  // ── Post-submit success (draft kept in storage until "Create another brief") ─
+
+  if (submitSuccess) {
+    return (
+      <Container maxWidth="sm" sx={{ py: 4 }}>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: 3,
+            backgroundColor: COLORS.surface,
+          }}
+        >
+          <BriefSubmitSuccess
+            briefId={submitSuccess.briefId}
+            jsonText={submitSuccess.jsonText}
+            onCreateAnother={handleCreateAnotherBrief}
+          />
+        </Paper>
+      </Container>
+    );
   }
 
   // ── The pre-brief story type selector ────────────────────────────────────
@@ -696,6 +745,22 @@ export default function BriefForm({ onSubmit }: Props) {
         onGoBack={handleHardWarningGoBack}
         onProceed={handleHardWarningProceed}
       />
+
+      <Snackbar
+        open={submitError != null}
+        autoHideDuration={8000}
+        onClose={() => setSubmitError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          severity="error"
+          onClose={() => setSubmitError(null)}
+          variant="filled"
+          sx={{ borderRadius: 2, alignItems: "center" }}
+        >
+          {submitError}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
