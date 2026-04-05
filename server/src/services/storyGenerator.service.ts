@@ -1,6 +1,6 @@
 // src/services/storyGenerator.service.ts
 import OpenAI from "openai";
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { buildStoryDraftPrompt } from "./storyPromptBuilder";
 
 /**
@@ -34,7 +34,7 @@ export function getOpenAIClient(): OpenAI {
  * - This function only executes the LLM call
  */
 export async function generateStoryDraft(
-  brief: StoryBrief,
+  brief: LegacyStoryBrief,
   ragContext: string
 ) {
   // 🔑 SINGLE SOURCE OF TRUTH

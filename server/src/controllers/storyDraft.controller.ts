@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import admin from "firebase-admin";
 import { firestore } from "../config/firebase";
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { StoryDraft, GenerateDraftInput, GenerationConfig, DraftPage } from "../models/storyDraft.model";
 import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
 import { loadWritingRules } from "../services/ragWritingRules.service";
@@ -200,7 +200,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
 
-    const briefData = briefDoc.data() as StoryBrief;
+    const briefData = briefDoc.data() as LegacyStoryBrief;
 
     // Validate brief status before transaction
     if (briefData.status !== "created") {
@@ -230,7 +230,7 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
         throw new Error("Story brief not found");
       }
 
-      const briefDataInTx = briefDocInTx.data() as StoryBrief;
+      const briefDataInTx = briefDocInTx.data() as LegacyStoryBrief;
       if (briefDataInTx.status !== "created") {
         throw new Error(`Cannot generate draft: brief status is "${briefDataInTx.status}", expected "created"`);
       }
@@ -753,7 +753,7 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
       if (!briefDocInTx.exists) {
         throw new Error("Story brief not found");
       }
-      const briefData = briefDocInTx.data() as StoryBrief;
+      const briefData = briefDocInTx.data() as LegacyStoryBrief;
 
       // Update draft to "approved" status
       transaction.update(draftRef, {

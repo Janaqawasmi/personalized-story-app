@@ -11,6 +11,7 @@
 //   5. Story type routing configuration
 //   6. Field registry (comprehensive field metadata)
 
+import admin from "firebase-admin";
 import type { Timestamp } from "firebase-admin/firestore";
 
 // ============================================================================
@@ -1537,5 +1538,234 @@ export function getSection5Visibility(personalization: boolean) {
   return {
     showPersonalizationConstraints: personalization,
     showWhyNot: !personalization,
+  };
+}
+
+// ============================================================================
+// LEGACY — Pre–spec-v1.2 Firestore story brief shape
+// ============================================================================
+//
+// Production `storyBriefs` documents and the current specialist API still use
+// this structure (therapeuticFocus, childProfile, status "created", etc.).
+// Prefer typing Firestore reads as LegacyStoryBrief until documents are migrated.
+// The spec v1.2 canonical shape is StoryBrief above.
+
+export type LegacyStoryBriefStatus =
+  | "created"
+  | "draft_generating"
+  | "draft_generated"
+  | "archived";
+
+export type LegacyFirestoreAgeGroup = "0_3" | "3_6" | "6_9" | "9_12";
+export type LegacyEmotionalSensitivity = "low" | "medium" | "high";
+export type LegacyLanguageComplexity = "very_simple" | "simple" | "moderate";
+export type LegacyLanguageEmotionalTone = "very_gentle" | "calm" | "encouraging";
+export type LegacyBriefCaregiverPresence = "included" | "self_guided";
+export type LegacyBriefEndingStyle = "calm_resolution" | "open_ended" | "empowering";
+
+export interface LegacyTherapeuticFocus {
+  primaryTopic: string;
+  specificSituation: string;
+}
+
+export interface LegacyChildProfile {
+  ageGroup: LegacyFirestoreAgeGroup;
+  emotionalSensitivity: LegacyEmotionalSensitivity;
+}
+
+export interface LegacyTherapeuticIntent {
+  emotionalGoals: string[];
+  keyMessage?: string;
+}
+
+export interface LegacyLanguageTone {
+  complexity: LegacyLanguageComplexity;
+  emotionalTone: LegacyLanguageEmotionalTone;
+}
+
+export interface LegacySafetyConstraintsEnforced {
+  noThreateningImagery: true;
+  noShameLanguage: true;
+  noMoralizing: true;
+  validateEmotions: true;
+  externalizeProblem: true;
+}
+
+export interface LegacySafetyConstraints {
+  enforced: LegacySafetyConstraintsEnforced;
+  exclusions: string[];
+}
+
+export interface LegacyStoryPreferences {
+  caregiverPresence: LegacyBriefCaregiverPresence;
+  endingStyle: LegacyBriefEndingStyle;
+}
+
+export interface LegacyStoryBrief {
+  id?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy: string;
+  status: LegacyStoryBriefStatus;
+  lockedAt?: Timestamp;
+  lockedByDraftId?: string;
+  version: number;
+  therapeuticFocus: LegacyTherapeuticFocus;
+  childProfile: LegacyChildProfile;
+  therapeuticIntent: LegacyTherapeuticIntent;
+  languageTone: LegacyLanguageTone;
+  safetyConstraints: LegacySafetyConstraints;
+  storyPreferences: LegacyStoryPreferences;
+}
+
+export interface LegacyStoryBriefInput {
+  createdBy: string;
+  therapeuticFocus: LegacyTherapeuticFocus;
+  childProfile: LegacyChildProfile;
+  therapeuticIntent: LegacyTherapeuticIntent;
+  languageTone: LegacyLanguageTone;
+  safetyConstraints: { exclusions: string[] };
+  storyPreferences: LegacyStoryPreferences;
+}
+
+const LEGACY_ALLOWED_EMOTIONAL_GOALS = [
+  "normalize_emotions",
+  "reduce_fear",
+  "build_trust",
+  "self_confidence",
+  "emotional_regulation",
+] as const;
+
+/**
+ * Builds a validated LegacyStoryBrief document for Firestore (pre–spec-v1.2 API).
+ */
+export function createLegacyStoryBrief(
+  data: LegacyStoryBriefInput,
+): Omit<LegacyStoryBrief, "id"> {
+  if (!data.createdBy || typeof data.createdBy !== "string" || data.createdBy.trim() === "") {
+    throw new Error("createdBy is required and must be a non-empty string");
+  }
+
+  if (!data.therapeuticFocus) {
+    throw new Error("therapeuticFocus is required");
+  }
+
+  if (!data.therapeuticFocus.primaryTopic || typeof data.therapeuticFocus.primaryTopic !== "string") {
+    throw new Error("therapeuticFocus.primaryTopic is required and must be a string");
+  }
+
+  if (!data.therapeuticFocus.specificSituation || typeof data.therapeuticFocus.specificSituation !== "string") {
+    throw new Error("therapeuticFocus.specificSituation is required and must be a string");
+  }
+
+  if (!data.childProfile) {
+    throw new Error("childProfile is required");
+  }
+
+  if (!data.childProfile.ageGroup || !["0_3", "3_6", "6_9", "9_12"].includes(data.childProfile.ageGroup)) {
+    throw new Error("childProfile.ageGroup is required and must be one of: 0_3, 3_6, 6_9, 9_12");
+  }
+
+  if (!data.childProfile.emotionalSensitivity || !["low", "medium", "high"].includes(data.childProfile.emotionalSensitivity)) {
+    throw new Error("childProfile.emotionalSensitivity is required and must be one of: low, medium, high");
+  }
+
+  if (!data.therapeuticIntent) {
+    throw new Error("therapeuticIntent is required");
+  }
+
+  if (!Array.isArray(data.therapeuticIntent.emotionalGoals)) {
+    throw new Error("therapeuticIntent.emotionalGoals is required and must be an array");
+  }
+
+  if (data.therapeuticIntent.emotionalGoals.length === 0) {
+    throw new Error("therapeuticIntent.emotionalGoals must contain at least one goal");
+  }
+
+  if (data.therapeuticIntent.emotionalGoals.length > 3) {
+    throw new Error("therapeuticIntent.emotionalGoals must contain at most 3 goals");
+  }
+
+  const allowedGoals = LEGACY_ALLOWED_EMOTIONAL_GOALS as readonly string[];
+  for (const goal of data.therapeuticIntent.emotionalGoals) {
+    if (!allowedGoals.includes(goal.trim().toLowerCase())) {
+      throw new Error(`Invalid emotional goal: ${goal}`);
+    }
+  }
+
+  if (data.therapeuticIntent.keyMessage && data.therapeuticIntent.keyMessage.length > 200) {
+    throw new Error("therapeuticIntent.keyMessage must be at most 200 characters");
+  }
+
+  if (!data.languageTone) {
+    throw new Error("languageTone is required");
+  }
+
+  if (!data.languageTone.complexity || !["very_simple", "simple", "moderate"].includes(data.languageTone.complexity)) {
+    throw new Error("languageTone.complexity is required and must be one of: very_simple, simple, moderate");
+  }
+
+  if (!data.languageTone.emotionalTone || !["very_gentle", "calm", "encouraging"].includes(data.languageTone.emotionalTone)) {
+    throw new Error("languageTone.emotionalTone is required and must be one of: very_gentle, calm, encouraging");
+  }
+
+  if (!data.safetyConstraints) {
+    throw new Error("safetyConstraints is required");
+  }
+
+  if (!Array.isArray(data.safetyConstraints.exclusions)) {
+    throw new Error("safetyConstraints.exclusions is required and must be an array");
+  }
+
+  if (!data.storyPreferences) {
+    throw new Error("storyPreferences is required");
+  }
+
+  if (!data.storyPreferences.caregiverPresence || !["included", "self_guided"].includes(data.storyPreferences.caregiverPresence)) {
+    throw new Error("storyPreferences.caregiverPresence is required and must be one of: included, self_guided");
+  }
+
+  if (!data.storyPreferences.endingStyle || !["calm_resolution", "open_ended", "empowering"].includes(data.storyPreferences.endingStyle)) {
+    throw new Error("storyPreferences.endingStyle is required and must be one of: calm_resolution, open_ended, empowering");
+  }
+
+  const now = admin.firestore.Timestamp.now();
+
+  return {
+    createdAt: now,
+    updatedAt: now,
+    createdBy: data.createdBy.trim(),
+    status: "created" as LegacyStoryBriefStatus,
+    version: 1,
+    therapeuticFocus: {
+      primaryTopic: data.therapeuticFocus.primaryTopic.trim().toLowerCase(),
+      specificSituation: data.therapeuticFocus.specificSituation.trim().toLowerCase(),
+    },
+    childProfile: {
+      ageGroup: data.childProfile.ageGroup,
+      emotionalSensitivity: data.childProfile.emotionalSensitivity,
+    },
+    therapeuticIntent: {
+      emotionalGoals: data.therapeuticIntent.emotionalGoals.map((g) => g.trim().toLowerCase()),
+      ...(data.therapeuticIntent.keyMessage && { keyMessage: data.therapeuticIntent.keyMessage.trim() }),
+    },
+    languageTone: {
+      complexity: data.languageTone.complexity,
+      emotionalTone: data.languageTone.emotionalTone,
+    },
+    safetyConstraints: {
+      enforced: {
+        noThreateningImagery: true,
+        noShameLanguage: true,
+        noMoralizing: true,
+        validateEmotions: true,
+        externalizeProblem: true,
+      },
+      exclusions: data.safetyConstraints.exclusions.map((e) => e.trim().toLowerCase()),
+    },
+    storyPreferences: {
+      caregiverPresence: data.storyPreferences.caregiverPresence,
+      endingStyle: data.storyPreferences.endingStyle,
+    },
   };
 }

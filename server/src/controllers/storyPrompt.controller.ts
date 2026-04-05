@@ -1,7 +1,7 @@
 // src/controllers/storyPrompt.controller.ts
 import { Request, Response } from "express";
 import { firestore } from "../config/firebase";
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { loadWritingRules } from "../services/ragWritingRules.service";
 import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
 
@@ -35,7 +35,7 @@ export const previewStoryPrompt = async (
       return;
     }
 
-    const brief = { id: snap.id, ...snap.data() } as StoryBrief;
+    const brief = { id: snap.id, ...snap.data() } as LegacyStoryBrief;
 
     // Load ONLY rag_writing_rules (single RAG source)
     const ragRulesText = await loadWritingRules();

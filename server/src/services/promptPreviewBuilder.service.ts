@@ -1,5 +1,5 @@
 // server/src/services/promptPreviewBuilder.service.ts
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { formatAgeGroupLabel } from "../data/categories";
 
 /**
@@ -7,7 +7,7 @@ import { formatAgeGroupLabel } from "../data/categories";
  * This is for preview purposes only - not sent to the LLM yet.
  */
 export function buildPromptPreview(
-  brief: StoryBrief,
+  brief: LegacyStoryBrief,
   ragRulesText: string
 ): string {
   // Helper to format enum keys for display

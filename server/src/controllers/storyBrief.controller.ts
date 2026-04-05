@@ -10,7 +10,10 @@
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import type { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { StoryBrief, createStoryBrief as createStoryBriefModel, StoryBriefInput } from "../models/storyBrief.model";
+import {
+  createLegacyStoryBrief,
+  LegacyStoryBriefInput,
+} from "../models/storyBrief.model";
 import { GenerationContract, ApprovalRecord } from "../models/generationContract.model";
 import { buildGenerationContractFromBriefId, buildGenerationContract } from "../agents/agent1/buildGenerationContract";
 import { loadClinicalRules } from "../services/clinicalRules.service";
@@ -103,17 +106,16 @@ export const getStoryBriefById = async (req: Request, res: Response): Promise<vo
 export const createStoryBrief = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user!; // Guaranteed by requireAuth middleware
-    const input = req.body as StoryBriefInput;
+    const input = req.body as LegacyStoryBriefInput;
 
     // CRITICAL: Override createdBy with authenticated user identity
     // Ignore any createdBy value from the client
-    const securedInput: StoryBriefInput = {
+    const securedInput: LegacyStoryBriefInput = {
       ...input,
       createdBy: user.uid,
     };
 
-    // Use the model's createStoryBrief helper which validates and sets system fields
-    const storyBrief = createStoryBriefModel(securedInput);
+    const storyBrief = createLegacyStoryBrief(securedInput);
 
     // Save to Firestore
     const docRef = await firestore

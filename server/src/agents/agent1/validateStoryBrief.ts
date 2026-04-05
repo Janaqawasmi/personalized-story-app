@@ -6,14 +6,22 @@ import {
   getSituationItem,
 } from "../../services/referenceData.service";
 import type {
-  StoryBriefInput,
-  AgeGroup,
-  EmotionalSensitivity,
-  Complexity,
-  EmotionalTone,
-  CaregiverPresence,
-  EndingStyle,
+  LegacyStoryBriefInput,
+  LegacyFirestoreAgeGroup,
+  LegacyEmotionalSensitivity,
+  LegacyLanguageComplexity,
+  LegacyLanguageEmotionalTone,
+  LegacyBriefCaregiverPresence,
+  LegacyBriefEndingStyle,
 } from "../../models/storyBrief.model";
+
+/** Local aliases — agent1 validates the legacy Firestore/API brief shape only. */
+type AgeGroup = LegacyFirestoreAgeGroup;
+type EmotionalSensitivity = LegacyEmotionalSensitivity;
+type Complexity = LegacyLanguageComplexity;
+type EmotionalTone = LegacyLanguageEmotionalTone;
+type CaregiverPresence = LegacyBriefCaregiverPresence;
+type EndingStyle = LegacyBriefEndingStyle;
 
 // ============================================================================
 // Type Definitions
@@ -35,7 +43,7 @@ export interface ValidationResult {
   isValid: boolean;
   errors: ValidationError[];
   warnings: ValidationWarning[];
-  normalizedBrief?: StoryBriefInput;
+  normalizedBrief?: LegacyStoryBriefInput;
 }
 
 // ============================================================================
@@ -738,7 +746,7 @@ export async function validateStoryBriefInput(
   };
 
   if (isValid) {
-    result.normalizedBrief = normalized as StoryBriefInput;
+    result.normalizedBrief = normalized as LegacyStoryBriefInput;
   }
 
   return result;

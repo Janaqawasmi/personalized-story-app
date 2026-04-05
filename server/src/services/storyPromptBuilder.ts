@@ -1,5 +1,5 @@
 // src/services/storyPromptBuilder.ts
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { formatAgeGroupLabel } from "../data/categories";
 
 /**
@@ -22,12 +22,12 @@ function derivePageCount(ageGroup: string): number {
  * Builds a production-grade, deterministic prompt for LLM story generation.
  * Follows strict 5-section prompt architecture for therapeutic story creation.
  * 
- * @param brief - StoryBrief containing all therapeutic parameters
+ * @param brief - Legacy story brief document (pre–spec-v1.2 Firestore shape)
  * @param ragContext - Therapeutic writing rules from RAG (mandatory constraints)
  * @returns Formatted prompt string ready for LLM
  */
 export function buildStoryDraftPrompt(
-  brief: StoryBrief,
+  brief: LegacyStoryBrief,
   ragContext: string
 ): string {
   const sections: string[] = [];
