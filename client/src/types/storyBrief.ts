@@ -314,8 +314,11 @@ export const THERAPEUTIC_APPROACH_DEFINITIONS: Record<TherapeuticApproach, strin
  * Pairs that trigger a conflict warning when selected together (primary + supporting).
  * Direction does not matter — check both orderings.
  */
+/** Matches server `storyBrief.model` — unordered pairs for primary + supporting conflict (spec §8). */
 export const CONFLICTING_APPROACH_PAIRS: Array<[TherapeuticApproach, TherapeuticApproach]> = [
   ["graduated_exposure", "reassurance_predictability"],
+  ["self_regulation", "reassurance_predictability"],
+  ["graduated_exposure", "normalization"],
 ];
 
 // ---------------------------------------------------------------------------
@@ -725,6 +728,11 @@ export interface CompleteBrief {
   section3: Partial<TherapeuticArchitecture>;
   section4: Partial<StoryWorld>;
   section5: Partial<PersonalizationConfig>;
+  /**
+   * IDs of cross-field hard warnings the psychologist acknowledged before submit (spec §8).
+   * Mirrors server `StoryBrief.acknowledgedWarnings`.
+   */
+  acknowledgedWarnings?: string[];
   /** Unix timestamp (ms) set by auto-save. */
   savedAt?: number;
 }

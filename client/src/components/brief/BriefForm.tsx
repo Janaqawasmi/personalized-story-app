@@ -37,6 +37,7 @@ import Section3TherapeuticArchitecture from "./Section3TherapeuticArchitecture";
 import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
+import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 
 import {
   STORY_TYPES,
@@ -53,6 +54,7 @@ import {
   type CompleteBrief,
   type StoryType,
 } from "../../types/storyBrief";
+import { evaluateBriefSubmitGate, type SubmitGateItem } from "../../validation/briefSubmitGate";
 
 // ============================================================================
 // localStorage helpers
@@ -350,6 +352,14 @@ export default function BriefForm({ onSubmit }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [savedSnackbar, setSavedSnackbar] = useState(false);
 
+  /** Spec §8 hard block — cannot submit until fixed */
+  const [hardBlockOpen, setHardBlockOpen] = useState(false);
+  const [gateHardBlocks, setGateHardBlocks] = useState<SubmitGateItem[]>([]);
+  /** Hard warnings requiring acknowledgment */
+  const [hardWarningOpen, setHardWarningOpen] = useState(false);
+  const [gateHardWarnings, setGateHardWarnings] = useState<SubmitGateItem[]>([]);
+  const [hardWarningAck, setHardWarningAck] = useState(false);
+
   // Ref to scroll to the top of the section content on navigation
   const sectionTopRef = useRef<HTMLDivElement | null>(null);
 
@@ -426,12 +436,67 @@ export default function BriefForm({ onSubmit }: Props) {
 
   // ── Submission ────────────────────────────────────────────────────────────
 
-  async function handleSubmit() {
+  function attemptSubmit() {
+    if (submitting) return;
+
+    let normalized = withSection1StoryLengthDefault(draft);
+    if (normalized !== draft) {
+      setDraft(normalized);
+      saveDraftToStorage(normalized);
+    }
+
+    const gate = evaluateBriefSubmitGate(normalized);
+    if (gate.hardBlocks.length > 0) {
+      setGateHardBlocks(gate.hardBlocks);
+      setHardBlockOpen(true);
+      return;
+    }
+
+    const unacked = gate.hardWarnings.filter((w) => !gate.acknowledgedWarningIds.has(w.id));
+    if (unacked.length > 0) {
+      setGateHardWarnings(unacked);
+      setHardWarningAck(false);
+      setHardWarningOpen(true);
+      return;
+    }
+
+    void submitBrief(normalized);
+  }
+
+  function handleHardBlockClose() {
+    setHardBlockOpen(false);
+    setGateHardBlocks([]);
+  }
+
+  function handleHardWarningGoBack() {
+    setHardWarningOpen(false);
+    setGateHardWarnings([]);
+    setHardWarningAck(false);
+  }
+
+  function handleHardWarningProceed() {
+    const ids = gateHardWarnings.map((w) => w.id);
+    const merged: CompleteBrief = {
+      ...draft,
+      acknowledgedWarnings: Array.from(
+        new Set([...(draft.acknowledgedWarnings ?? []), ...ids]),
+      ),
+    };
+    const finalDraft = withSection1StoryLengthDefault(merged);
+    setDraft(finalDraft);
+    saveDraftToStorage(finalDraft);
+    setHardWarningOpen(false);
+    setGateHardWarnings([]);
+    setHardWarningAck(false);
+    void submitBrief(finalDraft);
+  }
+
+  async function submitBrief(brief: CompleteBrief) {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const finalDraft = withSection1StoryLengthDefault(draft);
-      if (finalDraft !== draft) {
+      const finalDraft = withSection1StoryLengthDefault(brief);
+      if (finalDraft !== brief) {
         setDraft(finalDraft);
         saveDraftToStorage(finalDraft);
       }
@@ -598,7 +663,7 @@ export default function BriefForm({ onSubmit }: Props) {
             personalization={personalization}
             value={draft.section5}
             onChange={updateSection5}
-            onSubmit={handleSubmit}
+            onSubmit={attemptSubmit}
             onBack={() => goBack(4)}
             submitting={submitting}
           />
@@ -623,6 +688,20 @@ export default function BriefForm({ onSubmit }: Props) {
           Draft saved
         </Alert>
       </Snackbar>
+
+      <HardBlockSubmitDialog
+        open={hardBlockOpen}
+        items={gateHardBlocks}
+        onClose={handleHardBlockClose}
+      />
+      <HardWarningSubmitDialog
+        open={hardWarningOpen}
+        items={gateHardWarnings}
+        understood={hardWarningAck}
+        onUnderstoodChange={setHardWarningAck}
+        onGoBack={handleHardWarningGoBack}
+        onProceed={handleHardWarningProceed}
+      />
     </Container>
   );
 }
