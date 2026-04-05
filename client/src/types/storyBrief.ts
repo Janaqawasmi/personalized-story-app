@@ -644,6 +644,114 @@ export interface StoryWorld {
 }
 
 // ============================================================================
+// Section 5 — Personalization Configuration
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Field 5.1 — Personalization Constraints (shown when personalization ON)
+// ---------------------------------------------------------------------------
+
+/** Pre-filled defaults per story type (spec §7). */
+export const PERSONALIZATION_CONSTRAINTS_DEFAULTS: Partial<Record<StoryType, string[]>> = {
+  fear_anxiety: [
+    "The coping tool must not be changed or removed",
+    "The caregiver's role must not be altered",
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Field 5.2 — Why Not (shown when personalization OFF, required)
+// ---------------------------------------------------------------------------
+
+export const WHY_NOT_CHAR_LIMIT = 400;
+
+// ---------------------------------------------------------------------------
+// Section 5 data shape
+// ---------------------------------------------------------------------------
+
+export interface PersonalizationConfig {
+  /** 5.1 — optional, pre-filled defaults shown when personalization ON */
+  constraints: string[];
+  /** 5.2 — required when personalization OFF, max 400 chars */
+  whyNot: string;
+}
+
+// ============================================================================
+// Full brief aggregate — used by BriefForm orchestrator
+// ============================================================================
+
+export interface CompleteBrief {
+  storyType: StoryType | null;
+  section1: Partial<AgeAndScope>;
+  section2: Partial<ClinicalFoundation>;
+  section3: Partial<TherapeuticArchitecture>;
+  section4: Partial<StoryWorld>;
+  section5: Partial<PersonalizationConfig>;
+  /** Unix timestamp (ms) set by auto-save. */
+  savedAt?: number;
+}
+
+export function createEmptyBrief(): CompleteBrief {
+  return {
+    storyType: null,
+    section1: {},
+    section2: {},
+    section3: {},
+    section4: {},
+    section5: {},
+  };
+}
+
+/** Returns true when the given section has all required fields filled. */
+export function isSectionComplete(section: number, draft: CompleteBrief): boolean {
+  switch (section) {
+    case 1: {
+      const s = draft.section1;
+      return !!(s.ageRange && s.peakIntensity);
+    }
+    case 2: {
+      const s = draft.section2;
+      return !!(
+        s.population?.trim() &&
+        s.trigger?.trim() &&
+        s.intentionFeel?.trim() &&
+        s.intentionBecause?.trim() &&
+        s.creativeVision?.trim()
+      );
+    }
+    case 3: {
+      const s = draft.section3;
+      return !!(
+        s.primaryApproach &&
+        s.shameDimension &&
+        s.somaticExpressions?.length &&
+        s.copingTool &&
+        s.resolutionCompleteness &&
+        s.mustNeverList?.length &&
+        s.mustNeverList.every((item) => item.trim())
+      );
+    }
+    case 4: {
+      const s = draft.section4;
+      const personalized = (s.personalization ?? "yes") === "yes";
+      return !!(
+        s.caregiverPresence &&
+        s.narrativeDistance &&
+        s.protagonistType &&
+        (personalized || s.protagonistGender)
+      );
+    }
+    case 5: {
+      const personalized = (draft.section4.personalization ?? "yes") === "yes";
+      if (personalized) return true; // constraints are optional
+      return !!(draft.section5.whyNot?.trim());
+    }
+    default:
+      return false;
+  }
+}
+
+// ============================================================================
 // Section 1 cross-field warnings (referenced by Section 1 component)
 // ============================================================================
 
