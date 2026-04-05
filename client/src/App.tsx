@@ -15,11 +15,6 @@ import CategoryResultsPage from "./pages/CategoryResultsPage";
 import TopicResultsPage from "./pages/TopicResultsPage";
 
 import BriefForm from "./components/brief/BriefForm";
-import GenerateDraftPage from "./pages/GenerateDraftPage";
-import SpecialistDraftList from "./pages/SpecialistDraftList";
-import ReviewDraftPage from "./pages/ReviewDraftPage";
-import PromptPreviewPage from "./pages/PromptPreviewPage";
-import AdminContractReviewPage from "./pages/AdminContractReviewPage";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -98,19 +93,8 @@ function AppContent() {
 
           {/* ───────────── SPECIALIST ───────────── */}
           <Route path="specialist" element={<RequireAuth />}>
-            <Route index element={<SpecialistDraftList />} />
+            <Route index element={<Navigate to="create-brief" replace />} />
             <Route path="create-brief" element={<BriefForm />} />
-            <Route path="generate-draft" element={<GenerateDraftPage />} />
-            <Route path="drafts" element={<SpecialistDraftList />} />
-            <Route path="drafts/:draftId" element={<ReviewDraftPage />} />
-            <Route
-              path="story-briefs/:briefId/prompt-preview"
-              element={<PromptPreviewPage />}
-            />
-            <Route
-              path="story-briefs/:briefId/contract"
-              element={<AdminContractReviewPage />}
-            />
           </Route>
 
           <Route path="*" element={<Navigate to="/he" replace />} />

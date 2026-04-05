@@ -6,28 +6,26 @@ const SpecialistNav: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const navItems = [
-    { path: "create-brief", label: "Create Story Brief" },
-    { path: "generate-draft", label: "Generate Draft" },
-    { path: "drafts", label: "Review Drafts" },
-  ];
+  const navItems = [{ path: "create-brief", label: "Create Story Brief" }];
 
   // Check if current path matches nav item (handles both relative and absolute paths)
   const isActive = (itemPath: string) => {
     const currentPath = location.pathname;
-    // Match relative path (e.g., "drafts" matches "/he/specialist/drafts")
-    return currentPath.endsWith(`/specialist/${itemPath}`) || 
-           currentPath.endsWith(`/${itemPath}`) ||
-           (itemPath === "drafts" && (currentPath.endsWith("/specialist") || currentPath.endsWith("/specialist/")));
+    return (
+      currentPath.endsWith(`/specialist/${itemPath}`) ||
+      currentPath.endsWith(`/${itemPath}`) ||
+      (itemPath === "create-brief" &&
+        (currentPath.endsWith("/specialist") || currentPath.endsWith("/specialist/")))
+    );
   };
 
   // Navigate to sibling routes using "../" to go up one level from current route
   const handleNavClick = (itemPath: string) => {
     // Check if we're already at the specialist index route
-    const isAtIndex = location.pathname.endsWith("/specialist") || location.pathname.endsWith("/specialist/");
-    
+    const isAtIndex =
+      location.pathname.endsWith("/specialist") || location.pathname.endsWith("/specialist/");
+
     if (isAtIndex) {
-      // At index, use direct relative path
       navigate(itemPath);
     } else {
       // On a sub-page, use "../" to navigate to sibling route
