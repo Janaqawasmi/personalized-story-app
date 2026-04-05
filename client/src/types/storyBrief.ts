@@ -748,6 +748,95 @@ export function createEmptyBrief(): CompleteBrief {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Default persistence — UI shows spec defaults before they are written to
+// `draft`. Progress and submit must treat them like saved values (see BriefForm).
+// ---------------------------------------------------------------------------
+
+/** Persist Field 1.3 default once 1.1+1.2 are set (same rule as BriefForm). */
+export function withSection1StoryLengthDefault(d: CompleteBrief): CompleteBrief {
+  const s1 = d.section1;
+  if (!s1.ageRange || !s1.peakIntensity) return d;
+  if (s1.storyLength != null) return d;
+  return {
+    ...d,
+    section1: { ...s1, storyLength: STORY_LENGTH_DEFAULT },
+  };
+}
+
+/** Commit Field 3.6 / 3.7 defaults when still absent (matches Section 3 UI). */
+export function mergeSection3UiDefaultsIntoDraft(draft: CompleteBrief): CompleteBrief {
+  const st = draft.storyType;
+  if (!st) return draft;
+  const s = draft.section3;
+  let changed = false;
+  const next: typeof s = { ...s };
+
+  if (s.resolutionCompleteness == null) {
+    const def = RESOLUTION_DEFAULTS[st];
+    if (def != null) {
+      next.resolutionCompleteness = def;
+      changed = true;
+    }
+  }
+
+  if (!s.mustNeverList?.length) {
+    const defs = MUST_NEVER_DEFAULTS[st];
+    if (defs?.length) {
+      next.mustNeverList = [...defs];
+      changed = true;
+    }
+  }
+
+  if (!changed) return draft;
+  return { ...draft, section3: next };
+}
+
+/** Commit Section 4 defaults shown in UI but not yet written to draft (personalization on, Field 4.3). */
+export function mergeSection4PersonalizationDefaults(draft: CompleteBrief): CompleteBrief {
+  const s = draft.section4;
+  const personalized = (s.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+  let changed = false;
+  const next: typeof s = { ...s };
+
+  if (personalized && s.protagonistType == null) {
+    next.protagonistType = "child";
+    changed = true;
+  }
+  if (s.protagonistAgeRelative == null) {
+    next.protagonistAgeRelative = PROTAGONIST_AGE_RELATIVE_DEFAULT;
+    changed = true;
+  }
+
+  if (!changed) return draft;
+  return { ...draft, section4: next };
+}
+
+/** Commit personalization constraint defaults when optional list was never initialized. */
+export function mergeSection5ConstraintsDefault(draft: CompleteBrief): CompleteBrief {
+  const st = draft.storyType;
+  if (!st) return draft;
+  const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+  if (!personalized) return draft;
+  if (draft.section5.constraints !== undefined) return draft;
+  const defaults = PERSONALIZATION_CONSTRAINTS_DEFAULTS[st];
+  if (!defaults?.length) return draft;
+  return {
+    ...draft,
+    section5: { ...draft.section5, constraints: [...defaults] },
+  };
+}
+
+/** Apply all UI defaults so draft, progress, and storage stay aligned. */
+export function normalizeBriefDefaults(draft: CompleteBrief): CompleteBrief {
+  let d = draft;
+  d = withSection1StoryLengthDefault(d);
+  d = mergeSection3UiDefaultsIntoDraft(d);
+  d = mergeSection4PersonalizationDefaults(d);
+  d = mergeSection5ConstraintsDefault(d);
+  return d;
+}
+
 /** Returns true when the given section has all required fields filled. */
 export function isSectionComplete(section: number, draft: CompleteBrief): boolean {
   switch (section) {
@@ -769,23 +858,32 @@ export function isSectionComplete(section: number, draft: CompleteBrief): boolea
     }
     case 3: {
       const s = draft.section3;
+      const st = draft.storyType;
+      if (!st) return false;
+      const resolution =
+        s.resolutionCompleteness ?? RESOLUTION_DEFAULTS[st] ?? null;
+      const mustNever =
+        s.mustNeverList != null && s.mustNeverList.length > 0
+          ? s.mustNeverList
+          : (MUST_NEVER_DEFAULTS[st] ?? []);
       return !!(
         s.primaryApproach &&
         s.shameDimension &&
         s.somaticExpressions?.length &&
         s.copingTool &&
-        s.resolutionCompleteness &&
-        s.mustNeverList?.length &&
-        s.mustNeverList.every((item) => item.trim())
+        resolution &&
+        mustNever.length > 0 &&
+        mustNever.every((item) => item.trim())
       );
     }
     case 4: {
       const s = draft.section4;
-      const personalized = (s.personalization ?? "yes") === "yes";
+      const personalized = (s.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+      const protagonistType = personalized ? (s.protagonistType ?? "child") : s.protagonistType;
       return !!(
         s.caregiverPresence &&
         s.narrativeDistance &&
-        s.protagonistType &&
+        protagonistType &&
         (personalized || s.protagonistGender)
       );
     }
