@@ -16,10 +16,10 @@ export interface BriefMissingField {
   targetId: string;
 }
 
-const ACCENT = COLORS.secondary;
 const PANEL_BG = "#FAF8F6";
 const ROW_BG = "#FFFFFF";
 const ROW_BG_HOVER = "#F3F0EC";
+const ROSE_ACCENT = COLORS.secondary;
 
 /** Scroll to a brief field and move focus into its fieldset for keyboard users. */
 export function scrollToBriefField(targetId: string): void {
@@ -65,7 +65,7 @@ export default function BriefValidationSummary({ missing }: Props) {
         mb: 2.5,
         borderRadius: 2.5,
         border: `1px solid ${COLORS.border}`,
-        borderInlineStart: `4px solid ${ACCENT}`,
+        borderInlineStart: `4px solid ${ROSE_ACCENT}`,
         backgroundColor: PANEL_BG,
         boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
         overflow: "hidden",
@@ -88,7 +88,7 @@ export default function BriefValidationSummary({ missing }: Props) {
             justifyContent: "center",
             flexShrink: 0,
             backgroundColor: "rgba(130, 77, 92, 0.12)",
-            color: ACCENT,
+            color: ROSE_ACCENT,
           }}
           aria-hidden
         >
