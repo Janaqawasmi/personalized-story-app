@@ -9,7 +9,7 @@
 //    show completion state per section."
 
 import React from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import { COLORS } from "../../theme";
 
 // ============================================================================
@@ -21,7 +21,8 @@ const SECTION_LABELS: Record<number, { full: string; short: string }> = {
   2: { full: "Clinical Foundation",        short: "Foundation"    },
   3: { full: "Therapeutic Architecture",   short: "Architecture"  },
   4: { full: "Story World",                short: "Story World"   },
-  5: { full: "Personalization",            short: "Config"        },
+  // Short label: still paired with Tooltip + aria full name (UX: avoid opaque “Config”).
+  5: { full: "Personalization",            short: "Personalize"   },
 };
 
 // ============================================================================
@@ -67,122 +68,148 @@ export default function BriefProgressIndicator({
           const isCurrent = currentSection === num;
           const isPast = currentSection > num;
           const isClickable = (isCompleted || isPast) && !!onNavigate;
+          const lockedFuture = num > currentSection && !isClickable;
+          const fullName = SECTION_LABELS[num].full;
+
+          const stepAriaLabel = isClickable
+            ? `Go to section ${num}: ${fullName}`
+            : isCurrent
+              ? `Current section ${num}: ${fullName}`
+              : lockedFuture
+                ? `Section ${num}: ${fullName}. Locked until you can open this step.`
+                : `Section ${num}: ${fullName}`;
 
           return (
             <React.Fragment key={num}>
               {/* ── Step ─────────────────────────────────────────────── */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  flexShrink: 0,
-                  // Fixed width so connecting lines flex between them
-                  width: { xs: 44, sm: 76, md: 84 },
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                {/* Circle */}
+              <Tooltip title={fullName} placement="top" arrow enterTouchDelay={450}>
                 <Box
-                  role={isClickable ? "button" : undefined}
-                  tabIndex={isClickable ? 0 : undefined}
-                  aria-label={
-                    isClickable
-                      ? `Go to section ${num}: ${SECTION_LABELS[num].full}`
-                      : undefined
-                  }
-                  aria-current={isCurrent ? "step" : undefined}
-                  onClick={() => isClickable && onNavigate?.(num)}
-                  onKeyDown={(e) => {
-                    if (isClickable && (e.key === "Enter" || e.key === " ")) {
-                      onNavigate?.(num);
-                    }
-                  }}
                   sx={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: "50%",
-                    border: `2px solid ${
-                      isCompleted
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    flexShrink: 0,
+                    width: { xs: 44, sm: 76, md: 84 },
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                >
+                  {/* Circle */}
+                  <Box
+                    role={isClickable ? "button" : undefined}
+                    tabIndex={isClickable ? 0 : undefined}
+                    aria-label={stepAriaLabel}
+                    aria-current={isCurrent ? "step" : undefined}
+                    aria-disabled={isClickable ? undefined : lockedFuture ? true : undefined}
+                    onClick={() => isClickable && onNavigate?.(num)}
+                    onKeyDown={(e) => {
+                      if (isClickable && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        onNavigate?.(num);
+                      }
+                    }}
+                    sx={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: "50%",
+                      border: `2px solid ${
+                        isCompleted
+                          ? COLORS.success
+                          : isCurrent
+                            ? COLORS.primary
+                            : COLORS.border
+                      }`,
+                      backgroundColor: isCompleted
                         ? COLORS.success
                         : isCurrent
-                        ? COLORS.primary
-                        : COLORS.border
-                    }`,
-                    backgroundColor: isCompleted
-                      ? COLORS.success
-                      : isCurrent
-                      ? COLORS.primary
-                      : COLORS.surface,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: isClickable ? "pointer" : "default",
-                    transition: "all 0.2s ease",
-                    mb: 0.75,
-                    "&:hover": isClickable
-                      ? { transform: "scale(1.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)" }
-                      : {},
-                    "&:focus-visible": {
-                      outline: `2px solid ${COLORS.primary}`,
-                      outlineOffset: 2,
-                    },
-                  }}
-                >
-                  {isCompleted ? (
-                    // Checkmark
-                    <Box
-                      component="span"
-                      aria-hidden="true"
-                      sx={{
-                        display: "block",
-                        width: 9,
-                        height: 6,
-                        borderLeft: "2px solid white",
-                        borderBottom: "2px solid white",
-                        transform: "rotate(-45deg) translateY(-1px)",
-                      }}
-                    />
-                  ) : (
-                    <Typography
-                      component="span"
-                      sx={{
-                        fontSize: "0.78rem",
-                        fontWeight: isCurrent ? 700 : 500,
-                        lineHeight: 1,
-                        color: isCurrent ? "white" : COLORS.textSecondary,
-                      }}
-                    >
-                      {num}
-                    </Typography>
-                  )}
-                </Box>
+                          ? COLORS.primary
+                          : COLORS.surface,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: isClickable ? "pointer" : lockedFuture ? "not-allowed" : "default",
+                      opacity: lockedFuture ? 0.48 : 1,
+                      transition: "all 0.2s ease",
+                      mb: 0.75,
+                      ...(isClickable
+                        ? {
+                            "&:hover": {
+                              transform: "scale(1.08)",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+                            },
+                          }
+                        : {
+                            "&:hover": {
+                              transform: "none",
+                              boxShadow: "none",
+                            },
+                          }),
+                      "&:focus-visible": isClickable
+                        ? {
+                            outline: `2px solid ${COLORS.primary}`,
+                            outlineOffset: 2,
+                          }
+                        : {},
+                    }}
+                  >
+                    {isCompleted ? (
+                      <Box
+                        component="span"
+                        aria-hidden="true"
+                        sx={{
+                          display: "block",
+                          width: 9,
+                          height: 6,
+                          borderLeft: "2px solid white",
+                          borderBottom: "2px solid white",
+                          transform: "rotate(-45deg) translateY(-1px)",
+                        }}
+                      />
+                    ) : (
+                      <Typography
+                        component="span"
+                        aria-hidden="true"
+                        sx={{
+                          fontSize: "0.78rem",
+                          fontWeight: isCurrent ? 700 : 500,
+                          lineHeight: 1,
+                          color: isCurrent ? "white" : COLORS.textSecondary,
+                        }}
+                      >
+                        {num}
+                      </Typography>
+                    )}
+                  </Box>
 
-                {/* Label — hidden on xs, shown from sm */}
-                <Typography
-                  variant="caption"
-                  sx={{
-                    textAlign: "center",
-                    lineHeight: 1.3,
-                    fontSize: "0.68rem",
-                    fontWeight: isCurrent ? 700 : 400,
-                    color: isCurrent
-                      ? COLORS.primary
-                      : isCompleted
-                      ? COLORS.textSecondary
-                      : COLORS.border,
-                    maxWidth: 64,
-                    display: { xs: "none", sm: "block" },
-                    transition: "color 0.2s ease",
-                    cursor: isClickable ? "pointer" : "default",
-                  }}
-                  onClick={() => isClickable && onNavigate?.(num)}
-                  aria-hidden="true"
-                >
-                  {SECTION_LABELS[num].short}
-                </Typography>
-              </Box>
+                  {/* Short label — full name in Tooltip + circle aria-label (spec §21) */}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      textAlign: "center",
+                      lineHeight: 1.3,
+                      fontSize: "0.68rem",
+                      fontWeight: isCurrent ? 700 : 400,
+                      color: isCurrent
+                        ? COLORS.primary
+                        : isCompleted
+                          ? COLORS.textSecondary
+                          : lockedFuture
+                            ? COLORS.border
+                            : COLORS.textSecondary,
+                      maxWidth: 64,
+                      display: { xs: "none", sm: "block" },
+                      transition: "color 0.2s ease",
+                      cursor: isClickable ? "pointer" : lockedFuture ? "not-allowed" : "default",
+                      pointerEvents: isClickable ? "auto" : "none",
+                      userSelect: "none",
+                    }}
+                    onClick={() => isClickable && onNavigate?.(num)}
+                    aria-hidden="true"
+                  >
+                    {SECTION_LABELS[num].short}
+                  </Typography>
+                </Box>
+              </Tooltip>
 
               {/* ── Connector line (not after last step) ─────────────── */}
               {i < sections.length - 1 && (
@@ -203,15 +230,20 @@ export default function BriefProgressIndicator({
         })}
       </Box>
 
-      {/* Mobile: current section label shown below the track */}
+      {/* Mobile: full section name (short labels hidden on xs; tooltips on each step still expose full names). */}
       <Box
         sx={{
           display: { xs: "flex", sm: "none" },
-          justifyContent: "center",
+          flexDirection: "column",
+          alignItems: "center",
           mt: 1,
+          gap: 0.25,
         }}
       >
-        <Typography variant="caption" fontWeight={700} color={COLORS.primary}>
+        <Typography variant="caption" color={COLORS.textSecondary} sx={{ fontWeight: 600 }}>
+          Section {currentSection} of 5
+        </Typography>
+        <Typography variant="caption" fontWeight={700} color={COLORS.primary} textAlign="center" px={1}>
           {SECTION_LABELS[currentSection]?.full ?? ""}
         </Typography>
       </Box>

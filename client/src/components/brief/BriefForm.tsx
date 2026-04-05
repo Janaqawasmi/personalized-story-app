@@ -105,15 +105,27 @@ function formatSavedAt(ts: number): string {
   return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} at ${time}`;
 }
 
-/** Centered column width — avoids full-bleed “stretched” layouts on wide screens */
-const BRIEF_FORM_MAX_WIDTH = 800;
+/**
+ * Centered main column (~760–880px per docs/brief-form-ux-notes.md).
+ * Avoids full-bleed “stretched” layouts on wide screens.
+ */
+const BRIEF_FORM_MAX_WIDTH = 840;
+
+/** Page canvas behind the card: frost base + soft wash so the white surface reads as a focused document. */
+const BRIEF_PAGE_BG_LAYERS = [
+  "linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 38%)",
+  "radial-gradient(ellipse 90% 55% at 50% -8%, rgba(97, 120, 145, 0.06) 0%, transparent 55%)",
+  `linear-gradient(180deg, ${COLORS.background} 0%, #E2DCD4 100%)`,
+].join(", ");
 
 const briefPageSx = {
-  bgcolor: COLORS.background,
   py: { xs: 3, sm: 5, md: 6 },
   px: { xs: 2, sm: 3.5, md: 5 },
   minHeight: "100%",
   boxSizing: "border-box" as const,
+  backgroundColor: COLORS.background,
+  backgroundImage: BRIEF_PAGE_BG_LAYERS,
+  backgroundRepeat: "no-repeat",
 };
 
 const briefPaperSx = {
@@ -121,12 +133,12 @@ const briefPaperSx = {
   mx: "auto",
   width: "100%",
   p: { xs: 2.75, sm: 4, md: 4.5 },
-  border: "1px solid rgba(208, 200, 192, 0.5)",
+  border: "1px solid rgba(208, 200, 192, 0.55)",
   borderRadius: 2.5,
   backgroundColor: COLORS.surface,
   boxShadow: `
-    0 1px 2px rgba(0, 0, 0, 0.04),
-    0 20px 56px -20px rgba(97, 120, 145, 0.16)
+    0 1px 2px rgba(0, 0, 0, 0.05),
+    0 24px 64px -24px rgba(97, 120, 145, 0.18)
   `,
 };
 
