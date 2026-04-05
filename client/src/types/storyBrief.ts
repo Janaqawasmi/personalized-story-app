@@ -431,13 +431,37 @@ export const RESOLUTION_DEFAULTS: Partial<Record<StoryType, ResolutionCompletene
 
 // ---------------------------------------------------------------------------
 // Field 3.7 — Must-Never List pre-filled defaults (spec Section 9)
+//
+// All 5 story types are defined here so the data model is complete even though
+// the pilot UI only loads Fear & Anxiety. Each set contains exactly the 3 items
+// listed in spec §9, verbatim.
 // ---------------------------------------------------------------------------
 
-export const MUST_NEVER_DEFAULTS: Partial<Record<StoryType, string[]>> = {
+export const MUST_NEVER_DEFAULTS: Record<StoryType, string[]> = {
   fear_anxiety: [
     "Never imply the child's fear is silly, irrational, or something to be ashamed of",
-    "Never resolve the fear by someone else fixing the situation for the child (unless 'Asking for help' is the selected coping tool)",
+    `Never resolve the fear by someone else fixing the situation for the child (unless "Asking for help" is the selected coping tool)`,
     "Never depict the feared situation as actually dangerous or confirm the child's worst-case scenario",
+  ],
+  big_emotions: [
+    "Never label the child's emotion as \"bad\" or \"wrong\"",
+    "Never resolve the emotion by suppressing it — the emotion must be felt before it passes",
+    "Never show other characters punishing or rejecting the child for their emotional expression",
+  ],
+  loss_grief: [
+    "Never suggest the child should be \"over it\" or that the grief has a timeline",
+    "Never replace what was lost — the story honors the loss, it does not undo it",
+    "Never use euphemisms that obscure what happened (unless age-appropriate language requires softening)",
+  ],
+  identity_self_worth: [
+    "Never reinforce the negative self-belief, even temporarily as a narrative device",
+    "Never resolve the story by external validation alone — the shift must include internal recognition",
+    "Never compare the child to others as a way to demonstrate their worth",
+  ],
+  life_transitions: [
+    "Never dismiss what the child is losing in the transition",
+    "Never suggest the child should be excited or grateful for the change",
+    "Never present the old situation as inferior to the new one",
   ],
 };
 
