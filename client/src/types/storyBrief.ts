@@ -128,6 +128,121 @@ export interface AgeAndScope {
 }
 
 // ============================================================================
+// Section 2 — Clinical Foundation
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Field 2.1 — Emotional World of the Population
+// ---------------------------------------------------------------------------
+
+export const POPULATION_CHAR_LIMIT = 600;
+
+/**
+ * Clickable starter prompt text shown for each story type.
+ * Pilot: only fear_anxiety is needed.
+ */
+export const POPULATION_STARTER_PROMPTS: Partial<Record<StoryType, string>> = {
+  fear_anxiety:
+    "Think about: What are they afraid will happen? What do they do to avoid it? What do adults misunderstand about this fear?",
+};
+
+// ---------------------------------------------------------------------------
+// Field 2.2 — The Specific Trigger
+// ---------------------------------------------------------------------------
+
+export const TRIGGER_CHAR_LIMIT = 400;
+
+/** Character threshold below which the specificity nudge is shown. */
+export const TRIGGER_NUDGE_THRESHOLD = 80;
+
+export const TRIGGER_NUDGE =
+  "Can you add what the child sees, hears, or feels in this moment?";
+
+/** Label text adapts per story type (pilot: fear_anxiety only). */
+export const TRIGGER_LABELS: Partial<Record<StoryType, string>> = {
+  fear_anxiety: "The specific trigger",
+};
+
+// ---------------------------------------------------------------------------
+// Field 2.3 — Therapeutic Intention
+// ---------------------------------------------------------------------------
+
+/** Character threshold (both halves combined) below which the nudge is shown. */
+export const INTENTION_NUDGE_THRESHOLD = 60;
+
+export const INTENTION_NUDGE =
+  "This may be too brief for the agent to work with. Can you make the second half more specific?";
+
+export interface IntentionExample {
+  feel: string;
+  because: string;
+  /** Only set on bad examples — explains the problem. */
+  note?: string;
+}
+
+/** Two good examples per story type, shown inline. */
+export const INTENTION_GOOD_EXAMPLES: Partial<Record<StoryType, IntentionExample[]>> = {
+  fear_anxiety: [
+    {
+      feel: "quietly brave",
+      because: "they have discovered that asking for help is something brave people do",
+    },
+    {
+      feel: "safely held",
+      because:
+        "they have experienced that the people who love them always come back, even when it doesn't feel that way",
+    },
+  ],
+};
+
+/** Two bad examples per story type, shown inline. */
+export const INTENTION_BAD_EXAMPLES: Partial<Record<StoryType, IntentionExample[]>> = {
+  fear_anxiety: [
+    {
+      feel: "better",
+      because: "there's nothing to be scared of",
+      note: "dismisses the fear",
+    },
+    {
+      feel: "safe",
+      because: "anxiety is a normal neurological response",
+      note: "too clinical for a children's story",
+    },
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Field 2.4 — Clinical Creative Vision
+// ---------------------------------------------------------------------------
+
+export const CREATIVE_VISION_CHAR_LIMIT = 400;
+
+// ---------------------------------------------------------------------------
+// Field 2.5 — One True Thing
+// ---------------------------------------------------------------------------
+
+export const ONE_TRUE_THING_CHAR_LIMIT = 300;
+
+// ---------------------------------------------------------------------------
+// Section 2 data shape
+// ---------------------------------------------------------------------------
+
+export interface ClinicalFoundation {
+  /** 2.1 — required, max 600 chars */
+  population: string;
+  /** 2.2 — required, max 400 chars */
+  trigger: string;
+  /** 2.3 first half — required */
+  intentionFeel: string;
+  /** 2.3 second half — required */
+  intentionBecause: string;
+  /** 2.4 — required, max 400 chars */
+  creativeVision: string;
+  /** 2.5 — optional, max 300 chars */
+  oneTrueThing: string;
+}
+
+// ============================================================================
 // Section 3 constants referenced by Section 1 warnings
 // ============================================================================
 
