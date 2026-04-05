@@ -745,7 +745,9 @@ export function isSectionComplete(section: number, draft: CompleteBrief): boolea
   switch (section) {
     case 1: {
       const s = draft.section1;
-      return !!(s.ageRange && s.peakIntensity);
+      // 1.1–1.3 all required; 1.3 defaults to Standard in UI (see BriefForm)
+      const storyLength = s.storyLength ?? STORY_LENGTH_DEFAULT;
+      return !!(s.ageRange && s.peakIntensity && storyLength);
     }
     case 2: {
       const s = draft.section2;

@@ -42,6 +42,7 @@ import {
   STORY_TYPES,
   STORY_TYPE_LABELS,
   STORY_TYPE_DESCRIPTIONS,
+  STORY_LENGTH_DEFAULT,
   createEmptyBrief,
   isSectionComplete,
   type AgeAndScope,
@@ -86,6 +87,21 @@ function clearDraftFromStorage(): void {
   } catch {
     // Ignore
   }
+}
+
+/**
+ * Field 1.3 (story length) is required by spec; the UI defaults to Standard without
+ * always writing to state. Once 1.1 and 1.2 are set, persist Standard if the user
+ * never touched 1.3 — and migrate older saved drafts missing `storyLength`.
+ */
+function withSection1StoryLengthDefault(d: CompleteBrief): CompleteBrief {
+  const s1 = d.section1;
+  if (!s1.ageRange || !s1.peakIntensity) return d;
+  if (s1.storyLength != null) return d;
+  return {
+    ...d,
+    section1: { ...s1, storyLength: STORY_LENGTH_DEFAULT },
+  };
 }
 
 function formatSavedAt(ts: number): string {
@@ -342,7 +358,11 @@ export default function BriefForm({ onSubmit }: Props) {
   useEffect(() => {
     const existing = loadDraftFromStorage();
     if (existing?.storyType) {
-      setSavedDraft(existing);
+      const normalized = withSection1StoryLengthDefault(existing);
+      setSavedDraft(normalized);
+      if (normalized.section1.storyLength !== existing.section1.storyLength) {
+        saveDraftToStorage(normalized);
+      }
     }
   }, []);
 
@@ -359,9 +379,15 @@ export default function BriefForm({ onSubmit }: Props) {
   }, []);
 
   function saveAndAdvance(nextStep: number) {
-    const withTimestamp = { ...draft, savedAt: Date.now() };
-    setDraft(withTimestamp);
-    saveDraftToStorage(withTimestamp);
+    setDraft((d) => {
+      let next: CompleteBrief = { ...d, savedAt: Date.now() };
+      // Field 1.3 required — commit visual default or user choice before leaving Section 1
+      if (activeStep === 1 && nextStep === 2) {
+        next = withSection1StoryLengthDefault(next);
+      }
+      saveDraftToStorage(next);
+      return next;
+    });
     setSavedSnackbar(true);
     setActiveStep(nextStep);
     setTimeout(scrollToTop, 50);
@@ -375,7 +401,11 @@ export default function BriefForm({ onSubmit }: Props) {
   // ── Section-level onChange mergers ────────────────────────────────────────
 
   function updateSection1(updates: Partial<AgeAndScope>) {
-    setDraft((d) => ({ ...d, section1: { ...d.section1, ...updates } }));
+    setDraft((d) => {
+      const section1 = { ...d.section1, ...updates };
+      const merged = withSection1StoryLengthDefault({ ...d, section1 });
+      return { ...d, section1: merged.section1 };
+    });
   }
 
   function updateSection2(updates: Partial<ClinicalFoundation>) {
@@ -400,11 +430,16 @@ export default function BriefForm({ onSubmit }: Props) {
     if (submitting) return;
     setSubmitting(true);
     try {
+      const finalDraft = withSection1StoryLengthDefault(draft);
+      if (finalDraft !== draft) {
+        setDraft(finalDraft);
+        saveDraftToStorage(finalDraft);
+      }
       if (onSubmit) {
-        await onSubmit(draft);
+        await onSubmit(finalDraft);
       } else {
         // No handler provided — log and clear draft
-        console.info("[BriefForm] Brief submitted:", draft);
+        console.info("[BriefForm] Brief submitted:", finalDraft);
       }
       clearDraftFromStorage();
       setSavedDraft(null);
@@ -419,7 +454,9 @@ export default function BriefForm({ onSubmit }: Props) {
 
   function handleResumeDraft() {
     if (!savedDraft) return;
-    setDraft(savedDraft);
+    const normalized = withSection1StoryLengthDefault(savedDraft);
+    setDraft(normalized);
+    saveDraftToStorage(normalized);
     setSavedDraft(null);
     // Determine which step to resume at: the first incomplete section
     let resumeStep = 1;
