@@ -243,7 +243,229 @@ export interface ClinicalFoundation {
 }
 
 // ============================================================================
-// Section 3 constants referenced by Section 1 warnings
+// Section 3 — Therapeutic Architecture
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Field 3.1 / 3.2 — Therapeutic Approach (Fear & Anxiety options)
+// ---------------------------------------------------------------------------
+
+export const THERAPEUTIC_APPROACHES_FEAR_ANXIETY = [
+  "normalization",
+  "cognitive_reframing",
+  "graduated_exposure",
+  "modeling",
+  "reassurance_predictability",
+  "self_regulation",
+  "psychoeducation",
+] as const;
+
+export type TherapeuticApproach = (typeof THERAPEUTIC_APPROACHES_FEAR_ANXIETY)[number];
+
+export const THERAPEUTIC_APPROACHES_BY_TYPE: Partial<
+  Record<StoryType, readonly TherapeuticApproach[]>
+> = {
+  fear_anxiety: THERAPEUTIC_APPROACHES_FEAR_ANXIETY,
+};
+
+export const THERAPEUTIC_APPROACH_LABELS: Record<TherapeuticApproach, string> = {
+  normalization: "Normalization",
+  cognitive_reframing: "Cognitive reframing",
+  graduated_exposure: "Graduated exposure",
+  modeling: "Modeling",
+  reassurance_predictability: "Reassurance & predictability",
+  self_regulation: "Self-regulation",
+  psychoeducation: "Psychoeducation (age-appropriate)",
+};
+
+/** Psychologist-facing 1-sentence definitions from spec Section 13. */
+export const THERAPEUTIC_APPROACH_DEFINITIONS: Record<TherapeuticApproach, string> = {
+  normalization:
+    "The story shows the child that their fear is common and shared — they are not alone or broken.",
+  cognitive_reframing:
+    "The story helps the child see the situation from a new angle — changing how they think about what scares them.",
+  graduated_exposure:
+    "The story walks the child through approaching the feared situation step by step — each step a little braver.",
+  modeling:
+    "The story shows another character successfully navigating the same fear — giving the child a model to follow.",
+  reassurance_predictability:
+    "The story creates safety through routine, predictability, and the reliable presence of trusted people.",
+  self_regulation:
+    "The story focuses on the child's ability to manage their own response — building internal capacity.",
+  psychoeducation:
+    "The story helps the child understand what is happening in their body or mind — naming the experience within the narrative, not as a lesson.",
+};
+
+/**
+ * Pairs that trigger a conflict warning when selected together (primary + supporting).
+ * Direction does not matter — check both orderings.
+ */
+export const CONFLICTING_APPROACH_PAIRS: Array<[TherapeuticApproach, TherapeuticApproach]> = [
+  ["graduated_exposure", "reassurance_predictability"],
+];
+
+// ---------------------------------------------------------------------------
+// Field 3.3 — Shame Dimension
+// ---------------------------------------------------------------------------
+
+export const SHAME_DIMENSIONS = ["not_significant", "present", "central"] as const;
+export type ShameDimension = (typeof SHAME_DIMENSIONS)[number];
+
+export const SHAME_DIMENSION_LABELS: Record<ShameDimension, string> = {
+  not_significant: "Not a significant factor in this story",
+  present: "Present — handle with care",
+  central: "Central to the experience",
+};
+
+export const SHAME_DIMENSION_DESCRIPTIONS: Record<ShameDimension, string> = {
+  not_significant: "The agent does not need to address shame.",
+  present:
+    "The agent avoids anything implying fault but does not override the primary mechanism.",
+  central:
+    "The agent prioritizes normalization and follows three hard rules: the story must demonstrate the child is not alone; it must never imply the child should have known better; at least one character must respond with acceptance, not correction.",
+};
+
+// ---------------------------------------------------------------------------
+// Field 3.4 — Somatic Expression (Fear & Anxiety)
+// ---------------------------------------------------------------------------
+
+export const SOMATIC_EXPRESSIONS = [
+  "freezing",
+  "crying_clinging",
+  "stomach_ache",
+  "heart_racing",
+  "restless",
+  "going_quiet",
+  "tension",
+  "sweating",
+] as const;
+
+export type SomaticExpression = (typeof SOMATIC_EXPRESSIONS)[number];
+
+export const SOMATIC_EXPRESSION_LABELS: Record<SomaticExpression, string> = {
+  freezing: "Freezing / going still",
+  crying_clinging: "Crying / clinging",
+  stomach_ache: "Stomach ache / feeling sick",
+  heart_racing: "Heart racing / can't breathe",
+  restless: "Restless / fidgety / can't sit still",
+  going_quiet: "Going quiet / shutting down",
+  tension: "Tension / clenching (jaw, fists, shoulders)",
+  sweating: "Sweating / feeling hot",
+};
+
+export const SOMATIC_MAX_SELECT = 2;
+export const SOMATIC_OTHER_CHAR_LIMIT = 150;
+
+// ---------------------------------------------------------------------------
+// Field 3.5 — Coping Tool
+// ---------------------------------------------------------------------------
+
+export const COPING_TOOLS = [
+  "deep_breathing",
+  "counting",
+  "grounding_senses",
+  "positive_self_talk",
+  "visualization",
+  "routine_awareness",
+  "safe_person",
+  "comfort_object",
+  "asking_for_help",
+] as const;
+
+export type CopingTool = (typeof COPING_TOOLS)[number];
+
+export const COPING_TOOL_LABELS: Record<CopingTool, string> = {
+  deep_breathing: "Deep breathing",
+  counting: "Counting",
+  grounding_senses: "Grounding through senses",
+  positive_self_talk: "Positive self-talk",
+  visualization: "Visualization",
+  routine_awareness: "Routine awareness",
+  safe_person: "Safe person",
+  comfort_object: "Comfort object or memory",
+  asking_for_help: "Asking for help",
+};
+
+export interface CopingToolCategory {
+  label: string;
+  tools: CopingTool[];
+}
+
+/** Grouped coping tool options for Fear & Anxiety (Body / Mind / Connection). */
+export const COPING_TOOL_CATEGORIES_FEAR_ANXIETY: CopingToolCategory[] = [
+  { label: "Body", tools: ["deep_breathing", "counting", "grounding_senses"] },
+  { label: "Mind", tools: ["positive_self_talk", "visualization", "routine_awareness"] },
+  { label: "Connection", tools: ["safe_person", "comfort_object", "asking_for_help"] },
+];
+
+/** Abstract tools — trigger an age note when age range is 3–5. */
+export const ABSTRACT_COPING_TOOLS: readonly CopingTool[] = [
+  "routine_awareness",
+  "visualization",
+  "positive_self_talk",
+];
+
+// ---------------------------------------------------------------------------
+// Field 3.6 — Resolution Completeness
+// ---------------------------------------------------------------------------
+
+export const RESOLUTION_OPTIONS = ["full", "partial", "open"] as const;
+export type ResolutionCompleteness = (typeof RESOLUTION_OPTIONS)[number];
+
+export const RESOLUTION_LABELS: Record<ResolutionCompleteness, string> = {
+  full: "Full resolution",
+  partial: "Partial resolution",
+  open: "Open",
+};
+
+export const RESOLUTION_DESCRIPTIONS: Record<ResolutionCompleteness, string> = {
+  full: "The protagonist overcomes the difficulty.",
+  partial: "The protagonist takes a brave step but the feeling is not gone.",
+  open: "The protagonist is better equipped but the journey continues.",
+};
+
+/** Default resolution per story type (spec §5 Field 3.6). Fear & Anxiety = partial. */
+export const RESOLUTION_DEFAULTS: Partial<Record<StoryType, ResolutionCompleteness>> = {
+  fear_anxiety: "partial",
+};
+
+// ---------------------------------------------------------------------------
+// Field 3.7 — Must-Never List pre-filled defaults (spec Section 9)
+// ---------------------------------------------------------------------------
+
+export const MUST_NEVER_DEFAULTS: Partial<Record<StoryType, string[]>> = {
+  fear_anxiety: [
+    "Never imply the child's fear is silly, irrational, or something to be ashamed of",
+    "Never resolve the fear by someone else fixing the situation for the child (unless 'Asking for help' is the selected coping tool)",
+    "Never depict the feared situation as actually dangerous or confirm the child's worst-case scenario",
+  ],
+};
+
+// ---------------------------------------------------------------------------
+// Section 3 data shape
+// ---------------------------------------------------------------------------
+
+export interface TherapeuticArchitecture {
+  /** 3.1 — required */
+  primaryApproach: TherapeuticApproach;
+  /** 3.2 — optional, must not equal primaryApproach */
+  supportingApproach: TherapeuticApproach | null;
+  /** 3.3 — required */
+  shameDimension: ShameDimension;
+  /** 3.4 — required for Fear & Anxiety, 1–2 items */
+  somaticExpressions: SomaticExpression[];
+  /** 3.4 free text — optional, max 150 chars */
+  somaticOther: string;
+  /** 3.5 — required */
+  copingTool: CopingTool;
+  /** 3.6 — required; defaults to partial for Fear & Anxiety */
+  resolutionCompleteness: ResolutionCompleteness;
+  /** 3.7 — required, min 1 non-empty item */
+  mustNeverList: string[];
+}
+
+// ============================================================================
+// Section 1 cross-field warnings (referenced by Section 1 component)
 // ============================================================================
 
 /** The spec cross-field warning message for significant intensity + ages 3–5. */
