@@ -47,6 +47,7 @@ import {
   createEmptyBrief,
   isSectionComplete,
   normalizeBriefDefaults,
+  omitUiOnlyBriefFields,
   type AgeAndScope,
   type ClinicalFoundation,
   type TherapeuticArchitecture,
@@ -414,11 +415,19 @@ export default function BriefForm({ onSubmit }: Props) {
   }, []);
 
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
+  // Also record highest section opened so Section 5 progress stays honest when personalization is ON.
   useEffect(() => {
     if (!draft.storyType || activeStep === 0) return;
     setDraft((d) => {
-      const n = normalizeBriefDefaults(d);
-      if (n === d) return d;
+      let base = d;
+      if (activeStep >= 1 && activeStep <= 5) {
+        const prev = d.highestSectionVisited ?? 0;
+        if (activeStep > prev) {
+          base = { ...d, highestSectionVisited: activeStep };
+        }
+      }
+      const n = normalizeBriefDefaults(base);
+      if (n === d && base === d) return d;
       saveDraftToStorage(n);
       return n;
     });
@@ -547,13 +556,14 @@ export default function BriefForm({ onSubmit }: Props) {
         setDraft(finalDraft);
         saveDraftToStorage(finalDraft);
       }
-      const jsonText = JSON.stringify(finalDraft, null, 2);
+      const forSubmit = omitUiOnlyBriefFields(finalDraft);
+      const jsonText = JSON.stringify(forSubmit, null, 2);
       let briefId: string;
       if (onSubmit) {
-        const result = await onSubmit(finalDraft);
+        const result = await onSubmit(forSubmit);
         briefId = result.briefId;
       } else {
-        const result = await submitDammaStoryBriefForm(finalDraft);
+        const result = await submitDammaStoryBriefForm(forSubmit);
         briefId = result.briefId;
       }
       setSubmitSuccess({ briefId, jsonText });

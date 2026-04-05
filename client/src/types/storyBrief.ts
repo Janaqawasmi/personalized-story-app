@@ -735,6 +735,12 @@ export interface CompleteBrief {
   acknowledgedWarnings?: string[];
   /** Unix timestamp (ms) set by auto-save. */
   savedAt?: number;
+  /**
+   * Highest section index (1–5) the specialist has navigated to in this session.
+   * Used for progress UI: Section 5 must not show complete (personalization ON) until this is 5,
+   * since Field 5.1 constraints are optional and would otherwise mark the step green too early.
+   */
+  highestSectionVisited?: number;
 }
 
 export function createEmptyBrief(): CompleteBrief {
@@ -837,6 +843,12 @@ export function normalizeBriefDefaults(draft: CompleteBrief): CompleteBrief {
   return d;
 }
 
+/** Remove client-only metadata before API submit or canonical JSON export. */
+export function omitUiOnlyBriefFields(brief: CompleteBrief): CompleteBrief {
+  const { savedAt: _savedAt, highestSectionVisited: _vis, ...rest } = brief;
+  return rest;
+}
+
 /** Returns true when the given section has all required fields filled. */
 export function isSectionComplete(section: number, draft: CompleteBrief): boolean {
   switch (section) {
@@ -888,8 +900,11 @@ export function isSectionComplete(section: number, draft: CompleteBrief): boolea
       );
     }
     case 5: {
-      const personalized = (draft.section4.personalization ?? "yes") === "yes";
-      if (personalized) return true; // constraints are optional
+      const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+      if (personalized) {
+        // 5.1 is optional — do not treat the step as done until the specialist opens Config.
+        return (draft.highestSectionVisited ?? 0) >= 5;
+      }
       return !!(draft.section5.whyNot?.trim());
     }
     default:
