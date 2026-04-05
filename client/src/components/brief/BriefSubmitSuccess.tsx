@@ -62,7 +62,7 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
         <Typography variant="h5" fontWeight={800} color={COLORS.textPrimary} gutterBottom>
           Brief submitted successfully
         </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 420, lineHeight: 1.6 }}>
+        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 560, lineHeight: 1.6 }}>
           Your brief is saved on the server. Keep the brief ID below for tracking. You can also download or
           copy the JSON as a local backup.
         </Typography>

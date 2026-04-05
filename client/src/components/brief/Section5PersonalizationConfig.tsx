@@ -229,7 +229,7 @@ export default function Section5PersonalizationConfig({
   return (
     <Box>
       {/* ── Section header ──────────────────────────────────────────────── */}
-      <Box mb={4}>
+      <Box mb={5}>
         <Typography
           variant="overline"
           display="block"
@@ -242,14 +242,14 @@ export default function Section5PersonalizationConfig({
         <Typography variant="h5" fontWeight={700} mb={0.75}>
           Personalization Configuration
         </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} maxWidth={560}>
+        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
           {isPersonalized
             ? "Define what parents are allowed to change when they personalize this story for their child."
             : "Explain why this story works better with a fixed protagonist. This note is shown to parents."}
         </Typography>
       </Box>
 
-      <Stack spacing={4}>
+      <Stack spacing={5}>
         {isPersonalized ? (
           /* ═══════════════════════════════════════════════════════════════
               Field 5.1 — Personalization Constraints (personalization ON)

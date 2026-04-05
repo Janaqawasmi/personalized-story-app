@@ -55,7 +55,7 @@ export default function BriefProgressIndicator({
     <Box
       role="navigation"
       aria-label="Brief sections progress"
-      sx={{ mb: 4 }}
+      sx={{ mb: { xs: 4, md: 5 } }}
     >
       <Box
         display="flex"
@@ -78,7 +78,7 @@ export default function BriefProgressIndicator({
                   alignItems: "center",
                   flexShrink: 0,
                   // Fixed width so connecting lines flex between them
-                  width: { xs: 40, sm: 68 },
+                  width: { xs: 44, sm: 76, md: 84 },
                   position: "relative",
                   zIndex: 1,
                 }}

@@ -23,7 +23,6 @@ import {
   Button,
   Card,
   CardActionArea,
-  Container,
   Paper,
   Snackbar,
   Stack,
@@ -103,6 +102,41 @@ function formatSavedAt(ts: number): string {
   const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   if (isToday) return `Today at ${time}`;
   return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} at ${time}`;
+}
+
+/** Centered column width — avoids full-bleed “stretched” layouts on wide screens */
+const BRIEF_FORM_MAX_WIDTH = 800;
+
+const briefPageSx = {
+  bgcolor: COLORS.background,
+  py: { xs: 3, sm: 5, md: 6 },
+  px: { xs: 2, sm: 3.5, md: 5 },
+  minHeight: "100%",
+  boxSizing: "border-box" as const,
+};
+
+const briefPaperSx = {
+  maxWidth: BRIEF_FORM_MAX_WIDTH,
+  mx: "auto",
+  width: "100%",
+  p: { xs: 2.75, sm: 4, md: 4.5 },
+  border: "1px solid rgba(208, 200, 192, 0.5)",
+  borderRadius: 2.5,
+  backgroundColor: COLORS.surface,
+  boxShadow: `
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 20px 56px -20px rgba(97, 120, 145, 0.16)
+  `,
+};
+
+function BriefFormShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Box component="main" sx={briefPageSx}>
+      <Paper elevation={0} sx={briefPaperSx}>
+        {children}
+      </Paper>
+    </Box>
+  );
 }
 
 // ============================================================================
@@ -204,14 +238,14 @@ function StoryTypeSelector({
       )}
 
       {/* Header */}
-      <Box mb={4}>
+      <Box mb={5}>
         <Typography variant="overline" display="block" color={COLORS.textSecondary} letterSpacing={1} mb={0.5}>
           Pre-brief
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
           Choose the lens this story looks through
         </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} maxWidth={520}>
+        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 640 }}>
           The story type determines which fields appear, which options are available, and which
           clinical defaults are loaded. It is a therapeutic lens, not a diagnosis.
         </Typography>
@@ -233,10 +267,19 @@ function StoryTypeSelector({
                   ? `2px solid ${COLORS.primary}`
                   : `1px solid ${COLORS.border}`,
                 backgroundColor: sel ? CARD_SELECTED_BG : COLORS.surface,
-                borderRadius: 2,
+                borderRadius: 2.5,
+                boxShadow: sel
+                  ? "0 4px 16px -4px rgba(97, 120, 145, 0.2)"
+                  : "0 1px 3px rgba(0, 0, 0, 0.04)",
                 opacity: isAvailable ? 1 : 0.45,
-                transition: "border-color 0.15s ease, background-color 0.15s ease",
-                "&:hover": isAvailable ? { borderColor: COLORS.primary } : {},
+                transition:
+                  "border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease",
+                "&:hover": isAvailable
+                  ? {
+                      borderColor: COLORS.primary,
+                      boxShadow: "0 6px 20px -6px rgba(97, 120, 145, 0.18)",
+                    }
+                  : {},
               }}
             >
               <CardActionArea
@@ -563,23 +606,13 @@ export default function BriefForm({ onSubmit }: Props) {
 
   if (submitSuccess) {
     return (
-      <Container maxWidth="sm" sx={{ py: 4 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 3, sm: 4 },
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 3,
-            backgroundColor: COLORS.surface,
-          }}
-        >
-          <BriefSubmitSuccess
-            briefId={submitSuccess.briefId}
-            jsonText={submitSuccess.jsonText}
-            onCreateAnother={handleCreateAnotherBrief}
-          />
-        </Paper>
-      </Container>
+      <BriefFormShell>
+        <BriefSubmitSuccess
+          briefId={submitSuccess.briefId}
+          jsonText={submitSuccess.jsonText}
+          onCreateAnother={handleCreateAnotherBrief}
+        />
+      </BriefFormShell>
     );
   }
 
@@ -587,28 +620,18 @@ export default function BriefForm({ onSubmit }: Props) {
 
   if (activeStep === 0) {
     return (
-      <Container maxWidth="sm" sx={{ py: 4 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 3, sm: 4 },
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 3,
-            backgroundColor: COLORS.surface,
+      <BriefFormShell>
+        <StoryTypeSelector
+          selected={draft.storyType}
+          onSelect={(type: StoryType) => setDraft((d) => ({ ...d, storyType: type }))}
+          onBegin={() => {
+            if (draft.storyType) saveAndAdvance(1);
           }}
-        >
-          <StoryTypeSelector
-            selected={draft.storyType}
-            onSelect={(type: StoryType) => setDraft((d) => ({ ...d, storyType: type }))}
-            onBegin={() => {
-              if (draft.storyType) saveAndAdvance(1);
-            }}
-            savedDraft={savedDraft}
-            onResumeDraft={handleResumeDraft}
-            onDiscardDraft={handleDiscardDraft}
-          />
-        </Paper>
-      </Container>
+          savedDraft={savedDraft}
+          onResumeDraft={handleResumeDraft}
+          onDiscardDraft={handleDiscardDraft}
+        />
+      </BriefFormShell>
     );
   }
 
@@ -619,45 +642,67 @@ export default function BriefForm({ onSubmit }: Props) {
   const personalization = draft.section4.personalization ?? "yes";
 
   return (
-    <Container maxWidth="sm" sx={{ py: 4 }}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: { xs: 3, sm: 4 },
-          border: `1px solid ${COLORS.border}`,
-          borderRadius: 3,
-          backgroundColor: COLORS.surface,
-        }}
-      >
+    <Box component="main" sx={briefPageSx}>
+      <Paper elevation={0} sx={briefPaperSx}>
         {/* ── Form header with save indicator ────────────────────────── */}
         <Box
           display="flex"
           alignItems="center"
           justifyContent="space-between"
+          flexWrap="wrap"
+          gap={1}
+          pb={2}
           mb={2.5}
           ref={sectionTopRef}
+          sx={{
+            borderBottom: "1px solid rgba(208, 200, 192, 0.45)",
+          }}
         >
-          <Typography variant="body2" color={COLORS.textSecondary} fontWeight={500}>
+          <Typography
+            variant="overline"
+            sx={{
+              letterSpacing: "0.1em",
+              fontWeight: 700,
+              color: COLORS.primary,
+              fontSize: "0.7rem",
+              lineHeight: 1.4,
+            }}
+          >
             {STORY_TYPE_LABELS[storyType]}
           </Typography>
           {draft.savedAt && (
-            <Typography variant="caption" color={COLORS.textSecondary} fontStyle="italic">
+            <Typography
+              variant="caption"
+              color={COLORS.textSecondary}
+              sx={{ fontWeight: 500, opacity: 0.9 }}
+            >
               Saved {formatSavedAt(draft.savedAt)}
             </Typography>
           )}
         </Box>
 
         {/* ── Progress indicator ─────────────────────────────────────── */}
-        <BriefProgressIndicator
-          currentSection={activeStep}
-          sectionCompletion={sectionCompletion}
-          onNavigate={(section) => {
-            if (section < activeStep || sectionCompletion[section - 1]) {
-              setActiveStep(section);
-              setTimeout(scrollToTop, 50);
-            }
+        <Box
+          sx={{
+            mb: { xs: 3, md: 4 },
+            py: 2,
+            px: { xs: 0.75, sm: 1.5 },
+            borderRadius: 2,
+            bgcolor: "rgba(97, 120, 145, 0.04)",
+            border: "1px solid rgba(208, 200, 192, 0.35)",
           }}
-        />
+        >
+          <BriefProgressIndicator
+            currentSection={activeStep}
+            sectionCompletion={sectionCompletion}
+            onNavigate={(section) => {
+              if (section < activeStep || sectionCompletion[section - 1]) {
+                setActiveStep(section);
+                setTimeout(scrollToTop, 50);
+              }
+            }}
+          />
+        </Box>
 
         {/* ── Section content ────────────────────────────────────────── */}
         {activeStep === 1 && (
@@ -761,6 +806,6 @@ export default function BriefForm({ onSubmit }: Props) {
           {submitError}
         </Alert>
       </Snackbar>
-    </Container>
+    </Box>
   );
 }

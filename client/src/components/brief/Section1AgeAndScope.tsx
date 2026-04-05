@@ -232,7 +232,7 @@ export default function Section1AgeAndScope({
   return (
     <Box>
       {/* ── Section header ─────────────────────────────────────────────── */}
-      <Box mb={4}>
+      <Box mb={5}>
         <Typography
           variant="overline"
           display="block"
@@ -245,13 +245,13 @@ export default function Section1AgeAndScope({
         <Typography variant="h5" fontWeight={700} mb={0.75}>
           Age & Story Scope
         </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} maxWidth={560}>
+        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
           Age range governs language complexity, coping tool appropriateness, and structural
           parameters. Set the scope before designing the clinical content.
         </Typography>
       </Box>
 
-      <Stack spacing={4}>
+      <Stack spacing={5}>
         {/* ═══════════════════════════════════════════════════════════════
             Field 1.1 — Target Age Range
         ═══════════════════════════════════════════════════════════════ */}

@@ -399,7 +399,7 @@ export default function Section2ClinicalFoundation({
   return (
     <Box>
       {/* ── Section header ──────────────────────────────────────────────── */}
-      <Box mb={4}>
+      <Box mb={5}>
         <Typography
           variant="overline"
           display="block"
@@ -412,13 +412,13 @@ export default function Section2ClinicalFoundation({
         <Typography variant="h5" fontWeight={700} mb={0.75}>
           Clinical Foundation
         </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} maxWidth={560}>
+        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
           The clinical thinking that shapes this story: who these children are, what triggers the
           difficulty, and what the story should leave them with.
         </Typography>
       </Box>
 
-      <Stack spacing={4}>
+      <Stack spacing={5}>
         {/* ═══════════════════════════════════════════════════════════════
             Field 2.1 — Emotional World of the Population
         ═══════════════════════════════════════════════════════════════ */}

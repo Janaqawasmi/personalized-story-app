@@ -393,7 +393,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
   return (
     <Box>
       {/* ── Section header ──────────────────────────────────────────────── */}
-      <Box mb={4}>
+      <Box mb={5}>
         <Typography
           variant="overline"
           display="block"
@@ -406,13 +406,13 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         <Typography variant="h5" fontWeight={700} mb={0.75}>
           Story World
         </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} maxWidth={560}>
+        <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
           The narrative design: who inhabits this story, how close it sits to the child's reality,
           and who supports the protagonist.
         </Typography>
       </Box>
 
-      <Stack spacing={4}>
+      <Stack spacing={5}>
         {/* ═══════════════════════════════════════════════════════════════
             Field 4.0 — Personalization Decision
         ═══════════════════════════════════════════════════════════════ */}

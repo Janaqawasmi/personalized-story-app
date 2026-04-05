@@ -130,7 +130,7 @@ export default function BriefValidationSummary({ missing }: Props) {
               color={COLORS.textSecondary}
               display="block"
               lineHeight={1.5}
-              sx={{ maxWidth: 420 }}
+              sx={{ maxWidth: 560 }}
             >
               Select a field below to scroll to it and start filling it in.
             </Typography>
