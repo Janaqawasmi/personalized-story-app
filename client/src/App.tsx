@@ -14,7 +14,7 @@ import AgeResultsPage from "./pages/AgeResultsPage";
 import CategoryResultsPage from "./pages/CategoryResultsPage";
 import TopicResultsPage from "./pages/TopicResultsPage";
 
-import AdminStoryBriefForm from "./pages/AdminStoryBriefForm";
+import BriefForm from "./components/brief/BriefForm";
 import GenerateDraftPage from "./pages/GenerateDraftPage";
 import SpecialistDraftList from "./pages/SpecialistDraftList";
 import ReviewDraftPage from "./pages/ReviewDraftPage";
@@ -99,7 +99,7 @@ function AppContent() {
           {/* ───────────── SPECIALIST ───────────── */}
           <Route path="specialist" element={<RequireAuth />}>
             <Route index element={<SpecialistDraftList />} />
-            <Route path="create-brief" element={<AdminStoryBriefForm />} />
+            <Route path="create-brief" element={<BriefForm />} />
             <Route path="generate-draft" element={<GenerateDraftPage />} />
             <Route path="drafts" element={<SpecialistDraftList />} />
             <Route path="drafts/:draftId" element={<ReviewDraftPage />} />
