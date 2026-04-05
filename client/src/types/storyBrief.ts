@@ -465,6 +465,185 @@ export interface TherapeuticArchitecture {
 }
 
 // ============================================================================
+// Section 4 — Story World
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// Field 4.0 — Personalization Decision
+// ---------------------------------------------------------------------------
+
+/** Default is "yes" for the pilot (Fear & Anxiety, ages 3–7). */
+export const PERSONALIZATION_DEFAULT = "yes" as const;
+
+export const PERSONALIZATION_OPTION_DESCRIPTIONS = {
+  yes: "Parents add their child's name, gender, and photo. The protagonist is their child. Strongest identification.",
+  no: "You design the protagonist fully. The child reads about someone else. Protective distance.",
+} as const;
+
+// ---------------------------------------------------------------------------
+// Field 4.1 — Protagonist Gender (visible only when personalization is OFF)
+// ---------------------------------------------------------------------------
+
+export const PROTAGONIST_GENDERS = ["boy", "girl", "kept_open"] as const;
+export type ProtagonistGender = (typeof PROTAGONIST_GENDERS)[number];
+
+export const PROTAGONIST_GENDER_LABELS: Record<ProtagonistGender, string> = {
+  boy: "Boy",
+  girl: "Girl",
+  kept_open: "Kept open",
+};
+
+export const PROTAGONIST_GENDER_NOTE: Record<ProtagonistGender, string | null> = {
+  boy: null,
+  girl: null,
+  kept_open:
+    "Agent uses a neutral animal name or ungendered fantasy character. No they/them pronouns for ages under 7.",
+};
+
+// ---------------------------------------------------------------------------
+// Field 4.2 — Protagonist Type
+// ---------------------------------------------------------------------------
+
+export const PROTAGONIST_TYPES = ["child", "animal", "fantasy"] as const;
+export type ProtagonistType = (typeof PROTAGONIST_TYPES)[number];
+
+export const PROTAGONIST_TYPE_LABELS: Record<ProtagonistType, string> = {
+  child: "Child character",
+  animal: "Animal character",
+  fantasy: "Fantasy character",
+};
+
+/** Non-binding age-range guidance notes shown below the selection. */
+export const PROTAGONIST_TYPE_AGE_GUIDANCE: Partial<Record<AgeRange, string>> = {
+  "3-5": "Animal characters are recommended for this age — they provide protective distance.",
+  "5-7": "Both animal and child characters work well at this age.",
+  "7-9": "Child characters enable stronger identification for older readers.",
+  "9-12": "Child characters enable stronger identification for older readers.",
+};
+
+// ---------------------------------------------------------------------------
+// Field 4.3 — Protagonist Age Relative to Reader (visible only if pers. OFF)
+// ---------------------------------------------------------------------------
+
+export const PROTAGONIST_AGE_RELATIVES = ["same_age", "slightly_older"] as const;
+export type ProtagonistAgeRelative = (typeof PROTAGONIST_AGE_RELATIVES)[number];
+
+export const PROTAGONIST_AGE_RELATIVE_DEFAULT: ProtagonistAgeRelative = "same_age";
+
+export const PROTAGONIST_AGE_RELATIVE_LABELS: Record<ProtagonistAgeRelative, string> = {
+  same_age: "Same age",
+  slightly_older: "Slightly older",
+};
+
+// ---------------------------------------------------------------------------
+// Field 4.4 — Caregiver's Presence
+// ---------------------------------------------------------------------------
+
+export const CAREGIVER_PRESENCES = [
+  "present_comforting",
+  "guides_side",
+  "leaves_returns",
+  "waiting_end",
+  "not_present",
+] as const;
+export type CaregiverPresence = (typeof CAREGIVER_PRESENCES)[number];
+
+export const CAREGIVER_PRESENCE_LABELS: Record<CaregiverPresence, string> = {
+  present_comforting: "Present and comforting",
+  guides_side: "Guides from the side",
+  leaves_returns: "Leaves and returns",
+  waiting_end: "Waiting at the end",
+  not_present: "Not present",
+};
+
+/** Extra clarifying description shown only for certain options. */
+export const CAREGIVER_PRESENCE_DESCRIPTIONS: Partial<Record<CaregiverPresence, string>> = {
+  leaves_returns:
+    "The caregiver departs during the story and comes back. The story includes both the goodbye and the reunion.",
+};
+
+// ---------------------------------------------------------------------------
+// Field 4.5 — Narrative Distance
+// ---------------------------------------------------------------------------
+
+export const NARRATIVE_DISTANCES = ["direct", "parallel", "metaphorical"] as const;
+export type NarrativeDistance = (typeof NARRATIVE_DISTANCES)[number];
+
+export const NARRATIVE_DISTANCE_LABELS: Record<NarrativeDistance, string> = {
+  direct: "Direct",
+  parallel: "Parallel",
+  metaphorical: "Metaphorical",
+};
+
+export const NARRATIVE_DISTANCE_DEFINITIONS: Record<NarrativeDistance, string> = {
+  direct:
+    "Story mirrors the real situation closely. Same setting, same challenge, recognizable world.",
+  parallel:
+    "Similar situation with softened or shifted details. Different setting, same emotional core.",
+  metaphorical:
+    "Situation represented symbolically. The challenge is abstracted into a fantasy or symbolic scenario.",
+};
+
+export const PARALLEL_CHALLENGE_CHAR_LIMIT = 200;
+
+// ---------------------------------------------------------------------------
+// Field 4.6 — Supporting Characters (multi-select up to 2)
+// ---------------------------------------------------------------------------
+
+export const SUPPORTING_CHARACTERS = [
+  "peer_shows_possible",
+  "peer_alongside",
+  "teacher_adult_guides",
+  "animal_friend",
+  "sibling_perspective",
+] as const;
+export type SupportingCharacter = (typeof SUPPORTING_CHARACTERS)[number];
+
+export const SUPPORTING_CHARACTER_LABELS: Record<SupportingCharacter, string> = {
+  peer_shows_possible: "A peer who shows it's possible",
+  peer_alongside: "A peer who goes through it alongside",
+  teacher_adult_guides: "A teacher or adult who guides",
+  animal_friend: "An animal friend who accompanies",
+  sibling_perspective: "A sibling who offers perspective",
+};
+
+export const SUPPORTING_CHARACTER_MAX_SELECT = 2;
+export const CHARACTER_ROLE_NOTE_CHAR_LIMIT = 150;
+
+// ---------------------------------------------------------------------------
+// Field 4.7 — Character Notes
+// ---------------------------------------------------------------------------
+
+export const CHARACTER_NOTES_CHAR_LIMIT = 300;
+
+// ---------------------------------------------------------------------------
+// Section 4 data shape
+// ---------------------------------------------------------------------------
+
+export interface StoryWorld {
+  /** 4.0 — required, default "yes" */
+  personalization: "yes" | "no";
+  /** 4.1 — required if personalization OFF, otherwise ignored */
+  protagonistGender: ProtagonistGender | null;
+  /** 4.2 — required; locked to "child" if personalization ON */
+  protagonistType: ProtagonistType;
+  /** 4.3 — required if personalization OFF, default "same_age" */
+  protagonistAgeRelative: ProtagonistAgeRelative;
+  /** 4.4 — required */
+  caregiverPresence: CaregiverPresence;
+  /** 4.5 — required */
+  narrativeDistance: NarrativeDistance;
+  /** 4.5 sub-field — optional, max 200 chars; only meaningful when narrativeDistance = "parallel" */
+  parallelChallenge: string;
+  /** 4.6 — optional, up to 2 */
+  supportingCharacters: SupportingCharacter[];
+  /** 4.6 sub-field — optional role note per selected character, max 150 chars each */
+  characterRoleNotes: Partial<Record<SupportingCharacter, string>>;
+  /** 4.7 — optional, max 300 chars */
+  characterNotes: string;
+}
+
+// ============================================================================
 // Section 1 cross-field warnings (referenced by Section 1 component)
 // ============================================================================
 
