@@ -685,6 +685,19 @@ export const ABSTRACT_COPING_TOOLS: readonly CopingTool[] = [
   "positive_self_talk",
 ];
 
+/**
+ * Approach pairs that may pull in different directions (Field 3.2 conflict handling).
+ * When primary + supporting form one of these pairs, a hard warning is shown.
+ * Pairs are unordered — [A, B] also matches [B, A].
+ */
+export const CONFLICTING_APPROACH_PAIRS: ReadonlyArray<
+  readonly [TherapeuticApproach, TherapeuticApproach]
+> = [
+  ["graduated_exposure", "reassurance_predictability"],
+  ["self_regulation", "reassurance_predictability"],
+  ["graduated_exposure", "normalization"],
+];
+
 // ---------------------------------------------------------------------------
 // Resolution Completeness
 // ---------------------------------------------------------------------------
@@ -1031,7 +1044,8 @@ export interface CrossFieldValidation {
 }
 
 export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
-  // Hard block (#1)
+  // ── Hard block (1 rule) ────────────────────────────────────────────────
+
   {
     id: "relational_tool_no_responder",
     severity: "hard_block",
@@ -1041,7 +1055,8 @@ export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
       "The coping tool requires someone the protagonist can turn to. Please add a present caregiver or a supporting character who can respond.",
   },
 
-  // Hard warnings (#2, #3)
+  // ── Hard warnings (3 rules) ───────────────────────────────────────────
+
   {
     id: "significant_intensity_young_age",
     severity: "hard_warning",
@@ -1057,8 +1072,17 @@ export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
     message:
       "A consistently comforting caregiver may reduce the therapeutic effect of graduated exposure. Is this intentional?",
   },
+  {
+    id: "conflicting_approach_pair",
+    severity: "hard_warning",
+    description:
+      "Primary and supporting approaches are a potentially conflicting therapeutic pair (Field 3.2 conflict handling)",
+    message:
+      "These approaches can pull in different directions. Is this intentional?",
+  },
 
-  // Soft warnings (#4–#8)
+  // ── Soft warnings (8 rules) ───────────────────────────────────────────
+
   {
     id: "self_regulation_comforting_caregiver",
     severity: "soft_warning",
@@ -1097,6 +1121,30 @@ export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
     description: 'Primary approach = "Cognitive reframing" AND age range = 3–5',
     message:
       "Cognitive reframing requires developmental capacity for perspective-taking. For ages 3–5, consider Normalization, Modeling, or Psychoeducation instead.",
+  },
+  {
+    id: "trigger_lacks_specificity",
+    severity: "soft_warning",
+    description:
+      "Trigger text (Field 2.2) is under 80 characters — may lack the sensory detail the agent needs",
+    message:
+      "Can you add what the child sees, hears, or feels in this moment?",
+  },
+  {
+    id: "intention_too_brief",
+    severity: "soft_warning",
+    description:
+      "Therapeutic intention (Field 2.3) combined text under 60 characters — may be too vague for the agent",
+    message:
+      "This may be too brief for the agent to work with. Can you make the second half more specific?",
+  },
+  {
+    id: "personalization_direct_intensity",
+    severity: "soft_warning",
+    description:
+      'Personalization ON + narrative distance = "Direct" — story will closely mirror the child\'s real experience',
+    message:
+      "The story will closely mirror the child's real experience, using their name and identity. Ensure the emotional intensity is appropriate.",
   },
 ];
 
