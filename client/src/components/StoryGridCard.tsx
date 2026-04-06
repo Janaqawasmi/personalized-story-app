@@ -160,14 +160,14 @@ function CoverIllustration({ story, topicStyle }: CoverIllustrationProps) {
   );
 }
 
-function getCtaLabel(language: string): { view: string; preview: string } {
+function getAboutStoryLabel(language: string): string {
   switch (language) {
     case "he":
-      return { view: "על הסיפור הזה", preview: "תצוגה מקדימה" };
+      return "על הסיפור הזה";
     case "ar":
-      return { view: "عن هذه القصة", preview: "معاينة" };
+      return "عن هذه القصة";
     default:
-      return { view: "About this story", preview: "Preview" };
+      return "About the Story";
   }
 }
 
@@ -193,8 +193,6 @@ function getAgeLabel(story: StoryGridCardStory, language: string): string {
 
 interface StoryGridCardProps {
   story: StoryGridCardStory;
-  /** When true, hides the Preview button (browse / results / favorites grids). */
-  catalogVariant?: boolean;
   /** Called after navigating to the story (e.g. scroll to top on related stories). */
   onView?: () => void;
 }
@@ -203,7 +201,6 @@ interface StoryGridCardProps {
 
 export default function StoryGridCard({
   story,
-  catalogVariant = false,
   onView,
 }: StoryGridCardProps) {
   const theme = useTheme();
@@ -221,7 +218,7 @@ export default function StoryGridCard({
   });
 
   const topicStyle = getTopicStyle(story);
-  const cta = getCtaLabel(language);
+  const aboutStoryLabel = getAboutStoryLabel(language);
   const ageLabel = getAgeLabel(story, language);
 
   const topicBadgeLabel =
@@ -234,14 +231,6 @@ export default function StoryGridCard({
   const handleView = () => {
     navigate(`/stories/${story.id}`);
     onView?.();
-  };
-
-  const handlePreview = () => {
-    navigate(`/stories/${story.id}`);
-    setTimeout(() => {
-      const el = document.getElementById("story-preview-section");
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 400);
   };
 
   const handleFavorite = (e: React.MouseEvent) => {
@@ -407,14 +396,7 @@ export default function StoryGridCard({
           </Typography>
         )}
 
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-            mt: "auto",
-            flexDirection: isRTL ? "row-reverse" : "row",
-          }}
-        >
+        <Box sx={{ mt: "auto" }}>
           <Button
             onClick={handleView}
             fullWidth
@@ -435,35 +417,8 @@ export default function StoryGridCard({
               },
             }}
           >
-            {cta.view}
+            {aboutStoryLabel}
           </Button>
-
-          {!catalogVariant && (
-            <Button
-              onClick={handlePreview}
-              sx={{
-                borderRadius: "10px",
-                fontSize: "0.8rem",
-                fontWeight: 400,
-                py: "9px",
-                px: 1.75,
-                bgcolor: "transparent",
-                color: "text.secondary",
-                border: "0.5px solid",
-                borderColor: "divider",
-                textTransform: "none",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-                transition: "background 0.15s, border-color 0.15s",
-                "&:hover": {
-                  bgcolor: "action.hover",
-                  borderColor: "text.disabled",
-                },
-              }}
-            >
-              {cta.preview}
-            </Button>
-          )}
         </Box>
       </Box>
     </Card>

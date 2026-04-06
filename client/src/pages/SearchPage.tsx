@@ -154,7 +154,6 @@ export default function SearchPage() {
                 return (
                   <StoryGridCard
                     key={story.id}
-                    catalogVariant
                     story={{
                       ...story,
                       title: story.title || t("search.storyWithoutName"),

@@ -29,7 +29,6 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
         {stories.map((s) => (
           <StoryGridCard
             key={s.id}
-            catalogVariant
             story={{
               id: s.id,
               title: s.title,

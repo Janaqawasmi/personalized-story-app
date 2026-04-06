@@ -169,7 +169,6 @@ export default function AgeResultsPage() {
           {stories.map((story) => (
             <StoryGridCard
               key={story.id}
-              catalogVariant
               story={{
                 ...story,
                 ageGroup: (story as any).ageGroup,

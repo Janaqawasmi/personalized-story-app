@@ -84,7 +84,6 @@ export default function FavoritesPage() {
           {favorites.map((fav) => (
             <StoryGridCard
               key={fav.storyId}
-              catalogVariant
               story={{
                 id: fav.storyId,
                 title: fav.title || t("pages.favorites.fallbackStoryTitle"),
