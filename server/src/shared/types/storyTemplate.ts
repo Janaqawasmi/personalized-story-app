@@ -67,4 +67,8 @@ export interface StoryTemplate {
   purchaseCount: number;
   previewPageCount: number;
   totalPageCount: number;
+  /**
+   * One sentence with `{{CHILD_NAME}}` for the personalize flow live name preview (optional).
+   */
+  previewSentence?: string;
 }

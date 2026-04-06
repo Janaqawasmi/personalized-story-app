@@ -12,7 +12,8 @@ import semiRealisticImg from "../assets/story-styles/semi-realistic.jpeg";
 import flatCartoonImg from "../assets/story-styles/flat-cartoon.jpeg";
 import paperCraftImg from "../assets/story-styles/paper-craft.jpeg";
 import vintageGoldenImg from "../assets/story-styles/vintage-1950s-little-golden.jpeg";
-import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
+import { buildPreviewSentence, getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
+import type { StoryTemplate } from "../types/story";
 import {
   sanitizeChildName,
   validateChildName,
@@ -40,18 +41,6 @@ type PersonalizationSession = {
   status: "draft" | "completed";
   data: StoryPersonalizationData;
   updatedAt: number;
-};
-
-type StoryTemplate = {
-  id: string;
-  title: string;
-  language?: string;
-  ageGroup?: string;
-  targetAgeGroup?: string;
-  topic?: string | Record<string, string>;
-  generationConfig?: {
-    targetAgeGroup?: string;
-  };
 };
 
 const VISUAL_STYLES = [
@@ -682,6 +671,7 @@ export default function PersonalizeStoryPage() {
           targetAgeGroup: data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
           topic: data.primaryTopic ?? data.topicKey ?? data.topic,
           generationConfig: data.generationConfig,
+          previewSentence: typeof data.previewSentence === "string" ? data.previewSentence : undefined,
         });
 
         const existingSession = loadPersonalizationSession(storyId);
@@ -873,6 +863,12 @@ export default function PersonalizeStoryPage() {
   const isStepValid = (step: number): boolean => {
     return validateCurrentStep(step);
   };
+
+  const previewResult = buildPreviewSentence(
+    story?.previewSentence,
+    personalization.childName ?? "",
+    t("personalize.previewEmpty")
+  );
 
   const handleGenderSelect = (g: "female" | "male") => {
     const updated = { ...personalization, gender: g };
@@ -1345,11 +1341,13 @@ export default function PersonalizeStoryPage() {
                             opacity: 0.18,
                             fontFamily: "'Cormorant Garamond', serif",
                             lineHeight: 1,
+                            pointerEvents: "none",
                           },
                         }}
                       >
-                        {(personalization.childName?.trim().length ?? 0) >= 2 ? (
+                        {previewResult.filled ? (
                           <>
+                            {previewResult.text.slice(0, previewResult.nameStart)}
                             <Box
                               component="span"
                               sx={{
@@ -1358,6 +1356,7 @@ export default function PersonalizeStoryPage() {
                                 color: "#824D5C",
                                 fontFamily: "'Cormorant Garamond', serif",
                                 position: "relative",
+                                display: "inline",
                                 "&::after": {
                                   content: '""',
                                   position: "absolute",
@@ -1370,12 +1369,14 @@ export default function PersonalizeStoryPage() {
                                 },
                               }}
                             >
-                              {personalization.childName}
+                              {previewResult.text.slice(previewResult.nameStart, previewResult.nameEnd)}
                             </Box>
-                            {t("personalize.previewSentenceSuffix")}
+                            {previewResult.text.slice(previewResult.nameEnd)}
                           </>
                         ) : (
-                          t("personalize.previewSentenceEmpty")
+                          <Box component="span" sx={{ color: "#9a8a92" }}>
+                            {previewResult.text}
+                          </Box>
                         )}
                       </Box>
                     </Box>

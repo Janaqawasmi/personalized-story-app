@@ -128,3 +128,45 @@ export function buildPersonalizedReaderPages(
     return { ...page, textTemplate: text, imageUrl };
   });
 }
+
+const PREVIEW_FALLBACK_TEMPLATE =
+  "{{CHILD_NAME}} looked up and smiled — this story had been waiting just for her.";
+const PREVIEW_TOKEN = "{{CHILD_NAME}}";
+
+/**
+ * Live preview sentence for the Name step on PersonalizeStoryPage.
+ * Replaces {{CHILD_NAME}} with the typed name, or returns the empty-state sentence if the name is too short.
+ */
+export function buildPreviewSentence(
+  previewSentence: string | undefined,
+  childName: string,
+  emptyStateText?: string
+): { filled: boolean; text: string; nameStart: number; nameEnd: number } {
+  const EMPTY =
+    emptyStateText ||
+    "Once upon a time, there was a child who believed in the magic of stories…";
+
+  const trimmed = childName.trim();
+  if (trimmed.length < 2) {
+    return { filled: false, text: EMPTY, nameStart: -1, nameEnd: -1 };
+  }
+
+  const template = previewSentence || PREVIEW_FALLBACK_TEMPLATE;
+  const tokenIndex = template.indexOf(PREVIEW_TOKEN);
+
+  if (tokenIndex === -1) {
+    const text = `${trimmed} — ${template}`;
+    return { filled: true, text, nameStart: 0, nameEnd: trimmed.length };
+  }
+
+  const before = template.slice(0, tokenIndex);
+  const after = template.slice(tokenIndex + PREVIEW_TOKEN.length);
+  const text = before + trimmed + after;
+
+  return {
+    filled: true,
+    text,
+    nameStart: tokenIndex,
+    nameEnd: tokenIndex + trimmed.length,
+  };
+}
