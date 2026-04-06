@@ -1,6 +1,6 @@
 /**
  * One-time migration: set `previewSentence` on each `story_templates` doc
- * from topic → sentence table. Skips docs that already define `previewSentence`.
+ * from topic → sentence mapping (shared with Cloud Function).
  *
  * Run: npx ts-node scripts/patchPreviewSentences.ts
  * (from server/)
@@ -9,6 +9,10 @@
 import admin from "firebase-admin";
 import path from "path";
 import fs from "fs";
+import {
+  UNIVERSAL_FALLBACK,
+  resolvePreviewSentenceForTemplate,
+} from "../src/shared/utils/resolvePreviewSentence";
 
 const serviceAccountPath = path.resolve(__dirname, "../config/serviceAccountKey.json");
 
@@ -21,65 +25,6 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-const UNIVERSAL_FALLBACK =
-  "{{CHILD_NAME}} looked up and smiled — this story had been waiting just for her.";
-
-const TOPIC_ROWS: { aliases: Set<string>; sentence: string }[] = [
-  {
-    aliases: new Set(["anxiety", "calm", "anxiety_calm"]),
-    sentence:
-      "{{CHILD_NAME}} took a deep breath, and slowly, the worry began to lift.",
-  },
-  {
-    aliases: new Set(["fear"]),
-    sentence:
-      "{{CHILD_NAME}} looked into the dark and decided — tonight, she wasn't afraid.",
-  },
-  {
-    aliases: new Set(["confidence", "self_confidence", "self-esteem", "self_esteem"]),
-    sentence:
-      "Everyone in the village knew that {{CHILD_NAME}} could do anything she tried.",
-  },
-  {
-    aliases: new Set(["grief", "loss", "sadness"]),
-    sentence:
-      "{{CHILD_NAME}} sat quietly and remembered, and that felt like enough for now.",
-  },
-  {
-    aliases: new Set(["change", "transitions", "new_beginnings", "new beginnings"]),
-    sentence:
-      "{{CHILD_NAME}} had never been somewhere new before — but here she was, and it was okay.",
-  },
-  {
-    aliases: new Set(["anger", "emotions"]),
-    sentence:
-      "When {{CHILD_NAME}} felt the heat rise inside, she found a way to let it go.",
-  },
-  {
-    aliases: new Set(["friendship", "social"]),
-    sentence:
-      "{{CHILD_NAME}} wasn't sure anyone would notice her — until someone finally did.",
-  },
-  {
-    aliases: new Set(["family", "siblings"]),
-    sentence:
-      "{{CHILD_NAME}} looked around the table and thought — this, right here, is everything.",
-  },
-  {
-    aliases: new Set(["bedtime", "sleep", "night"]),
-    sentence:
-      "As {{CHILD_NAME}} closed her eyes, the whole world became soft and still.",
-  },
-];
-
-function normalizeTopicToken(raw: string): string {
-  return raw
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/\./g, "_");
-}
-
 function topicCandidates(data: FirebaseFirestore.DocumentData): string[] {
   const out: string[] = [];
   const push = (v: unknown) => {
@@ -90,33 +35,6 @@ function topicCandidates(data: FirebaseFirestore.DocumentData): string[] {
   push(data.specificSituation);
   if (data.topicKey && typeof data.topicKey === "string") push(data.topicKey);
   return out;
-}
-
-/** Normalize a raw topic string to tokens (full value + underscore segments). */
-function topicTokensFromString(raw: string): string[] {
-  const norm = normalizeTopicToken(raw);
-  const parts = norm.split("_").filter(Boolean);
-  const tokens = [norm, ...parts];
-  return [...new Set(tokens)];
-}
-
-function resolveSentence(candidates: string[]): string {
-  const seen = new Set<string>();
-  const orderedTokens: string[] = [];
-  for (const c of candidates) {
-    for (const t of topicTokensFromString(c)) {
-      if (!seen.has(t)) {
-        seen.add(t);
-        orderedTokens.push(t);
-      }
-    }
-  }
-  for (const token of orderedTokens) {
-    for (const row of TOPIC_ROWS) {
-      if (row.aliases.has(token)) return row.sentence;
-    }
-  }
-  return UNIVERSAL_FALLBACK;
 }
 
 function hasPreviewSentenceField(data: FirebaseFirestore.DocumentData): boolean {
@@ -153,12 +71,12 @@ async function main() {
     const data = doc.data();
     const id = doc.id;
 
-    const candidates = topicCandidates(data);
-    const sentence = resolveSentence(candidates);
+    const sentence = resolvePreviewSentenceForTemplate(data as Record<string, unknown>);
+    const cand = topicCandidates(data);
     const topicRaw =
       [data.topic, data.primaryTopic, data.specificSituation, data.topicKey]
         .filter((x) => typeof x === "string")
-        .join(" | ") || "(none)";
+        .join(" | ") || (cand.length ? cand.join(" | ") : "(none)");
 
     const existing = data.previewSentence;
     const hasField = hasPreviewSentenceField(data);
