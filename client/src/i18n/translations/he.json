@@ -210,7 +210,11 @@
       "step2": "איך הסיפור ידבר אליו?",
       "step3": "זה הרגע להכניס את הילד לסיפור",
       "step4": "איך הסיפור ייראה?",
-      "step5": "הכל מוכן ✨"
+      "step5": "הכל מוכן ✨",
+      "name": "שם",
+      "gender": "מגדר",
+      "photo": "תמונה",
+      "style": "סגנון"
     },
     "gender": {
       "female": "בת",
@@ -274,7 +278,60 @@
     "continueJourney": "המשך למסע",
     "createStory": "צור את הסיפור",
     "imageTooLarge": "התמונה גדולה מדי. אנא בחר תמונה קטנה מ-5MB",
-    "story": "סיפור"
+    "story": "סיפור",
+
+    "step1Of4": "שלב 1 מתוך 4",
+    "step2Of4": "שלב 2 מתוך 4",
+    "step3Of4": "שלב 3 מתוך 4",
+    "step4Of4": "שלב 4 מתוך 4",
+
+    "nameHeadingLine1": "איך קוראים",
+    "nameHeadingLine2": "לילד שלכם?",
+    "nameSub": "השם יופיע לאורך כל הסיפור — סיפור שמחובר אליהם באופן אישי וברור.",
+    "namePlaceholder": "למשל לילה…",
+    "nameHint": "עברית, ערבית או לטינית · 2–30 תווים",
+    "previewSentenceSuffix": " הרימו מבט לשמיים — ולרגע נדמה שכל הכוכבים נוצצו רק בשבילם.",
+    "previewSentenceEmpty": "היה היה פעם ילד אחד שאמן בקסם של סיפורים…",
+
+    "genderHeadingLine1": "הילד/ה שלכם",
+    "genderHeadingLine2": "בת או בן?",
+    "genderSub": "כדי שהשפה תרגיש טבעית — היא/הוא, שלה/שלו. בלי ניסוחים גנריים.",
+    "girl": "בת",
+    "boy": "בן",
+    "girlPronouns": "היא · אותה · שלה",
+    "boyPronouns": "הוא · אותו · שלו",
+
+    "photoHeadingLine1": "תמונה של",
+    "photoHeadingFallback": "הילד/ה שלכם",
+    "photoSub": "פני {name} יופיעו בראשית האיורים — לא דמות גנרית, אלא הם.",
+    "photoSubFallback": "הילד/ה שלכם",
+    "photoAdded": "התמונה נוספה ✓",
+    "tapToReplace": "הקישו להחלפה",
+    "uploadPhoto": "העלו תמונה",
+    "uploadHint": "JPG או PNG · עד 5 MB\nמשמש רק ליצירת איורים",
+    "trust1": "רק לאיורים",
+    "trust2": "לא משותף",
+    "trust3": "נמחק לאחר מכן",
+
+    "styleHeadingLine1": "בחרו",
+    "styleHeadingLine2": "את סגנון האיור",
+    "styleSub": "כל העמודים יעוצבו במצב רוח הזה. בחרו את העולם של {name}.",
+    "styleSubFallback": "הילד/ה שלכם",
+
+    "labelBack": "חזרה",
+    "labelContinue": "המשך",
+    "openStory": "פתחו את הסיפור",
+
+    "celebrateName": "הסיפור של {name} מוכן.",
+    "celebrateSub": "כל מילה וכל איור — נעשו עבור {name}. למסע מיוחד באמת.",
+    "celebrateTagPhoto": "תמונה מוכנה",
+
+    "leftPersonalizing": "מתאימים אישית",
+    "leftYourChild": "הילד/ה שלכם",
+    "leftWaitingName": "מחכים לשם…",
+    "leftStoryFallback": "הלילה שהכוכבים הקשיבו",
+    "leftTopicFallback": "חרדה והרגעה",
+    "leftAgesLabel": "גילאי {age}"
   },
   "discovery": {
     "category": "קטגוריה",

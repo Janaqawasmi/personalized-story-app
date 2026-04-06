@@ -1,26 +1,12 @@
-import {
-  Box,
-  Typography,
-  TextField,
-  Button,
-  Card,
-  CardContent,
-  CardMedia,
-  useTheme,
-  CircularProgress,
-} from "@mui/material";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { Box, Typography, TextField, Button, CircularProgress } from "@mui/material";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/useLanguage";
 
-// Import style images
 import watercolorImg from "../assets/story-styles/watercolor.jpeg";
 import semiRealisticImg from "../assets/story-styles/semi-realistic.jpeg";
 import flatCartoonImg from "../assets/story-styles/flat-cartoon.jpeg";
@@ -45,8 +31,8 @@ type VisualStyle =
 type StoryPersonalizationData = {
   childName: string;
   gender: "female" | "male";
-  photoFile?: File; // Not stored in localStorage (File objects can't be serialized)
-  photoPreviewUrl: string; // REQUIRED
+  photoFile?: File;
+  photoPreviewUrl: string;
   visualStyle: VisualStyle;
 };
 
@@ -62,40 +48,27 @@ type StoryTemplate = {
   language?: string;
   ageGroup?: string;
   targetAgeGroup?: string;
+  topic?: string | Record<string, string>;
   generationConfig?: {
     targetAgeGroup?: string;
   };
 };
 
-// STEPS and GENDER_OPTIONS are now loaded dynamically using translations
-
-
-
-// Visual style configuration
-// Each style is represented by a static reference image selected by the user
-// The chosen style ID is later injected into the generative prompt
 const VISUAL_STYLES = [
-  {
-    id: "watercolor" as const,
-    image: watercolorImg,
-  },
-  {
-    id: "semi_realistic" as const,
-    image: semiRealisticImg,
-  },
-  {
-    id: "flat_cartoon" as const,
-    image: flatCartoonImg,
-  },
-  {
-    id: "paper_craft" as const,
-    image: paperCraftImg,
-  },
-  {
-    id: "vintage_1950s_little_golden" as const,
-    image: vintageGoldenImg,
-  },
+  { id: "watercolor" as const, image: watercolorImg },
+  { id: "semi_realistic" as const, image: semiRealisticImg },
+  { id: "flat_cartoon" as const, image: flatCartoonImg },
+  { id: "paper_craft" as const, image: paperCraftImg },
+  { id: "vintage_1950s_little_golden" as const, image: vintageGoldenImg },
 ];
+
+const FORM_STEP_COUNT = 4;
+
+function pickLang(val: string | Record<string, string> | undefined, lang: string): string {
+  if (!val) return "";
+  if (typeof val === "string") return val;
+  return val[lang] ?? val.en ?? val.he ?? val.ar ?? "";
+}
 
 function loadPersonalizationSession(storyId: string): PersonalizationSession | null {
   const key = getStoryPersonalizationStorageKey(storyId);
@@ -121,7 +94,6 @@ function savePersonalizationSession(
       gender: data.gender,
       photoPreviewUrl: data.photoPreviewUrl,
       visualStyle: data.visualStyle,
-      // Note: photoFile is not stored (File objects can't be serialized)
     },
     updatedAt: Date.now(),
   };
@@ -133,27 +105,473 @@ function deletePersonalizationSession(storyId: string): void {
   localStorage.removeItem(key);
 }
 
+function LeftPanel({
+  story,
+  personalization,
+  language,
+  t,
+}: {
+  story: StoryTemplate | null;
+  personalization: Partial<StoryPersonalizationData>;
+  language: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  const starfieldRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const sf = starfieldRef.current;
+    if (!sf) return;
+    sf.innerHTML = "";
+    const configs = [
+      { count: 12, size: 2, minOp: 0.1, maxOp: 0.7, durMin: 2, durMax: 4 },
+      { count: 10, size: 3, minOp: 0.05, maxOp: 0.4, durMin: 3, durMax: 6 },
+      { count: 6, size: 1, minOp: 0.2, maxOp: 0.9, durMin: 1.5, durMax: 3 },
+    ];
+    const colors = ["#fff", "#f0e8ff", "#ffe8f0", "#e8f0ff"];
+    configs.forEach(({ count, size, minOp, maxOp, durMin, durMax }) => {
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement("div");
+        const s = size + Math.random() * size;
+        const dur = durMin + Math.random() * (durMax - durMin);
+        const delay = -(Math.random() * dur);
+        const color = colors[Math.floor(Math.random() * colors.length)]!;
+        el.style.cssText = `
+        position:absolute; border-radius:50%;
+        width:${s}px; height:${s}px;
+        left:${Math.random() * 100}%;
+        top:${Math.random() * 100}%;
+        background:${color};
+        animation:starPulse ${dur}s ease-in-out ${delay}s infinite;
+        --min-op:${minOp}; --max-op:${maxOp};
+      `;
+        sf.appendChild(el);
+      }
+    });
+  }, []);
+
+  const { childName, gender } = personalization;
+  const hasName = (childName?.trim().length ?? 0) >= 2;
+  const avatarEmoji = gender === "female" ? "🌸" : gender === "male" ? "🌊" : "✨";
+  const titleText = pickLang(story?.title, language) || t("personalize.leftStoryFallback");
+  const topicText = pickLang(story?.topic, language) || t("personalize.leftTopicFallback");
+  const ageText =
+    story?.ageGroup || story?.targetAgeGroup || story?.generationConfig?.targetAgeGroup || "4–8";
+
+  return (
+    <Box
+      sx={{
+        background: "linear-gradient(165deg, #170d1e 0%, #2a1a35 45%, #1a0a2e 100%)",
+        p: "36px 32px",
+        display: "flex",
+        flexDirection: "column",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      <Box
+        ref={starfieldRef}
+        sx={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}
+      />
+
+      {[
+        { w: 260, h: 260, bg: "rgba(130,77,92,0.25)", top: -80, right: -80, delay: "0s" },
+        { w: 200, h: 200, bg: "rgba(60,30,80,0.3)", bottom: -60, left: -60, delay: "-4s" },
+        { w: 160, h: 160, bg: "rgba(176,122,138,0.15)", top: "40%", right: "10%", delay: "-2s" },
+      ].map((a, i) => (
+        <Box
+          key={i}
+          sx={{
+            position: "absolute",
+            width: a.w,
+            height: a.h,
+            borderRadius: "50%",
+            background: a.bg,
+            filter: "blur(60px)",
+            top: a.top ?? "auto",
+            bottom: a.bottom ?? "auto",
+            left: a.left ?? "auto",
+            right: a.right ?? "auto",
+            pointerEvents: "none",
+            animation: `auroraDrift 8s ease-in-out ${a.delay} infinite alternate`,
+          }}
+        />
+      ))}
+
+      <Box sx={{ position: "relative", zIndex: 1, mb: "28px", perspective: "800px" }}>
+        <Box
+          sx={{
+            borderRadius: "14px",
+            background: "linear-gradient(145deg, #3d1a2a 0%, #2a1435 40%, #16093a 100%)",
+            aspectRatio: "3/4",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "14px",
+            border: "1px solid rgba(255,255,255,0.06)",
+            boxShadow:
+              "0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06), 4px 0 12px rgba(0,0,0,0.4)",
+            position: "relative",
+            overflow: "hidden",
+            transform: "rotateY(-4deg) rotateX(2deg)",
+            transformStyle: "preserve-3d",
+            transition: "transform 0.6s ease",
+            "&:hover": {
+              transform: "rotateY(-2deg) rotateX(1deg) translateY(-4px)",
+            },
+            "&::before": {
+              content: '""',
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: "12px",
+              background: "linear-gradient(90deg, rgba(0,0,0,0.5), transparent)",
+            },
+            "&::after": {
+              content: '""',
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(ellipse at 30% 20%, rgba(176,122,138,0.12) 0%, transparent 60%)",
+              pointerEvents: "none",
+            },
+          }}
+        >
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "radial-gradient(ellipse at 60% 80%, rgba(196,150,90,0.08) 0%, transparent 60%)",
+            }}
+          />
+          <Box
+            sx={{
+              position: "absolute",
+              left: "12px",
+              top: 0,
+              bottom: 0,
+              width: "3px",
+              background:
+                "linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03), rgba(255,255,255,0.08))",
+            }}
+          />
+
+          <Typography
+            sx={{
+              fontSize: 52,
+              position: "relative",
+              zIndex: 1,
+              filter: "drop-shadow(0 4px 16px rgba(176,122,138,0.5))",
+            }}
+          >
+            🌟
+          </Typography>
+          <Box sx={{ position: "relative", zIndex: 1, textAlign: "center", px: "18px" }}>
+            <Typography
+              sx={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: 15,
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.88)",
+                lineHeight: 1.4,
+                mb: 1,
+              }}
+            >
+              {titleText}
+            </Typography>
+            <Box
+              component="span"
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                px: "10px",
+                py: "3px",
+                borderRadius: "999px",
+                background: "rgba(196,150,90,0.18)",
+                border: "1px solid rgba(196,150,90,0.35)",
+                fontSize: 10,
+                color: "#c4965a",
+                fontWeight: 500,
+                letterSpacing: "0.06em",
+              }}
+            >
+              ✦ {t("personalize.leftAgesLabel", { age: ageText })}
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          height: 1,
+          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+          my: "20px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      />
+
+      <Box sx={{ position: "relative", zIndex: 1, mt: "auto" }}>
+        <Typography
+          sx={{
+            fontSize: 9,
+            letterSpacing: "0.18em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.28)",
+            mb: 1,
+          }}
+        >
+          {t("personalize.leftPersonalizing")}
+        </Typography>
+        <Typography
+          sx={{
+            fontFamily: "'Cormorant Garamond', serif",
+            color: "rgba(255,255,255,0.9)",
+            fontSize: 19,
+            lineHeight: 1.3,
+            mb: "14px",
+            fontWeight: 400,
+            fontStyle: "italic",
+          }}
+        >
+          {titleText}
+        </Typography>
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "7px",
+            px: "14px",
+            py: "6px",
+            borderRadius: "999px",
+            background: "rgba(130,77,92,0.28)",
+            border: "1px solid rgba(176,122,138,0.4)",
+            fontSize: 11,
+            color: "#d4a8b4",
+            fontWeight: 500,
+          }}
+        >
+          <Box sx={{ width: 5, height: 5, borderRadius: "50%", background: "#B07A8A", flexShrink: 0 }} />
+          {topicText}
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          height: 1,
+          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+          my: "20px",
+          position: "relative",
+          zIndex: 1,
+        }}
+      />
+
+      <Box sx={{ position: "relative", zIndex: 1 }}>
+        <Typography
+          sx={{
+            fontSize: 9,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            color: "rgba(255,255,255,0.25)",
+            mb: 1,
+          }}
+        >
+          {t("personalize.leftYourChild")}
+        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <Box
+            sx={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              background: "linear-gradient(135deg, #4a2535, #2a1a40)",
+              border: "1.5px solid rgba(176,122,138,0.3)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 16,
+              flexShrink: 0,
+              transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)",
+            }}
+          >
+            {hasName ? avatarEmoji : "✨"}
+          </Box>
+          <Typography
+            sx={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: 16,
+              fontStyle: "italic",
+              color: hasName ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.38)",
+              transition: "color 0.3s",
+            }}
+          >
+            {hasName ? childName : t("personalize.leftWaitingName")}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
+
+function ProgressBar({
+  activeStep,
+  totalSteps,
+  onStepClick,
+  t,
+}: {
+  activeStep: number;
+  totalSteps: number;
+  onStepClick: (i: number) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  const labels = [
+    t("personalize.steps.name"),
+    t("personalize.steps.gender"),
+    t("personalize.steps.photo"),
+    t("personalize.steps.style"),
+  ];
+
+  const lineComplete = (segmentIndex: number) =>
+    segmentIndex < activeStep || activeStep >= FORM_STEP_COUNT;
+
+  const stepDone = (i: number) => i < activeStep || activeStep >= FORM_STEP_COUNT;
+  const stepActive = (i: number) => i === activeStep && activeStep < FORM_STEP_COUNT;
+  const clickable = (i: number) => i <= activeStep;
+
+  return (
+    <Box sx={{ px: "44px", pt: "32px", pb: 0 }}>
+      <Box sx={{ display: "flex", alignItems: "center", mb: "10px" }}>
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <React.Fragment key={i}>
+            <Box
+              onClick={() => clickable(i) && onStepClick(i)}
+              sx={{
+                width: 30,
+                height: 30,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 11,
+                fontWeight: 600,
+                flexShrink: 0,
+                cursor: clickable(i) ? "pointer" : "default",
+                userSelect: "none",
+                transition: "all 0.4s cubic-bezier(0.34,1.26,0.64,1)",
+                ...(stepActive(i) && {
+                  background: "#824D5C",
+                  color: "#fff",
+                  boxShadow: "0 0 0 5px rgba(130,77,92,0.15), 0 4px 12px rgba(130,77,92,0.3)",
+                }),
+                ...(stepDone(i) &&
+                  !stepActive(i) && {
+                    background: "#824D5C",
+                    color: "#fff",
+                    boxShadow: "0 2px 10px rgba(130,77,92,0.35)",
+                    "&:hover": { transform: "scale(1.1)" },
+                  }),
+                ...(!stepDone(i) &&
+                  !stepActive(i) && {
+                    background: "#f8f4ef",
+                    color: "#9a8a92",
+                    border: "1.5px solid #ddd4ca",
+                  }),
+              }}
+            >
+              {stepDone(i) && !stepActive(i) ? "✓" : i + 1}
+            </Box>
+
+            {i < totalSteps - 1 && (
+              <Box
+                sx={{
+                  flex: 1,
+                  height: 2,
+                  background: lineComplete(i) ? "#824D5C" : "#ddd4ca",
+                  transition: "background 0.5s ease",
+                }}
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </Box>
+
+      <Box sx={{ display: "flex" }}>
+        {labels.map((label, i) => (
+          <Typography
+            key={i}
+            sx={{
+              flex: 1,
+              textAlign: "center",
+              fontSize: 10,
+              color: stepActive(i) ? "#824D5C" : "#9a8a92",
+              fontWeight: stepActive(i) ? 600 : 400,
+              transition: "color 0.3s",
+            }}
+          >
+            {label}
+          </Typography>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+function StepHeader({ eyebrow, heading }: { eyebrow: string; heading: React.ReactNode }) {
+  return (
+    <>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: "10px" }}>
+        <Typography
+          sx={{
+            fontSize: 10,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            color: "#B07A8A",
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {eyebrow}
+        </Typography>
+        <Box sx={{ flex: 1, height: 1, background: "linear-gradient(90deg, #ddd4ca, transparent)" }} />
+      </Box>
+
+      <Typography
+        sx={{
+          fontFamily: "'Cormorant Garamond', serif",
+          fontSize: 30,
+          fontWeight: 300,
+          color: "#1c1118",
+          lineHeight: 1.2,
+          mb: 1,
+          "& em": { fontStyle: "italic", color: "#824D5C" },
+        }}
+      >
+        {heading}
+      </Typography>
+    </>
+  );
+}
+
 export default function PersonalizeStoryPage() {
-  const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useLangNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const t = useTranslation();
   const { language, direction, isRTL } = useLanguage();
-  
-  // Load steps and options dynamically based on language - memoized based on language to prevent recreation
-  const STEPS = useMemo(() => [
-    t("personalize.steps.step1"),
-    t("personalize.steps.step2"),
-    t("personalize.steps.step3"),
-    t("personalize.steps.step4"),
-    t("personalize.steps.step5"),
-  ], [t, language]); // Include language to update when language changes
-  
-  const GENDER_OPTIONS = useMemo(() => [
-    { value: "female" as const, label: t("personalize.gender.female") },
-    { value: "male" as const, label: t("personalize.gender.male") },
-  ], [t, language]); // Include language to update when language changes
+
+  const STEPS = useMemo(
+    () => [
+      t("personalize.steps.step1"),
+      t("personalize.steps.step2"),
+      t("personalize.steps.step3"),
+      t("personalize.steps.step4"),
+      t("personalize.steps.step5"),
+    ],
+    [t, language]
+  );
 
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -161,13 +579,49 @@ export default function PersonalizeStoryPage() {
   const [personalization, setPersonalization] = useState<Partial<StoryPersonalizationData>>({
     childName: "",
     gender: undefined,
-    visualStyle: "watercolor", // Default to first style
+    visualStyle: "watercolor",
   });
   const [session, setSession] = useState<PersonalizationSession | null>(null);
   const [showResumeScreen, setShowResumeScreen] = useState(false);
   const [showCompletedScreen, setShowCompletedScreen] = useState(false);
   const [showFinalError, setShowFinalError] = useState(false);
   const [childNameBlurred, setChildNameBlurred] = useState(false);
+
+  const styleDisplay = useMemo(
+    () => [
+      {
+        id: "watercolor" as const,
+        label: t("personalize.visualStyles.watercolor.label"),
+        emoji: "🎨",
+        bg: "linear-gradient(135deg, #fce4f4, #e0f0fc)",
+      },
+      {
+        id: "semi_realistic" as const,
+        label: t("personalize.visualStyles.semi_realistic.label"),
+        emoji: "🖼️",
+        bg: "linear-gradient(135deg, #e4f0e4, #f0e8e4)",
+      },
+      {
+        id: "flat_cartoon" as const,
+        label: t("personalize.visualStyles.flat_cartoon.label"),
+        emoji: "✏️",
+        bg: "linear-gradient(135deg, #fff3e0, #fce4f4)",
+      },
+      {
+        id: "paper_craft" as const,
+        label: t("personalize.visualStyles.paper_craft.label"),
+        emoji: "📄",
+        bg: "linear-gradient(135deg, #f5f0e8, #e8e0d8)",
+      },
+      {
+        id: "vintage_1950s_little_golden" as const,
+        label: t("personalize.visualStyles.vintage_1950s_little_golden.label"),
+        emoji: "📚",
+        bg: "linear-gradient(135deg, #f0e4d4, #e8d4c0)",
+      },
+    ],
+    [t, language]
+  );
 
   const childNameValue = personalization.childName ?? "";
   const childNameValidation = useMemo(() => validateChildName(childNameValue), [childNameValue]);
@@ -203,19 +657,6 @@ export default function PersonalizeStoryPage() {
     return null;
   }, [childNameValidation, childNameValue.length, childNameBlurred, t]);
 
-  // Diagnostic: Log mount/unmount and state changes
-  useEffect(() => {
-    console.log("[PersonalizeStoryPage] MOUNTED - lang:", language, "storyId:", storyId, "activeStep:", activeStep);
-    return () => {
-      console.log("[PersonalizeStoryPage] UNMOUNTED - lang:", language, "storyId:", storyId);
-    };
-  }, []); // Only on mount/unmount
-
-  useEffect(() => {
-    console.log("[PersonalizeStoryPage] State update - activeStep:", activeStep, "childName:", personalization.childName, "lang:", language);
-  }, [activeStep, personalization.childName, language]);
-
-  // Load story template - ONLY when storyId changes, NOT on every render
   useEffect(() => {
     if (!storyId) {
       navigate("/");
@@ -239,16 +680,15 @@ export default function PersonalizeStoryPage() {
           language: data.language || data.generationConfig?.language,
           ageGroup: data.ageGroup || data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
           targetAgeGroup: data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
+          topic: data.primaryTopic ?? data.topicKey ?? data.topic,
           generationConfig: data.generationConfig,
         });
 
-        // Load existing session and determine flow
         const existingSession = loadPersonalizationSession(storyId);
         setSession(existingSession);
 
         if (existingSession) {
           if (existingSession.status === "completed") {
-            // Load saved personalization data into form (non-blocking)
             setShowCompletedScreen(true);
             if (existingSession.data) {
               setPersonalization({
@@ -258,7 +698,6 @@ export default function PersonalizeStoryPage() {
               });
             }
           } else if (existingSession.status === "draft") {
-            // Show resume screen
             setShowResumeScreen(true);
           }
         }
@@ -272,9 +711,8 @@ export default function PersonalizeStoryPage() {
 
     fetchStory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storyId]); // Only depend on storyId - navigate and t are stable
+  }, [storyId]);
 
-  // Step-specific validation (only validates current step)
   const validateCurrentStep = (step: number): boolean => {
     switch (step) {
       case 0:
@@ -282,7 +720,6 @@ export default function PersonalizeStoryPage() {
       case 1:
         return !!personalization.gender;
       case 2:
-        // Photo is REQUIRED
         return !!(personalization.photoFile && personalization.photoPreviewUrl);
       case 3:
         return !!personalization.visualStyle;
@@ -291,7 +728,6 @@ export default function PersonalizeStoryPage() {
     }
   };
 
-  // Global validation (only for final submit)
   const validateAllSteps = (): boolean => {
     return !!(
       validateChildName(personalization.childName ?? "").ok &&
@@ -302,26 +738,22 @@ export default function PersonalizeStoryPage() {
     );
   };
 
-  // Infer step from data (for resume logic)
   const inferStepFromData = (data: StoryPersonalizationData): number => {
     if (!validateChildName(sanitizeChildName(data.childName || "")).ok) return 0;
     if (!data.gender) return 1;
     if (!data.photoPreviewUrl) return 2;
     if (!data.visualStyle) return 3;
-    return 4; // Review step
+    return 4;
   };
 
   const handleNext = () => {
-    // Only validate current step, not all steps
     if (!validateCurrentStep(activeStep)) {
-      // Don't show alert - just block progression
-      // The UI already shows validation feedback via disabled button
       return;
     }
 
     if (activeStep < STEPS.length - 1) {
       setActiveStep(activeStep + 1);
-      setShowFinalError(false); // Clear any previous errors
+      setShowFinalError(false);
     }
   };
 
@@ -348,8 +780,7 @@ export default function PersonalizeStoryPage() {
         photoPreviewUrl: reader.result as string,
       };
       setPersonalization(updated);
-      
-      // Auto-save as draft after photo upload
+
       if (storyId && validateChildName(updated.childName ?? "").ok && updated.gender && updated.visualStyle) {
         savePersonalizationSession(
           storyId,
@@ -369,17 +800,14 @@ export default function PersonalizeStoryPage() {
   const handleComplete = () => {
     if (!storyId) return;
 
-    // Global validation ONLY on final submit
     if (!validateAllSteps()) {
       setShowFinalError(true);
-      // Scroll to top to show error message
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
     setShowFinalError(false);
 
-    // Create complete personalization data
     const completePersonalization: StoryPersonalizationData = {
       childName: personalization.childName!,
       gender: personalization.gender!,
@@ -388,32 +816,25 @@ export default function PersonalizeStoryPage() {
       visualStyle: personalization.visualStyle!,
     };
 
-    // Save as completed session
     savePersonalizationSession(storyId, completePersonalization, "completed");
     navigate(`/stories/${storyId}/read`);
   };
 
-
-  // Resume from draft
   const handleResume = () => {
     if (!session || session.status !== "draft") return;
-    
-    // Restore personalization data (normalize stored name)
+
     setPersonalization({
       ...session.data,
       childName: sanitizeChildName(session.data.childName || ""),
     });
-    
-    // Infer step from data (where user left off)
+
     const step = inferStepFromData(session.data);
     setActiveStep(step);
-    
-    // Clear any error states
+
     setShowFinalError(false);
     setShowResumeScreen(false);
   };
 
-  // Start over from draft
   const handleStartOver = () => {
     if (!storyId) return;
     deletePersonalizationSession(storyId);
@@ -429,7 +850,6 @@ export default function PersonalizeStoryPage() {
     setShowResumeScreen(false);
   };
 
-  // Start new personalization from completed
   const handleStartNew = () => {
     if (!storyId) return;
     deletePersonalizationSession(storyId);
@@ -444,19 +864,35 @@ export default function PersonalizeStoryPage() {
     setShowCompletedScreen(false);
   };
 
-  // Use previous personalization from completed
   const handleUsePrevious = () => {
     if (!session || session.status !== "completed" || !storyId) return;
-    
-    // Mark as draft if user wants to edit
-    // Navigate directly to reader (they can edit later if needed)
+
     navigate(`/stories/${storyId}/read`);
   };
 
-  // Keep isStepValid for UI (button disabled state)
-  // This uses validateCurrentStep to ensure consistency
   const isStepValid = (step: number): boolean => {
     return validateCurrentStep(step);
+  };
+
+  const handleGenderSelect = (g: "female" | "male") => {
+    const updated = { ...personalization, gender: g };
+    setPersonalization(updated);
+    if (storyId && validateChildName(personalization.childName ?? "").ok) {
+      savePersonalizationSession(
+        storyId,
+        {
+          childName: personalization.childName!,
+          gender: g,
+          photoPreviewUrl: personalization.photoPreviewUrl || "",
+          visualStyle: personalization.visualStyle || "watercolor",
+        },
+        "draft"
+      );
+    }
+  };
+
+  const handleStyleSelect = (id: VisualStyle) => {
+    setPersonalization({ ...personalization, visualStyle: id });
   };
 
   if (loading) {
@@ -478,13 +914,12 @@ export default function PersonalizeStoryPage() {
     return null;
   }
 
-  // Resume Screen (Draft exists)
   if (showResumeScreen && session?.status === "draft") {
     return (
       <Box
         sx={{
           minHeight: "100vh",
-          backgroundColor: theme.palette.background.default,
+          backgroundColor: "#E5DFD9",
           direction: direction,
           display: "flex",
           alignItems: "center",
@@ -492,16 +927,16 @@ export default function PersonalizeStoryPage() {
           px: 3,
         }}
       >
-        <Card
+        <Box
           sx={{
             maxWidth: 500,
             width: "100%",
             p: 4,
             textAlign: "center",
             borderRadius: 5,
-            boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98))",
+            boxShadow: "0 30px 80px rgba(28,17,24,0.12)",
+            background: "linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.98))",
+            border: "1px solid rgba(196,166,146,0.3)",
           }}
         >
           <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
@@ -540,27 +975,41 @@ export default function PersonalizeStoryPage() {
               {t("personalize.restart")}
             </Button>
           </Box>
-        </Card>
+        </Box>
       </Box>
     );
   }
+
+  const eyebrowForStep = [t("personalize.step1Of4"), t("personalize.step2Of4"), t("personalize.step3Of4"), t("personalize.step4Of4")];
+
+  const isCelebration = activeStep === 4;
+  const isFormLastStep = activeStep === 3;
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        backgroundColor: theme.palette.background.default,
-        direction: direction,
         display: "flex",
+        alignItems: "center",
         justifyContent: "center",
-        px: { xs: 2, md: 4 },
-        py: { xs: 4, md: 6 },
+        px: { xs: 2, md: 3 },
+        py: { xs: 3, md: 4 },
+        background: "radial-gradient(ellipse at 30% 20%, #ede0d4 0%, #e8ddd5 40%, #ddd4ca 100%)",
+        position: "relative",
+        overflow: "hidden",
+        direction: direction,
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c4b4a4' fill-opacity='0.15'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E")`,
+          pointerEvents: "none",
+        },
       }}
     >
-      <Box sx={{ width: "100%", maxWidth: 900 }}>
-        {/* Inline banner when a completed personalization exists */}
+      <Box sx={{ width: "100%", maxWidth: 1024, position: "relative", zIndex: 1 }}>
         {showCompletedScreen && session?.status === "completed" && (
-          <Card
+          <Box
             sx={{
               mb: 3,
               p: { xs: 2, md: 3 },
@@ -571,7 +1020,14 @@ export default function PersonalizeStoryPage() {
               boxShadow: "0 4px 20px rgba(0,0,0,0.04)",
             }}
           >
-            <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "center" }, gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", sm: "row" },
+                alignItems: { sm: "center" },
+                gap: 2,
+              }}
+            >
               <Box sx={{ flex: 1 }}>
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, color: "#824D5C", mb: 0.5 }}>
                   {t("personalize.alreadyCompleted")}
@@ -619,540 +1075,909 @@ export default function PersonalizeStoryPage() {
                 </Button>
               </Box>
             </Box>
-          </Card>
+          </Box>
         )}
 
-        <Card
+        <Box
           sx={{
             width: "100%",
-            maxWidth: 900,
-            borderRadius: 6,
-            display: "flex",
-            flexDirection: "column",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.08)",
-            background:
-              "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,1))",
+            maxWidth: 960,
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "320px 1fr" },
+            borderRadius: "24px",
+            overflow: "hidden",
+            boxShadow: "0 32px 80px rgba(28,17,24,0.22), 0 0 0 1px rgba(196,166,146,0.3)",
+            minHeight: 620,
+            position: "relative",
+            zIndex: 1,
+            mx: "auto",
           }}
         >
-          <CardContent
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              p: { xs: 3, md: 5 },
-            }}
-          >
-            {/* Header Section */}
-            <Box sx={{ textAlign: "center", mb: 4 }}>
-              <Typography
-                sx={{
-                  fontSize: "0.9rem",
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color: "text.secondary",
-                  mb: 1,
-                }}
-              >
-                {t("personalize.stepOf", { current: activeStep + 1, total: STEPS.length })}
-              </Typography>
-              <Typography
-                variant="h4"
-                sx={{
-                  fontWeight: 700,
-                  mb: 1,
-                }}
-              >
-                {STEPS[activeStep]}
-              </Typography>
-              <Box
-                sx={{
-                  height: 6,
-                  width: "120px",
-                  mx: "auto",
-                  borderRadius: 99,
-                  background: "linear-gradient(90deg, #824D5C, #B07A8A)",
-                  opacity: 0.8,
-                }}
-              />
-            </Box>
+          <LeftPanel story={story} personalization={personalization} language={language} t={t} />
 
-            {/* Content Section */}
+          <Box sx={{ background: "#fff", display: "flex", flexDirection: "column" }}>
+            {!isCelebration && (
+              <ProgressBar
+                activeStep={activeStep}
+                totalSteps={FORM_STEP_COUNT}
+                onStepClick={setActiveStep}
+                t={t}
+              />
+            )}
+
             <Box
               sx={{
                 flex: 1,
+                px: "44px",
+                py: "28px",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
               }}
             >
-            {/* Step 1: Child's Name */}
-            {activeStep === 0 && (
-              <Box
-                sx={{
-                  maxWidth: 420,
-                  mx: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  gap: 3,
-                }}
-              >
-                <Typography sx={{ opacity: 0.7, textAlign: "center" }}>
-                  {t("personalize.childName")}
-                </Typography>
-                <TextField
-                  key="child-name-input"
-                  fullWidth
-                  variant="filled"
-                  value={personalization.childName || ""}
-                  onChange={(e) => {
-                    const sanitized = sanitizeChildName(e.target.value);
-                    setPersonalization((prev) => {
-                      const updated = { ...prev, childName: sanitized };
-                      if (storyId && validateChildName(sanitized).ok && prev.gender) {
-                        savePersonalizationSession(
-                          storyId,
-                          {
-                            childName: sanitized,
-                            gender: prev.gender,
-                            photoPreviewUrl: prev.photoPreviewUrl || "",
-                            visualStyle: prev.visualStyle || "watercolor",
-                          },
-                          "draft"
-                        );
-                      }
-                      return updated;
-                    });
-                  }}
-                  onBlur={() => setChildNameBlurred(true)}
-                  error={Boolean(childNameFieldHelperText)}
-                  helperText={
-                    childNameFieldHelperText || showChildNameScriptWarning ? (
-                      <>
-                        {childNameFieldHelperText ? (
-                          <Typography
-                            component="span"
-                            variant="caption"
-                            sx={{ color: "error.main", display: "block", textAlign: isRTL ? "right" : "left" }}
-                          >
-                            {childNameFieldHelperText}
-                          </Typography>
-                        ) : null}
-                        {showChildNameScriptWarning ? (
-                          <Typography
-                            component="span"
-                            variant="caption"
-                            sx={{
-                              color: "warning.main",
-                              display: "block",
-                              mt: childNameFieldHelperText ? 0.75 : 0,
-                              textAlign: isRTL ? "right" : "left",
-                            }}
-                          >
-                            {t("personalize.nameScriptMismatchWarning")}
-                          </Typography>
-                        ) : null}
-                      </>
-                    ) : undefined
-                  }
-                  FormHelperTextProps={{
-                    component: "div",
-                    sx: { textAlign: isRTL ? "right" : "left" },
-                  }}
-                  placeholder={t("personalize.enterName")}
-                  sx={{ mb: 2 }}
-                  inputProps={{ maxLength: 30 }}
-                  InputProps={{
-                    disableUnderline: true,
-                    sx: {
-                      borderRadius: 3,
-                      backgroundColor: "#F4F1EE",
-                      fontSize: "1.1rem",
-                      px: 2,
-                      direction: direction,
-                      textAlign: isRTL ? "right" : "left",
-                    },
-                  }}
-                />
-              </Box>
-            )}
-
-            {/* Step 2: Gender */}
-            {activeStep === 1 && (
-              <Box
-                sx={{
-                  maxWidth: 420,
-                  mx: "auto",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  gap: 3,
-                }}
-              >
-                <Typography sx={{ opacity: 0.7, textAlign: "center" }}>
-                  {t("personalize.sensitiveLanguage")}
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  {GENDER_OPTIONS.map((option) => (
-                    <Card
-                      key={option.value}
-                      onClick={() => {
-                        const updated = { ...personalization, gender: option.value };
-                        setPersonalization(updated);
-                        // Auto-save draft
-                        if (storyId && validateChildName(personalization.childName ?? "").ok) {
-                          savePersonalizationSession(
-                            storyId,
-                            {
-                              childName: personalization.childName!,
-                              gender: option.value,
-                              photoPreviewUrl: personalization.photoPreviewUrl || "",
-                              visualStyle: personalization.visualStyle || "watercolor",
-                            },
-                            "draft"
-                          );
-                        }
-                      }}
-                      sx={{
-                        cursor: "pointer",
-                        p: 2.5,
-                        borderRadius: 4,
-                        backgroundColor:
-                          personalization.gender === option.value
-                            ? "rgba(130,77,92,0.08)"
-                            : "#FAFAFA",
-                        border:
-                          personalization.gender === option.value
-                            ? `2px solid #824D5C`
-                            : "2px solid transparent",
-                        transition: "all 0.2s ease",
-                        "&:hover": {
-                          border: `2px solid #824D5C`,
-                          transform: "translateY(-2px)",
-                          backgroundColor:
-                            personalization.gender === option.value
-                              ? "rgba(130,77,92,0.12)"
-                              : "#F5F5F5",
-                        },
-                      }}
-                    >
-                      <CardContent sx={{ display: "flex", alignItems: "center", gap: 2, p: 0 }}>
-                        
-                        <Typography variant="h6" sx={{ fontWeight: 600 }}>{option.label}</Typography>
-                        {personalization.gender === option.value && (
-                          <CheckCircleIcon
-                            sx={{ [isRTL ? "mr" : "ml"]: "auto", color: "#824D5C", fontSize: 28 }}
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </Box>
-              </Box>
-            )}
-
-            {/* Step 3: Photo (REQUIRED) */}
-            {activeStep === 2 && (
-              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <Typography sx={{ opacity: 0.7, textAlign: "center", mb: 3 }}>
-                  {t("personalize.photoUsage")}
-                </Typography>
-
-                {personalization.photoPreviewUrl ? (
-                  <Box sx={{ textAlign: "center", mb: 3 }}>
-                    <Box
-                      component="img"
-                      src={personalization.photoPreviewUrl}
-                      alt={t("personalize.childPhoto")}
-                      sx={{
-                        maxWidth: "100%",
-                        maxHeight: 300,
-                        borderRadius: 2,
-                        mb: 2,
-                      }}
-                    />
-                    <Button
-                      variant="outlined"
-                      onClick={() => {
-                        setPersonalization({
-                          ...personalization,
-                          photoFile: undefined,
-                          photoPreviewUrl: undefined,
-                        });
-                        if (fileInputRef.current) {
-                          fileInputRef.current.value = "";
-                        }
-                      }}
-                    >
-                      {t("personalize.replacePhoto")}
-                    </Button>
-                  </Box>
-                ) : (
-                  <Box
-                    onClick={() => fileInputRef.current?.click()}
-                    sx={{
-                      border: "2px dashed",
-                      borderColor: theme.palette.divider,
-                      borderRadius: 4,
-                      p: 4,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      transition: "all 0.2s ease",
-                      backgroundColor: "#FAFAFA",
-                      "&:hover": {
-                        borderColor: "#824D5C",
-                        backgroundColor: "rgba(130,77,92,0.04)",
-                      },
-                    }}
-                  >
-                    <PhotoCameraIcon sx={{ fontSize: 48, color: "#824D5C", mb: 2, opacity: 0.7 }} />
-                    <Typography sx={{ fontWeight: 600, mb: 1 }}>
-                      {t("personalize.selectPhoto")}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("personalize.maxSize")}
-                    </Typography>
-                  </Box>
-                )}
-
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  style={{ display: "none" }}
-                />
-
-                {!personalization.photoPreviewUrl && (
-                  <Typography variant="caption" color="error" sx={{ display: "block", mt: 2, textAlign: "center" }}>
-                    {t("personalize.photoRequired")}
-                  </Typography>
-                )}
-              </Box>
-            )}
-
-            {/* Step 4: Visual Style */}
-            {activeStep === 3 && (
-              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <Typography sx={{ opacity: 0.7, textAlign: "center", mb: 3 }}>
-                  {t("personalize.affectsIllustrations")}
-                </Typography>
+              {isCelebration ? (
                 <Box
                   sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, minmax(0, 1fr))" },
-                    gap: 2.5,
-                    maxHeight: 420,
-                    overflowY: "auto",
-                    pr: 1,
+                    textAlign: "center",
+                    py: "24px",
+                    animation: "celebIn 0.5s cubic-bezier(0.34,1.26,0.64,1) forwards",
                   }}
                 >
-                  {VISUAL_STYLES.map((style) => {
-                    const isSelected = personalization.visualStyle === style.id;
-                    return (
-                      <Card
-                        key={style.id}
-                        onClick={() =>
-                          setPersonalization({ ...personalization, visualStyle: style.id })
-                        }
+                  {showFinalError && (
+                    <Box
+                      sx={{
+                        p: 2,
+                        mb: 3,
+                        backgroundColor: "error.light",
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: "error.main",
+                      }}
+                    >
+                      <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
+                        {t("personalize.fillAllFields")}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography
+                    sx={{
+                      fontSize: 72,
+                      display: "block",
+                      mb: "18px",
+                      animation: "checkPop 0.6s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                    }}
+                  >
+                    ✨
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontFamily: "'Cormorant Garamond', serif",
+                      fontSize: 34,
+                      fontWeight: 300,
+                      color: "#824D5C",
+                      mb: 1,
+                      fontStyle: "italic",
+                    }}
+                  >
+                    {t("personalize.celebrateName", { name: personalization.childName ?? "" })}
+                  </Typography>
+
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      color: "#9a8a92",
+                      lineHeight: 1.7,
+                      maxWidth: 300,
+                      mx: "auto",
+                      mb: 3,
+                    }}
+                  >
+                    {t("personalize.celebrateSub", { name: personalization.childName ?? "" })}
+                  </Typography>
+
+                  <Box sx={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+                    {[
+                      personalization.childName ?? "",
+                      personalization.gender === "female"
+                        ? `🌸 ${t("personalize.girl")}`
+                        : `🌊 ${t("personalize.boy")}`,
+                      t("personalize.celebrateTagPhoto"),
+                      styleDisplay.find((s) => s.id === personalization.visualStyle)?.label ?? "",
+                    ].map((tag, i) => (
+                      <Box
+                        key={i}
                         sx={{
-                          cursor: "pointer",
+                          px: "16px",
+                          py: "8px",
+                          background: "#fdf0f3",
+                          borderRadius: "999px",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: "#824D5C",
+                          border: "1px solid rgba(130,77,92,0.15)",
+                          animation: `tagIn 0.4s cubic-bezier(0.34,1.26,0.64,1) ${0.1 + i * 0.1}s both`,
+                        }}
+                      >
+                        {tag}
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              ) : (
+                <>
+                  {activeStep === 0 && (
+                    <Box
+                      key={activeStep}
+                      sx={{ animation: "stepEnter 0.38s cubic-bezier(0.4,0,0.2,1) forwards" }}
+                    >
+                      <StepHeader
+                        eyebrow={eyebrowForStep[0]!}
+                        heading={
+                          <>
+                            {t("personalize.nameHeadingLine1")}
+                            <br />
+                            <em>{t("personalize.nameHeadingLine2")}</em>
+                          </>
+                        }
+                      />
+
+                      <Typography
+                        sx={{
+                          fontSize: 13,
+                          color: "#9a8a92",
+                          lineHeight: 1.7,
+                          mb: "28px",
+                          maxWidth: 360,
+                        }}
+                      >
+                        {t("personalize.nameSub")}
+                      </Typography>
+
+                      <TextField
+                        key="child-name-input"
+                        fullWidth
+                        variant="standard"
+                        value={personalization.childName || ""}
+                        onChange={(e) => {
+                          const sanitized = sanitizeChildName(e.target.value);
+                          setPersonalization((prev) => {
+                            const updated = { ...prev, childName: sanitized };
+                            if (storyId && validateChildName(sanitized).ok && prev.gender) {
+                              savePersonalizationSession(
+                                storyId,
+                                {
+                                  childName: sanitized,
+                                  gender: prev.gender,
+                                  photoPreviewUrl: prev.photoPreviewUrl || "",
+                                  visualStyle: prev.visualStyle || "watercolor",
+                                },
+                                "draft"
+                              );
+                            }
+                            return updated;
+                          });
+                        }}
+                        onBlur={() => setChildNameBlurred(true)}
+                        error={Boolean(childNameFieldHelperText)}
+                        helperText={
+                          childNameFieldHelperText || showChildNameScriptWarning ? (
+                            <>
+                              {childNameFieldHelperText ? (
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  sx={{
+                                    color: "error.main",
+                                    display: "block",
+                                    textAlign: isRTL ? "right" : "left",
+                                  }}
+                                >
+                                  {childNameFieldHelperText}
+                                </Typography>
+                              ) : null}
+                              {showChildNameScriptWarning ? (
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  sx={{
+                                    color: "warning.main",
+                                    display: "block",
+                                    mt: childNameFieldHelperText ? 0.75 : 0,
+                                    textAlign: isRTL ? "right" : "left",
+                                  }}
+                                >
+                                  {t("personalize.nameScriptMismatchWarning")}
+                                </Typography>
+                              ) : null}
+                            </>
+                          ) : undefined
+                        }
+                        FormHelperTextProps={{
+                          component: "div",
+                          sx: { textAlign: isRTL ? "right" : "left" },
+                        }}
+                        placeholder={t("personalize.namePlaceholder")}
+                        inputProps={{ maxLength: 30, dir: isRTL ? "rtl" : "ltr" }}
+                        sx={{
+                          mb: "6px",
+                          "& .MuiInput-root": {
+                            fontFamily: "'Cormorant Garamond', serif",
+                            fontSize: 34,
+                            fontWeight: 300,
+                            color: "#1c1118",
+                            "&::before": { borderBottom: "2px solid #ddd4ca" },
+                            "&::after": { borderBottom: "2px solid #824D5C" },
+                            "&:hover:not(.Mui-disabled):before": { borderBottom: "2px solid #B07A8A" },
+                          },
+                          "& .MuiInput-input": {
+                            pb: "10px",
+                            "&::placeholder": { color: "#ddd4ca", opacity: 1 },
+                          },
+                        }}
+                      />
+
+                      <Typography sx={{ fontSize: 11, color: "#9a8a92", mb: "20px" }}>
+                        {t("personalize.nameHint")}
+                      </Typography>
+
+                      <Box
+                        sx={{
+                          p: "16px 20px",
+                          background: "linear-gradient(135deg, #fdf8f5, #faf4f0)",
+                          borderRadius: "12px",
+                          borderLeft: "3px solid #d4a8b4",
+                          fontFamily: "'Cormorant Garamond', serif",
+                          fontSize: 17,
+                          fontStyle: "italic",
+                          color: "#5a4a52",
+                          lineHeight: 1.7,
                           position: "relative",
-                          border: isSelected
-                            ? `3px solid #824D5C`
-                            : "1px solid",
-                          borderColor: isSelected
-                            ? "#824D5C"
-                            : theme.palette.divider,
-                          transition: "all 0.2s ease",
                           overflow: "hidden",
-                          transform: isSelected ? "scale(1.02)" : "scale(1)",
-                          boxShadow: isSelected
-                            ? "0 8px 24px rgba(130, 77, 92, 0.25)"
-                            : "0 2px 8px rgba(0,0,0,0.08)",
-                          "&:hover": {
-                            transform: "translateY(-4px) scale(1.02)",
-                            boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
-                            borderColor: isSelected ? "#824D5C" : theme.palette.primary.light,
+                          transition: "all 0.4s ease",
+                          "&::before": {
+                            content: '"\\201C"',
+                            position: "absolute",
+                            top: "-6px",
+                            left: "10px",
+                            fontSize: 60,
+                            color: "#d4a8b4",
+                            opacity: 0.18,
+                            fontFamily: "'Cormorant Garamond', serif",
+                            lineHeight: 1,
                           },
                         }}
                       >
-                        <CardMedia
-                          component="img"
-                          image={style.image}
-                          alt={t(`personalize.visualStyles.${style.id}.label`)}
-                          sx={{
-                            height: 140,
-                            objectFit: "cover",
-                            backgroundColor: theme.palette.grey[200],
-                          }}
-                        />
-                        <CardContent sx={{ position: "relative", pb: 2 }}>
-                          <Typography variant="h6" sx={{ mb: 0.5, fontWeight: 600 }}>
-                            {t(`personalize.visualStyles.${style.id}.label`)}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.85rem" }}>
-                            {t(`personalize.visualStyles.${style.id}.description`)}
-                          </Typography>
-                          {isSelected && (
-                            <CheckCircleIcon
+                        {(personalization.childName?.trim().length ?? 0) >= 2 ? (
+                          <>
+                            <Box
+                              component="span"
                               sx={{
-                                position: "absolute",
-                                top: 8,
-                                [isRTL ? "left" : "right"]: 8,
+                                fontStyle: "normal",
+                                fontWeight: 600,
                                 color: "#824D5C",
-                                fontSize: 28,
-                                backgroundColor: "rgba(255, 255, 255, 0.9)",
+                                fontFamily: "'Cormorant Garamond', serif",
+                                position: "relative",
+                                "&::after": {
+                                  content: '""',
+                                  position: "absolute",
+                                  bottom: "-1px",
+                                  left: 0,
+                                  right: 0,
+                                  height: "2px",
+                                  background: "#d4a8b4",
+                                  borderRadius: "1px",
+                                },
+                              }}
+                            >
+                              {personalization.childName}
+                            </Box>
+                            {t("personalize.previewSentenceSuffix")}
+                          </>
+                        ) : (
+                          t("personalize.previewSentenceEmpty")
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {activeStep === 1 && (
+                    <Box
+                      key={activeStep}
+                      sx={{ animation: "stepEnter 0.38s cubic-bezier(0.4,0,0.2,1) forwards" }}
+                    >
+                      <StepHeader
+                        eyebrow={eyebrowForStep[1]!}
+                        heading={
+                          <>
+                            {t("personalize.genderHeadingLine1")}
+                            <br />
+                            <em>{t("personalize.genderHeadingLine2")}</em>
+                          </>
+                        }
+                      />
+                      <Typography
+                        sx={{
+                          fontSize: 13,
+                          color: "#9a8a92",
+                          lineHeight: 1.7,
+                          mb: "28px",
+                          maxWidth: 360,
+                        }}
+                      >
+                        {t("personalize.genderSub")}
+                      </Typography>
+
+                      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                        {(["female", "male"] as const).map((g) => {
+                          const isGirl = g === "female";
+                          const selected = personalization.gender === g;
+                          return (
+                            <Box
+                              key={g}
+                              onClick={() => handleGenderSelect(g)}
+                              sx={{
+                                border: `2px solid ${selected ? (isGirl ? "#c47a8a" : "#7a9cc4") : "#ddd4ca"}`,
+                                borderRadius: "20px",
+                                p: "28px 20px 22px",
+                                textAlign: "center",
+                                cursor: "pointer",
+                                position: "relative",
+                                overflow: "hidden",
+                                transition: "all 0.35s cubic-bezier(0.34,1.26,0.64,1)",
+                                background: selected
+                                  ? isGirl
+                                    ? "linear-gradient(145deg, #fdf0f5, #fce5ef, #f9dde8)"
+                                    : "linear-gradient(145deg, #eef3fd, #e4edfb, #dce6f8)"
+                                  : "#fff",
+                                transform: selected ? "translateY(-5px)" : "translateY(0)",
+                                boxShadow: selected
+                                  ? isGirl
+                                    ? "0 12px 40px rgba(196,122,138,0.2)"
+                                    : "0 12px 40px rgba(122,156,196,0.2)"
+                                  : "none",
+                                "&:hover": {
+                                  transform: "translateY(-5px)",
+                                  boxShadow: "0 12px 40px rgba(28,17,24,0.14)",
+                                  background: isGirl
+                                    ? "linear-gradient(145deg, #fdf0f5, #fce5ef)"
+                                    : "linear-gradient(145deg, #eef3fd, #e4edfb)",
+                                },
+                              }}
+                            >
+                              {selected && (
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: "12px",
+                                    right: "12px",
+                                    width: 22,
+                                    height: 22,
+                                    borderRadius: "50%",
+                                    background: "#824D5C",
+                                    color: "#fff",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 11,
+                                    zIndex: 2,
+                                    animation: "checkPop 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards",
+                                  }}
+                                >
+                                  ✓
+                                </Box>
+                              )}
+
+                              <Typography
+                                sx={{
+                                  fontSize: 48,
+                                  display: "block",
+                                  mb: "12px",
+                                  position: "relative",
+                                  zIndex: 1,
+                                  transition: "transform 0.35s cubic-bezier(0.34,1.26,0.64,1)",
+                                  transform: selected ? "scale(1.12)" : "scale(1)",
+                                }}
+                              >
+                                {isGirl ? "🌸" : "🌊"}
+                              </Typography>
+
+                              <Typography
+                                sx={{
+                                  fontSize: 16,
+                                  fontWeight: 600,
+                                  color: "#1c1118",
+                                  position: "relative",
+                                  zIndex: 1,
+                                }}
+                              >
+                                {isGirl ? t("personalize.girl") : t("personalize.boy")}
+                              </Typography>
+                              <Typography
+                                sx={{
+                                  fontSize: 11,
+                                  color: "#9a8a92",
+                                  mt: "4px",
+                                  position: "relative",
+                                  zIndex: 1,
+                                }}
+                              >
+                                {isGirl ? t("personalize.girlPronouns") : t("personalize.boyPronouns")}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {activeStep === 2 && (
+                    <Box
+                      key={activeStep}
+                      sx={{ animation: "stepEnter 0.38s cubic-bezier(0.4,0,0.2,1) forwards" }}
+                    >
+                      <StepHeader
+                        eyebrow={eyebrowForStep[2]!}
+                        heading={
+                          <>
+                            {t("personalize.photoHeadingLine1")}
+                            <br />
+                            <em>
+                              {personalization.childName || t("personalize.photoHeadingFallback")}
+                            </em>
+                          </>
+                        }
+                      />
+                      <Typography
+                        sx={{
+                          fontSize: 13,
+                          color: "#9a8a92",
+                          lineHeight: 1.7,
+                          mb: "28px",
+                          maxWidth: 360,
+                        }}
+                      >
+                        {t("personalize.photoSub", {
+                          name:
+                            personalization.childName?.trim() || t("personalize.photoSubFallback"),
+                        })}
+                      </Typography>
+
+                      <Box
+                        onClick={() => fileInputRef.current?.click()}
+                        sx={{
+                          border: `2px ${personalization.photoPreviewUrl ? "solid #B07A8A" : "dashed #ddd4ca"}`,
+                          borderRadius: "24px",
+                          p: personalization.photoPreviewUrl ? "24px" : "36px 28px",
+                          textAlign: "center",
+                          cursor: "pointer",
+                          transition: "all 0.35s ease",
+                          background: personalization.photoPreviewUrl ? "#fff" : "#f8f4ef",
+                          position: "relative",
+                          overflow: "hidden",
+                          "&:hover": {
+                            borderColor: "#B07A8A",
+                            background: "#fdf0f3",
+                            ...(personalization.photoPreviewUrl && {
+                              "&::after": {
+                                opacity: 1,
+                              },
+                            }),
+                          },
+                          ...(personalization.photoPreviewUrl
+                            ? {
+                                "&::after": {
+                                  content: `"${t("personalize.replacePhoto")}"`,
+                                  position: "absolute",
+                                  inset: 0,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: "rgba(130,77,92,0.85)",
+                                  color: "#fff",
+                                  fontSize: 13,
+                                  fontWeight: 600,
+                                  borderRadius: "22px",
+                                  opacity: 0,
+                                  transition: "opacity 0.25s",
+                                },
+                              }
+                            : {}),
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            width: 110,
+                            height: 110,
+                            borderRadius: "50%",
+                            background: personalization.photoPreviewUrl
+                              ? "transparent"
+                              : "linear-gradient(135deg, #e8d5dc, #d4c0c8)",
+                            mx: "auto",
+                            mb: "16px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: personalization.photoPreviewUrl ? "unset" : 44,
+                            border: "5px solid #fff",
+                            boxShadow: personalization.photoPreviewUrl
+                              ? "0 14px 40px rgba(130,77,92,0.28)"
+                              : "0 8px 28px rgba(130,77,92,0.2)",
+                            position: "relative",
+                            zIndex: 1,
+                            transition:
+                              "transform 0.4s cubic-bezier(0.34,1.26,0.64,1), box-shadow 0.4s",
+                            transform: personalization.photoPreviewUrl ? "scale(1.06)" : "scale(1)",
+                            overflow: "hidden",
+                          }}
+                        >
+                          {personalization.photoPreviewUrl ? (
+                            <Box
+                              component="img"
+                              src={personalization.photoPreviewUrl}
+                              alt={t("personalize.childPhoto")}
+                              sx={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
                                 borderRadius: "50%",
-                                p: 0.5,
                               }}
                             />
+                          ) : (
+                            "📷"
                           )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </Box>
-              </Box>
-            )}
+                        </Box>
 
-            {/* Step 5: Review */}
-            {activeStep === 4 && (
-              <Box sx={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                {showFinalError && (
-                  <Box
-                    sx={{
-                      p: 2,
-                      mb: 3,
-                      backgroundColor: theme.palette.error.light,
-                      borderRadius: 2,
-                      border: `1px solid ${theme.palette.error.main}`,
-                    }}
-                  >
-                    <Typography variant="body2" color="error" sx={{ fontWeight: 500 }}>
-                      {t("personalize.fillAllFields")}
-                    </Typography>
-                  </Box>
-                )}
-                <Card variant="outlined" sx={{ p: 3, mb: 3 }}>
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("personalize.requiredFields.childName")}
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {personalization.childName || ""}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("personalize.requiredFields.gender")}
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {GENDER_OPTIONS.find((g) => g.value === personalization.gender)?.label || ""}
-                      </Typography>
-                    </Box>
-                    {story && (story.ageGroup || story.targetAgeGroup) && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary">
-                          {t("personalize.requiredFields.ageRange")}
-                        </Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                          {story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup}
-                        </Typography>
+                        {personalization.photoPreviewUrl ? (
+                          <>
+                            <Typography
+                              sx={{
+                                fontSize: 15,
+                                fontWeight: 600,
+                                color: "#824D5C",
+                                mb: "4px",
+                                position: "relative",
+                                zIndex: 1,
+                              }}
+                            >
+                              {t("personalize.photoAdded")}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                fontSize: 12,
+                                color: "#9a8a92",
+                                position: "relative",
+                                zIndex: 1,
+                              }}
+                            >
+                              {t("personalize.tapToReplace")}
+                            </Typography>
+                          </>
+                        ) : (
+                          <>
+                            <Typography
+                              sx={{
+                                fontSize: 15,
+                                fontWeight: 600,
+                                color: "#1c1118",
+                                mb: "6px",
+                                position: "relative",
+                                zIndex: 1,
+                              }}
+                            >
+                              {t("personalize.uploadPhoto")}
+                            </Typography>
+                            <Typography
+                              sx={{
+                                fontSize: 12,
+                                color: "#9a8a92",
+                                lineHeight: 1.6,
+                                position: "relative",
+                                zIndex: 1,
+                                whiteSpace: "pre-line",
+                              }}
+                            >
+                              {t("personalize.uploadHint")}
+                            </Typography>
+                          </>
+                        )}
                       </Box>
-                    )}
-                    {personalization.photoPreviewUrl && (
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-                          {t("personalize.requiredFields.childPhoto")}
-                        </Typography>
-                        <Box
-                          component="img"
-                          src={personalization.photoPreviewUrl}
-                          alt={t("personalize.childPhoto")}
-                          sx={{
-                            maxWidth: 150,
-                            maxHeight: 150,
-                            borderRadius: 2,
-                          }}
-                        />
+
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "20px",
+                          mt: "16px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        {[t("personalize.trust1"), t("personalize.trust2"), t("personalize.trust3")].map(
+                          (text) => (
+                            <Box key={text} sx={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <Box
+                                sx={{
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: "50%",
+                                  background: "#4caf50",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <Typography sx={{ fontSize: 11, color: "#9a8a92" }}>{text}</Typography>
+                            </Box>
+                          )
+                        )}
                       </Box>
-                    )}
-                    <Box>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("personalize.requiredFields.visualStyle")}
-                      </Typography>
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        {personalization.visualStyle ? t(`personalize.visualStyles.${personalization.visualStyle}.label`) : ""}
-                      </Typography>
+
+                      {!personalization.photoPreviewUrl && (
+                        <Typography
+                          variant="caption"
+                          color="error"
+                          sx={{ display: "block", mt: 2, textAlign: "center" }}
+                        >
+                          {t("personalize.photoRequired")}
+                        </Typography>
+                      )}
+
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        style={{ display: "none" }}
+                      />
                     </Box>
-                  </Box>
-                </Card>
-              </Box>
-            )}
+                  )}
+
+                  {activeStep === 3 && (
+                    <Box
+                      key={activeStep}
+                      sx={{ animation: "stepEnter 0.38s cubic-bezier(0.4,0,0.2,1) forwards" }}
+                    >
+                      <StepHeader
+                        eyebrow={eyebrowForStep[3]!}
+                        heading={
+                          <>
+                            {t("personalize.styleHeadingLine1")}
+                            <br />
+                            <em>{t("personalize.styleHeadingLine2")}</em>
+                          </>
+                        }
+                      />
+                      <Typography
+                        sx={{
+                          fontSize: 13,
+                          color: "#9a8a92",
+                          lineHeight: 1.7,
+                          mb: "28px",
+                          maxWidth: 360,
+                        }}
+                      >
+                        {t("personalize.styleSub", {
+                          name:
+                            personalization.childName?.trim() || t("personalize.styleSubFallback"),
+                        })}
+                      </Typography>
+
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(3, 1fr)" },
+                          gap: "12px",
+                        }}
+                      >
+                        {styleDisplay.map((style) => {
+                          const thumbSrc = VISUAL_STYLES.find((v) => v.id === style.id)?.image;
+                          const selected = personalization.visualStyle === style.id;
+
+                          return (
+                            <Box
+                              key={style.id}
+                              onClick={() => handleStyleSelect(style.id)}
+                              sx={{
+                                borderRadius: "14px",
+                                overflow: "hidden",
+                                border: `2px solid ${selected ? "#824D5C" : "#ddd4ca"}`,
+                                cursor: "pointer",
+                                transition: "all 0.3s cubic-bezier(0.34,1.26,0.64,1)",
+                                position: "relative",
+                                background: "#fff",
+                                boxShadow: selected ? "0 0 0 4px rgba(130,77,92,0.12)" : "none",
+                                transform: selected ? "translateY(-5px) scale(1.02)" : "translateY(0)",
+                                "&:hover": {
+                                  transform: "translateY(-5px) scale(1.02)",
+                                  boxShadow: "0 12px 40px rgba(28,17,24,0.14)",
+                                },
+                              }}
+                            >
+                              {selected && (
+                                <Box
+                                  sx={{
+                                    position: "absolute",
+                                    top: 7,
+                                    right: 7,
+                                    width: 18,
+                                    height: 18,
+                                    borderRadius: "50%",
+                                    background: "#824D5C",
+                                    color: "#fff",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 10,
+                                    zIndex: 1,
+                                  }}
+                                >
+                                  ✓
+                                </Box>
+                              )}
+
+                              <Box
+                                sx={{
+                                  height: 72,
+                                  background: thumbSrc ? "none" : style.bg,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  overflow: "hidden",
+                                }}
+                              >
+                                {thumbSrc ? (
+                                  <Box
+                                    component="img"
+                                    src={thumbSrc}
+                                    alt={style.label}
+                                    sx={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                  />
+                                ) : (
+                                  <Typography sx={{ fontSize: 30 }}>{style.emoji}</Typography>
+                                )}
+                              </Box>
+
+                              <Typography
+                                sx={{
+                                  p: "8px 10px 10px",
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  color: "#1c1118",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {style.label}
+                              </Typography>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  )}
+                </>
+              )}
             </Box>
 
-            {/* Navigation Buttons Footer */}
             <Box
               dir={direction}
               sx={{
+                px: "44px",
+                py: "20px",
+                borderTop: "1px solid #f8f4ef",
                 display: "flex",
+                alignItems: "center",
                 justifyContent: "space-between",
-                gap: 2,
-                mt: 4,
-                pt: 3,
-                borderTop: "1px solid rgba(0,0,0,0.05)",
+                gap: "14px",
               }}
             >
-          <Button
-            onClick={handleBack}
-            disabled={activeStep === 0}
-            startIcon={<ArrowForwardIcon sx={{ transform: isRTL ? "none" : "rotate(180deg)" }} />}
-            variant="outlined"
-            aria-label={t("personalize.back")}
-            sx={{
-              borderColor: "#824D5C",
-              color: "#824D5C",
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              "&:hover": {
-                borderColor: "#6f404d",
-                backgroundColor: "rgba(130,77,92,0.08)",
-              },
-            }}
-          >
-            {t("personalize.back")}
-          </Button>
-          {activeStep < STEPS.length - 1 ? (
-            <Button
-              onClick={handleNext}
-              disabled={!isStepValid(activeStep)}
-              variant="contained"
-              sx={{
-                backgroundColor: "#824D5C",
-                "&:hover": { backgroundColor: "#6f404d" },
-              }}
-            >
-              {t("personalize.continueJourney")}
-            </Button>
-          ) : (
-            <Button
-              onClick={handleComplete}
-              variant="contained"
-              sx={{
-                backgroundColor: "#824D5C",
-                "&:hover": { backgroundColor: "#6f404d" },
-              }}
-            >
-              {t("personalize.createStory")}
-            </Button>
-          )}
+              {isCelebration ? (
+                <Button
+                  onClick={handleComplete}
+                  fullWidth
+                  sx={{
+                    px: "28px",
+                    py: "13px",
+                    background: "linear-gradient(110deg, #170d1e 0%, #824D5C 100%)",
+                    border: "none",
+                    borderRadius: "12px",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    color: "#fff",
+                    boxShadow: "0 4px 16px rgba(130,77,92,0.25)",
+                    transition: "all 0.3s cubic-bezier(0.34,1.26,0.64,1)",
+                    textTransform: "none",
+                    position: "relative",
+                    overflow: "hidden",
+                    "&::before": {
+                      content: '""',
+                      position: "absolute",
+                      inset: 0,
+                      background: "linear-gradient(110deg, rgba(255,255,255,0.12), transparent)",
+                      pointerEvents: "none",
+                    },
+                    "&:hover": {
+                      transform: "translateY(-2px) scale(1.02)",
+                      boxShadow: "0 10px 30px rgba(130,77,92,0.4)",
+                    },
+                  }}
+                >
+                  📖 {t("personalize.openStory")}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleBack}
+                    disabled={activeStep === 0}
+                    sx={{
+                      px: "22px",
+                      py: "11px",
+                      border: "1.5px solid #ddd4ca",
+                      borderRadius: "12px",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#9a8a92",
+                      background: "transparent",
+                      transition: "all 0.25s",
+                      "&:hover": {
+                        borderColor: "#B07A8A",
+                        color: "#824D5C",
+                        background: "transparent",
+                      },
+                      "&:disabled": { opacity: 0.25 },
+                      textTransform: "none",
+                      "& .arrow": { transform: isRTL ? "rotate(180deg)" : "none", display: "inline-block" },
+                    }}
+                  >
+                    <span className="arrow">←</span>&nbsp;{t("personalize.labelBack")}
+                  </Button>
+
+                  <Button
+                    onClick={handleNext}
+                    disabled={!isStepValid(activeStep)}
+                    sx={{
+                      flex: 1,
+                      maxWidth: 240,
+                      px: "28px",
+                      py: "13px",
+                      background: isFormLastStep
+                        ? "linear-gradient(110deg, #170d1e 0%, #824D5C 100%)"
+                        : "linear-gradient(110deg, #824D5C 0%, #B07A8A 100%)",
+                      border: "none",
+                      borderRadius: "12px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#fff",
+                      boxShadow: "0 4px 16px rgba(130,77,92,0.25)",
+                      transition: "all 0.3s cubic-bezier(0.34,1.26,0.64,1)",
+                      textTransform: "none",
+                      position: "relative",
+                      overflow: "hidden",
+                      "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        inset: 0,
+                        background: "linear-gradient(110deg, rgba(255,255,255,0.12), transparent)",
+                        pointerEvents: "none",
+                      },
+                      "&:hover:not(:disabled)": {
+                        transform: "translateY(-2px) scale(1.02)",
+                        boxShadow: "0 10px 30px rgba(130,77,92,0.4)",
+                      },
+                      "&:active:not(:disabled)": {
+                        transform: "translateY(0) scale(0.99)",
+                      },
+                      "&:disabled": { opacity: 0.35, transform: "none", boxShadow: "none" },
+                    }}
+                  >
+                    {isFormLastStep
+                      ? `✨ ${t("personalize.createStory")}`
+                      : `${t("personalize.labelContinue")} ${isRTL ? "←" : "→"}`}
+                  </Button>
+                </>
+              )}
             </Box>
-          </CardContent>
-        </Card>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
 }
-
