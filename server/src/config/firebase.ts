@@ -10,6 +10,9 @@ import admin from "firebase-admin";
 function loadServiceAccount(): Record<string, unknown> {
   const fromEnv = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (fromEnv && fromEnv.trim()) {
+    console.log(
+      "[firebase] Using FIREBASE_SERVICE_ACCOUNT_JSON from environment (Render/production)."
+    );
     return JSON.parse(fromEnv) as Record<string, unknown>;
   }
 
@@ -17,6 +20,13 @@ function loadServiceAccount(): Record<string, unknown> {
     __dirname,
     "../../config/serviceAccountKey.json"
   );
+  if (!fs.existsSync(serviceAccountPath)) {
+    throw new Error(
+      "Firebase Admin: missing credentials. On Render set env FIREBASE_SERVICE_ACCOUNT_JSON " +
+        "(full service account JSON). Locally add server/config/serviceAccountKey.json."
+    );
+  }
+  console.log("[firebase] Using service account file:", serviceAccountPath);
   return JSON.parse(fs.readFileSync(serviceAccountPath, "utf8")) as Record<
     string,
     unknown
