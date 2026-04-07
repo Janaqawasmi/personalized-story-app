@@ -11,6 +11,68 @@ import { serializeTimestamp } from "../utils/serializeTimestamp";
 
 const COLLECTION = "dammaStoryBriefs";
 
+export interface DammaStoryBriefListItem {
+  id: string;
+  submittedAt?: string;
+  submittedByUid?: string;
+  schemaVersion?: string;
+  /** Copied from brief.storyType when present */
+  storyType?: string;
+}
+
+/**
+ * GET /api/admin/damma-story-briefs
+ * Lists briefs submitted by the authenticated specialist (newest first).
+ */
+export async function listDammaStoryBriefs(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.user as AuthenticatedUser | undefined;
+    if (!user) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    const rawLimit = parseInt(String(req.query.limit ?? "50"), 10);
+    const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 50;
+
+    const snap = await firestore
+      .collection(COLLECTION)
+      .where("submittedByUid", "==", user.uid)
+      .orderBy("submittedAt", "desc")
+      .limit(limit)
+      .get();
+
+    const data: DammaStoryBriefListItem[] = snap.docs.map((doc) => {
+      const row = doc.data();
+      const brief = row.brief as { storyType?: string } | undefined;
+      const submittedAt = serializeTimestamp(row.submittedAt);
+      const item: DammaStoryBriefListItem = {
+        id: doc.id,
+        submittedByUid: row.submittedByUid,
+        schemaVersion: row.schemaVersion,
+      };
+      if (submittedAt !== undefined) {
+        item.submittedAt = submittedAt;
+      }
+      const st = brief?.storyType;
+      if (st !== undefined) {
+        item.storyType = st;
+      }
+      return item;
+    });
+
+    res.status(200).json({ success: true, data });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("listDammaStoryBriefs:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to list story briefs",
+      details: message,
+    });
+  }
+}
+
 /**
  * GET /api/admin/damma-story-briefs/:briefId
  * Returns persisted brief JSON for specialist review.
@@ -36,6 +98,13 @@ export async function getDammaStoryBrief(req: Request, res: Response): Promise<v
     }
 
     const data = snap.data()!;
+    const isOwner = data.submittedByUid === user.uid;
+    const isAdmin = user.role === "admin";
+    if (!isOwner && !isAdmin) {
+      res.status(403).json({ success: false, error: "Forbidden" });
+      return;
+    }
+
     res.status(200).json({
       success: true,
       data: {

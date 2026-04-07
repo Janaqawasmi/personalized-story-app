@@ -17,7 +17,7 @@
 //   3. No live story preview (deferred post-pilot).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -65,41 +65,12 @@ import {
   useStoryBriefUi,
 } from "../../i18n/storyBriefUi";
 import { useLanguage } from "../../i18n/context/useLanguage";
-
-// ============================================================================
-// localStorage helpers
-// ============================================================================
-
-const DRAFT_STORAGE_KEY = "dammah_brief_draft_v1";
-
-function saveDraftToStorage(draft: CompleteBrief): void {
-  try {
-    localStorage.setItem(
-      DRAFT_STORAGE_KEY,
-      JSON.stringify({ ...draft, savedAt: Date.now() })
-    );
-  } catch {
-    // Storage quota exceeded or unavailable — fail silently
-  }
-}
-
-function loadDraftFromStorage(): CompleteBrief | null {
-  try {
-    const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as CompleteBrief;
-  } catch {
-    return null;
-  }
-}
-
-function clearDraftFromStorage(): void {
-  try {
-    localStorage.removeItem(DRAFT_STORAGE_KEY);
-  } catch {
-    // Ignore
-  }
-}
+import {
+  createNewDraftIdWithEmptyBrief,
+  deleteDraftForDraftId,
+  loadDraftForDraftId,
+  saveDraftForDraftId,
+} from "../../utils/briefDraftStorage";
 
 /**
  * Centered main column (~760–880px per docs/brief-form-ux-notes.md).
@@ -208,86 +179,17 @@ interface StoryTypeSelectorProps {
   selected: StoryType | null;
   onSelect: (type: StoryType) => void;
   onBegin: () => void;
-  savedDraft: CompleteBrief | null;
-  onResumeDraft: () => void;
-  onDiscardDraft: () => void;
 }
 
 function StoryTypeSelector({
   selected,
   onSelect,
   onBegin,
-  savedDraft,
-  onResumeDraft,
-  onDiscardDraft,
 }: StoryTypeSelectorProps) {
   const ui = useStoryBriefUi();
-  const dateLocale = useBriefDateLocale();
 
   return (
     <Box>
-      {/* Resume banner */}
-      {savedDraft && savedDraft.storyType && (
-        <Alert
-          severity="info"
-          sx={{
-            mb: 3,
-            borderRadius: 2,
-            border: `1px solid ${COLORS.border}`,
-            backgroundColor: CARD_SELECTED_BG,
-            "& .MuiAlert-message": { width: "100%" },
-          }}
-          icon={false}
-        >
-          <Box
-            display="flex"
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            flexDirection={{ xs: "column", sm: "row" }}
-            gap={1.5}
-          >
-            <Box flex={1}>
-              <Typography variant="body2" fontWeight={600} color={COLORS.primary}>
-                {ui.draftSavedBannerTitle}
-              </Typography>
-              <Typography variant="caption" color={COLORS.textSecondary}>
-                {ui.STORY_TYPE_LABELS[savedDraft.storyType]} {ui.draftSavedBriefWord}
-                {savedDraft.savedAt
-                  ? ` — ${ui.draftSavedSavedPrefix} ${formatBriefSavedAt(savedDraft.savedAt, dateLocale)}`
-                  : ""}
-              </Typography>
-            </Box>
-            <Box display="flex" gap={1} flexShrink={0}>
-              <Button
-                size="small"
-                variant="contained"
-                onClick={onResumeDraft}
-                sx={{
-                  textTransform: "none",
-                  backgroundColor: COLORS.primary,
-                  fontWeight: 600,
-                  "&:hover": { backgroundColor: COLORS.secondary },
-                }}
-              >
-                {ui.resume}
-              </Button>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={onDiscardDraft}
-                sx={{
-                  textTransform: "none",
-                  borderColor: COLORS.border,
-                  color: COLORS.textSecondary,
-                  "&:hover": { borderColor: COLORS.secondary, color: COLORS.secondary },
-                }}
-              >
-                {ui.startOver}
-              </Button>
-            </Box>
-          </Box>
-        </Alert>
-      )}
-
       {/* Header */}
       <Box mb={5}>
         <Typography variant="overline" display="block" color={COLORS.textSecondary} letterSpacing={1} mb={0.5}>
@@ -419,6 +321,17 @@ function StoryTypeSelector({
   );
 }
 
+function firstIncompleteSection(
+  draft: CompleteBrief,
+  localeOpts?: BriefDefaultsLocaleOptions,
+): number {
+  const norm = normalizeBriefDefaults(draft, localeOpts);
+  for (let s = 1; s <= 5; s++) {
+    if (!isSectionComplete(s, norm)) return s;
+  }
+  return 5;
+}
+
 // ============================================================================
 // BriefForm — main orchestrator
 // ============================================================================
@@ -426,6 +339,8 @@ function StoryTypeSelector({
 export default function BriefForm({ onSubmit }: Props) {
   const [searchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
+  const { draftId, lang } = useParams<{ draftId: string; lang: string }>();
+  const navigate = useNavigate();
 
   const { language } = useLanguage();
   const ui = useStoryBriefUi();
@@ -444,7 +359,6 @@ export default function BriefForm({ onSubmit }: Props) {
   const [draft, setDraft] = useState<CompleteBrief>(createEmptyBrief);
   /** 0 = pre-brief story type selector; 1–5 = sections */
   const [activeStep, setActiveStep] = useState(0);
-  const [savedDraft, setSavedDraft] = useState<CompleteBrief | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [savedSnackbar, setSavedSnackbar] = useState(false);
 
@@ -467,23 +381,31 @@ export default function BriefForm({ onSubmit }: Props) {
 
   const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
-  // ── Load saved draft on mount ──────────────────────────────────────────────
+  // ── Load draft for this URL id; remount when draftId changes ───────────────
 
   useEffect(() => {
-    const existing = loadDraftFromStorage();
-    if (existing?.storyType) {
-      const normalized = normalizeBriefDefaults(existing, briefLocaleOpts);
-      setSavedDraft(normalized);
-      if (normalized !== existing) {
-        saveDraftToStorage(normalized);
-      }
+    if (!draftId) return;
+    const existing = loadDraftForDraftId(draftId) ?? createEmptyBrief();
+    const normalized = normalizeBriefDefaults(existing, briefLocaleOpts);
+    setDraft(normalized);
+    saveDraftForDraftId(draftId, normalized);
+    if (normalized.storyType) {
+      setActiveStep(firstIncompleteSection(normalized, briefLocaleOpts));
+    } else {
+      setActiveStep(0);
     }
+    // Only when switching drafts — not when language/default options change (would jump sections).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftId]);
+
+  useEffect(() => {
+    setDraft((d) => normalizeBriefDefaults(d, briefLocaleOpts));
   }, [briefLocaleOpts]);
 
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
   // Also record highest section opened so Section 5 progress stays honest when personalization is ON.
   useEffect(() => {
-    if (!draft.storyType || activeStep === 0) return;
+    if (!draftId || !draft.storyType || activeStep === 0) return;
     setDraft((d) => {
       let base = d;
       if (activeStep >= 1 && activeStep <= 5) {
@@ -494,10 +416,10 @@ export default function BriefForm({ onSubmit }: Props) {
       }
       const n = normalizeBriefDefaults(base, briefLocaleOpts);
       if (n === d && base === d) return d;
-      saveDraftToStorage(n);
+      saveDraftForDraftId(draftId, n);
       return n;
     });
-  }, [activeStep, draft.storyType, briefLocaleOpts]);
+  }, [draftId, activeStep, draft.storyType, briefLocaleOpts]);
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
@@ -506,16 +428,22 @@ export default function BriefForm({ onSubmit }: Props) {
     [draft, briefLocaleOpts],
   );
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
   const scrollToTop = useCallback(() => {
     sectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  if (!draftId) {
+    return <Navigate to={`/${lang ?? "he"}/specialist/create-brief`} replace />;
+  }
+
+  const draftKey = draftId;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
   function saveAndAdvance(nextStep: number) {
     setDraft((d) => {
       const next = normalizeBriefDefaults({ ...d, savedAt: Date.now() }, briefLocaleOpts);
-      saveDraftToStorage(next);
+      saveDraftForDraftId(draftKey, next);
       return next;
     });
     setSavedSnackbar(true);
@@ -566,7 +494,7 @@ export default function BriefForm({ onSubmit }: Props) {
     let normalized = normalizeBriefDefaults(draft, briefLocaleOpts);
     if (normalized !== draft) {
       setDraft(normalized);
-      saveDraftToStorage(normalized);
+      saveDraftForDraftId(draftKey, normalized);
     }
 
     const gate = evaluateBriefSubmitGate(normalized);
@@ -608,7 +536,7 @@ export default function BriefForm({ onSubmit }: Props) {
     };
     const finalDraft = normalizeBriefDefaults(merged, briefLocaleOpts);
     setDraft(finalDraft);
-    saveDraftToStorage(finalDraft);
+    saveDraftForDraftId(draftKey, finalDraft);
     setHardWarningOpen(false);
     setGateHardWarnings([]);
     setHardWarningAck(false);
@@ -623,7 +551,7 @@ export default function BriefForm({ onSubmit }: Props) {
       const finalDraft = normalizeBriefDefaults(brief, briefLocaleOpts);
       if (finalDraft !== brief) {
         setDraft(finalDraft);
-        saveDraftToStorage(finalDraft);
+        saveDraftForDraftId(draftKey, finalDraft);
       }
       const forSubmit = omitUiOnlyBriefFields(finalDraft);
       const jsonText = JSON.stringify(forSubmit, null, 2);
@@ -635,8 +563,8 @@ export default function BriefForm({ onSubmit }: Props) {
         const result = await submitDammaStoryBriefForm(forSubmit);
         briefId = result.briefId;
       }
+      deleteDraftForDraftId(draftKey);
       setSubmitSuccess({ briefId, jsonText });
-      // Intentionally keep localStorage until the user explicitly starts a new brief.
     } catch (err) {
       const message =
         err instanceof Error ? err.message : ui.submitErrorGeneric;
@@ -648,40 +576,14 @@ export default function BriefForm({ onSubmit }: Props) {
   }
 
   function handleCreateAnotherBrief() {
-    clearDraftFromStorage();
-    setSavedDraft(null);
+    deleteDraftForDraftId(draftKey);
     setSubmitSuccess(null);
     setSubmitError(null);
-    setDraft(createEmptyBrief());
-    setActiveStep(0);
+    const nid = createNewDraftIdWithEmptyBrief();
+    navigate(`/${lang ?? "he"}/specialist/create-brief/${nid}`, { replace: true });
   }
 
-  // ── Resume / discard ──────────────────────────────────────────────────────
-
-  function handleResumeDraft() {
-    if (!savedDraft) return;
-    const normalized = normalizeBriefDefaults(savedDraft, briefLocaleOpts);
-    setDraft(normalized);
-    saveDraftToStorage(normalized);
-    setSavedDraft(null);
-    // Determine which step to resume at: the first incomplete section
-    let resumeStep = 1;
-    for (let s = 1; s <= 5; s++) {
-      if (!isSectionComplete(s, normalized)) {
-        resumeStep = s;
-        break;
-      }
-      resumeStep = 5; // all complete → go to last section
-    }
-    setActiveStep(resumeStep);
-  }
-
-  function handleDiscardDraft() {
-    clearDraftFromStorage();
-    setSavedDraft(null);
-  }
-
-  // ── Post-submit success (draft kept in storage until "Create another brief") ─
+  // ── Post-submit success ─
 
   if (submitSuccess) {
     return (
@@ -714,9 +616,6 @@ export default function BriefForm({ onSubmit }: Props) {
           onBegin={() => {
             if (draft.storyType) saveAndAdvance(1);
           }}
-          savedDraft={savedDraft}
-          onResumeDraft={handleResumeDraft}
-          onDiscardDraft={handleDiscardDraft}
         />
       </BriefPageWithSidebar>
     );

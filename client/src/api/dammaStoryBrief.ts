@@ -54,6 +54,37 @@ export interface DammaStoryBriefRecord {
   schemaVersion?: string;
 }
 
+export interface DammaStoryBriefListItem {
+  id: string;
+  submittedAt?: string;
+  submittedByUid?: string;
+  schemaVersion?: string;
+  storyType?: string;
+}
+
+/**
+ * GET /api/admin/damma-story-briefs — briefs submitted by the current specialist.
+ */
+export async function listDammaStoryBriefs(limit = 50): Promise<DammaStoryBriefListItem[]> {
+  const headers = await getAuthHeaders();
+  const url = new URL(`${API_BASE}/api/admin/damma-story-briefs`);
+  url.searchParams.set("limit", String(limit));
+  const res = await fetch(url.toString(), { headers });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: DammaStoryBriefListItem[];
+    error?: string;
+    details?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || data.details || `List failed (${res.status})`);
+  }
+  if (!data.success || !Array.isArray(data.data)) {
+    throw new Error(data.error || data.details || "Invalid server response");
+  }
+  return data.data;
+}
+
 /**
  * GET /api/admin/damma-story-briefs/:briefId
  */

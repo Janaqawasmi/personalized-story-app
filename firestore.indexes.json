@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "dammaStoryBriefs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "submittedByUid", "order": "ASCENDING" },
+        { "fieldPath": "submittedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "auditTrail",
       "queryScope": "COLLECTION",
       "fields": [

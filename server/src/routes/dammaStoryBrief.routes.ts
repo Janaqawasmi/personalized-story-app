@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth.middleware";
 import {
   createDammaStoryBrief,
   getDammaStoryBrief,
+  listDammaStoryBriefs,
 } from "../controllers/dammaStoryBrief.controller";
 import {
   createDammaStoryBriefFeedback,
@@ -15,6 +16,7 @@ const router = Router();
 
 router.use(requireAuth);
 
+router.get("/", requireRole("specialist", "admin"), listDammaStoryBriefs);
 router.post("/", requireRole("specialist", "admin"), createDammaStoryBrief);
 
 router.get(
