@@ -1,3 +1,8 @@
+// TODO: When wiring up the Express route (Prompt 12), build a
+// StoryBriefSchema (Zod) that validates incoming brief payloads.
+// Either generate it from the existing TypeScript type or write it
+// by hand mirroring storyBrief.model.ts. Place it in the brief module
+// (server/src/models/) so it stays the single source of truth.
 import { z } from "zod";
 
 import type { StoryBrief } from "../models/storyBrief.model";
