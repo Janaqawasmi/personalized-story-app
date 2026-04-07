@@ -1,7 +1,26 @@
 {
+  "nav": {
+    "browse": "تصفح القصص"
+  },
+  "catalog": {
+    "stories": "قصص"
+  },
   "filters": {
-    "filterBy": "تصفية حسب:",
-    "clear": "مسح"
+    "age": "العمر",
+    "category": "الموضوع",
+    "topic": "الوضع",
+    "optional": "اختياري",
+    "all": "الكل",
+    "allAges": "كل الأعمار",
+    "allCategories": "كل المواضيع",
+    "allTopics": "كل المواقف",
+    "clearFilters": "مسح المرشحات",
+    "filterBy": "تصفية",
+    "clear": "مسح الكل",
+    "years": "سنوات",
+    "removeAria": "إزالة مرشح {label}",
+    "search": "بحث...",
+    "groupTopics": "المواضيع"
   },
   "pages": {
     "allBooks": {

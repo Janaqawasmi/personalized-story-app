@@ -7,6 +7,8 @@ export interface TopicRef {
   label_ar: string;
   order: number;
   active: boolean;
+  /** Optional Firestore grouping label for mega-menu / filters */
+  parentCategory?: string;
 }
 
 export interface SituationRef {

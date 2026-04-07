@@ -96,18 +96,28 @@
     "searchHint": "תוכלו לחפש לפי שם סיפור, גיל (0-3, 3-6 וכו'), או נושא",
     "searchFailed": "חיפוש נכשל"
   },
+  "nav": {
+    "browse": "עיון בסיפורים"
+  },
+  "catalog": {
+    "stories": "סיפורים"
+  },
   "filters": {
     "age": "גיל",
-    "category": "קטגוריה",
-    "topic": "נושא",
+    "category": "נושא",
+    "topic": "מצב",
     "optional": "אופציונלי",
     "all": "הכל",
     "allAges": "כל הגילאים",
-    "allCategories": "כל הקטגוריות",
-    "allTopics": "כל הנושאים",
+    "allCategories": "כל הנושאים",
+    "allTopics": "כל המצבים",
     "clearFilters": "נקה מסננים",
-    "filterBy": "סנן לפי:",
-    "clear": "נקה"
+    "filterBy": "סינון",
+    "clear": "נקה הכל",
+    "years": "שנים",
+    "removeAria": "הסר מסנן {label}",
+    "search": "חיפוש...",
+    "groupTopics": "נושאים"
   },
   "pages": {
     "ageResults": {

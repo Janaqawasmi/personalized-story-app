@@ -1,60 +1,66 @@
-import {
-  Box,
-  Typography,
-  Container,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Button,
-  Skeleton,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { Box, Typography, Container, Button, Skeleton } from "@mui/material";
 import { useEffect, useState, useMemo } from "react";
-import { useLanguage } from "../i18n/context/useLanguage";
 import { fetchStoriesWithFilters } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
 import { useTranslation } from "../i18n/useTranslation";
+import FilterBar from "../components/FilterBar/FilterBar";
+import type { FilterGroup } from "../components/FilterBar/types";
+import { getTopicColor } from "../constants/topicColors";
+import { filterBarSx } from "../components/FilterBar/FilterBar.styles";
 
-// Normalize age group for comparison (handles "0-3", "0_3", etc.)
-// Converts to "0_3" format to match database storage format
 function normalizeAgeGroup(value?: string): string | null {
   if (!value) return null;
   return value
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, "") // remove spaces
-    .replace(/[–-]/g, "_"); // dash or en-dash → underscore (database uses "0_3" format)
+    .replace(/\s+/g, "")
+    .replace(/[–-]/g, "_");
 }
 
-const filterBarSurfaceSx = {
-  bgcolor: (theme: { palette: { primary: { main: string } } }) =>
-    alpha(theme.palette.primary.main, 0.04),
-  border: "0.5px solid",
-  borderColor: "divider",
-  borderRadius: 3,
-  px: 2.5,
-  py: 1.75,
-  mb: 5,
-  display: "flex",
+const storyGridSx = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    sm: "repeat(2, 1fr)",
+    md: "repeat(3, 1fr)",
+    lg: "repeat(4, 1fr)",
+  },
+  gap: 2.5,
+  mt: 1,
+};
+
+const pageHeaderTitleSx = {
+  fontFamily: "'Playfair Display', serif",
+  fontSize: { xs: "24px", md: "28px" },
+  fontWeight: 600,
+  color: "#1a1a1a",
+  mb: 0.5,
+};
+
+const countBadgeSx = {
+  display: "inline-flex",
   alignItems: "center",
-  gap: 2,
-  flexWrap: "wrap" as const,
+  padding: "2px 10px",
+  borderRadius: "20px",
+  backgroundColor: "#f5ece9",
+  color: "#824D5C",
+  fontSize: "12px",
+  fontWeight: 600,
 };
 
 function CatalogHeader({
   t,
   count,
-  showCountChip,
+  showCountBadge,
 }: {
   t: (key: string, params?: Record<string, string | number>) => string;
   count: number;
-  showCountChip: boolean;
+  showCountBadge: boolean;
 }) {
   return (
-    <Box sx={{ mb: 4 }}>
+    <Box sx={{ mb: 2.5 }}>
       <Typography
         variant="overline"
         sx={{
@@ -68,37 +74,25 @@ function CatalogHeader({
         {t("pages.allBooks.eyebrow")}
       </Typography>
 
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-        <Typography variant="h4" fontWeight={500} color="text.primary">
-          {t("pages.allBooks.title")}
-        </Typography>
-
-        {showCountChip && (
-          <Box
-            component="span"
-            sx={{
-              fontSize: "0.75rem",
-              px: 1.25,
-              py: 0.4,
-              borderRadius: "20px",
-              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-              color: "primary.main",
-            }}
-          >
-            {t("pages.allBooks.storiesFound", { count })}
-          </Box>
-        )}
-      </Box>
-
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-        {t("pages.allBooks.subtitle")}
+      <Typography component="h1" sx={pageHeaderTitleSx}>
+        {t("pages.allBooks.title")}
       </Typography>
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+        <Typography sx={{ fontSize: "14px", color: "#4A4A4A" }}>
+          {t("pages.allBooks.subtitle")}
+        </Typography>
+        {showCountBadge ? (
+          <Box component="span" sx={countBadgeSx}>
+            {count} {t("catalog.stories")}
+          </Box>
+        ) : null}
+      </Box>
     </Box>
   );
 }
 
 export default function AllBooksPage() {
-  const { isRTL } = useLanguage();
   const [allBooks, setAllBooks] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -107,9 +101,6 @@ export default function AllBooksPage() {
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   const t = useTranslation();
 
-  const filterDirection = isRTL ? "rtl" : "ltr";
-
-  // Fetch all books once
   useEffect(() => {
     const loadStories = async () => {
       try {
@@ -128,7 +119,6 @@ export default function AllBooksPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once on mount; t() only used for error fallback
   }, []);
 
-  // Extract unique categories and topics from allBooks
   const availableCategories = useMemo(() => {
     const categories = new Set<string>();
     allBooks.forEach((book) => {
@@ -140,18 +130,24 @@ export default function AllBooksPage() {
     return Array.from(categories).sort();
   }, [allBooks]);
 
-  const availableTopics = useMemo(() => {
+  const topicOptions = useMemo(() => {
     const topics = new Set<string>();
-    allBooks.forEach((book) => {
+    const pool = selectedCategory
+      ? allBooks.filter(
+          (book) =>
+            (book as any).primaryTopic === selectedCategory ||
+            (book as any).topicKey === selectedCategory
+        )
+      : [];
+    pool.forEach((book) => {
       const topic = (book as any).specificSituation || (book as any).topicKey;
-      if (topic) {
+      if (topic && topic !== selectedCategory) {
         topics.add(topic);
       }
     });
     return Array.from(topics).sort();
-  }, [allBooks]);
+  }, [allBooks, selectedCategory]);
 
-  // Apply filters client-side
   const filteredBooks = useMemo(() => {
     let filtered = [...allBooks];
 
@@ -186,7 +182,7 @@ export default function AllBooksPage() {
     return filtered;
   }, [allBooks, selectedAge, selectedCategory, selectedTopic]);
 
-  const handleClearFilters = () => {
+  const handleClearAll = () => {
     setSelectedAge("");
     setSelectedCategory("");
     setSelectedTopic("");
@@ -194,36 +190,86 @@ export default function AllBooksPage() {
 
   const hasActiveFilters = Boolean(selectedAge || selectedCategory || selectedTopic);
 
-  const gridSx = {
-    display: "grid",
-    gridTemplateColumns: {
-      xs: "1fr",
-      sm: "repeat(2, 1fr)",
-      md: "repeat(3, 1fr)",
-    },
-    gap: 3.5,
-    mt: 1,
+  const graphCategoryLabel = t("filters.groupTopics");
+
+  const categoryOptions = useMemo(
+    () => availableCategories.map((cat) => ({ key: cat, label: cat })),
+    [availableCategories]
+  );
+
+  const ageGroup: FilterGroup = {
+    type: "chips",
+    key: "age",
+    label: t("filters.age"),
+    options: [
+      { value: "", label: t("filters.allAges") },
+      ...AGE_GROUPS.map((ag) => ({ value: ag.id ?? "", label: ag.label })),
+    ],
+    value: selectedAge,
+    onChange: setSelectedAge,
   };
+
+  const categoryGroup: FilterGroup = {
+    type: "dropdown",
+    key: "category",
+    label: t("filters.category"),
+    placeholder: t("filters.allCategories"),
+    searchable: true,
+    grouped: true,
+    options: [
+      { value: "", label: t("filters.allCategories") },
+      ...categoryOptions.map((cat) => ({
+        value: cat.key,
+        label: cat.label,
+        dotColor: getTopicColor(cat.key),
+        category: graphCategoryLabel,
+      })),
+    ],
+    value: selectedCategory,
+    onChange: (val) => {
+      setSelectedCategory(val);
+      setSelectedTopic("");
+    },
+  };
+
+  const topicGroup: FilterGroup | null =
+    selectedCategory && topicOptions.length > 0
+      ? {
+          type: "dropdown",
+          key: "topic",
+          label: t("filters.topic"),
+          placeholder: t("filters.allTopics"),
+          searchable: topicOptions.length > 8,
+          grouped: false,
+          options: [
+            { value: "", label: t("filters.allTopics") },
+            ...topicOptions.map((tp) => ({ value: tp, label: tp })),
+          ],
+          value: selectedTopic,
+          onChange: setSelectedTopic,
+        }
+      : null;
+
+  const filterGroups: FilterGroup[] = [
+    ageGroup,
+    categoryGroup,
+    ...(topicGroup ? [topicGroup] : []),
+  ];
+
+  const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 
   if (loading) {
     return (
-      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 4 }}>
-        <CatalogHeader t={t} count={0} showCountChip={false} />
+      <Container maxWidth="xl" sx={containerSx}>
+        <CatalogHeader t={t} count={0} showCountBadge={false} />
 
-        <Box sx={filterBarSurfaceSx}>
-          <Typography
-            variant="caption"
-            color="text.disabled"
-            sx={{ marginInlineEnd: 0.5, whiteSpace: "nowrap" }}
-          >
-            {t("filters.filterBy")}
-          </Typography>
-          <Skeleton variant="rounded" width={140} height={40} />
-          <Skeleton variant="rounded" width={160} height={40} />
-          <Skeleton variant="rounded" width={160} height={40} />
+        <Box sx={{ ...filterBarSx, mb: 3 }}>
+          <Skeleton variant="rounded" width={120} height={32} sx={{ borderRadius: "20px" }} />
+          <Skeleton variant="rounded" width={100} height={32} sx={{ borderRadius: "20px" }} />
+          <Skeleton variant="rounded" width={140} height={32} sx={{ borderRadius: "20px" }} />
         </Box>
 
-        <Box sx={{ ...gridSx, mt: 2 }}>
+        <Box sx={{ ...storyGridSx, mt: 2 }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <Box
               key={i}
@@ -254,7 +300,7 @@ export default function AllBooksPage() {
 
   if (error) {
     return (
-      <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 8, textAlign: "center" }}>
+      <Container maxWidth="xl" sx={{ ...containerSx, py: 8, textAlign: "center" }}>
         <Typography variant="h5" color="error" sx={{ mb: 2 }}>
           {error}
         </Typography>
@@ -264,98 +310,13 @@ export default function AllBooksPage() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 4 }}>
-      <CatalogHeader t={t} count={filteredBooks.length} showCountChip />
+    <Container maxWidth="xl" sx={containerSx}>
+      <CatalogHeader t={t} count={filteredBooks.length} showCountBadge />
 
-      <Box sx={filterBarSurfaceSx}>
-        <Typography
-          variant="caption"
-          color="text.disabled"
-          sx={{ marginInlineEnd: 0.5, whiteSpace: "nowrap" }}
-        >
-          {t("filters.filterBy")}
-        </Typography>
-
-        <FormControl
-          size="small"
-          sx={{ direction: filterDirection, minWidth: { xs: "100%", sm: 140 } }}
-        >
-          <InputLabel>{t("filters.age")}</InputLabel>
-          <Select
-            value={selectedAge}
-            label={t("filters.age")}
-            onChange={(e) => setSelectedAge(e.target.value)}
-          >
-            <MenuItem value="">{t("filters.allAges")}</MenuItem>
-            {AGE_GROUPS.map((age) => (
-              <MenuItem key={age.id} value={age.id || ""}>
-                {age.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl
-          size="small"
-          sx={{ direction: filterDirection, minWidth: { xs: "100%", sm: 160 } }}
-        >
-          <InputLabel>{t("filters.category")}</InputLabel>
-          <Select
-            value={selectedCategory}
-            label={t("filters.category")}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setSelectedTopic("");
-            }}
-          >
-            <MenuItem value="">{t("filters.allCategories")}</MenuItem>
-            {availableCategories.map((cat) => (
-              <MenuItem key={cat} value={cat}>
-                {cat}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl
-          size="small"
-          sx={{ direction: filterDirection, minWidth: { xs: "100%", sm: 160 } }}
-        >
-          <InputLabel>{t("filters.topic")}</InputLabel>
-          <Select
-            value={selectedTopic}
-            label={t("filters.topic")}
-            onChange={(e) => setSelectedTopic(e.target.value)}
-          >
-            <MenuItem value="">{t("filters.allTopics")}</MenuItem>
-            {availableTopics.map((topic) => (
-              <MenuItem key={topic} value={topic}>
-                {topic}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
-        {hasActiveFilters && (
-          <Button
-            size="small"
-            onClick={handleClearFilters}
-            sx={{
-              marginInlineStart: "auto",
-              color: "text.disabled",
-              fontSize: "0.75rem",
-              minWidth: "auto",
-              "&:hover": { color: "text.secondary", bgcolor: "transparent" },
-            }}
-            disableRipple
-          >
-            {t("filters.clear")}
-          </Button>
-        )}
-      </Box>
+      <FilterBar groups={filterGroups} onClearAll={handleClearAll} />
 
       {filteredBooks.length > 0 ? (
-        <Box sx={gridSx}>
+        <Box sx={storyGridSx}>
           {filteredBooks.map((story) => (
             <StoryGridCard
               key={story.id}
@@ -392,16 +353,16 @@ export default function AllBooksPage() {
           <Typography variant="body2" color="text.secondary">
             {t("pages.allBooks.noStoriesSub")}
           </Typography>
-          {hasActiveFilters && (
+          {hasActiveFilters ? (
             <Button
               variant="outlined"
               size="small"
-              onClick={handleClearFilters}
+              onClick={handleClearAll}
               sx={{ mt: 1, borderRadius: 2 }}
             >
               {t("filters.clear")}
             </Button>
-          )}
+          ) : null}
         </Box>
       )}
     </Container>

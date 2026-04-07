@@ -1,7 +1,9 @@
-import { Box, Typography, Container, Button } from "@mui/material";
+import { Box, Typography, Container, Button, Link } from "@mui/material";
 import { useEffect, useState } from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { useParams, useLocation } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
+import { withLang } from "../i18n/navigation/withLang";
 import { fetchStoriesWithFilters } from "../api/stories";
 import { useReferenceData } from "../hooks/useReferenceData";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
@@ -9,6 +11,48 @@ import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/useLanguage";
+import FilterBar from "../components/FilterBar/FilterBar";
+import type { FilterGroup, LockedFilter } from "../components/FilterBar/types";
+import { getTopicColor } from "../constants/topicColors";
+
+const storyGridSx = {
+  display: "grid",
+  gridTemplateColumns: {
+    xs: "1fr",
+    sm: "repeat(2, 1fr)",
+    md: "repeat(3, 1fr)",
+    lg: "repeat(4, 1fr)",
+  },
+  gap: 2.5,
+};
+
+const pageHeaderTitleSx = {
+  fontFamily: "'Playfair Display', serif",
+  fontSize: { xs: "24px", md: "28px" },
+  fontWeight: 600,
+  color: "#1a1a1a",
+  mb: 0.5,
+};
+
+const countBadgeSx = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "2px 10px",
+  borderRadius: "20px",
+  backgroundColor: "#f5ece9",
+  color: "#824D5C",
+  fontSize: "12px",
+  fontWeight: 600,
+};
+
+const breadcrumbBoxSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: "6px",
+  mb: 1.5,
+  fontSize: "13px",
+  color: "#888888",
+};
 
 export default function AgeResultsPage() {
   const { ageId } = useParams<{ ageId: string }>();
@@ -21,26 +65,19 @@ export default function AgeResultsPage() {
   const t = useTranslation();
   const { language } = useLanguage();
 
-  const ageGroup = AGE_GROUPS.find((a) => a.id === ageId);
+  const ageGroupMeta = AGE_GROUPS.find((a) => a.id === ageId);
 
-  // Reset filters when coming from MegaMenu
   useEffect(() => {
     if (location.state?.fromMegaMenu) {
-      // 🔥 Full reset and apply - clear all filters, then apply only the new selection
-      // This ensures previous filter state is completely cleared
       setSelectedCategory(location.state.category ?? null);
       setSelectedTopic(null);
-      
-      // Clean up location.state to prevent re-triggering
       window.history.replaceState({}, document.title, location.pathname);
     }
   }, [location.key, location.pathname]);
 
-  // Fetch stories when filters change
   useEffect(() => {
     if (!ageId) return;
 
-    // Get situation IDs for the selected category
     const situationIds = selectedCategory
       ? data?.situations
           .filter((s) => s.topicKey === selectedCategory && s.active)
@@ -62,9 +99,11 @@ export default function AgeResultsPage() {
     });
   }, [ageId, selectedCategory, selectedTopic, data]);
 
-  if (!ageGroup) {
+  const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
+
+  if (!ageGroupMeta) {
     return (
-      <Container maxWidth="lg" sx={{ py: 8, textAlign: "center" }}>
+      <Container maxWidth="xl" sx={{ ...containerSx, py: 8, textAlign: "center" }}>
         <Typography variant="h5">{t("pages.ageResults.ageNotFound")}</Typography>
         <Button onClick={() => navigate("/")} sx={{ mt: 2 }}>
           {t("pages.placeholder.backToHome")}
@@ -73,99 +112,107 @@ export default function AgeResultsPage() {
     );
   }
 
-  const availableCategories = data?.topics || [];
-  const availableTopics = data?.situations.filter(
-    (s) => !selectedCategory || s.topicKey === selectedCategory
-  ) || [];
+  if (loading || !data) {
+    return (
+      <Container maxWidth="xl" sx={{ ...containerSx, py: 8, textAlign: "center" }}>
+        <Typography>{t("pages.categoryResults.loading")}</Typography>
+      </Container>
+    );
+  }
+
+  const availableCategories = data.topics || [];
+  const availableTopics =
+    data.situations.filter((s) => !selectedCategory || s.topicKey === selectedCategory) || [];
+
+  const ageLabel = ageGroupMeta.label;
+  const lockedFilters: LockedFilter[] = [
+    { label: `${ageLabel} ${t("filters.years")}` },
+  ];
+
+  const groupLabel = t("filters.groupTopics");
+
+  const categoryGroup: FilterGroup = {
+    type: "dropdown",
+    key: "category",
+    label: t("filters.category"),
+    placeholder: t("filters.all"),
+    searchable: true,
+    grouped: true,
+    options: [
+      { value: "", label: t("filters.all") },
+      ...availableCategories.map((tp) => ({
+        value: tp.id,
+        label: language === "en" ? tp.label_en || tp.label_he : tp.label_he,
+        dotColor: getTopicColor(tp.id),
+        category: tp.parentCategory ?? groupLabel,
+      })),
+    ],
+    value: selectedCategory ?? "",
+    onChange: (val) => {
+      setSelectedCategory(val || null);
+      setSelectedTopic(null);
+    },
+  };
+
+  const topicGroup: FilterGroup | null =
+    selectedCategory && availableTopics.length > 0
+      ? {
+          type: "dropdown",
+          key: "topic",
+          label: t("filters.topic"),
+          placeholder: t("filters.all"),
+          searchable: availableTopics.length > 8,
+          grouped: false,
+          options: [
+            { value: "", label: t("filters.all") },
+            ...availableTopics.map((sit) => ({
+              value: sit.id,
+              label: language === "en" ? sit.label_en || sit.label_he : sit.label_he,
+            })),
+          ],
+          value: selectedTopic ?? "",
+          onChange: (val) => setSelectedTopic(val || null),
+        }
+      : null;
+
+  const groups: FilterGroup[] = [categoryGroup, ...(topicGroup ? [topicGroup] : [])];
+
+  const pageContextLabel = `${ageLabel} ${t("filters.years")}`;
+  const pageTitle = t("pages.ageResults.title", { age: ageGroupMeta.label });
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>
-          {t("pages.ageResults.title", { age: ageGroup.label })}
-        </Typography>
-        <Typography color="text.secondary">
-          {t("pages.ageResults.storiesFound", { count: stories.length })}
-        </Typography>
+    <Container maxWidth="xl" sx={containerSx}>
+      <Box sx={breadcrumbBoxSx}>
+        <Link
+          component={RouterLink}
+          to={withLang("/books", language)}
+          underline="hover"
+          sx={{ color: "#824D5C", textDecoration: "none" }}
+        >
+          {t("nav.browse")}
+        </Link>
+        <span>/</span>
+        <span>{pageContextLabel}</span>
       </Box>
 
-      {/* Filters */}
-      <Box sx={{ mb: 4 }}>
-        {/* Category Filter */}
-        <Box sx={{ mb: 3 }}>
-          <Typography sx={{ fontWeight: 600, mb: 2 }}>
-            {t("filters.category")} ({t("filters.optional")})
+      <Box sx={{ mb: 2.5 }}>
+        <Typography component="h1" sx={pageHeaderTitleSx}>
+          {pageTitle}
+        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <Typography sx={{ fontSize: "14px", color: "#4A4A4A" }}>
+            {t("pages.ageResults.storiesFound", { count: stories.length })}
           </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-            <Button
-              variant={selectedCategory === null ? "contained" : "outlined"}
-              size="small"
-              onClick={() => {
-                setSelectedCategory(null);
-                setSelectedTopic(null);
-              }}
-            >
-              {t("filters.all")}
-            </Button>
-            {availableCategories.map((cat) => (
-              <Button
-                key={cat.id}
-                variant={selectedCategory === cat.id ? "contained" : "outlined"}
-                size="small"
-                onClick={() => {
-                  setSelectedCategory(cat.id);
-                  setSelectedTopic(null);
-                }}
-              >
-                {language === "en" ? (cat.label_en || cat.label_he) : cat.label_he}
-              </Button>
-            ))}
+          <Box component="span" sx={countBadgeSx}>
+            {stories.length} {t("catalog.stories")}
           </Box>
         </Box>
-
-        {/* Topic Filter */}
-        {selectedCategory && (
-          <Box sx={{ mb: 3 }}>
-            <Typography sx={{ fontWeight: 600, mb: 2 }}>
-              {t("filters.topic")} ({t("filters.optional")})
-            </Typography>
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              <Button
-                variant={selectedTopic === null ? "contained" : "outlined"}
-                size="small"
-                onClick={() => setSelectedTopic(null)}
-              >
-                {t("filters.all")}
-              </Button>
-              {availableTopics.map((topic) => (
-                <Button
-                  key={topic.id}
-                  variant={selectedTopic === topic.id ? "contained" : "outlined"}
-                  size="small"
-                  onClick={() => setSelectedTopic(topic.id)}
-                >
-                  {language === "en" ? (topic.label_en || topic.label_he) : topic.label_he}
-                </Button>
-              ))}
-            </Box>
-          </Box>
-        )}
       </Box>
 
-      {/* Stories Grid */}
+      <FilterBar lockedFilters={lockedFilters} groups={groups} />
+
       {stories.length > 0 ? (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "1fr 1fr",
-              md: "repeat(3, 1fr)",
-            },
-            gap: 4,
-          }}
-        >
+        <Box sx={storyGridSx}>
           {stories.map((story) => (
             <StoryGridCard
               key={story.id}
@@ -190,4 +237,3 @@ export default function AgeResultsPage() {
     </Container>
   );
 }
-

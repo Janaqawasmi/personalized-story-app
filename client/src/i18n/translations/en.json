@@ -96,18 +96,28 @@
     "searchHint": "You can search by story name, age (0-3, 3-6, etc.), or topic",
     "searchFailed": "Search failed"
   },
+  "nav": {
+    "browse": "Browse"
+  },
+  "catalog": {
+    "stories": "stories"
+  },
   "filters": {
     "age": "Age",
-    "category": "Category",
-    "topic": "Topic",
+    "category": "Topic",
+    "topic": "Situation",
     "optional": "Optional",
     "all": "All",
-    "allAges": "All Ages",
-    "allCategories": "All Categories",
-    "allTopics": "All Topics",
+    "allAges": "All ages",
+    "allCategories": "All topics",
+    "allTopics": "All situations",
     "clearFilters": "Clear Filters",
-    "filterBy": "Filter by:",
-    "clear": "Clear"
+    "filterBy": "Filter",
+    "clear": "Clear all",
+    "years": "years",
+    "removeAria": "Remove {label} filter",
+    "search": "Search...",
+    "groupTopics": "Topics"
   },
   "pages": {
     "ageResults": {
