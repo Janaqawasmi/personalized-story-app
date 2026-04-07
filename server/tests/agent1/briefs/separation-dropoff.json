@@ -1,0 +1,39 @@
+{
+  "storyType": "fear_anxiety",
+  "ageAndScope": {
+    "ageRange": "3-5",
+    "peakIntensity": "very_gentle",
+    "storyLength": "short"
+  },
+  "clinicalFoundation": {
+    "population": "A preschooler who clings at the classroom door because goodbye feels like the floor might drop away.",
+    "trigger": "Morning drop-off when other children walk in more easily.",
+    "therapeuticIntention": {
+      "feel": "that grown-ups come back",
+      "because": "Their body can learn the pattern: goodbye, then return, then hug."
+    },
+    "creativeVision": "A small paper star in the cubby that only appears after pick-up time.",
+    "oneTrueThing": "The teacher saves a soft hello for the hardest mornings."
+  },
+  "therapeuticArchitecture": {
+    "primaryApproach": "reassurance_predictability",
+    "supportingApproach": "normalization",
+    "shameDimension": "present",
+    "typeSpecificField": {
+      "fieldType": "somatic_expression",
+      "selections": ["crying_clinging", "going_quiet_shutting_down"]
+    },
+    "copingTool": "safe_person",
+    "resolutionCompleteness": "partial",
+    "mustNeverList": ["No mockery of clinging", "No forced push into the room without consent"]
+  },
+  "storyWorld": {
+    "personalization": false,
+    "protagonistType": "child",
+    "protagonistGender": "boy",
+    "caregiverPresence": "leaves_and_returns",
+    "narrativeDistance": "direct",
+    "supportingCharacters": [{ "type": "teacher_adult_guides", "functionalRole": "Names the next small step at the door" }]
+  },
+  "personalizationConfig": {}
+}

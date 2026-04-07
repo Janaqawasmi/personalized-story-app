@@ -1,0 +1,39 @@
+{
+  "storyType": "fear_anxiety",
+  "ageAndScope": {
+    "ageRange": "5-7",
+    "peakIntensity": "moderate",
+    "storyLength": "short"
+  },
+  "clinicalFoundation": {
+    "population": "A child starting school who does not know where the bathroom is and feels their body tighten when they need to go.",
+    "trigger": "Long hallways and unfamiliar doors during the first week.",
+    "therapeuticIntention": {
+      "feel": "brave enough to ask a safe adult",
+      "because": "Asking once can make the scary place known and the body can relax a little."
+    },
+    "creativeVision": "A hallway drawn like a gentle maze with one door that glows a little softer than the rest.",
+    "oneTrueThing": "The office secretary has a sticker bowl for brave questions."
+  },
+  "therapeuticArchitecture": {
+    "primaryApproach": "graduated_exposure",
+    "shameDimension": "not_significant",
+    "typeSpecificField": {
+      "fieldType": "somatic_expression",
+      "selections": ["heart_racing_cant_breathe", "tension_clenching"],
+      "freeText": "Has to wiggle toes to stay standing in line."
+    },
+    "copingTool": "asking_for_help",
+    "resolutionCompleteness": "partial",
+    "mustNeverList": ["No adult ridicule or shame for needing the bathroom", "No graphic medical detail"]
+  },
+  "storyWorld": {
+    "personalization": false,
+    "protagonistType": "child",
+    "protagonistGender": "girl",
+    "protagonistAge": "same_age",
+    "caregiverPresence": "waiting_at_the_end",
+    "narrativeDistance": "direct"
+  },
+  "personalizationConfig": {}
+}

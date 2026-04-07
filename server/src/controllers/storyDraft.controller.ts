@@ -8,7 +8,6 @@ import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
 import { loadWritingRules } from "../services/ragWritingRules.service";
 import { generateStoryDraft } from "../services/llmClient.service";
 import { parseDraftOutput } from "../services/draftParser.service";
-import { AuditTrail } from "../services/auditTrail.service";
 
 // Note: req.user is already typed globally by auth.middleware.ts
 // No need for local Request interface
@@ -157,21 +156,6 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
 
-    // The approved contract is already loaded by the guard middleware
-    const approvedContract = req.approvedContract;
-
-    // Log generation start
-    if (req.user) {
-      await AuditTrail.log({
-        action: "generation.started",
-        actor: AuditTrail.actorFromRequest(req.user),
-        resourceType: "storyDraft",
-        resourceId: briefId,
-        relatedResourceId: briefId,
-        metadata: { rulesVersionUsed: approvedContract?.rulesVersionUsed },
-      });
-    }
-
     if (!req.user) {
       res.status(401).json({ success: false, error: "Authentication required" });
       return;
@@ -297,17 +281,6 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
         updatedAt: admin.firestore.Timestamp.now(),
       });
 
-      // Log generation completion
-      if (req.user) {
-        await AuditTrail.log({
-          action: "generation.completed",
-          actor: AuditTrail.actorFromRequest(req.user),
-          resourceType: "storyDraft",
-          resourceId: draftId,
-          relatedResourceId: briefId,
-        });
-      }
-
       res.status(201).json({
       success: true,
         draftId,
@@ -352,32 +325,10 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       
       await briefRef.update(briefUpdateData);
 
-      // Log generation failure
-      if (req.user) {
-        await AuditTrail.log({
-          action: "generation.failed",
-          actor: AuditTrail.actorFromRequest(req.user),
-          resourceType: "storyDraft",
-          resourceId: briefId,
-          metadata: { error: generationError.message },
-        });
-      }
-
       throw generationError;
     }
   } catch (error: any) {
     console.error("Error generating draft:", error);
-
-    // Log generation failure (if not already logged above)
-    if (req.user && briefId && !error.message?.includes("Cannot generate draft") && !error.message?.includes("not found")) {
-      await AuditTrail.log({
-        action: "generation.failed",
-        actor: AuditTrail.actorFromRequest(req.user),
-        resourceType: "storyDraft",
-        resourceId: briefId,
-        metadata: { error: error.message },
-      });
-    }
 
     // Check if it's a conflict error (status not "created")
     if (error.message?.includes("Cannot generate draft")) {
@@ -642,21 +593,6 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    // Log draft edit to audit trail
-    if (req.user) {
-      await AuditTrail.log({
-        action: "brief.updated",
-        actor: AuditTrail.actorFromRequest(req.user),
-        resourceType: "storyDraft",
-        resourceId: draftId,
-        relatedResourceId: draftData.briefId,
-        metadata: {
-          revisionCount: currentRevisionCount + 1,
-          status: newStatus,
-        },
-      });
-    }
-
     res.status(200).json({
       success: true,
       status: newStatus,
@@ -797,35 +733,6 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
         currency: "USD",
       });
     });
-
-    // Get template ID created for this draft (after transaction completes)
-    const templatesSnapshot = await firestore
-      .collection("story_templates")
-      .where("draftId", "==", draftId)
-      .limit(1)
-      .get();
-    const templateId = templatesSnapshot.empty || templatesSnapshot.docs.length === 0 || !templatesSnapshot.docs[0] ? null : templatesSnapshot.docs[0].id;
-
-    // Log draft approval to audit trail
-    if (req.user) {
-      const draftDoc = await draftRef.get();
-      const draftData = draftDoc.exists ? (draftDoc.data() as StoryDraft) : null;
-      const metadata: Record<string, unknown> = {
-        action: "draft_approved_and_template_created",
-        approvedBy: req.user.uid,
-      };
-      if (templateId) {
-        metadata.templateId = templateId;
-      }
-      await AuditTrail.log({
-        action: "generation.completed",
-        actor: AuditTrail.actorFromRequest(req.user),
-        resourceType: "storyDraft",
-        resourceId: draftId,
-        ...(draftData?.briefId && { relatedResourceId: draftData.briefId }),
-        metadata,
-      });
-    }
 
     res.status(200).json({
       success: true,

@@ -1,8 +1,3 @@
-// TODO: When wiring up the Express route (Prompt 12), build a
-// StoryBriefSchema (Zod) that validates incoming brief payloads.
-// Either generate it from the existing TypeScript type or write it
-// by hand mirroring storyBrief.model.ts. Place it in the brief module
-// (server/src/models/) so it stays the single source of truth.
 import { z } from "zod";
 
 import type { StoryBrief } from "../models/storyBrief.model";
@@ -10,12 +5,22 @@ import type { StoryBrief } from "../models/storyBrief.model";
 export type { StoryBrief };
 
 /**
+ * Quality gate finding keys align with `StoryBrief` section paths (brief model tokens).
+ */
+export const PreCheckQualityGateFieldSchema = z.enum([
+  "clinicalFoundation.creativeVision",
+  "clinicalFoundation.trigger",
+  "clinicalFoundation.therapeuticIntention",
+]);
+export type PreCheckQualityGateField = z.infer<typeof PreCheckQualityGateFieldSchema>;
+
+/**
  * 2) PreCheckResultSchema — rule-based pre-check output.
  */
 export const PreCheckResultSchema = z.object({
   quality_gate_findings: z.array(
     z.object({
-      field: z.enum(["clinical_creative_vision", "specific_trigger", "therapeutic_intention"]),
+      field: PreCheckQualityGateFieldSchema,
       message: z.string(),
     }),
   ),

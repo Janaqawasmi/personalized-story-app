@@ -1,0 +1,39 @@
+{
+  "storyType": "fear_anxiety",
+  "ageAndScope": {
+    "ageRange": "7-9",
+    "peakIntensity": "moderate",
+    "storyLength": "standard"
+  },
+  "clinicalFoundation": {
+    "population": "A child who freezes when they might be wrong in front of the class.",
+    "trigger": "Reading aloud or answering when everyone is watching.",
+    "therapeuticIntention": {
+      "feel": "okay about one small stumble",
+      "because": "Mistakes can be ordinary, not proof they are bad."
+    },
+    "creativeVision": "Words on the board that wobble like jelly but still spell something true.",
+    "oneTrueThing": "A classmate once said the wrong answer and the room did not explode."
+  },
+  "therapeuticArchitecture": {
+    "primaryApproach": "cognitive_reframing",
+    "shameDimension": "central",
+    "typeSpecificField": {
+      "fieldType": "somatic_expression",
+      "selections": ["tension_clenching", "restless_fidgety"],
+      "freeText": "Face gets hot when called on."
+    },
+    "copingTool": "positive_self_talk",
+    "resolutionCompleteness": "open",
+    "mustNeverList": ["No humiliation by teacher or peers", "No 'just relax' dismissal of fear"]
+  },
+  "storyWorld": {
+    "personalization": false,
+    "protagonistType": "child",
+    "protagonistGender": "kept_open",
+    "caregiverPresence": "not_present",
+    "narrativeDistance": "direct",
+    "supportingCharacters": [{ "type": "peer_alongside", "functionalRole": "Shows a small mistake without drama" }]
+  },
+  "personalizationConfig": {}
+}

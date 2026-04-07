@@ -5,7 +5,6 @@
 
 import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
-import { AuditTrail } from "../services/auditTrail.service";
 import type { AuthenticatedUser } from "../middleware/auth.middleware";
 
 const COLLECTION = "dammaStoryBriefs";
@@ -36,16 +35,6 @@ export async function createDammaStoryBrief(req: Request, res: Response): Promis
     };
 
     const docRef = await firestore.collection(COLLECTION).add(doc);
-
-    await AuditTrail.log({
-      action: "damma_brief.submitted",
-      actor: AuditTrail.actorFromRequest(user),
-      resourceType: "storyBrief",
-      resourceId: docRef.id,
-      metadata: {
-        storyType: (briefPayload as { storyType?: string }).storyType,
-      },
-    });
 
     res.status(201).json({
       success: true,

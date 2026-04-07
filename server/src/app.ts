@@ -24,15 +24,14 @@ import cors from "cors";
 import { admin, firestore } from "./config/firebase";
 
 import storyDraftRoutes from "./routes/storyDraft.routes";
-import storyBriefRouter from "./routes/storyBrief.routes";
 import dammaStoryBriefRouter from "./routes/dammaStoryBrief.routes";
-import agent1Routes from "./routes/agent1.routes";
 import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storyReviewRoutes from "./routes/storyReview.routes";
 import specialistPromptRoutes from "./routes/specialistPrompt.routes";
 import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
+import agent1Routes from "./routes/agent1.routes";
 
 // Auth routes (registration)
 import registerCaregiverRouter from "./routes/auth/registerCaregiver.router";
@@ -79,11 +78,10 @@ app.use("/api/reference-data", referenceDataRoutes);
 app.use("/api/auth", registerCaregiverRouter);
 
 // Protected routes (auth enforced at router level)
-app.use("/api/admin/story-briefs", storyBriefRouter);
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
-app.use("/api/agent1", agent1Routes);
 app.use("/api/story-drafts", storyDraftRoutes);
 app.use("/api/specialist", specialistPromptRoutes);
+app.use("/api/agent1", agent1Routes);
 
 // Caregiver endpoints (auth enforced in each router)
 app.use("/api/caregiver/cart", caregiverCartRouter);
