@@ -39,6 +39,91 @@ export const BRIEF_FEEDBACK_FIELD_CATALOG: ReadonlyArray<{
 
 export const BRIEF_FEEDBACK_FIELD_IDS = BRIEF_FEEDBACK_FIELD_CATALOG.map((f) => f.id);
 
+/**
+ * Field IDs to show in the feedback panel for the current brief step.
+ * Mirrors form visibility: Section 4 hides 4.1 / 4.3 when personalization is on; Section 5 shows 5.1 or 5.2.
+ *
+ * @param step — `0` = pre-brief story type; `1`–`5` = sections; `null` = no section context (e.g. post-submit screen)
+ */
+export function getFeedbackFieldIdsForStep(
+  step: number | null,
+  personalization: "yes" | "no",
+): string[] {
+  if (step === null) return [];
+  if (step === 0) return ["storyType"];
+  if (step === 1) return ["1.1", "1.2", "1.3"];
+  if (step === 2) return ["2.1", "2.2", "2.3", "2.4", "2.5"];
+  if (step === 3) return ["3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7"];
+  if (step === 4) {
+    if (personalization === "no") {
+      return ["4.0", "4.1", "4.2", "4.3", "4.4", "4.5", "4.6", "4.7"];
+    }
+    return ["4.0", "4.2", "4.4", "4.5", "4.6", "4.7"];
+  }
+  if (step === 5) {
+    return personalization === "yes" ? ["5.1"] : ["5.2"];
+  }
+  return [];
+}
+
+// ============================================================================
+// Per-field verdict (single choice) — section-aware review UI
+// ============================================================================
+
+/**
+ * Specialist assessment for one spec field. At most one verdict per field per feedback submission.
+ * Stored under `fieldFeedback[fieldId].verdict`.
+ */
+export const BRIEF_FEEDBACK_VERDICTS = [
+  {
+    id: "good",
+    label: "Good",
+    description: "This field is clinically sound and clear for the brief.",
+  },
+  {
+    id: "needs_modification",
+    label: "Needs modification",
+    description: "Something here should change before the brief is ready.",
+  },
+  {
+    id: "unclear",
+    label: "Not clear",
+    description: "The intent or wording needs clarification for the author or downstream use.",
+  },
+  {
+    id: "remove_or_rethink",
+    label: "Remove or rethink",
+    description: "This content or choice should not stay as written; reconsider or replace it.",
+  },
+  {
+    id: "keep_as_is",
+    label: "Keep as-is",
+    description: "Explicitly leave this choice or text unchanged (no substantive edit).",
+  },
+] as const;
+
+export type BriefFeedbackVerdictId = (typeof BRIEF_FEEDBACK_VERDICTS)[number]["id"];
+
+/** Short label for chips, radio groups, and summaries */
+export const BRIEF_FEEDBACK_VERDICT_LABELS: Record<BriefFeedbackVerdictId, string> =
+  BRIEF_FEEDBACK_VERDICTS.reduce(
+    (acc, v) => {
+      acc[v.id] = v.label;
+      return acc;
+    },
+    {} as Record<BriefFeedbackVerdictId, string>,
+  );
+
+/** Helper / tooltip / subtitle copy */
+export const BRIEF_FEEDBACK_VERDICT_DESCRIPTIONS: Record<BriefFeedbackVerdictId, string> =
+  BRIEF_FEEDBACK_VERDICTS.reduce(
+    (acc, v) => {
+      acc[v.id] = v.description;
+      return acc;
+    },
+    {} as Record<BriefFeedbackVerdictId, string>,
+  );
+
 /** Structured tags for the brief overall (multi-select) */
 export const BRIEF_FEEDBACK_OVERALL_QUICK_TAGS = [
   { id: "clarify_clinical_framing", label: "Clarify clinical framing" },
@@ -62,6 +147,9 @@ export const BRIEF_FEEDBACK_FIELD_QUICK_TAGS = [
 export type BriefFeedbackFieldQuickTagId = (typeof BRIEF_FEEDBACK_FIELD_QUICK_TAGS)[number]["id"];
 
 export interface BriefFieldFeedbackEntry {
+  /** Preferred structured assessment for this field (single choice) */
+  verdict?: BriefFeedbackVerdictId;
+  /** Optional supplementary tags (e.g. legacy or extra nuance) */
   quickTags: BriefFeedbackFieldQuickTagId[];
   comment: string;
 }
@@ -83,7 +171,10 @@ export interface StoryBriefFeedbackDoc {
   submittedByDisplayName?: string;
   generalComment: string;
   overallQuickTags: string[];
-  fieldFeedback: Record<string, { quickTags: string[]; comment: string }>;
+  fieldFeedback: Record<
+    string,
+    { verdict?: string; quickTags: string[]; comment: string }
+  >;
   /** Snapshot of `brief` from the parent Firestore document at feedback time */
   briefSnapshotAtFeedback?: unknown;
 }

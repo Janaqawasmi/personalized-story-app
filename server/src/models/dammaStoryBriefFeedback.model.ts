@@ -50,6 +50,15 @@ export const ALLOWED_FIELD_QUICK_TAGS: ReadonlySet<string> = new Set([
   "tension_with_intention",
 ]);
 
+/** Must match client BRIEF_FEEDBACK_VERDICTS ids */
+export const ALLOWED_FIELD_VERDICTS: ReadonlySet<string> = new Set([
+  "good",
+  "needs_modification",
+  "unclear",
+  "remove_or_rethink",
+  "keep_as_is",
+]);
+
 export const FEEDBACK_SUBCOLLECTION = "feedback";
 
 export const MAX_GENERAL_COMMENT_CHARS = 8000;

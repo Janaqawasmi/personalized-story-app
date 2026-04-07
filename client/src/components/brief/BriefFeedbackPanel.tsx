@@ -11,11 +11,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  FormControl,
-  InputLabel,
-  MenuItem,
   Paper,
-  Select,
   Stack,
   TextField,
   Typography,
@@ -29,6 +25,10 @@ import {
   BRIEF_FEEDBACK_FIELD_CATALOG,
   BRIEF_FEEDBACK_FIELD_QUICK_TAGS,
   BRIEF_FEEDBACK_OVERALL_QUICK_TAGS,
+  BRIEF_FEEDBACK_VERDICTS,
+  BRIEF_FEEDBACK_VERDICT_DESCRIPTIONS,
+  type BriefFeedbackVerdictId,
+  getFeedbackFieldIdsForStep,
   type BriefFeedbackFieldQuickTagId,
   type BriefFeedbackOverallQuickTagId,
   type BriefFieldFeedbackEntry,
@@ -45,16 +45,22 @@ function overallTagLabel(id: string): string {
   return row?.label ?? id;
 }
 
-interface Props {
+export interface BriefFeedbackPanelProps {
   /** Firestore document id of a submitted brief — required to save feedback */
   briefId: string | null;
+  /** `0` = pre-brief; `1`–`5` = sections; `null` = unknown (e.g. post-submit) */
+  activeStep: number | null;
+  personalization: "yes" | "no";
 }
 
-export default function BriefFeedbackPanel({ briefId }: Props) {
+export default function BriefFeedbackPanel({
+  briefId,
+  activeStep,
+  personalization,
+}: BriefFeedbackPanelProps) {
   const [generalComment, setGeneralComment] = useState("");
   const [overallTags, setOverallTags] = useState<Set<BriefFeedbackOverallQuickTagId>>(new Set());
   const [fieldFeedback, setFieldFeedback] = useState<Record<string, BriefFieldFeedbackEntry>>({});
-  const [fieldToAdd, setFieldToAdd] = useState<string>("");
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -87,10 +93,10 @@ export default function BriefFeedbackPanel({ briefId }: Props) {
     void loadHistory();
   }, [briefId, loadHistory]);
 
-  const availableFieldOptions = useMemo(() => {
-    const taken = new Set(Object.keys(fieldFeedback));
-    return BRIEF_FEEDBACK_FIELD_CATALOG.filter((f) => !taken.has(f.id));
-  }, [fieldFeedback]);
+  const visibleFieldIds = useMemo(
+    () => getFeedbackFieldIdsForStep(activeStep, personalization),
+    [activeStep, personalization],
+  );
 
   function toggleOverallTag(id: BriefFeedbackOverallQuickTagId) {
     setOverallTags((prev) => {
@@ -114,27 +120,21 @@ export default function BriefFeedbackPanel({ briefId }: Props) {
     });
   }
 
+  function setFieldVerdict(fieldId: string, verdict: BriefFeedbackVerdictId | undefined) {
+    setFieldFeedback((prev) => {
+      const cur = prev[fieldId] ?? { quickTags: [], comment: "" };
+      if (!verdict) {
+        const { verdict: _omit, ...rest } = cur;
+        return { ...prev, [fieldId]: rest };
+      }
+      return { ...prev, [fieldId]: { ...cur, verdict } };
+    });
+  }
+
   function setFieldComment(fieldId: string, comment: string) {
     setFieldFeedback((prev) => {
       const cur = prev[fieldId] ?? { quickTags: [], comment: "" };
       return { ...prev, [fieldId]: { ...cur, comment } };
-    });
-  }
-
-  function addFieldRow(fieldId: string) {
-    if (!fieldId) return;
-    setFieldFeedback((prev) => ({
-      ...prev,
-      [fieldId]: prev[fieldId] ?? { quickTags: [], comment: "" },
-    }));
-    setFieldToAdd("");
-  }
-
-  function removeFieldRow(fieldId: string) {
-    setFieldFeedback((prev) => {
-      const next = { ...prev };
-      delete next[fieldId];
-      return next;
     });
   }
 
@@ -147,7 +147,9 @@ export default function BriefFeedbackPanel({ briefId }: Props) {
     const filteredFields: Record<string, BriefFieldFeedbackEntry> = {};
     for (const [fid, entry] of Object.entries(fieldFeedback)) {
       const has =
-        entry.comment.trim().length > 0 || (entry.quickTags?.length ?? 0) > 0;
+        entry.verdict != null ||
+        entry.comment.trim().length > 0 ||
+        (entry.quickTags?.length ?? 0) > 0;
       if (has) filteredFields[fid] = entry;
     }
 
@@ -242,41 +244,17 @@ export default function BriefFeedbackPanel({ briefId }: Props) {
       <Typography variant="subtitle2" fontWeight={700} color={COLORS.textPrimary} gutterBottom>
         Field-level (optional)
       </Typography>
-      <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1 }}>
-        Add one or more spec fields, then choose quick tags and/or a short note.
+      <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1.25 }}>
+        Verdict + optional note for fields in the current section.
       </Typography>
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mb: 2 }} alignItems="stretch">
-        <FormControl size="small" fullWidth>
-          <InputLabel id="brief-feedback-field-add">Add field</InputLabel>
-          <Select
-            labelId="brief-feedback-field-add"
-            label="Add field"
-            value={fieldToAdd}
-            onChange={(e) => setFieldToAdd(e.target.value as string)}
-          >
-            <MenuItem value="">
-              <em>Select…</em>
-            </MenuItem>
-            {availableFieldOptions.map((f) => (
-              <MenuItem key={f.id} value={f.id}>
-                {f.id} — {f.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          variant="outlined"
-          disabled={!fieldToAdd}
-          onClick={() => addFieldRow(fieldToAdd)}
-          sx={{ flexShrink: 0, textTransform: "none", fontWeight: 600 }}
-        >
-          Add
-        </Button>
-      </Stack>
-
-      <Stack spacing={2} sx={{ mb: 2 }}>
-        {Object.keys(fieldFeedback).map((fid) => (
+      {visibleFieldIds.length === 0 ? (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          Navigate within the brief to leave field-by-field feedback for that section.
+        </Alert>
+      ) : (
+        <Stack spacing={2} sx={{ mb: 2 }}>
+          {visibleFieldIds.map((fid) => (
           <Box
             key={fid}
             sx={{
@@ -286,14 +264,33 @@ export default function BriefFeedbackPanel({ briefId }: Props) {
               bgcolor: "rgba(97, 120, 145, 0.03)",
             }}
           >
-            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" mb={1}>
-              <Typography variant="caption" fontWeight={700} color={COLORS.textPrimary}>
-                {fieldLabel(fid)}
-              </Typography>
-              <Button size="small" onClick={() => removeFieldRow(fid)} sx={{ minWidth: 0, p: 0.5 }}>
-                Remove
-              </Button>
+            <Typography variant="caption" fontWeight={800} color={COLORS.textPrimary} display="block">
+              {fieldLabel(fid)}
+            </Typography>
+
+            <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.75} sx={{ mt: 1, mb: 0.75 }}>
+              {BRIEF_FEEDBACK_VERDICTS.map((v) => {
+                const active = fieldFeedback[fid]?.verdict === v.id;
+                return (
+                  <Chip
+                    key={v.id}
+                    label={v.label}
+                    size="small"
+                    onClick={() => setFieldVerdict(fid, active ? undefined : (v.id as BriefFeedbackVerdictId))}
+                    color={active ? "primary" : "default"}
+                    variant={active ? "filled" : "outlined"}
+                    sx={{ fontWeight: 650 }}
+                  />
+                );
+              })}
             </Stack>
+
+            {fieldFeedback[fid]?.verdict ? (
+              <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1 }}>
+                {BRIEF_FEEDBACK_VERDICT_DESCRIPTIONS[fieldFeedback[fid].verdict as BriefFeedbackVerdictId]}
+              </Typography>
+            ) : null}
+
             <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5} sx={{ mb: 1 }}>
               {BRIEF_FEEDBACK_FIELD_QUICK_TAGS.map((t) => {
                 const active = fieldFeedback[fid]?.quickTags?.includes(t.id) ?? false;
@@ -319,8 +316,9 @@ export default function BriefFeedbackPanel({ briefId }: Props) {
               onChange={(e) => setFieldComment(fid, e.target.value)}
             />
           </Box>
-        ))}
-      </Stack>
+          ))}
+        </Stack>
+      )}
 
       {submitError && (
         <Alert severity="error" sx={{ mb: 1.5, borderRadius: 2 }}>

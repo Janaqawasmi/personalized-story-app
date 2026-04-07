@@ -148,9 +148,13 @@ const briefPaperSx = {
  */
 function BriefPageWithSidebar({
   briefId,
+  activeStep,
+  personalization,
   children,
 }: {
   briefId: string | null;
+  activeStep: number | null;
+  personalization: "yes" | "no";
   children: React.ReactNode;
 }) {
   return (
@@ -177,7 +181,11 @@ function BriefPageWithSidebar({
         >
           {children}
         </Paper>
-        <BriefFeedbackPanel briefId={briefId} />
+        <BriefFeedbackPanel
+          briefId={briefId}
+          activeStep={activeStep}
+          personalization={personalization}
+        />
       </Box>
     </Box>
   );
@@ -664,7 +672,11 @@ export default function BriefForm({ onSubmit }: Props) {
 
   if (submitSuccess) {
     return (
-      <BriefPageWithSidebar briefId={feedbackBriefId}>
+      <BriefPageWithSidebar
+        briefId={feedbackBriefId}
+        activeStep={null}
+        personalization="yes"
+      >
         <BriefSubmitSuccess
           briefId={submitSuccess.briefId}
           jsonText={submitSuccess.jsonText}
@@ -678,7 +690,11 @@ export default function BriefForm({ onSubmit }: Props) {
 
   if (activeStep === 0) {
     return (
-      <BriefPageWithSidebar briefId={feedbackBriefId}>
+      <BriefPageWithSidebar
+        briefId={feedbackBriefId}
+        activeStep={0}
+        personalization="yes"
+      >
         <StoryTypeSelector
           selected={draft.storyType}
           onSelect={(type: StoryType) => setDraft((d) => ({ ...d, storyType: type }))}
@@ -701,7 +717,11 @@ export default function BriefForm({ onSubmit }: Props) {
 
   return (
     <>
-    <BriefPageWithSidebar briefId={feedbackBriefId}>
+    <BriefPageWithSidebar
+      briefId={feedbackBriefId}
+      activeStep={activeStep}
+      personalization={personalization}
+    >
       {/* ── Form header with save indicator ────────────────────────── */}
       <Box
         display="flex"

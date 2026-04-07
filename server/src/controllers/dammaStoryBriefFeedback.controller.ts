@@ -13,6 +13,7 @@ import {
   ALLOWED_FIELD_IDS,
   ALLOWED_OVERALL_QUICK_TAGS,
   ALLOWED_FIELD_QUICK_TAGS,
+  ALLOWED_FIELD_VERDICTS,
   FEEDBACK_SUBCOLLECTION,
   MAX_GENERAL_COMMENT_CHARS,
   MAX_FIELD_COMMENT_CHARS,
@@ -24,7 +25,10 @@ const COLLECTION = "dammaStoryBriefs";
 function parseFeedbackBody(body: unknown): {
   generalComment: string;
   overallQuickTags: string[];
-  fieldFeedback: Record<string, { quickTags: string[]; comment: string }>;
+  fieldFeedback: Record<
+    string,
+    { verdict?: string; quickTags: string[]; comment: string }
+  >;
 } | null {
   if (body == null || typeof body !== "object") return null;
   const b = body as Record<string, unknown>;
@@ -34,7 +38,10 @@ function parseFeedbackBody(body: unknown): {
     : [];
   const fieldFeedbackRaw = b.fieldFeedback;
   if (fieldFeedbackRaw != null && typeof fieldFeedbackRaw !== "object") return null;
-  const fieldFeedback: Record<string, { quickTags: string[]; comment: string }> = {};
+  const fieldFeedback: Record<
+    string,
+    { verdict?: string; quickTags: string[]; comment: string }
+  > = {};
   if (fieldFeedbackRaw && typeof fieldFeedbackRaw === "object") {
     for (const [key, val] of Object.entries(fieldFeedbackRaw as Record<string, unknown>)) {
       if (!ALLOWED_FIELD_IDS.has(key)) continue;
@@ -44,7 +51,14 @@ function parseFeedbackBody(body: unknown): {
         ? v.quickTags.filter((t): t is string => typeof t === "string")
         : [];
       const comment = typeof v.comment === "string" ? v.comment : "";
-      fieldFeedback[key] = { quickTags: qt, comment };
+      const verdictRaw = v.verdict;
+      const verdict = typeof verdictRaw === "string" ? verdictRaw : undefined;
+      const entry: { verdict?: string; quickTags: string[]; comment: string } = {
+        quickTags: qt,
+        comment,
+      };
+      if (verdict !== undefined) entry.verdict = verdict;
+      fieldFeedback[key] = entry;
     }
   }
   return { generalComment, overallQuickTags, fieldFeedback };
@@ -53,7 +67,10 @@ function parseFeedbackBody(body: unknown): {
 function validateFeedbackPayload(parsed: {
   generalComment: string;
   overallQuickTags: string[];
-  fieldFeedback: Record<string, { quickTags: string[]; comment: string }>;
+  fieldFeedback: Record<
+    string,
+    { verdict?: string; quickTags: string[]; comment: string }
+  >;
 }): string | null {
   if (parsed.generalComment.length > MAX_GENERAL_COMMENT_CHARS) {
     return `generalComment exceeds ${MAX_GENERAL_COMMENT_CHARS} characters`;
@@ -70,6 +87,11 @@ function validateFeedbackPayload(parsed: {
     if (entry.comment.length > MAX_FIELD_COMMENT_CHARS) {
       return `comment for ${key} exceeds ${MAX_FIELD_COMMENT_CHARS} characters`;
     }
+    if (entry.verdict !== undefined) {
+      if (!ALLOWED_FIELD_VERDICTS.has(entry.verdict)) {
+        return `Invalid verdict for ${key}: ${entry.verdict}`;
+      }
+    }
     for (const t of entry.quickTags) {
       if (!ALLOWED_FIELD_QUICK_TAGS.has(t)) return `Invalid field quick tag for ${key}: ${t}`;
     }
@@ -79,7 +101,11 @@ function validateFeedbackPayload(parsed: {
   const hasField = keys.some((k) => {
     const e = parsed.fieldFeedback[k];
     if (!e) return false;
-    return e.comment.trim().length > 0 || e.quickTags.length > 0;
+    return (
+      e.verdict !== undefined ||
+      e.comment.trim().length > 0 ||
+      e.quickTags.length > 0
+    );
   });
   if (!hasGeneral && !hasOverall && !hasField) {
     return "Add a general comment, at least one overall tag, or field-level feedback";
