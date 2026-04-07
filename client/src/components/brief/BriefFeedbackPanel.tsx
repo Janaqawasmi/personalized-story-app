@@ -3,7 +3,7 @@
 // Specialist review panel: section-scoped field verdicts and optional nuance tags —
 // stored via API in Firestore (dammaStoryBriefs/{id}/feedback).
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import {
   Accordion,
@@ -87,6 +87,28 @@ export default function BriefFeedbackPanel({
     () => getFeedbackFieldIdsForStep(activeStep, personalization),
     [activeStep, personalization],
   );
+
+  /** Focus first field card when step / visible fields change — not on initial mount (avoid stealing focus from the form). */
+  const firstFieldCardRef = useRef<HTMLDivElement | null>(null);
+  const prevFeedbackContextKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const contextKey = `${activeStep ?? "null"}:${personalization}:${visibleFieldIds.join(",")}`;
+    const prev = prevFeedbackContextKeyRef.current;
+    prevFeedbackContextKeyRef.current = contextKey;
+
+    if (visibleFieldIds.length === 0) return;
+    if (prev === null) return;
+    if (prev === contextKey) return;
+
+    const el = firstFieldCardRef.current;
+    if (!el) return;
+
+    const frame = requestAnimationFrame(() => {
+      el.focus({ preventScroll: false });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeStep, personalization, visibleFieldIds]);
 
   const canSave = useMemo(() => {
     for (const entry of Object.values(fieldFeedback)) {
@@ -250,15 +272,21 @@ export default function BriefFeedbackPanel({
 
       {visibleFieldIds.length > 0 ? (
         <Stack spacing={1.75} sx={{ mb: 2 }}>
-          {visibleFieldIds.map((fid) => {
+          {visibleFieldIds.map((fid, index) => {
             const { title, specId } = fieldMeta(fid);
             const v = fieldFeedback[fid]?.verdict;
             const showNuance = nuanceOpen[fid] ?? false;
             const hasNuanceTags = (fieldFeedback[fid]?.quickTags?.length ?? 0) > 0;
+            const isFirst = index === 0;
+            const titleId = `brief-feedback-field-${fid}-title`;
 
             return (
               <Box
                 key={fid}
+                ref={isFirst ? firstFieldCardRef : undefined}
+                tabIndex={isFirst ? -1 : undefined}
+                component="section"
+                aria-labelledby={titleId}
                 sx={{
                   p: 1.5,
                   borderRadius: 2,
@@ -268,9 +296,22 @@ export default function BriefFeedbackPanel({
                   ...(v
                     ? { borderColor: "rgba(97, 120, 145, 0.35)" }
                     : {}),
+                  ...(isFirst
+                    ? {
+                        "&:focus-visible": {
+                          outline: `2px solid ${COLORS.primary}`,
+                          outlineOffset: 2,
+                        },
+                      }
+                    : {}),
                 }}
               >
-                <Typography variant="body2" fontWeight={700} color={COLORS.textPrimary}>
+                <Typography
+                  id={titleId}
+                  variant="body2"
+                  fontWeight={700}
+                  color={COLORS.textPrimary}
+                >
                   {title}
                 </Typography>
                 <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1 }}>
