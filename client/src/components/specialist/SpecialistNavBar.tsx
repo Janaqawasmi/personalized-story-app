@@ -4,6 +4,7 @@ import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { COLORS } from "../../theme";
+import { useSpecialistUi } from "../../i18n/specialistUi";
 
 /**
  * Secondary navigation for specialist routes (below the main app Navbar).
@@ -12,6 +13,7 @@ export default function SpecialistNavBar() {
   const { lang } = useParams<{ lang: string }>();
   const { pathname } = useLocation();
   const base = `/${lang ?? "he"}/specialist`;
+  const sp = useSpecialistUi();
 
   const isBriefsArea = pathname.includes("/specialist/briefs");
   const isEditor = pathname.includes("/specialist/create-brief");
@@ -42,7 +44,7 @@ export default function SpecialistNavBar() {
   return (
     <Box
       component="nav"
-      aria-label="Specialist workspace"
+      aria-label={sp.workspaceNavAriaLabel}
       sx={{
         borderBottom: `1px solid ${COLORS.border}`,
         bgcolor: COLORS.surface,
@@ -71,7 +73,7 @@ export default function SpecialistNavBar() {
             fontWeight={800}
             sx={{ color: COLORS.primary, letterSpacing: "-0.02em" }}
           >
-            Specialist workspace
+            {sp.workspaceTitle}
           </Typography>
         </Stack>
 
@@ -82,7 +84,7 @@ export default function SpecialistNavBar() {
             startIcon={<ListAltOutlinedIcon />}
             sx={btn(isBriefsArea)}
           >
-            Briefs
+            {sp.navBriefs}
           </Button>
           <Button
             component={RouterLink}
@@ -90,7 +92,7 @@ export default function SpecialistNavBar() {
             startIcon={<EditNoteOutlinedIcon />}
             sx={btn(isEditor)}
           >
-            Story brief
+            {sp.navStoryBrief}
           </Button>
         </Stack>
       </Stack>

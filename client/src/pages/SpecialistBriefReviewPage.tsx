@@ -20,6 +20,7 @@ import { fetchDammaStoryBrief } from "../api/dammaStoryBrief";
 import { COLORS } from "../theme";
 import SpecialistPortalShell, { specialistMainPaperSx } from "../components/specialist/SpecialistPortalShell";
 import { useStoryBriefUi, useBriefDateLocale, formatBriefSavedAt } from "../i18n/storyBriefUi";
+import { useSpecialistUi } from "../i18n/specialistUi";
 import type { StoryType } from "../types/storyBrief";
 
 const jsonPreSx = {
@@ -41,6 +42,7 @@ export default function SpecialistBriefReviewPage() {
   const { lang, briefId } = useParams<{ lang: string; briefId: string }>();
   const navigate = useNavigate();
   const ui = useStoryBriefUi();
+  const sp = useSpecialistUi();
   const dateLocale = useBriefDateLocale();
 
   const [loading, setLoading] = useState(true);
@@ -58,12 +60,12 @@ export default function SpecialistBriefReviewPage() {
       const data = await fetchDammaStoryBrief(briefId);
       setRecord(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load brief");
+      setError(e instanceof Error ? e.message : sp.loadBriefError);
       setRecord(null);
     } finally {
       setLoading(false);
     }
-  }, [briefId]);
+  }, [briefId, sp.loadBriefError]);
 
   useEffect(() => {
     void load();
@@ -90,10 +92,10 @@ export default function SpecialistBriefReviewPage() {
     if (!jsonText) return;
     try {
       await navigator.clipboard.writeText(jsonText);
-      setCopyHint("JSON copied to clipboard");
+      setCopyHint(sp.copyJsonSuccess);
       setTimeout(() => setCopyHint(null), 2400);
     } catch {
-      setCopyHint("Could not copy — select the text below");
+      setCopyHint(sp.copyJsonFail);
       setTimeout(() => setCopyHint(null), 3200);
     }
   }
@@ -114,7 +116,7 @@ export default function SpecialistBriefReviewPage() {
           "&:hover": { color: COLORS.primary, bgcolor: "rgba(97, 120, 145, 0.06)" },
         }}
       >
-        All briefs
+        {sp.reviewAllBriefsLink}
       </Button>
 
       {loading && (
@@ -138,13 +140,13 @@ export default function SpecialistBriefReviewPage() {
             variant="overline"
             sx={{ letterSpacing: "0.14em", fontWeight: 700, color: COLORS.primary, display: "block", mb: 1 }}
           >
-            Submitted brief
+            {sp.reviewSubmittedOverline}
           </Typography>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="h5" component="h1" sx={{ fontWeight: 800, letterSpacing: "-0.02em", mb: 1 }}>
-                Brief review
+                {sp.reviewPageTitle}
               </Typography>
               <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -205,9 +207,9 @@ export default function SpecialistBriefReviewPage() {
             >
               {ui.successDownload}
             </Button>
-            <Tooltip title="Copy JSON to clipboard">
+            <Tooltip title={sp.copyJsonTooltip}>
               <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => void handleCopyJson()} sx={{ borderColor: COLORS.border }}>
-                Copy JSON
+                {sp.copyJsonButton}
               </Button>
             </Tooltip>
           </Stack>
@@ -219,10 +221,10 @@ export default function SpecialistBriefReviewPage() {
 
           <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
             <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
-              Payload (read-only)
+              {sp.payloadReadOnly}
             </Typography>
-            <Tooltip title="Copy">
-              <IconButton size="small" aria-label="Copy JSON" onClick={() => void handleCopyJson()}>
+            <Tooltip title={sp.copyTooltip}>
+              <IconButton size="small" aria-label={sp.copyJsonAria} onClick={() => void handleCopyJson()}>
                 <ContentCopyIcon fontSize="small" />
               </IconButton>
             </Tooltip>
@@ -237,7 +239,7 @@ export default function SpecialistBriefReviewPage() {
             to={briefsHref}
             sx={{ mt: 3, textTransform: "none", fontWeight: 600 }}
           >
-            ← Back to all briefs
+            {sp.reviewBackBottom}
           </Button>
         </Paper>
       )}

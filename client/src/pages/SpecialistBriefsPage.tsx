@@ -40,6 +40,7 @@ import { COLORS } from "../theme";
 import SpecialistPortalShell, { specialistMainPaperSx } from "../components/specialist/SpecialistPortalShell";
 import { useStoryBriefUi } from "../i18n/storyBriefUi";
 import { useBriefDateLocale, formatBriefSavedAt } from "../i18n/storyBriefUi";
+import { useSpecialistUi } from "../i18n/specialistUi";
 import type { StoryType } from "../types/storyBrief";
 
 function storyTypeLabel(ui: ReturnType<typeof useStoryBriefUi>, t: string | undefined): string {
@@ -60,6 +61,7 @@ export default function SpecialistBriefsPage() {
   const navigate = useNavigate();
   const base = `/${lang ?? "he"}/specialist`;
   const ui = useStoryBriefUi();
+  const sp = useSpecialistUi();
   const dateLocale = useBriefDateLocale();
 
   const [submitted, setSubmitted] = useState<DammaStoryBriefListItem[]>([]);
@@ -78,12 +80,12 @@ export default function SpecialistBriefsPage() {
       const rows = await listDammaStoryBriefs(80);
       setSubmitted(rows);
     } catch (e) {
-      setListError(e instanceof Error ? e.message : "Could not load submitted briefs");
+      setListError(e instanceof Error ? e.message : sp.loadSubmittedError);
       setSubmitted([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sp.loadSubmittedError]);
 
   useEffect(() => {
     void refreshSubmitted();
@@ -100,15 +102,15 @@ export default function SpecialistBriefsPage() {
     deleteDraftForDraftId(deleteTarget.id);
     bumpDraftList((n) => n + 1);
     setDeleteTarget(null);
-    setSnackbar("Draft removed");
+    setSnackbar(sp.snackbarDraftRemoved);
   }
 
   async function copyId(id: string) {
     try {
       await navigator.clipboard.writeText(id);
-      setSnackbar("Brief ID copied");
+      setSnackbar(sp.snackbarBriefIdCopied);
     } catch {
-      setSnackbar("Could not copy — select the ID manually");
+      setSnackbar(sp.snackbarCopyFailed);
     }
   }
 
@@ -137,15 +139,14 @@ export default function SpecialistBriefsPage() {
           <Stack direction="row" alignItems="center" spacing={1} sx={{ color: COLORS.primary }}>
             <ArticleOutlinedIcon sx={{ fontSize: 28 }} aria-hidden />
             <Typography variant="overline" sx={{ letterSpacing: "0.14em", fontWeight: 700 }}>
-              Specialist workspace
+              {sp.briefsPageHeroOverline}
             </Typography>
           </Stack>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 800, letterSpacing: "-0.02em" }}>
-            Story briefs
+            {sp.briefsPageTitle}
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 560, lineHeight: 1.6 }}>
-            Drafts are saved in this browser only. Submitted briefs are stored on the server and listed
-            below for review.
+            {sp.briefsPageIntro}
           </Typography>
         </Stack>
 
@@ -163,9 +164,9 @@ export default function SpecialistBriefsPage() {
               boxShadow: "0 8px 24px -8px rgba(97, 120, 145, 0.45)",
             }}
           >
-            New story brief
+            {sp.newStoryBrief}
           </Button>
-          <Tooltip title="Reload submitted list">
+          <Tooltip title={sp.refreshListTooltip}>
             <span>
               <Button
                 variant="outlined"
@@ -180,7 +181,7 @@ export default function SpecialistBriefsPage() {
                   "&:hover": { borderColor: COLORS.primary, color: COLORS.primary },
                 }}
               >
-                Refresh
+                {sp.refresh}
               </Button>
             </span>
           </Tooltip>
@@ -193,8 +194,7 @@ export default function SpecialistBriefsPage() {
             </Typography>
             {listError.includes("Insufficient permissions") && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.6 }}>
-                Story brief APIs require the <strong>specialist</strong> role on your Firebase account (not
-                caregiver/parent). Ask a project admin to run from the <code>server</code> folder:
+                {sp.permissionHelpBeforeCode}
                 <Box
                   component="code"
                   sx={{
@@ -210,7 +210,7 @@ export default function SpecialistBriefsPage() {
                 >
                   npx ts-node scripts/setUserRole.ts YOUR_FIREBASE_UID specialist
                 </Box>
-                Then <strong>sign out and sign in again</strong> so your ID token includes the new role.
+                {sp.permissionHelpAfterCode}
               </Typography>
             )}
           </Alert>
@@ -221,11 +221,11 @@ export default function SpecialistBriefsPage() {
           <Stack direction="row" alignItems="center" spacing={1}>
             <EditNoteOutlinedIcon sx={{ color: COLORS.primary, fontSize: 22 }} />
             <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: "1.05rem" }}>
-              In progress
+              {sp.sectionInProgress}
             </Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: -0.5 }}>
-            Resume where you left off. Clearing your browser data will remove these drafts.
+            {sp.inProgressHint}
           </Typography>
 
           <TableContainer
@@ -238,10 +238,10 @@ export default function SpecialistBriefsPage() {
             <Table size="medium" sx={{ minWidth: 520 }}>
               <TableHead sx={tableHeadSx}>
                 <TableRow>
-                  <TableCell scope="col">Story focus</TableCell>
-                  <TableCell scope="col">Last saved</TableCell>
+                  <TableCell scope="col">{sp.colStoryFocus}</TableCell>
+                  <TableCell scope="col">{sp.colLastSaved}</TableCell>
                   <TableCell scope="col" align="right" width={200}>
-                    Actions
+                    {sp.colActions}
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -265,14 +265,14 @@ export default function SpecialistBriefsPage() {
                         </Box>
                         <Box>
                           <Typography variant="subtitle1" fontWeight={700}>
-                            No drafts yet
+                            {sp.draftsEmptyTitle}
                           </Typography>
                           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360, mx: "auto" }}>
-                            When you start a new brief, it will appear here so you can continue editing.
+                            {sp.draftsEmptyBody}
                           </Typography>
                         </Box>
                         <Button variant="contained" startIcon={<AddIcon />} onClick={handleNewBrief}>
-                          Start a brief
+                          {sp.startABrief}
                         </Button>
                       </Stack>
                     </TableCell>
@@ -295,7 +295,7 @@ export default function SpecialistBriefsPage() {
                             />
                           ) : (
                             <Typography variant="body2" color="text.secondary">
-                              Not started
+                              {sp.notStarted}
                             </Typography>
                           )}
                         </Stack>
@@ -313,12 +313,12 @@ export default function SpecialistBriefsPage() {
                           size="small"
                           sx={{ mr: 0.5, fontWeight: 700 }}
                         >
-                          Resume
+                          {sp.resume}
                         </Button>
-                        <Tooltip title="Delete draft">
+                        <Tooltip title={sp.deleteDraftTooltip}>
                           <IconButton
                             size="small"
-                            aria-label="Delete draft"
+                            aria-label={sp.deleteDraftAria}
                             onClick={() =>
                               setDeleteTarget({
                                 id: d.draftId,
@@ -344,11 +344,11 @@ export default function SpecialistBriefsPage() {
           <Stack direction="row" alignItems="center" spacing={1}>
             <TaskAltOutlinedIcon sx={{ color: COLORS.primary, fontSize: 22 }} />
             <Typography variant="h6" component="h2" sx={{ fontWeight: 700, fontSize: "1.05rem" }}>
-              Submitted
+              {sp.sectionSubmitted}
             </Typography>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: -0.5 }}>
-            Final briefs you have sent to the server. Open to review the full JSON or download a backup.
+            {sp.submittedHint}
           </Typography>
 
           <TableContainer
@@ -361,11 +361,11 @@ export default function SpecialistBriefsPage() {
             <Table size="medium" sx={{ minWidth: 520 }}>
               <TableHead sx={tableHeadSx}>
                 <TableRow>
-                  <TableCell scope="col">Brief ID</TableCell>
-                  <TableCell scope="col">Story focus</TableCell>
-                  <TableCell scope="col">Submitted</TableCell>
+                  <TableCell scope="col">{sp.colBriefId}</TableCell>
+                  <TableCell scope="col">{sp.colStoryFocus}</TableCell>
+                  <TableCell scope="col">{sp.colSubmitted}</TableCell>
                   <TableCell scope="col" align="right" width={120}>
-                    Actions
+                    {sp.colActions}
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -405,11 +405,10 @@ export default function SpecialistBriefsPage() {
                           <TaskAltOutlinedIcon sx={{ color: COLORS.primary, fontSize: 28 }} />
                         </Box>
                         <Typography variant="subtitle1" fontWeight={700}>
-                          Nothing submitted yet
+                          {sp.submittedEmptyTitle}
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mx: "auto" }}>
-                          Complete and send a brief from the editor. It will show up here with the server
-                          timestamp.
+                          {sp.submittedEmptyBody}
                         </Typography>
                       </Stack>
                     </TableCell>
@@ -428,8 +427,8 @@ export default function SpecialistBriefsPage() {
                               {truncateId(row.id)}
                             </Typography>
                           </Tooltip>
-                          <Tooltip title="Copy full ID">
-                            <IconButton size="small" aria-label="Copy brief ID" onClick={() => void copyId(row.id)}>
+                          <Tooltip title={sp.copyFullIdTooltip}>
+                            <IconButton size="small" aria-label={sp.copyBriefIdAria} onClick={() => void copyId(row.id)}>
                               <ContentCopyIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                           </Tooltip>
@@ -466,7 +465,7 @@ export default function SpecialistBriefsPage() {
                           size="small"
                           sx={{ fontWeight: 700, borderColor: COLORS.border }}
                         >
-                          View
+                          {sp.view}
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -479,21 +478,21 @@ export default function SpecialistBriefsPage() {
       </Paper>
 
       <Dialog open={deleteTarget != null} onClose={() => setDeleteTarget(null)} fullWidth maxWidth="xs">
-        <DialogTitle sx={{ fontWeight: 700 }}>Delete this draft?</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 700 }}>{sp.deleteDraftDialogTitle}</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
             {deleteTarget?.label && deleteTarget.label !== "—"
-              ? `This will remove your in-progress brief (${deleteTarget.label}).`
-              : "This will remove your in-progress brief."}{" "}
-            This cannot be undone.
+              ? sp.deleteDraftDialogWithLabel(deleteTarget.label)
+              : sp.deleteDraftDialogGeneric}{" "}
+            {sp.cannotUndo}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDeleteTarget(null)} sx={{ textTransform: "none" }}>
-            Cancel
+            {sp.cancel}
           </Button>
           <Button color="error" variant="contained" onClick={confirmDeleteDraft} sx={{ textTransform: "none" }}>
-            Delete draft
+            {sp.deleteDraftConfirm}
           </Button>
         </DialogActions>
       </Dialog>
