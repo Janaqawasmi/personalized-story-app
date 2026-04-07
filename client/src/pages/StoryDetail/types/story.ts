@@ -1,0 +1,52 @@
+/** View-model types for Story Detail v2 (mapped from Firestore `story_templates`). */
+
+export interface PreviewSpreadVM {
+  imageUrl?: string;
+  text: Record<string, string>;
+}
+
+export interface FaqItemVM {
+  question: Record<string, string>;
+  answer: Record<string, string>;
+}
+
+export type StoryDetailStatus = "published" | "draft" | "coming_soon";
+
+export interface StoryTemplatePageVM {
+  textTemplate?: string | { masculine: string; feminine: string };
+}
+
+export interface StoryDetailVM {
+  id: string;
+  title: Record<string, string>;
+  subtitle: Record<string, string>;
+  description: Record<string, string>;
+  coverUrl: string;
+  ageRange: string;
+  /** Raw Firestore age key (e.g. `3_6`) for matching related stories. */
+  ageGroupRaw: string;
+  primaryTopic: string;
+  topicKey: string;
+  topicLabel: Record<string, string>;
+  priceDigital?: number;
+  pricePrint?: number;
+  currency: string;
+  printAvailable: boolean;
+  previewSpreads: PreviewSpreadVM[];
+  faq: FaqItemVM[];
+  status: StoryDetailStatus;
+  /** First pages from Firestore — used only to fill preview text when CMS spread text is empty. */
+  templatePages?: StoryTemplatePageVM[];
+  storyLanguage?: string;
+}
+
+export interface RelatedStoryCardVM {
+  id: string;
+  title: string;
+  shortDescription?: string;
+  coverImage?: string;
+  targetAgeGroup?: string;
+  topicKey?: string;
+  /** Resolved or fallback label for uppercase topic line on catalog cards */
+  topicLabel?: string;
+}

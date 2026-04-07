@@ -96,16 +96,28 @@
     "searchHint": "You can search by story name, age (0-3, 3-6, etc.), or topic",
     "searchFailed": "Search failed"
   },
+  "nav": {
+    "browse": "Browse"
+  },
+  "catalog": {
+    "stories": "stories"
+  },
   "filters": {
     "age": "Age",
-    "category": "Category",
-    "topic": "Topic",
+    "category": "Topic",
+    "topic": "Situation",
     "optional": "Optional",
     "all": "All",
-    "allAges": "All Ages",
-    "allCategories": "All Categories",
-    "allTopics": "All Topics",
-    "clearFilters": "Clear Filters"
+    "allAges": "All ages",
+    "allCategories": "All topics",
+    "allTopics": "All situations",
+    "clearFilters": "Clear Filters",
+    "filterBy": "Filter",
+    "clear": "Clear all",
+    "years": "years",
+    "removeAria": "Remove {label} filter",
+    "search": "Search...",
+    "groupTopics": "Topics"
   },
   "pages": {
     "ageResults": {
@@ -127,12 +139,15 @@
       "loading": "Loading..."
     },
     "allBooks": {
+      "eyebrow": "Browse our collection",
       "title": "All Stories",
+      "subtitle": "Find the perfect story for your child's emotional journey",
       "storiesFound": "{count} stories found",
       "loading": "Loading stories...",
       "error": "Error loading stories",
       "errorMessage": "Try refreshing the page or return to the home page",
-      "noStories": "No stories found"
+      "noStories": "No stories found",
+      "noStoriesSub": "Try adjusting or clearing your filters to see more stories"
     },
     "bookReader": {
       "loading": "Loading...",
@@ -205,7 +220,11 @@
       "step2": "How will the story speak to them?",
       "step3": "This is the moment to bring your child into the story",
       "step4": "How will the story look?",
-      "step5": "Everything is ready ✨"
+      "step5": "Everything is ready ✨",
+      "name": "Name",
+      "gender": "Gender",
+      "photo": "Photo uploaded",
+      "style": "Style"
     },
     "gender": {
       "female": "Girl",
@@ -269,7 +288,61 @@
     "continueJourney": "Continue to journey",
     "createStory": "Create the story",
     "imageTooLarge": "Image is too large. Please select an image smaller than 5MB",
-    "story": "Story"
+    "story": "Story",
+
+    "step1Of4": "Step 1 of 4",
+    "step2Of4": "Step 2 of 4",
+    "step3Of4": "Step 3 of 4",
+    "step4Of4": "Step 4 of 4",
+
+    "nameHeadingLine1": "What's your",
+    "nameHeadingLine2": "child's name?",
+    "nameSub": "Their name will be woven through every line — making this story entirely, unmistakably theirs.",
+    "namePlaceholder": "e.g. Layla…",
+    "nameHint": "Hebrew, Arabic, or Latin · 2–30 characters",
+    "previewSentenceSuffix": " looked up at the night sky — and for a moment, every star seemed to shine just for them.",
+    "previewSentenceEmpty": "Once upon a time, there was a child who believed in the magic of stories…",
+    "previewEmpty": "Once upon a time, there was a child who believed in the magic of stories…",
+
+    "genderHeadingLine1": "Is your child",
+    "genderHeadingLine2": "a girl or a boy?",
+    "genderSub": "So every word feels natural — she, her, hers / he, him, his. No detail left generic.",
+    "girl": "Girl",
+    "boy": "Boy",
+    "girlPronouns": "She · Her · Hers",
+    "boyPronouns": "He · Him · His",
+
+    "photoHeadingLine1": "A photo of",
+    "photoHeadingFallback": "your child",
+    "photoSub": "{name}'s face will appear in the first illustrated spreads — not a generic child, but them.",
+    "photoSubFallback": "your child",
+    "photoAdded": "Photo added ✓",
+    "tapToReplace": "Tap to replace",
+    "uploadPhoto": "Upload a photo",
+    "uploadHint": "JPG or PNG · Max 5 MB\nUsed only to create illustrations",
+    "trust1": "Illustrations only",
+    "trust2": "Never shared",
+    "trust3": "Deleted after",
+
+    "styleHeadingLine1": "Choose the",
+    "styleHeadingLine2": "illustration style",
+    "styleSub": "Every page will be rendered in this mood. Pick the world you want {name} to step into.",
+    "styleSubFallback": "your child",
+
+    "labelBack": "Back",
+    "labelContinue": "Continue",
+    "openStory": "Open the Story",
+
+    "celebrateName": "{name}'s story is ready.",
+    "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
+    "celebrateTagPhoto": "Photo ready",
+
+    "leftPersonalizing": "Personalizing",
+    "leftYourChild": "Your child",
+    "leftWaitingName": "Waiting for a name…",
+    "leftStoryFallback": "The Night the Stars Listened",
+    "leftTopicFallback": "Anxiety & Calm",
+    "leftAgesLabel": "Ages {age}"
   },
   "discovery": {
     "category": "Category",
@@ -313,7 +386,10 @@
     "loading": "Loading story...",
     "notFound": "Story not found",
     "notFoundMessage": "This story may have been removed or the link is invalid.",
-    "backToCatalog": "Back to Stories",
+    "backToCatalog": "Back to catalog",
+    "breadcrumb": "Personalized story",
+    "personalize": "Personalize this story",
+    "therapistApproved": "Therapist approved",
     "galleryLabel": "See Inside the Story",
     "previewPlaceholderChildName": "Your child",
     "previewComingSoon": "Preview coming soon",
@@ -366,6 +442,125 @@
       "comingSoon": "Pricing coming soon",
       "digitalLabel": "Digital Version",
       "printLabel": "Printed Book"
+    },
+    "v2": {
+      "metaCbt": "CBT-based",
+      "metaPreviewAvailable": "Preview available",
+      "badgeTherapeuticShort": "Therapeutic",
+      "pricingSubline": "One-time · Full personalized story",
+      "pricingDigitalReader": "Digital reader",
+      "pricingPdfDownload": "PDF download",
+      "pricingLifetime": "Lifetime access",
+      "comingSoonBadge": "Coming Soon",
+      "feature1Label": "Child's Name",
+      "feature1Sub": "Your child becomes the hero",
+      "feature2Label": "Photo Option",
+      "feature2Sub": "Add a child photo (optional)",
+      "feature3Label": "Therapist-Written",
+      "feature3Sub": "CBT principles built in",
+      "feature4Label": "Hebrew / English",
+      "feature4Sub": "Full RTL support",
+      "feature5Label": "Digital Reader",
+      "feature5Sub": "Read anywhere, forever",
+      "feature6Label": "Preview First",
+      "feature6Sub": "2 free spreads before purchase",
+      "trustTherapistBody": "Every story is written and reviewed by licensed child therapists using evidence-based CBT methods.",
+      "trustSafeBody": "Your child's data and photo are used only to personalize their story and never shared.",
+      "trustPreviewBody": "See two real spreads of the story before committing. No surprises, no pressure.",
+      "trustGuaranteeBody": "If the story doesn't feel right, we'll make it right — full refund within 30 days.",
+      "faqPersonalizationQ": "How does personalization work?",
+      "faqPersonalizationBody": "You enter your child's name and gender, and optionally upload a photo. You'll get two free preview spreads with placeholders replaced. When you're ready, unlock the full personalized story for {price}.",
+      "faqEmotionalQ": "What emotional challenge does this story address?",
+      "faqEmotionalBodyTopic": "This story focuses on {topic} for children ages {age}. It uses age-appropriate language and CBT-informed techniques to support your child.",
+      "faqEmotionalBodyFallback": "This story uses age-appropriate language and CBT-informed techniques to support your child through everyday emotional challenges.",
+      "faqReceiveQ": "What do I actually receive after purchase?",
+      "faqReceiveBody": "You receive the full 8-spread story in our digital reader, a PDF download, and lifetime access to your copy.",
+      "faqWhoWroteQ": "Who wrote this story?",
+      "faqWhoWroteBody": "Each story is written by child-development specialists, reviewed by licensed child psychologists, and aligned with cognitive-behavioral therapy principles."
     }
+  },
+  "backToCatalog": "All Stories",
+  "personalizeThisStory": "Personalize This Story",
+  "seeInsideFirst": "See Inside First (free preview)",
+  "noAccountNeeded": "No account needed to preview",
+  "thirtyDayGuarantee": "30-day guarantee",
+  "instantDelivery": "Instant delivery",
+  "seeInside": "See Inside",
+  "aGlimpseIntoTheStory": "A glimpse into the story",
+  "previewSpreadsNote": "Two free non-personalized spreads. Your child's name and photo will replace the placeholders once you personalize.",
+  "spread": "Spread",
+  "opening": "Opening",
+  "theChallenge": "The Challenge",
+  "readyToPutChildInStory": "Ready to put your child in this story?",
+  "personalizeBeforeBuy": "Personalize with their name, gender, and photo — before you buy.",
+  "personalizedDigitalPDF": "Personalized · Digital + PDF",
+  "questions": "Questions",
+  "everythingYouNeedToKnow": "Everything you need to know",
+  "moreStories": "More Stories",
+  "parentsAlsoLoved": "Parents also loved these",
+  "therapistApproved": "Therapist-Approved",
+  "safeAndPrivate": "Safe & Private",
+  "previewBeforePaying": "Preview Before Paying",
+  "thirtyDayGuaranteeTitle": "30-Day Guarantee",
+  "chips": {
+    "aiPersonalized": "AI personalized",
+    "therapeutic": "Therapeutic",
+    "age": "Ages {age}"
+  },
+  "features": {
+    "aiNamePhoto": "AI-personalized name & photo",
+    "psychDesigned": "Psychologist-designed protocol",
+    "previewFirst": "Preview before you buy",
+    "bilingualAvail": "Available in Hebrew & English & Arabic"
+  },
+  "pricing": {
+    "digital": "Digital",
+    "print": "Print",
+    "oneTime": "one-time",
+    "shipped": "shipped to you",
+    "previewBeforePaying": "Preview before paying",
+    "comingSoon": "Coming soon",
+    "notifyMe": "Notify me when available"
+  },
+  "preview": {
+    "preview": "Preview",
+    "seeInside": "See inside",
+    "stepLabel": "Step 1 — Try it first",
+    "genericVersionNote": "Read 2 free spreads before personalizing. No account needed.",
+    "freePreview": "Free preview",
+    "illustrationPreview": "Illustration preview",
+    "pageRange": "Page {start}–{end}",
+    "childNameHint": "This text will feature your child's name",
+    "bridgeTitle": "Ready to make it about your child?",
+    "bridgeSub": "Step 2 — Add their name, gender, and photo",
+    "spreadNav": "Spread"
+  },
+  "faq": {
+    "title": "Common questions",
+    "q1": "How does personalization work?",
+    "a1": "You enter your child's name, gender, and optionally upload a photo. You see a free 2-spread preview before any payment — then unlock the full story for a one-time fee.",
+    "q2": "What is this story about?",
+    "a2": "This story uses warm, age-appropriate language to help your child understand feelings and build confidence.",
+    "q3": "Who is this book for?",
+    "a3": "It's designed for young children and the adults who read with them — parents, caregivers, and educators.",
+    "q4": "What about print quality?",
+    "a4": "Digital editions are high resolution. Printed options, when available, use quality materials suitable for children's books."
+  },
+  "related": {
+    "title": "More stories you'll love"
+  },
+  "storyCard": {
+    "viewStory": "View Story"
+  },
+  "states": {
+    "loading": "Loading story…",
+    "notFound": "Story not found"
+  },
+  "cta": {
+    "addFavorite": "Add to favorites",
+    "removeFavorite": "Remove from favorites"
+  },
+  "sticky": {
+    "subline": "Digital · one-time"
   }
 }

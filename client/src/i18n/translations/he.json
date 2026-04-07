@@ -96,16 +96,28 @@
     "searchHint": "תוכלו לחפש לפי שם סיפור, גיל (0-3, 3-6 וכו'), או נושא",
     "searchFailed": "חיפוש נכשל"
   },
+  "nav": {
+    "browse": "עיון בסיפורים"
+  },
+  "catalog": {
+    "stories": "סיפורים"
+  },
   "filters": {
     "age": "גיל",
-    "category": "קטגוריה",
-    "topic": "נושא",
+    "category": "נושא",
+    "topic": "מצב",
     "optional": "אופציונלי",
     "all": "הכל",
     "allAges": "כל הגילאים",
-    "allCategories": "כל הקטגוריות",
-    "allTopics": "כל הנושאים",
-    "clearFilters": "נקה מסננים"
+    "allCategories": "כל הנושאים",
+    "allTopics": "כל המצבים",
+    "clearFilters": "נקה מסננים",
+    "filterBy": "סינון",
+    "clear": "נקה הכל",
+    "years": "שנים",
+    "removeAria": "הסר מסנן {label}",
+    "search": "חיפוש...",
+    "groupTopics": "נושאים"
   },
   "pages": {
     "ageResults": {
@@ -127,12 +139,15 @@
       "loading": "טוען..."
     },
     "allBooks": {
+      "eyebrow": "עיון באוסף שלנו",
       "title": "כל הסיפורים",
+      "subtitle": "מצאו את הסיפור המתאים למסע הרגשי של ילדכם",
       "storiesFound": "{count} סיפורים נמצאו",
       "loading": "טוען סיפורים...",
       "error": "שגיאה בטעינת הסיפורים",
       "errorMessage": "נסה לרענן את הדף או חזור לדף הבית",
-      "noStories": "לא נמצאו סיפורים"
+      "noStories": "לא נמצאו סיפורים",
+      "noStoriesSub": "נסו לשנות או לנקות את המסננים כדי לראות עוד סיפורים"
     },
     "bookReader": {
       "loading": "טוען...",
@@ -205,7 +220,11 @@
       "step2": "איך הסיפור ידבר אליו?",
       "step3": "זה הרגע להכניס את הילד לסיפור",
       "step4": "איך הסיפור ייראה?",
-      "step5": "הכל מוכן ✨"
+      "step5": "הכל מוכן ✨",
+      "name": "שם",
+      "gender": "מגדר",
+      "photo": "תמונה",
+      "style": "סגנון"
     },
     "gender": {
       "female": "בת",
@@ -269,7 +288,61 @@
     "continueJourney": "המשך למסע",
     "createStory": "צור את הסיפור",
     "imageTooLarge": "התמונה גדולה מדי. אנא בחר תמונה קטנה מ-5MB",
-    "story": "סיפור"
+    "story": "סיפור",
+
+    "step1Of4": "שלב 1 מתוך 4",
+    "step2Of4": "שלב 2 מתוך 4",
+    "step3Of4": "שלב 3 מתוך 4",
+    "step4Of4": "שלב 4 מתוך 4",
+
+    "nameHeadingLine1": "איך קוראים",
+    "nameHeadingLine2": "לילד שלכם?",
+    "nameSub": "השם יופיע לאורך כל הסיפור — סיפור שמחובר אליהם באופן אישי וברור.",
+    "namePlaceholder": "למשל לילה…",
+    "nameHint": "עברית, ערבית או לטינית · 2–30 תווים",
+    "previewSentenceSuffix": " הרימו מבט לשמיים — ולרגע נדמה שכל הכוכבים נוצצו רק בשבילם.",
+    "previewSentenceEmpty": "היה היה פעם ילד אחד שאמן בקסם של סיפורים…",
+    "previewEmpty": "היה היה פעם ילד שהאמין במאגיה של סיפורים…",
+
+    "genderHeadingLine1": "הילד/ה שלכם",
+    "genderHeadingLine2": "בת או בן?",
+    "genderSub": "כדי שהשפה תרגיש טבעית — היא/הוא, שלה/שלו. בלי ניסוחים גנריים.",
+    "girl": "בת",
+    "boy": "בן",
+    "girlPronouns": "היא · אותה · שלה",
+    "boyPronouns": "הוא · אותו · שלו",
+
+    "photoHeadingLine1": "תמונה של",
+    "photoHeadingFallback": "הילד/ה שלכם",
+    "photoSub": "פני {name} יופיעו בראשית האיורים — לא דמות גנרית, אלא הם.",
+    "photoSubFallback": "הילד/ה שלכם",
+    "photoAdded": "התמונה נוספה ✓",
+    "tapToReplace": "הקישו להחלפה",
+    "uploadPhoto": "העלו תמונה",
+    "uploadHint": "JPG או PNG · עד 5 MB\nמשמש רק ליצירת איורים",
+    "trust1": "רק לאיורים",
+    "trust2": "לא משותף",
+    "trust3": "נמחק לאחר מכן",
+
+    "styleHeadingLine1": "בחרו",
+    "styleHeadingLine2": "את סגנון האיור",
+    "styleSub": "כל העמודים יעוצבו במצב רוח הזה. בחרו את העולם של {name}.",
+    "styleSubFallback": "הילד/ה שלכם",
+
+    "labelBack": "חזרה",
+    "labelContinue": "המשך",
+    "openStory": "פתחו את הסיפור",
+
+    "celebrateName": "הסיפור של {name} מוכן.",
+    "celebrateSub": "כל מילה וכל איור — נעשו עבור {name}. למסע מיוחד באמת.",
+    "celebrateTagPhoto": "תמונה מוכנה",
+
+    "leftPersonalizing": "מתאימים אישית",
+    "leftYourChild": "הילד/ה שלכם",
+    "leftWaitingName": "מחכים לשם…",
+    "leftStoryFallback": "הלילה שהכוכבים הקשיבו",
+    "leftTopicFallback": "חרדה והרגעה",
+    "leftAgesLabel": "גילאי {age}"
   },
   "discovery": {
     "category": "קטגוריה",
@@ -313,7 +386,10 @@
     "loading": "טוען סיפור...",
     "notFound": "הסיפור לא נמצא",
     "notFoundMessage": "ייתכן שהסיפור הוסר או שהקישור אינו תקין.",
-    "backToCatalog": "חזרה לסיפורים",
+    "backToCatalog": "חזרה לקטלוג",
+    "breadcrumb": "סיפור מותאם אישית",
+    "personalize": "התאימו את הסיפור",
+    "therapistApproved": "מאושר מטפלים",
     "galleryLabel": "הצצה לתוך הסיפור",
     "previewPlaceholderChildName": "הילד שלכם",
     "previewComingSoon": "תצוגה מקדימה תגיע בקרוב",
@@ -366,6 +442,125 @@
       "comingSoon": "המחירים יופיעו בקרוב",
       "digitalLabel": "גרסה דיגיטלית",
       "printLabel": "ספר מודפס"
+    },
+    "v2": {
+      "metaCbt": "מבוסס CBT",
+      "metaPreviewAvailable": "תצוגה מקדימה זמינה",
+      "badgeTherapeuticShort": "טיפולי",
+      "pricingSubline": "חד-פעמי · סיפור מלא מותאם אישית",
+      "pricingDigitalReader": "קורא דיגיטלי",
+      "pricingPdfDownload": "הורדת PDF",
+      "pricingLifetime": "גישה לכל החיים",
+      "comingSoonBadge": "בקרוב",
+      "feature1Label": "שם הילד",
+      "feature1Sub": "הילד הופך לגיבור הסיפור",
+      "feature2Label": "אפשרות לתמונה",
+      "feature2Sub": "הוספת תמונת ילד (אופציונלי)",
+      "feature3Label": "נכתב על ידי מטפלים",
+      "feature3Sub": "עקרונות CBT משולבים",
+      "feature4Label": "עברית / אנגלית",
+      "feature4Sub": "תמיכה מלאה ב-RTL",
+      "feature5Label": "קורא דיגיטלי",
+      "feature5Sub": "לקרוא מכל מקום, לתמיד",
+      "feature6Label": "תצוגה מקדימה קודם",
+      "feature6Sub": "2 פריסות חינם לפני הרכישה",
+      "trustTherapistBody": "כל סיפור נכתב ונבדק על ידי מטפלים בילדים מורשים בשיטות CBT מבוססות מחקר.",
+      "trustSafeBody": "נתוני הילד והתמונה משמשים רק להתאמה אישית של הסיפור ולא משותפים.",
+      "trustPreviewBody": "צפו בשתי פריסות אמיתיות לפני שמתחייבים. בלי הפתעות ובלי לחץ.",
+      "trustGuaranteeBody": "אם הסיפור לא מרגיש מתאים — נפתור את זה יחד, החזר מלא תוך 30 יום.",
+      "faqPersonalizationQ": "איך עובדת ההתאמה האישית?",
+      "faqPersonalizationBody": "מזינים שם ומגדר, ואפשר להעלות תמונה. תקבלו שתי פריסות תצוגה מקדימה בחינם עם מצייני מקום שהוחלפו. כשמוכנים — פותחים את הסיפור המלא תמורת {price}.",
+      "faqEmotionalQ": "לאיזו אתגר רגשי הסיפור מתייחס?",
+      "faqEmotionalBodyTopic": "הסיפור מתמקד ב{topic} לילדים בגילאי {age}. שפה מותאמת גיל וכלים מהעולם ה-CBT לתמיכה בילד.",
+      "faqEmotionalBodyFallback": "הסיפור משתמש בשפה מותאמת גיל ובטכניקות מעולם ה-CBT לתמיכה באתגרים רגשיים יומיומיים.",
+      "faqReceiveQ": "מה בפועל מקבלים אחרי הרכישה?",
+      "faqReceiveBody": "מקבלים את הסיפור המלא ב-8 פריסות בקורא הדיגיטלי, הורדת PDF וגישה לכל החיים.",
+      "faqWhoWroteQ": "מי כתב את הסיפור?",
+      "faqWhoWroteBody": "הסיפורים נכתבים על ידי מומחי התפתחות הילד, נבדקים על ידי פסיכולוגים לילדים מורשים, ומיושרים לעקרונות CBT."
     }
+  },
+  "backToCatalog": "כל הסיפורים",
+  "personalizeThisStory": "התאימו את הסיפור",
+  "seeInsideFirst": "הציצו פנים קודם (תצוגה חינם)",
+  "noAccountNeeded": "אין צורך בחשבון לתצוגה מקדימה",
+  "thirtyDayGuarantee": "אחריות 30 יום",
+  "instantDelivery": "משלוח מיידי",
+  "seeInside": "הצצה פנימה",
+  "aGlimpseIntoTheStory": "מבט אל תוך הסיפור",
+  "previewSpreadsNote": "שתי פריסות חינם ללא התאמה אישית. שם ותמונת הילד יחליפו את המציינים אחרי ההתאמה.",
+  "spread": "פריסה",
+  "opening": "פתיחה",
+  "theChallenge": "האתגר",
+  "readyToPutChildInStory": "מוכנים לשים את הילד בתוך הסיפור?",
+  "personalizeBeforeBuy": "התאימו שם, מגדר ותמונה — לפני הרכישה.",
+  "personalizedDigitalPDF": "מותאם אישית · דיגיטלי + PDF",
+  "questions": "שאלות",
+  "everythingYouNeedToKnow": "כל מה שחשוב לדעת",
+  "moreStories": "עוד סיפורים",
+  "parentsAlsoLoved": "הורים אהבו גם",
+  "therapistApproved": "מאושר מטפלים",
+  "safeAndPrivate": "בטוח ופרטי",
+  "previewBeforePaying": "תצוגה לפני תשלום",
+  "thirtyDayGuaranteeTitle": "אחריות 30 יום",
+  "chips": {
+    "aiPersonalized": "מותאם אישית עם AI",
+    "therapeutic": "טיפולי",
+    "age": "גילאי {age}"
+  },
+  "features": {
+    "aiNamePhoto": "שם ותמונה מותאמים אישית",
+    "psychDesigned": "פרוטוקול שעוצב על ידי פסיכולוגים",
+    "previewFirst": "תצוגה מקדימה לפני הרכישה",
+    "bilingualAvail": "זמין בעברית ובאנגלית ובערבית "
+  },
+  "pricing": {
+    "digital": "דיגיטלי",
+    "print": "מודפס",
+    "oneTime": "חד-פעמי",
+    "shipped": "נשלח אליך",
+    "previewBeforePaying": "תצוגה לפני תשלום",
+    "comingSoon": "בקרוב",
+    "notifyMe": "עדכנו אותי כשיהיה זמין"
+  },
+  "preview": {
+    "preview": "תצוגה מקדימה",
+    "seeInside": "הצצה פנימה",
+    "stepLabel": "שלב 1 — נסו קודם",
+    "genericVersionNote": "קראו שתי פריסות חינם לפני ההתאמה. בלי צורך בחשבון.",
+    "freePreview": "תצוגה חינם",
+    "illustrationPreview": "תצוגת איור",
+    "pageRange": "עמודים {start}–{end}",
+    "childNameHint": "הטקסט יכלול את שם ילדכם",
+    "bridgeTitle": "מוכנים שזה יהיה על הילד שלכם?",
+    "bridgeSub": "שלב 2 — הוסיפו שם, מגדר ותמונה",
+    "spreadNav": "פריסה"
+  },
+  "faq": {
+    "title": "שאלות נפוצות",
+    "q1": "איך עובדת ההתאמה האישית?",
+    "a1": "מזינים שם, מגדר ואפשר להעלות תמונה. רואים תצוגה מקדימה של שתי פריסות בחינם לפני תשלום — ואז פותחים את הסיפור המלא בתשלום חד-פעמי.",
+    "q2": "על מה מדובר בסיפור?",
+    "a2": "הסיפור משתמש בשפה חמה ומותאמת גיל כדי לעזור לילד להבין רגשות ולבנות ביטחון.",
+    "q3": "למי הספר הזה מתאים?",
+    "a3": "מיועד לילדים צעירים ולמבוגרים שקוראים איתם — הורים, מטפלים ומחנכים.",
+    "q4": "מה לגבי איכות הדפסה?",
+    "a4": "הגרסה הדיגיטלית באיכות גבוהה. אפשרויות הדפסה, כשקיימות, בחומרים מתאימים לספרי ילדים."
+  },
+  "related": {
+    "title": "עוד סיפורים שתאהבו"
+  },
+  "storyCard": {
+    "viewStory": "צפו בסיפור"
+  },
+  "states": {
+    "loading": "טוען סיפור…",
+    "notFound": "הסיפור לא נמצא"
+  },
+  "cta": {
+    "addFavorite": "הוספה למועדפים",
+    "removeFavorite": "הסרה מהמועדפים"
+  },
+  "sticky": {
+    "subline": "דיגיטלי · חד-פעמי"
   }
 }

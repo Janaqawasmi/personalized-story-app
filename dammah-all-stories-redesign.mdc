@@ -1,0 +1,440 @@
+---
+description: DAMMAH — All Stories Page (AllBooksPage) Redesign
+globs: client/src/pages/AllBooksPage.tsx, client/src/components/StoryGridCard.tsx
+alwaysApply: false
+---
+
+# DAMMAH — All Stories Page Redesign
+
+## Context
+
+The All Stories page is implemented as `AllBooksPage` at route `/:lang/books`.
+Component file: `client/src/pages/AllBooksPage.tsx`
+Card component: `client/src/components/StoryGridCard.tsx`
+
+This page is the main catalog and discovery hub. It is NOT a landing page and NOT a checkout page.
+Its job: help parents browse, filter, and discover therapeutic story templates for their child.
+
+Do not change the data fetching logic, Firestore queries, or routing.
+Do not add new components unless explicitly specified.
+All changes must stay within `AllBooksPage.tsx` and `StoryGridCard.tsx`.
+
+---
+
+## 1. Fix RTL Direction Bug (CRITICAL — do first)
+
+**Problem:** All three `FormControl` elements have hardcoded `sx={{ direction: "rtl" }}`.
+This breaks the filter bar for English (LTR) users.
+
+**Fix:** Replace hardcoded direction with language-aware logic.
+
+```tsx
+// At top of component — get RTL state
+const { isRTL } = useLanguage(); // adjust to your actual hook API
+// OR read directly:
+const isRTL = localStorage.getItem("lang") === "he" || localStorage.getItem("lang") === "ar";
+
+// On every FormControl:
+<FormControl sx={{ direction: isRTL ? "rtl" : "ltr", minWidth: 140 }}>
+```
+
+Apply this fix to all three `<FormControl>` elements (age, category, topic).
+
+---
+
+## 2. Container Width
+
+**Problem:** `<Container maxWidth="lg">` creates a narrow page that feels cramped.
+
+**Fix:**
+```tsx
+// Change from:
+<Container maxWidth="lg">
+
+// Change to:
+<Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 } }}>
+```
+
+---
+
+## 3. Header Section
+
+**Problem:** The current header is a flat title + plain count string. It feels like a utility header, not an emotional library entry point.
+
+**Replace the current header block with:**
+
+```tsx
+<Box sx={{ mb: 4 }}>
+  {/* Eyebrow */}
+  <Typography
+    variant="overline"
+    sx={{
+      fontSize: "0.7rem",
+      letterSpacing: "0.1em",
+      color: "text.secondary",
+      display: "block",
+      mb: 0.75,
+    }}
+  >
+    {t("pages.allBooks.eyebrow")} {/* add key: "Browse our collection" */}
+  </Typography>
+
+  {/* Title + Count chip inline */}
+  <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+    <Typography variant="h4" fontWeight={500} color="text.primary">
+      {t("pages.allBooks.title")}
+    </Typography>
+
+    {!loading && (
+      <Box
+        component="span"
+        sx={{
+          fontSize: "0.75rem",
+          px: 1.25,
+          py: 0.4,
+          borderRadius: "20px",
+          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+          color: "primary.main",
+        }}
+      >
+        {t("pages.allBooks.storiesFound", { count: filteredBooks.length })}
+      </Box>
+    )}
+  </Box>
+
+  {/* Subtitle */}
+  <Typography
+    variant="body2"
+    color="text.secondary"
+    sx={{ mt: 1 }}
+  >
+    {t("pages.allBooks.subtitle")} {/* add key: "Find the perfect story for your child's emotional journey" */}
+  </Typography>
+</Box>
+```
+
+**Add i18n keys** to `en.json`, `he.json`, `ar.json`:
+```json
+"pages": {
+  "allBooks": {
+    "eyebrow": "Browse our collection",
+    "subtitle": "Find the perfect story for your child's emotional journey"
+  }
+}
+```
+
+---
+
+## 4. Filter Bar
+
+**Problem:** Three raw MUI `<Select>` dropdowns float with no visual container. They feel disconnected and generic.
+
+**Wrap the entire filter row in a soft surface:**
+
+```tsx
+<Box
+  sx={{
+    bgcolor: (theme) => alpha(theme.palette.primary.main, 0.04),
+    border: "0.5px solid",
+    borderColor: "divider",
+    borderRadius: 3,
+    px: 2.5,
+    py: 1.75,
+    mb: 5,
+    display: "flex",
+    alignItems: "center",
+    gap: 2,
+    flexWrap: "wrap",
+  }}
+>
+  <Typography variant="caption" color="text.disabled" sx={{ mr: 0.5, whiteSpace: "nowrap" }}>
+    {t("filters.filterBy")} {/* add key: "Filter by:" */}
+  </Typography>
+
+  {/* Age FormControl */}
+  <FormControl size="small" sx={{ direction: isRTL ? "rtl" : "ltr", minWidth: 140 }}>
+    ...
+  </FormControl>
+
+  {/* Category FormControl */}
+  <FormControl size="small" sx={{ direction: isRTL ? "rtl" : "ltr", minWidth: 160 }}>
+    ...
+  </FormControl>
+
+  {/* Topic FormControl */}
+  <FormControl size="small" sx={{ direction: isRTL ? "rtl" : "ltr", minWidth: 160 }}>
+    ...
+  </FormControl>
+
+  {/* Clear filters — push to end */}
+  {hasActiveFilters && (
+    <Button
+      size="small"
+      onClick={clearFilters}
+      sx={{
+        ml: "auto",
+        color: "text.disabled",
+        fontSize: "0.75rem",
+        minWidth: "auto",
+        "&:hover": { color: "text.secondary", bgcolor: "transparent" },
+      }}
+      disableRipple
+    >
+      {t("filters.clear")}
+    </Button>
+  )}
+</Box>
+```
+
+**Note:** Replace the current "clear filters" `Button` with this quieter text-only version. Remove any outlined/contained variant from the clear button.
+
+---
+
+## 5. Loading State — Skeleton Grid
+
+**Problem:** `CircularProgress` centered on a blank page feels cold and shows no structure.
+
+**Replace the loading early-return with a skeleton grid:**
+
+```tsx
+// Remove or replace this pattern:
+// if (loading) return <Box sx={{ display: "flex", justifyContent: "center", mt: 8 }}><CircularProgress /></Box>
+
+// Instead, show skeleton cards in the same grid layout:
+if (loading) {
+  return (
+    <Container maxWidth="xl" sx={{ px: { xs: 2, md: 4 }, py: 4 }}>
+      {/* Keep header as normal but with placeholder count */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+          },
+          gap: 3.5,
+          mt: 2,
+        }}
+      >
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Box
+            key={i}
+            sx={{
+              border: "0.5px solid",
+              borderColor: "divider",
+              borderRadius: 3,
+              overflow: "hidden",
+            }}
+          >
+            <Skeleton variant="rectangular" width="100%" sx={{ aspectRatio: "4/3" }} />
+            <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+              <Skeleton variant="text" width="45%" height={12} />
+              <Skeleton variant="text" width="75%" height={18} />
+              <Skeleton variant="text" width="100%" height={12} />
+              <Skeleton variant="text" width="88%" height={12} />
+              <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
+                <Skeleton variant="rounded" width={60} height={22} />
+                <Skeleton variant="rounded" width={80} height={28} />
+              </Box>
+            </Box>
+          </Box>
+        ))}
+      </Box>
+    </Container>
+  );
+}
+```
+
+**Add import:** `import { Skeleton } from "@mui/material";`
+
+---
+
+## 6. Story Grid Spacing
+
+**Problem:** Grid gap is too tight, top padding between filter bar and grid is insufficient.
+
+**Update the grid container:**
+
+```tsx
+<Box
+  sx={{
+    display: "grid",
+    gridTemplateColumns: {
+      xs: "1fr",
+      sm: "repeat(2, 1fr)",
+      md: "repeat(3, 1fr)",
+    },
+    gap: 3.5,   // was likely 2 or 2.5 — increase to 3.5 (28px)
+    mt: 1,
+  }}
+>
+```
+
+Do NOT go to 4 columns at any breakpoint. Three columns is the maximum for story covers.
+
+---
+
+## 7. Empty State
+
+**Problem:** A plain string "No stories found" is too cold. Needs an icon, a warm message, and a clear action.
+
+**Replace the empty state block with:**
+
+```tsx
+{filteredBooks.length === 0 && !loading && (
+  <Box
+    sx={{
+      textAlign: "center",
+      py: 10,
+      px: 3,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 1.5,
+    }}
+  >
+    <Box sx={{ fontSize: "2.5rem", opacity: 0.4, mb: 1 }}>📚</Box>
+    <Typography variant="h6" fontWeight={500} color="text.primary">
+      {t("pages.allBooks.noStories")}
+    </Typography>
+    <Typography variant="body2" color="text.secondary">
+      {t("pages.allBooks.noStoriesSub")} {/* add key: "Try adjusting or clearing your filters" */}
+    </Typography>
+    {hasActiveFilters && (
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={clearFilters}
+        sx={{ mt: 1, borderRadius: 2 }}
+      >
+        {t("filters.clear")}
+      </Button>
+    )}
+  </Box>
+)}
+```
+
+**Add i18n key:**
+```json
+"pages": {
+  "allBooks": {
+    "noStoriesSub": "Try adjusting or clearing your filters to see more stories"
+  }
+}
+```
+
+---
+
+## 8. StoryGridCard Improvements
+
+File: `client/src/components/StoryGridCard.tsx`
+
+### Cover image aspect ratio
+Enforce consistent 4:3 cover ratio so all cards have the same height:
+
+```tsx
+// Inside the card cover container:
+sx={{
+  width: "100%",
+  aspectRatio: "4/3",
+  overflow: "hidden",
+  "& img": {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+  },
+}}
+```
+
+### Card hover state
+Replace or supplement pure elevation lift with a warm border transition:
+
+```tsx
+<Card
+  sx={{
+    borderRadius: 3,
+    border: "0.5px solid",
+    borderColor: "divider",
+    transition: "border-color 0.2s ease, transform 0.15s ease",
+    "&:hover": {
+      borderColor: "primary.light",
+      transform: "translateY(-3px)",
+    },
+    overflow: "hidden",
+    height: "100%",
+  }}
+  elevation={0}
+>
+```
+
+### Card body padding
+Increase internal padding for breathing room:
+
+```tsx
+// Card body Box:
+sx={{ p: 2.5 }}  // was likely p: 2
+```
+
+---
+
+## 9. i18n Keys to Add
+
+Add these to `en.json` (and translate for `he.json`, `ar.json`):
+
+```json
+{
+  "pages": {
+    "allBooks": {
+      "eyebrow": "Browse our collection",
+      "subtitle": "Find the perfect story for your child's emotional journey",
+      "noStoriesSub": "Try adjusting or clearing your filters to see more stories"
+    }
+  },
+  "filters": {
+    "filterBy": "Filter by:"
+  }
+}
+```
+
+---
+
+## 10. Implementation Order
+
+Apply changes in this exact order to minimize risk:
+
+1. **RTL direction fix** — 5 min, zero visual risk, critical correctness fix
+2. **Container width** — 2 min, instant improvement
+3. **Skeleton loading state** — 30 min, replaces loading spinner
+4. **Header redesign** — 20 min, add eyebrow + chip + subtitle
+5. **Filter bar surface** — 20 min, wrap in soft container
+6. **Grid spacing** — 5 min, increase gap value
+7. **Empty state** — 20 min, add icon + sub + clear button
+8. **StoryGridCard** — 20 min, cover ratio + hover + padding
+
+**Total estimated time: ~2 hours**
+
+---
+
+## What NOT to Change
+
+- Do not modify `fetchStoriesWithFilters` or any Firestore query logic
+- Do not change the route structure or `useLangNavigate` usage
+- Do not add text search to this page (search lives in SearchPage)
+- Do not add server-side filtering (client-side useMemo is intentional)
+- Do not change the 3-filter model (age / category / topic)
+- Do not reuse `catalogVariant` prop on StoryGridCard here (it's used on other pages)
+- Do not add a 4th grid column at any breakpoint
+- Do not hide filters behind an accordion or modal
+
+---
+
+## Architecture Notes
+
+- Route registered in `App.tsx` as `<Route path="books" element={<AllBooksPage />} />`
+- Language-prefixed via `/:lang/*` parent route (e.g. `/he/books`, `/en/books`)
+- `StoryGridCard` is shared across: `AgeResultsPage`, `CategoryResultsPage`, `TopicResultsPage`, `SearchPage`, `FavoritesPage`, `RelatedStories`
+- Changes to `StoryGridCard` affect ALL of the above pages — test across them
+- `AGE_GROUPS` imported from `../components/MegaMenu/data` — do not duplicate
+- Category/topic dropdown options are derived from loaded stories, not from `useReferenceData`
