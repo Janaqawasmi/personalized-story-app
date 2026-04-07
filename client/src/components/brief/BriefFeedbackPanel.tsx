@@ -1,6 +1,6 @@
 // client/src/components/brief/BriefFeedbackPanel.tsx
 //
-// Specialist review panel: section-scoped field verdicts and optional nuance tags —
+// Specialist review panel: section-scoped field verdicts and notes —
 // stored via API in Firestore (dammaStoryBriefs/{id}/feedback).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,10 +14,8 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Collapse,
   FormControl,
   FormControlLabel,
-  Link,
   Paper,
   Radio,
   RadioGroup,
@@ -33,13 +31,11 @@ import {
 } from "../../api/dammaStoryBrief";
 import {
   BRIEF_FEEDBACK_FIELD_CATALOG,
-  BRIEF_FEEDBACK_FIELD_QUICK_TAGS,
   BRIEF_FEEDBACK_OVERALL_QUICK_TAGS,
   BRIEF_FEEDBACK_VERDICTS,
   BRIEF_FEEDBACK_VERDICT_LABELS,
   getFeedbackFieldIdsForStep,
   type BriefFeedbackVerdictId,
-  type BriefFeedbackFieldQuickTagId,
   type BriefFieldFeedbackEntry,
   type StoryBriefFeedbackDoc,
 } from "../../types/storyBriefFeedback";
@@ -71,8 +67,6 @@ export default function BriefFeedbackPanel({
   personalization,
 }: BriefFeedbackPanelProps) {
   const [fieldFeedback, setFieldFeedback] = useState<Record<string, BriefFieldFeedbackEntry>>({});
-  /** Per-field: show optional quick-tag row */
-  const [nuanceOpen, setNuanceOpen] = useState<Record<string, boolean>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -112,11 +106,7 @@ export default function BriefFeedbackPanel({
 
   const canSave = useMemo(() => {
     for (const entry of Object.values(fieldFeedback)) {
-      if (
-        entry.verdict != null ||
-        entry.comment.trim().length > 0 ||
-        (entry.quickTags?.length ?? 0) > 0
-      ) {
+      if (entry.verdict != null || entry.comment.trim().length > 0) {
         return true;
       }
     }
@@ -145,19 +135,6 @@ export default function BriefFeedbackPanel({
     }
     void loadHistory();
   }, [briefId, loadHistory]);
-
-  function toggleFieldTag(fieldId: string, tagId: BriefFeedbackFieldQuickTagId) {
-    setFieldFeedback((prev) => {
-      const cur = prev[fieldId] ?? { quickTags: [], comment: "" };
-      const qt = new Set(cur.quickTags);
-      if (qt.has(tagId)) qt.delete(tagId);
-      else qt.add(tagId);
-      return {
-        ...prev,
-        [fieldId]: { ...cur, quickTags: Array.from(qt) as BriefFeedbackFieldQuickTagId[] },
-      };
-    });
-  }
 
   function setFieldVerdict(fieldId: string, verdict: BriefFeedbackVerdictId | "") {
     setFieldFeedback((prev) => {
@@ -193,11 +170,10 @@ export default function BriefFeedbackPanel({
 
     const filteredFields: Record<string, BriefFieldFeedbackEntry> = {};
     for (const [fid, entry] of Object.entries(fieldFeedback)) {
-      const has =
-        entry.verdict != null ||
-        entry.comment.trim().length > 0 ||
-        (entry.quickTags?.length ?? 0) > 0;
-      if (has) filteredFields[fid] = entry;
+      const has = entry.verdict != null || entry.comment.trim().length > 0;
+      if (has) {
+        filteredFields[fid] = { ...entry, quickTags: [] };
+      }
     }
 
     try {
@@ -208,7 +184,6 @@ export default function BriefFeedbackPanel({
       });
       setSubmitSuccess("Feedback saved.");
       setFieldFeedback({});
-      setNuanceOpen({});
       void loadHistory();
       window.setTimeout(() => setSubmitSuccess(null), 5000);
     } catch (e) {
@@ -275,8 +250,6 @@ export default function BriefFeedbackPanel({
           {visibleFieldIds.map((fid, index) => {
             const { title, specId } = fieldMeta(fid);
             const v = fieldFeedback[fid]?.verdict;
-            const showNuance = nuanceOpen[fid] ?? false;
-            const hasNuanceTags = (fieldFeedback[fid]?.quickTags?.length ?? 0) > 0;
             const isFirst = index === 0;
             const titleId = `brief-feedback-field-${fid}-title`;
 
@@ -347,54 +320,24 @@ export default function BriefFeedbackPanel({
                 </FormControl>
 
                 {v ? (
-                  <Link
-                    component="button"
+                  <Button
                     type="button"
-                    variant="body2"
+                    size="small"
+                    variant="text"
                     onClick={() => setFieldVerdict(fid, "")}
-                    sx={{ mt: 0.5, fontSize: "0.75rem" }}
+                    sx={{
+                      mt: 0.5,
+                      mb: 0.25,
+                      textTransform: "none",
+                      fontWeight: 600,
+                      fontSize: "0.8125rem",
+                      color: COLORS.textSecondary,
+                      minHeight: 36,
+                    }}
                   >
                     Clear assessment
-                  </Link>
+                  </Button>
                 ) : null}
-
-                <Box sx={{ mt: 1 }}>
-                  <Link
-                    component="button"
-                    type="button"
-                    variant="body2"
-                    onClick={() =>
-                      setNuanceOpen((prev) => ({ ...prev, [fid]: !showNuance }))
-                    }
-                    sx={{ fontSize: "0.75rem", fontWeight: 600 }}
-                  >
-                    {showNuance || hasNuanceTags
-                      ? "Hide additional tags"
-                      : "Additional tags (optional)"}
-                  </Link>
-                  <Collapse in={showNuance || hasNuanceTags}>
-                    <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.5} sx={{ mt: 1 }}>
-                      {BRIEF_FEEDBACK_FIELD_QUICK_TAGS.map((t) => {
-                        const active = fieldFeedback[fid]?.quickTags?.includes(t.id) ?? false;
-                        return (
-                          <Chip
-                            key={t.id}
-                            label={t.label}
-                            size="small"
-                            onClick={() => {
-                              if (!showNuance && !hasNuanceTags) {
-                                setNuanceOpen((prev) => ({ ...prev, [fid]: true }));
-                              }
-                              toggleFieldTag(fid, t.id);
-                            }}
-                            color={active ? "secondary" : "default"}
-                            variant={active ? "filled" : "outlined"}
-                          />
-                        );
-                      })}
-                    </Stack>
-                  </Collapse>
-                </Box>
 
                 <TextField
                   size="small"
