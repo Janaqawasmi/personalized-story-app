@@ -7,8 +7,55 @@ import { Request, Response } from "express";
 import { firestore, admin } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
 import type { AuthenticatedUser } from "../middleware/auth.middleware";
+import { serializeTimestamp } from "../utils/serializeTimestamp";
 
 const COLLECTION = "dammaStoryBriefs";
+
+/**
+ * GET /api/admin/damma-story-briefs/:briefId
+ * Returns persisted brief JSON for specialist review.
+ */
+export async function getDammaStoryBrief(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.user as AuthenticatedUser | undefined;
+    if (!user) {
+      res.status(401).json({ success: false, error: "Unauthorized" });
+      return;
+    }
+
+    const { briefId } = req.params;
+    if (!briefId || typeof briefId !== "string") {
+      res.status(400).json({ success: false, error: "Invalid brief id" });
+      return;
+    }
+
+    const snap = await firestore.collection(COLLECTION).doc(briefId).get();
+    if (!snap.exists) {
+      res.status(404).json({ success: false, error: "Brief not found" });
+      return;
+    }
+
+    const data = snap.data()!;
+    res.status(200).json({
+      success: true,
+      data: {
+        id: snap.id,
+        brief: data.brief ?? null,
+        submittedAt: serializeTimestamp(data.submittedAt),
+        submittedByUid: data.submittedByUid,
+        schemaVersion: data.schemaVersion,
+      },
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("getDammaStoryBrief:", error);
+    res.status(500).json({
+      success: false,
+      error: "Failed to load story brief",
+      details: message,
+    });
+  }
+}
 
 /**
  * POST /api/admin/damma-story-briefs

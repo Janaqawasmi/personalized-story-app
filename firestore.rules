@@ -109,6 +109,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Spec v1.2 Story Brief form aggregate — server (Admin SDK) writes only
+    match /dammaStoryBriefs/{briefId} {
+      allow read: if isSpecialistOrAdmin();
+      allow write: if false;
+
+      match /feedback/{feedbackId} {
+        allow read: if isSpecialistOrAdmin();
+        allow write: if false;
+      }
+    }
+
     match /generationContracts/{contractId} {
       allow read: if isSpecialistOrAdmin();
       allow write: if false;

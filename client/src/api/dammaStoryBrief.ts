@@ -3,6 +3,7 @@
 // Submit the spec v1.2 Story Brief form (CompleteBrief) to the backend.
 
 import type { CompleteBrief } from "../types/storyBrief";
+import type { BriefFeedbackPayload, StoryBriefFeedbackDoc } from "../types/storyBriefFeedback";
 import { API_BASE, getAuthHeaders } from "./api";
 
 export interface DammaBriefSubmitResult {
@@ -43,4 +44,94 @@ export async function submitDammaStoryBriefForm(
     }
     throw err;
   }
+}
+
+export interface DammaStoryBriefRecord {
+  id: string;
+  brief: unknown;
+  submittedAt?: string;
+  submittedByUid?: string;
+  schemaVersion?: string;
+}
+
+/**
+ * GET /api/admin/damma-story-briefs/:briefId
+ */
+export async function fetchDammaStoryBrief(briefId: string): Promise<DammaStoryBriefRecord> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/admin/damma-story-briefs/${encodeURIComponent(briefId)}`, {
+    headers,
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: DammaStoryBriefRecord;
+    error?: string;
+    details?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || data.details || `Load failed (${res.status})`);
+  }
+  if (!data.success || !data.data) {
+    throw new Error(data.error || data.details || "Invalid server response");
+  }
+  return data.data;
+}
+
+/**
+ * POST /api/admin/damma-story-briefs/:briefId/feedback
+ */
+export async function submitDammaStoryBriefFeedback(
+  briefId: string,
+  payload: BriefFeedbackPayload,
+): Promise<{ feedbackId: string; briefId: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE}/api/admin/damma-story-briefs/${encodeURIComponent(briefId)}/feedback`,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify(payload),
+    },
+  );
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: { id?: string; briefId?: string };
+    error?: string;
+    details?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || data.details || `Submit failed (${res.status})`);
+  }
+  if (!data.success || !data.data?.id) {
+    throw new Error(data.error || data.details || "Invalid server response");
+  }
+  return { feedbackId: data.data.id, briefId: data.data.briefId ?? briefId };
+}
+
+/**
+ * GET /api/admin/damma-story-briefs/:briefId/feedback
+ */
+export async function listDammaStoryBriefFeedback(
+  briefId: string,
+  limit = 20,
+): Promise<StoryBriefFeedbackDoc[]> {
+  const headers = await getAuthHeaders();
+  const url = new URL(
+    `${API_BASE}/api/admin/damma-story-briefs/${encodeURIComponent(briefId)}/feedback`,
+  );
+  url.searchParams.set("limit", String(limit));
+  const res = await fetch(url.toString(), { headers });
+  const data = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: StoryBriefFeedbackDoc[];
+    error?: string;
+    details?: string;
+  };
+  if (!res.ok) {
+    throw new Error(data.error || data.details || `Load failed (${res.status})`);
+  }
+  if (!data.success || !Array.isArray(data.data)) {
+    throw new Error(data.error || data.details || "Invalid server response");
+  }
+  return data.data;
 }

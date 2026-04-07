@@ -17,6 +17,7 @@
 //   3. No live story preview (deferred post-pilot).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -38,6 +39,7 @@ import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
+import BriefFeedbackPanel from "./BriefFeedbackPanel";
 import { submitDammaStoryBriefForm } from "../../api/dammaStoryBrief";
 
 import {
@@ -130,7 +132,6 @@ const briefPageSx = {
 
 const briefPaperSx = {
   maxWidth: BRIEF_FORM_MAX_WIDTH,
-  mx: "auto",
   width: "100%",
   p: { xs: 2.75, sm: 4, md: 4.5 },
   border: "1px solid rgba(208, 200, 192, 0.55)",
@@ -142,12 +143,42 @@ const briefPaperSx = {
   `,
 };
 
-function BriefFormShell({ children }: { children: React.ReactNode }) {
+/**
+ * Story brief main column + sticky feedback column (desktop).
+ */
+function BriefPageWithSidebar({
+  briefId,
+  children,
+}: {
+  briefId: string | null;
+  children: React.ReactNode;
+}) {
   return (
     <Box component="main" sx={briefPageSx}>
-      <Paper elevation={0} sx={briefPaperSx}>
-        {children}
-      </Paper>
+      <Box
+        sx={{
+          width: "100%",
+          maxWidth: { md: BRIEF_FORM_MAX_WIDTH + 360 + 32 },
+          mx: "auto",
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          alignItems: "flex-start",
+          gap: { xs: 3, md: 3 },
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            ...briefPaperSx,
+            flex: "1 1 auto",
+            minWidth: 0,
+            mx: { xs: "auto", md: 0 },
+          }}
+        >
+          {children}
+        </Paper>
+        <BriefFeedbackPanel briefId={briefId} />
+      </Box>
     </Box>
   );
 }
@@ -387,6 +418,9 @@ function StoryTypeSelector({
 // ============================================================================
 
 export default function BriefForm({ onSubmit }: Props) {
+  const [searchParams] = useSearchParams();
+  const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
+
   // ── State ──────────────────────────────────────────────────────────────────
 
   const [draft, setDraft] = useState<CompleteBrief>(createEmptyBrief);
@@ -412,6 +446,8 @@ export default function BriefForm({ onSubmit }: Props) {
 
   // Ref to scroll to the top of the section content on navigation
   const sectionTopRef = useRef<HTMLDivElement | null>(null);
+
+  const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
   // ── Load saved draft on mount ──────────────────────────────────────────────
 
@@ -628,13 +664,13 @@ export default function BriefForm({ onSubmit }: Props) {
 
   if (submitSuccess) {
     return (
-      <BriefFormShell>
+      <BriefPageWithSidebar briefId={feedbackBriefId}>
         <BriefSubmitSuccess
           briefId={submitSuccess.briefId}
           jsonText={submitSuccess.jsonText}
           onCreateAnother={handleCreateAnotherBrief}
         />
-      </BriefFormShell>
+      </BriefPageWithSidebar>
     );
   }
 
@@ -642,7 +678,7 @@ export default function BriefForm({ onSubmit }: Props) {
 
   if (activeStep === 0) {
     return (
-      <BriefFormShell>
+      <BriefPageWithSidebar briefId={feedbackBriefId}>
         <StoryTypeSelector
           selected={draft.storyType}
           onSelect={(type: StoryType) => setDraft((d) => ({ ...d, storyType: type }))}
@@ -653,7 +689,7 @@ export default function BriefForm({ onSubmit }: Props) {
           onResumeDraft={handleResumeDraft}
           onDiscardDraft={handleDiscardDraft}
         />
-      </BriefFormShell>
+      </BriefPageWithSidebar>
     );
   }
 
@@ -664,22 +700,22 @@ export default function BriefForm({ onSubmit }: Props) {
   const personalization = draft.section4.personalization ?? "yes";
 
   return (
-    <Box component="main" sx={briefPageSx}>
-      <Paper elevation={0} sx={briefPaperSx}>
-        {/* ── Form header with save indicator ────────────────────────── */}
-        <Box
-          display="flex"
-          alignItems="center"
-          justifyContent="space-between"
-          flexWrap="wrap"
-          gap={1}
-          pb={2}
-          mb={2.5}
-          ref={sectionTopRef}
-          sx={{
-            borderBottom: "1px solid rgba(208, 200, 192, 0.45)",
-          }}
-        >
+    <>
+    <BriefPageWithSidebar briefId={feedbackBriefId}>
+      {/* ── Form header with save indicator ────────────────────────── */}
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        gap={1}
+        pb={2}
+        mb={2.5}
+        ref={sectionTopRef}
+        sx={{
+          borderBottom: "1px solid rgba(208, 200, 192, 0.45)",
+        }}
+      >
           <Typography
             variant="overline"
             sx={{
@@ -778,7 +814,7 @@ export default function BriefForm({ onSubmit }: Props) {
             submitting={submitting}
           />
         )}
-      </Paper>
+    </BriefPageWithSidebar>
 
       {/* ── "Saved" snackbar ─────────────────────────────────────────── */}
       <Snackbar
@@ -828,6 +864,6 @@ export default function BriefForm({ onSubmit }: Props) {
           {submitError}
         </Alert>
       </Snackbar>
-    </Box>
+    </>
   );
 }
