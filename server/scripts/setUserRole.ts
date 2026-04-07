@@ -3,13 +3,15 @@
 // Utility script to set Firebase Auth custom claims (roles) on users.
 // This is required for the auth middleware to recognize specialist/admin users.
 //
-// Usage:
-//   npx ts-node scripts/setUserRole.ts <uid> <role>
+// Usage (from repo root — recommended):
+//   npm run set-user-role -- <uid> <role>
+//
+// Or from the server folder:
+//   cd server && npx ts-node scripts/setUserRole.ts <uid> <role>
 //
 // Examples:
-//   npx ts-node scripts/setUserRole.ts abc123 specialist
-//   npx ts-node scripts/setUserRole.ts def456 admin
-//   npx ts-node scripts/setUserRole.ts ghi789 viewer
+//   npm run set-user-role -- abc123 specialist
+//   npm run set-user-role -- def456 admin
 
 import admin from "firebase-admin";
 import path from "path";

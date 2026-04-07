@@ -4,26 +4,39 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
+  Chip,
+  Divider,
+  IconButton,
   Paper,
+  Skeleton,
+  Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import DownloadIcon from "@mui/icons-material/Download";
 import { fetchDammaStoryBrief } from "../api/dammaStoryBrief";
 import { COLORS } from "../theme";
+import SpecialistPortalShell, { specialistMainPaperSx } from "../components/specialist/SpecialistPortalShell";
 import { useStoryBriefUi, useBriefDateLocale, formatBriefSavedAt } from "../i18n/storyBriefUi";
 import type { StoryType } from "../types/storyBrief";
 
-const pageSx = {
-  py: { xs: 3, sm: 5 },
-  px: { xs: 2, sm: 3 },
-  maxWidth: 900,
-  mx: "auto",
+const jsonPreSx = {
+  p: 2.5,
+  borderRadius: 2,
+  bgcolor: "rgba(97, 120, 145, 0.06)",
+  border: `1px solid ${COLORS.border}`,
+  overflow: "auto",
+  maxHeight: { xs: 360, sm: 480 },
+  fontSize: "0.75rem",
+  lineHeight: 1.55,
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+  m: 0,
 };
 
-/**
- * Read-only view of a submitted brief (loaded from the server).
- */
 export default function SpecialistBriefReviewPage() {
   const { lang, briefId } = useParams<{ lang: string; briefId: string }>();
   const navigate = useNavigate();
@@ -35,6 +48,7 @@ export default function SpecialistBriefReviewPage() {
   const [record, setRecord] = useState<Awaited<ReturnType<typeof fetchDammaStoryBrief>> | null>(
     null,
   );
+  const [copyHint, setCopyHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!briefId) return;
@@ -58,6 +72,8 @@ export default function SpecialistBriefReviewPage() {
   const briefPayload = record?.brief as { storyType?: StoryType } | null | undefined;
   const storyType = briefPayload?.storyType;
 
+  const jsonText = record?.brief != null ? JSON.stringify(record.brief, null, 2) : "";
+
   function handleDownloadJson() {
     if (!record?.brief) return;
     const text = JSON.stringify(record.brief, null, 2);
@@ -70,80 +86,162 @@ export default function SpecialistBriefReviewPage() {
     URL.revokeObjectURL(url);
   }
 
+  async function handleCopyJson() {
+    if (!jsonText) return;
+    try {
+      await navigator.clipboard.writeText(jsonText);
+      setCopyHint("JSON copied to clipboard");
+      setTimeout(() => setCopyHint(null), 2400);
+    } catch {
+      setCopyHint("Could not copy — select the text below");
+      setTimeout(() => setCopyHint(null), 3200);
+    }
+  }
+
+  const briefsHref = `/${lang ?? "he"}/specialist/briefs`;
+
   return (
-    <Box sx={pageSx}>
+    <SpecialistPortalShell maxWidth={900}>
       <Button
+        component={RouterLink}
+        to={briefsHref}
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(`/${lang ?? "he"}/specialist/briefs`)}
-        sx={{ mb: 2, textTransform: "none" }}
+        sx={{
+          mb: 2.5,
+          textTransform: "none",
+          fontWeight: 600,
+          color: COLORS.textSecondary,
+          "&:hover": { color: COLORS.primary, bgcolor: "rgba(97, 120, 145, 0.06)" },
+        }}
       >
-        Back to briefs
+        All briefs
       </Button>
 
       {loading && (
-        <Box display="flex" justifyContent="center" py={6}>
-          <CircularProgress />
-        </Box>
+        <Paper elevation={0} sx={specialistMainPaperSx}>
+          <Skeleton variant="text" width="40%" height={28} sx={{ mb: 2 }} />
+          <Skeleton variant="text" width="70%" height={22} />
+          <Skeleton variant="text" width="50%" height={22} sx={{ mb: 3 }} />
+          <Skeleton variant="rounded" height={280} sx={{ borderRadius: 2 }} />
+        </Paper>
       )}
 
       {!loading && error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ borderRadius: 2, mb: 2 }}>
           {error}
         </Alert>
       )}
 
       {!loading && !error && record && (
-        <Paper
-          elevation={0}
-          sx={{
-            p: 3,
-            border: `1px solid ${COLORS.border}`,
-            borderRadius: 2,
-            backgroundColor: COLORS.surface,
-          }}
-        >
-          <Typography variant="overline" color={COLORS.textSecondary}>
+        <Paper elevation={0} sx={specialistMainPaperSx}>
+          <Typography
+            variant="overline"
+            sx={{ letterSpacing: "0.14em", fontWeight: 700, color: COLORS.primary, display: "block", mb: 1 }}
+          >
             Submitted brief
           </Typography>
-          <Typography variant="h5" fontWeight={700} gutterBottom>
-            {ui.successBriefId}: {record.id}
-          </Typography>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="h5" component="h1" sx={{ fontWeight: 800, letterSpacing: "-0.02em", mb: 1 }}>
+                Brief review
+              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  {ui.successBriefId}
+                </Typography>
+                <Tooltip title={record.id}>
+                  <Typography
+                    component="code"
+                    sx={{
+                      fontSize: "0.8rem",
+                      bgcolor: "rgba(0,0,0,0.04)",
+                      px: 1,
+                      py: 0.25,
+                      borderRadius: 1,
+                      wordBreak: "break-all",
+                    }}
+                  >
+                    {record.id}
+                  </Typography>
+                </Tooltip>
+              </Stack>
+            </Box>
+            {storyType && (
+              <Chip
+                label={ui.STORY_TYPE_LABELS[storyType]}
+                sx={{
+                  fontWeight: 700,
+                  bgcolor: "rgba(97, 120, 145, 0.12)",
+                  color: COLORS.primary,
+                  border: "none",
+                }}
+              />
+            )}
+          </Stack>
+
           {record.submittedAt && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {ui.savedPrefix} {formatBriefSavedAt(Date.parse(record.submittedAt), dateLocale)}
-            </Typography>
-          )}
-          {storyType && (
-            <Typography variant="body2" sx={{ mb: 2 }}>
-              {ui.STORY_TYPE_LABELS[storyType]}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {ui.savedPrefix}{" "}
+              <strong style={{ color: COLORS.textPrimary, fontWeight: 600 }}>
+                {formatBriefSavedAt(Date.parse(record.submittedAt), dateLocale)}
+              </strong>
             </Typography>
           )}
 
-          <Button variant="contained" onClick={handleDownloadJson} sx={{ textTransform: "none", mb: 2 }}>
-            {ui.successDownload}
-          </Button>
+          <Divider sx={{ my: 2, borderColor: COLORS.border }} />
 
-          <Box
-            component="pre"
-            sx={{
-              p: 2,
-              borderRadius: 1,
-              bgcolor: "rgba(0,0,0,0.04)",
-              overflow: "auto",
-              maxHeight: 480,
-              fontSize: "0.75rem",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-            }}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1.5}
+            sx={{ mb: 2 }}
+            alignItems={{ xs: "stretch", sm: "center" }}
           >
-            {JSON.stringify(record.brief, null, 2)}
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadJson}
+              sx={{ fontWeight: 700, boxShadow: "0 8px 24px -8px rgba(97, 120, 145, 0.45)" }}
+            >
+              {ui.successDownload}
+            </Button>
+            <Tooltip title="Copy JSON to clipboard">
+              <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => void handleCopyJson()} sx={{ borderColor: COLORS.border }}>
+                Copy JSON
+              </Button>
+            </Tooltip>
+          </Stack>
+          {copyHint && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              {copyHint}
+            </Typography>
+          )}
+
+          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+              Payload (read-only)
+            </Typography>
+            <Tooltip title="Copy">
+              <IconButton size="small" aria-label="Copy JSON" onClick={() => void handleCopyJson()}>
+                <ContentCopyIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+
+          <Box component="pre" sx={jsonPreSx}>
+            {jsonText}
           </Box>
 
-          <Button component={RouterLink} to={`/${lang ?? "he"}/specialist/briefs`} sx={{ mt: 2, textTransform: "none" }}>
-            Back to all briefs
+          <Button
+            component={RouterLink}
+            to={briefsHref}
+            sx={{ mt: 3, textTransform: "none", fontWeight: 600 }}
+          >
+            ← Back to all briefs
           </Button>
         </Paper>
       )}
-    </Box>
+
+    </SpecialistPortalShell>
   );
 }

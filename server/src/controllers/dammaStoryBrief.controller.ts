@@ -4,6 +4,7 @@
 // specialist submission. Separate from legacy LegacyStoryBrief documents.
 
 import { Request, Response } from "express";
+import type { DocumentData, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { firestore, admin } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
 import type { AuthenticatedUser } from "../middleware/auth.middleware";
@@ -18,6 +19,44 @@ export interface DammaStoryBriefListItem {
   schemaVersion?: string;
   /** Copied from brief.storyType when present */
   storyType?: string;
+}
+
+function docToListItem(doc: QueryDocumentSnapshot<DocumentData>): DammaStoryBriefListItem {
+  const row = doc.data();
+  const brief = row.brief as { storyType?: string } | undefined;
+  const submittedAt = serializeTimestamp(row.submittedAt);
+  const item: DammaStoryBriefListItem = {
+    id: doc.id,
+    submittedByUid: row.submittedByUid,
+    schemaVersion: row.schemaVersion,
+  };
+  if (submittedAt !== undefined) {
+    item.submittedAt = submittedAt;
+  }
+  const st = brief?.storyType;
+  if (st !== undefined) {
+    item.storyType = st;
+  }
+  return item;
+}
+
+/** For fallback sort when composite index is not deployed yet. */
+function submittedAtMillis(row: DocumentData): number {
+  const t = row.submittedAt;
+  if (!t) return 0;
+  if (typeof (t as { toMillis?: () => number }).toMillis === "function") {
+    return (t as { toMillis: () => number }).toMillis();
+  }
+  if (typeof t === "object" && typeof (t as { seconds?: number }).seconds === "number") {
+    return (t as { seconds: number }).seconds * 1000;
+  }
+  return 0;
+}
+
+function isMissingIndexError(e: unknown): boolean {
+  const code = typeof e === "object" && e !== null && "code" in e ? Number((e as { code: unknown }).code) : NaN;
+  const msg = e instanceof Error ? e.message : String(e);
+  return code === 9 || msg.includes("FAILED_PRECONDITION") || msg.includes("requires an index");
 }
 
 /**
@@ -35,31 +74,30 @@ export async function listDammaStoryBriefs(req: Request, res: Response): Promise
     const rawLimit = parseInt(String(req.query.limit ?? "50"), 10);
     const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 100) : 50;
 
-    const snap = await firestore
-      .collection(COLLECTION)
-      .where("submittedByUid", "==", user.uid)
-      .orderBy("submittedAt", "desc")
-      .limit(limit)
-      .get();
+    let data: DammaStoryBriefListItem[];
 
-    const data: DammaStoryBriefListItem[] = snap.docs.map((doc) => {
-      const row = doc.data();
-      const brief = row.brief as { storyType?: string } | undefined;
-      const submittedAt = serializeTimestamp(row.submittedAt);
-      const item: DammaStoryBriefListItem = {
-        id: doc.id,
-        submittedByUid: row.submittedByUid,
-        schemaVersion: row.schemaVersion,
-      };
-      if (submittedAt !== undefined) {
-        item.submittedAt = submittedAt;
+    try {
+      const snap = await firestore
+        .collection(COLLECTION)
+        .where("submittedByUid", "==", user.uid)
+        .orderBy("submittedAt", "desc")
+        .limit(limit)
+        .get();
+      data = snap.docs.map(docToListItem);
+    } catch (queryErr: unknown) {
+      if (!isMissingIndexError(queryErr)) {
+        throw queryErr;
       }
-      const st = brief?.storyType;
-      if (st !== undefined) {
-        item.storyType = st;
-      }
-      return item;
-    });
+      // Composite index not ready or different Firebase project — equality query + sort (no extra log).
+      const all = await firestore
+        .collection(COLLECTION)
+        .where("submittedByUid", "==", user.uid)
+        .get();
+      const sorted = [...all.docs].sort(
+        (a, b) => submittedAtMillis(b.data()) - submittedAtMillis(a.data()),
+      );
+      data = sorted.slice(0, limit).map(docToListItem);
+    }
 
     res.status(200).json({ success: true, data });
   } catch (error: unknown) {

@@ -6,6 +6,16 @@ import type { CompleteBrief } from "../types/storyBrief";
 import type { BriefFeedbackPayload, StoryBriefFeedbackDoc } from "../types/storyBriefFeedback";
 import { API_BASE, getAuthHeaders } from "./api";
 
+/** Prefer combining `error` + `details` so 403 responses explain required vs actual role. */
+function dammaApiErrorMessage(
+  data: { error?: string; details?: string },
+  fallback: string,
+): string {
+  const { error, details } = data;
+  if (error && details) return `${error}: ${details}`;
+  return error || details || fallback;
+}
+
 export interface DammaBriefSubmitResult {
   briefId: string;
 }
@@ -30,10 +40,10 @@ export async function submitDammaStoryBriefForm(
       details?: string;
     };
     if (!res.ok) {
-      throw new Error(data.error || data.details || `Submit failed (${res.status})`);
+      throw new Error(dammaApiErrorMessage(data, `Submit failed (${res.status})`));
     }
     if (!data.success || !data.data?.id) {
-      throw new Error(data.error || data.details || "Invalid server response");
+      throw new Error(dammaApiErrorMessage(data, "Invalid server response"));
     }
     return { briefId: data.data.id };
   } catch (err) {
@@ -77,10 +87,10 @@ export async function listDammaStoryBriefs(limit = 50): Promise<DammaStoryBriefL
     details?: string;
   };
   if (!res.ok) {
-    throw new Error(data.error || data.details || `List failed (${res.status})`);
+    throw new Error(dammaApiErrorMessage(data, `List failed (${res.status})`));
   }
   if (!data.success || !Array.isArray(data.data)) {
-    throw new Error(data.error || data.details || "Invalid server response");
+    throw new Error(dammaApiErrorMessage(data, "Invalid server response"));
   }
   return data.data;
 }
@@ -100,10 +110,10 @@ export async function fetchDammaStoryBrief(briefId: string): Promise<DammaStoryB
     details?: string;
   };
   if (!res.ok) {
-    throw new Error(data.error || data.details || `Load failed (${res.status})`);
+    throw new Error(dammaApiErrorMessage(data, `Load failed (${res.status})`));
   }
   if (!data.success || !data.data) {
-    throw new Error(data.error || data.details || "Invalid server response");
+    throw new Error(dammaApiErrorMessage(data, "Invalid server response"));
   }
   return data.data;
 }
@@ -131,10 +141,10 @@ export async function submitDammaStoryBriefFeedback(
     details?: string;
   };
   if (!res.ok) {
-    throw new Error(data.error || data.details || `Submit failed (${res.status})`);
+    throw new Error(dammaApiErrorMessage(data, `Submit failed (${res.status})`));
   }
   if (!data.success || !data.data?.id) {
-    throw new Error(data.error || data.details || "Invalid server response");
+    throw new Error(dammaApiErrorMessage(data, "Invalid server response"));
   }
   return { feedbackId: data.data.id, briefId: data.data.briefId ?? briefId };
 }
@@ -159,10 +169,10 @@ export async function listDammaStoryBriefFeedback(
     details?: string;
   };
   if (!res.ok) {
-    throw new Error(data.error || data.details || `Load failed (${res.status})`);
+    throw new Error(dammaApiErrorMessage(data, `Load failed (${res.status})`));
   }
   if (!data.success || !Array.isArray(data.data)) {
-    throw new Error(data.error || data.details || "Invalid server response");
+    throw new Error(dammaApiErrorMessage(data, "Invalid server response"));
   }
   return data.data;
 }
