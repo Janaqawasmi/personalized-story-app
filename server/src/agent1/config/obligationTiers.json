@@ -1,0 +1,43 @@
+{
+  "tier_1": {
+    "label": "Tier 1",
+    "description": "Must appear as fully realized scenes (non-negotiable)",
+    "elements": [
+      "The trigger moment (from Field 2.2)",
+      "Somatic mirroring — at least one expression shown physically (from Field 3.4, first selection)",
+      "The coping tool in action (from Field 3.5)",
+      "The resolution matching the chosen completeness level (from Field 3.6)"
+    ]
+  },
+  "tier_2": {
+    "label": "Tier 2",
+    "description": "Must appear, but can be compressed into fewer beats",
+    "elements": [
+      "The primary therapeutic approach — defines the arc (from Field 3.1)",
+      "The caregiver's presence at the specified role (from Field 4.4)",
+      "Shame rules when shame = Central (from Field 3.3) — all three rules must be honored but can be served through a single scene rather than multiple scenes"
+    ]
+  },
+  "tier_3": {
+    "label": "Tier 3",
+    "description": "Should appear if space permits, can be reduced to a single beat",
+    "elements": [
+      "The supporting approach — can become a tonal quality that flavors the story rather than a distinct scene (from Field 3.2)",
+      "Supporting characters — can appear in a single interaction rather than a developed role (from Field 4.6)",
+      "The second somatic expression, if two were selected — the first is Tier 1, the second is Tier 3 (from Field 3.4)",
+      "The \"One true thing\" detail (from Field 2.5)"
+    ]
+  },
+  "tier_4": {
+    "label": "Tier 4",
+    "description": "Enrichment, omit if space is tight",
+    "elements": [
+      "The creative vision as a distinct set piece — can be reduced to a visual detail or atmospheric element rather than a full scene (from Field 2.4)",
+      "Character notes details (from Field 4.7)",
+      "Second supporting character's functional role, if two characters were selected (from Field 4.6)"
+    ]
+  },
+  "agent_instruction": "When the brief's obligations exceed the available word count, follow the priority tiers. Tier 1 elements must always appear as fully realized scenes. Tier 2 elements must appear but can be compressed into fewer beats. Tier 3 elements should appear if space permits but can be reduced to a single sentence or a background detail. Tier 4 elements are enrichment — include them only if they don't compress other tiers. Never flatten a Tier 1 element to make room for a Tier 3 element.",
+  "output_metadata_requirement": "When any element is compressed or omitted due to space constraints, the agent must output a metadata section (not shown in the story, shown to the psychologist during review) listing: what was fully included, what was compressed (and how), and what was omitted (and why). This gives the psychologist transparency to adjust the brief and regenerate if needed."
+}
+

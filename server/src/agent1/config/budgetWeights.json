@@ -1,0 +1,43 @@
+{
+  "obligationWeights": {
+    "core_arc": 5,
+    "somatic_expression_each": 0.5,
+    "supporting_approach_selected": 1,
+    "shame_central": 1,
+    "shame_present": 0.5,
+    "supporting_character_each": 1,
+    "caregiver_leaves_and_returns": 1.5,
+    "caregiver_waiting_at_the_end": 0.5,
+    "narrative_distance_parallel": 1,
+    "narrative_distance_metaphorical": 1.5
+  },
+  "ageMultipliers": {
+    "3-5": 1.0,
+    "5-7": 0.8,
+    "7-9": 0.6,
+    "9-12": 0.5
+  },
+  "pageBudgets": {
+    "3-5": {
+      "short": [6, 8],
+      "standard": [8, 12],
+      "extended": [12, 16]
+    },
+    "5-7": {
+      "short": [8, 10],
+      "standard": [10, 14],
+      "extended": [14, 18]
+    },
+    "7-9": {
+      "short": [10, 12],
+      "standard": [12, 16],
+      "extended": [16, 22]
+    },
+    "9-12": {
+      "short": [12, 15],
+      "standard": [15, 20],
+      "extended": [20, 28]
+    }
+  }
+}
+
