@@ -22,11 +22,11 @@ export type PeakIntensity = z.infer<typeof PeakIntensityEnum>;
 export const StoryLengthEnum = z.enum(["Short", "Standard", "Extended"]);
 export type StoryLength = z.infer<typeof StoryLengthEnum>;
 
-export const ResolutionCompletenessEnum = z.enum(["Full", "Partial", "Open"]);
+export const ResolutionCompletenessEnum = z.enum(["Full resolution", "Partial resolution", "Open"]);
 export type ResolutionCompleteness = z.infer<typeof ResolutionCompletenessEnum>;
 
 export const ShameDimensionEnum = z.enum([
-  "Not significant",
+  "Not a significant factor in this story",
   "Present — handle with care",
   "Central to the experience",
 ]);
@@ -39,7 +39,7 @@ export const PrimaryApproachEnum = z.enum([
   "Modeling",
   "Reassurance & predictability",
   "Self-regulation",
-  "Psychoeducation (age-appropriate)",
+  "Psychoeducation",
 ]);
 export type PrimaryApproach = z.infer<typeof PrimaryApproachEnum>;
 
@@ -335,6 +335,7 @@ export type PostValidationResult = z.infer<typeof PostValidationResultSchema>;
  * 6) Agent1ResultSchema — public output for the specialist.
  */
 export const Agent1ResultSchema = z.object({
+  pre_check: PreCheckResultSchema,
   story_architect: StoryArchitectOutputSchema,
   author: AuthorOutputSchema,
   post_validation: PostValidationResultSchema,
