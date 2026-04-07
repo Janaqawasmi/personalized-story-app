@@ -66,6 +66,25 @@ export function getFeedbackFieldIdsForStep(
   return [];
 }
 
+/** Short heading for the feedback panel — matches brief progress steps */
+export function getFeedbackSectionHeading(
+  step: number | null,
+  personalization: "yes" | "no",
+): string {
+  if (step === null) return "After submit";
+  if (step === 0) return "Pre-brief — Story type";
+  if (step === 1) return "Section 1 — Age & story scope";
+  if (step === 2) return "Section 2 — Clinical foundation";
+  if (step === 3) return "Section 3 — Therapeutic architecture";
+  if (step === 4) {
+    return personalization === "yes"
+      ? "Section 4 — Story world (personalization on)"
+      : "Section 4 — Story world (personalization off)";
+  }
+  if (step === 5) return "Section 5 — Personalization configuration";
+  return "This section";
+}
+
 // ============================================================================
 // Per-field verdict (single choice) — section-aware review UI
 // ============================================================================

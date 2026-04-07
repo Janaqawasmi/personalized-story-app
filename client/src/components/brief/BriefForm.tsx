@@ -162,7 +162,7 @@ function BriefPageWithSidebar({
       <Box
         sx={{
           width: "100%",
-          maxWidth: { md: BRIEF_FORM_MAX_WIDTH + 360 + 32 },
+          maxWidth: { md: BRIEF_FORM_MAX_WIDTH + 400 + 32 },
           mx: "auto",
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
