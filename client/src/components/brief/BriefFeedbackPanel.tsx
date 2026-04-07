@@ -30,18 +30,17 @@ import {
   submitDammaStoryBriefFeedback,
 } from "../../api/dammaStoryBrief";
 import {
-  BRIEF_FEEDBACK_FIELD_CATALOG,
   BRIEF_FEEDBACK_OVERALL_QUICK_TAGS,
   BRIEF_FEEDBACK_VERDICTS,
-  BRIEF_FEEDBACK_VERDICT_LABELS,
   getFeedbackFieldIdsForStep,
   type BriefFeedbackVerdictId,
   type BriefFieldFeedbackEntry,
   type StoryBriefFeedbackDoc,
 } from "../../types/storyBriefFeedback";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
-function fieldMeta(fieldId: string): { title: string; specId: string } {
-  const row = BRIEF_FEEDBACK_FIELD_CATALOG.find((f) => f.id === fieldId);
+function fieldMeta(fieldId: string, ui: ReturnType<typeof useStoryBriefUi>): { title: string; specId: string } {
+  const row = ui.feedbackFields[fieldId];
   return { title: row?.label ?? fieldId, specId: fieldId };
 }
 
@@ -50,9 +49,9 @@ function overallTagLabel(id: string): string {
   return row?.label ?? id;
 }
 
-function verdictLabel(id: string | undefined): string {
+function verdictLabel(id: string | undefined, ui: ReturnType<typeof useStoryBriefUi>): string {
   if (!id) return "";
-  return BRIEF_FEEDBACK_VERDICT_LABELS[id as BriefFeedbackVerdictId] ?? id;
+  return ui.feedbackVerdicts[id as BriefFeedbackVerdictId]?.label ?? id;
 }
 
 export interface BriefFeedbackPanelProps {
@@ -66,6 +65,7 @@ export default function BriefFeedbackPanel({
   activeStep,
   personalization,
 }: BriefFeedbackPanelProps) {
+  const ui = useStoryBriefUi();
   const [fieldFeedback, setFieldFeedback] = useState<Record<string, BriefFieldFeedbackEntry>>({});
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -121,12 +121,12 @@ export default function BriefFeedbackPanel({
       const rows = await listDammaStoryBriefFeedback(briefId, 15);
       setHistory(rows);
     } catch (e) {
-      setHistoryError(e instanceof Error ? e.message : "Could not load prior feedback");
+      setHistoryError(e instanceof Error ? e.message : ui.feedbackLoadError);
       setHistory([]);
     } finally {
       setHistoryLoading(false);
     }
-  }, [briefId]);
+  }, [briefId, ui]);
 
   useEffect(() => {
     if (!briefId) {
@@ -182,12 +182,12 @@ export default function BriefFeedbackPanel({
         overallQuickTags: [],
         fieldFeedback: filteredFields,
       });
-      setSubmitSuccess("Feedback saved.");
+      setSubmitSuccess(ui.feedbackSaved);
       setFieldFeedback({});
       void loadHistory();
       window.setTimeout(() => setSubmitSuccess(null), 5000);
     } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : "Save failed");
+      setSubmitError(e instanceof Error ? e.message : ui.feedbackSaveError);
     } finally {
       setSubmitting(false);
     }
@@ -226,12 +226,14 @@ export default function BriefFeedbackPanel({
             lineHeight: 1.4,
           }}
         >
-          Specialist feedback
+          {ui.feedbackTitle}
         </Typography>
         {briefId ? (
           <Chip
             size="small"
-            label={`Brief ${briefId.length > 12 ? `${briefId.slice(0, 10)}…` : briefId}`}
+            label={ui.feedbackBriefChip(
+              briefId.length > 12 ? `${briefId.slice(0, 10)}…` : briefId,
+            )}
             title={briefId}
             sx={{
               alignSelf: "flex-start",
@@ -248,7 +250,7 @@ export default function BriefFeedbackPanel({
       {visibleFieldIds.length > 0 ? (
         <Stack spacing={1.75} sx={{ mb: 2 }}>
           {visibleFieldIds.map((fid, index) => {
-            const { title, specId } = fieldMeta(fid);
+            const { title, specId } = fieldMeta(fid, ui);
             const v = fieldFeedback[fid]?.verdict;
             const isFirst = index === 0;
             const titleId = `brief-feedback-field-${fid}-title`;
@@ -288,7 +290,7 @@ export default function BriefFeedbackPanel({
                   {title}
                 </Typography>
                 <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1 }}>
-                  Field {specId}
+                  {ui.feedbackFieldPrefix} {specId}
                 </Typography>
 
                 <FormControl component="fieldset" fullWidth variant="standard" sx={{ m: 0 }}>
@@ -297,7 +299,7 @@ export default function BriefFeedbackPanel({
                     variant="caption"
                     sx={{ fontWeight: 700, color: COLORS.textSecondary, mb: 0.75 }}
                   >
-                    Assessment
+                    {ui.feedbackAssessment}
                   </Typography>
                   <RadioGroup
                     name={`verdict-${fid}`}
@@ -307,11 +309,16 @@ export default function BriefFeedbackPanel({
                     }
                   >
                     {BRIEF_FEEDBACK_VERDICTS.map((opt) => (
-                      <Tooltip key={opt.id} title={opt.description} placement="left" enterDelay={400}>
+                      <Tooltip
+                        key={opt.id}
+                        title={ui.feedbackVerdicts[opt.id].description}
+                        placement="left"
+                        enterDelay={400}
+                      >
                         <FormControlLabel
                           value={opt.id}
                           control={<Radio size="small" sx={{ py: 0.35 }} />}
-                          label={<Typography variant="body2">{opt.label}</Typography>}
+                          label={<Typography variant="body2">{ui.feedbackVerdicts[opt.id].label}</Typography>}
                           sx={{ alignItems: "flex-start", ml: 0, mr: 0, mb: 0.15 }}
                         />
                       </Tooltip>
@@ -335,18 +342,18 @@ export default function BriefFeedbackPanel({
                       minHeight: 36,
                     }}
                   >
-                    Clear assessment
+                    {ui.feedbackClear}
                   </Button>
                 ) : null}
 
                 <TextField
                   size="small"
                   fullWidth
-                  label={wantsDetailNote(v) ? "Note (recommended)" : "Note (optional)"}
+                  label={wantsDetailNote(v) ? ui.feedbackNoteRecommended : ui.feedbackNoteOptional}
                   placeholder={
                     wantsDetailNote(v)
-                      ? "What should change or be clarified?"
-                      : "Add detail if it helps the author…"
+                      ? ui.feedbackNotePlaceholderDetail
+                      : ui.feedbackNotePlaceholderOptional
                   }
                   multiline
                   minRows={wantsDetailNote(v) ? 2 : 1}
@@ -386,7 +393,7 @@ export default function BriefFeedbackPanel({
           "&:hover": { backgroundColor: COLORS.secondary },
         }}
       >
-        {submitting ? <CircularProgress size={22} color="inherit" /> : "Save feedback"}
+        {submitting ? <CircularProgress size={22} color="inherit" /> : ui.feedbackSave}
       </Button>
       {briefId && (
         <Accordion
@@ -421,7 +428,7 @@ export default function BriefFeedbackPanel({
             )}
             {!historyLoading && history && history.length === 0 && (
               <Typography variant="caption" color={COLORS.textSecondary}>
-                No entries yet.
+                {ui.feedbackNoEntries}
               </Typography>
             )}
             {!historyLoading &&
@@ -462,7 +469,7 @@ export default function BriefFeedbackPanel({
                           {fb.verdict ? (
                             <Box component="span" color={COLORS.textSecondary}>
                               {" "}
-                              — {verdictLabel(fb.verdict)}
+                              — {verdictLabel(fb.verdict, ui)}
                             </Box>
                           ) : null}
                           {fb.comment?.trim() ? (

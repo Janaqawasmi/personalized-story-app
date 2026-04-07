@@ -44,13 +44,12 @@ import { submitDammaStoryBriefForm } from "../../api/dammaStoryBrief";
 
 import {
   STORY_TYPES,
-  STORY_TYPE_LABELS,
-  STORY_TYPE_DESCRIPTIONS,
   createEmptyBrief,
   isSectionComplete,
   normalizeBriefDefaults,
   omitUiOnlyBriefFields,
   type AgeAndScope,
+  type BriefDefaultsLocaleOptions,
   type ClinicalFoundation,
   type TherapeuticArchitecture,
   type StoryWorld,
@@ -59,6 +58,13 @@ import {
   type StoryType,
 } from "../../types/storyBrief";
 import { evaluateBriefSubmitGate, type SubmitGateItem } from "../../validation/briefSubmitGate";
+import {
+  formatBriefSavedAt,
+  translateSubmitGateItems,
+  useBriefDateLocale,
+  useStoryBriefUi,
+} from "../../i18n/storyBriefUi";
+import { useLanguage } from "../../i18n/context/useLanguage";
 
 // ============================================================================
 // localStorage helpers
@@ -93,18 +99,6 @@ function clearDraftFromStorage(): void {
   } catch {
     // Ignore
   }
-}
-
-function formatSavedAt(ts: number): string {
-  const d = new Date(ts);
-  const today = new Date();
-  const isToday =
-    d.getDate() === today.getDate() &&
-    d.getMonth() === today.getMonth() &&
-    d.getFullYear() === today.getFullYear();
-  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (isToday) return `Today at ${time}`;
-  return `${d.toLocaleDateString([], { month: "short", day: "numeric" })} at ${time}`;
 }
 
 /**
@@ -227,6 +221,9 @@ function StoryTypeSelector({
   onResumeDraft,
   onDiscardDraft,
 }: StoryTypeSelectorProps) {
+  const ui = useStoryBriefUi();
+  const dateLocale = useBriefDateLocale();
+
   return (
     <Box>
       {/* Resume banner */}
@@ -250,11 +247,13 @@ function StoryTypeSelector({
           >
             <Box flex={1}>
               <Typography variant="body2" fontWeight={600} color={COLORS.primary}>
-                You have a saved draft
+                {ui.draftSavedBannerTitle}
               </Typography>
               <Typography variant="caption" color={COLORS.textSecondary}>
-                {STORY_TYPE_LABELS[savedDraft.storyType]} brief
-                {savedDraft.savedAt ? ` — saved ${formatSavedAt(savedDraft.savedAt)}` : ""}
+                {ui.STORY_TYPE_LABELS[savedDraft.storyType]} {ui.draftSavedBriefWord}
+                {savedDraft.savedAt
+                  ? ` — ${ui.draftSavedSavedPrefix} ${formatBriefSavedAt(savedDraft.savedAt, dateLocale)}`
+                  : ""}
               </Typography>
             </Box>
             <Box display="flex" gap={1} flexShrink={0}>
@@ -269,7 +268,7 @@ function StoryTypeSelector({
                   "&:hover": { backgroundColor: COLORS.secondary },
                 }}
               >
-                Resume
+                {ui.resume}
               </Button>
               <Button
                 size="small"
@@ -282,7 +281,7 @@ function StoryTypeSelector({
                   "&:hover": { borderColor: COLORS.secondary, color: COLORS.secondary },
                 }}
               >
-                Start over
+                {ui.startOver}
               </Button>
             </Box>
           </Box>
@@ -292,14 +291,13 @@ function StoryTypeSelector({
       {/* Header */}
       <Box mb={5}>
         <Typography variant="overline" display="block" color={COLORS.textSecondary} letterSpacing={1} mb={0.5}>
-          Pre-brief
+          {ui.preBriefOverline}
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
-          Choose the lens this story looks through
+          {ui.preBriefTitle}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 640 }}>
-          The story type determines which fields appear, which options are available, and which
-          clinical defaults are loaded. It is a therapeutic lens, not a diagnosis.
+          {ui.preBriefSubtitle}
         </Typography>
       </Box>
 
@@ -369,7 +367,7 @@ function StoryTypeSelector({
                         fontWeight={sel ? 700 : 600}
                         color={sel ? COLORS.primary : COLORS.textPrimary}
                       >
-                        {STORY_TYPE_LABELS[type]}
+                        {ui.STORY_TYPE_LABELS[type]}
                       </Typography>
                       {!isAvailable && (
                         <Typography
@@ -383,12 +381,12 @@ function StoryTypeSelector({
                             fontSize: "0.65rem",
                           }}
                         >
-                          Coming soon
+                          {ui.comingSoon}
                         </Typography>
                       )}
                     </Box>
                     <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
-                      {STORY_TYPE_DESCRIPTIONS[type]}
+                      {ui.STORY_TYPE_DESCRIPTIONS[type]}
                     </Typography>
                   </Box>
                 </Box>
@@ -414,7 +412,7 @@ function StoryTypeSelector({
             "&:disabled": { opacity: 0.45 },
           }}
         >
-          Begin brief →
+          {ui.beginBrief}
         </Button>
       </Box>
     </Box>
@@ -428,6 +426,18 @@ function StoryTypeSelector({
 export default function BriefForm({ onSubmit }: Props) {
   const [searchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
+
+  const { language } = useLanguage();
+  const ui = useStoryBriefUi();
+  const dateLocale = useBriefDateLocale();
+
+  const briefLocaleOpts = useMemo((): BriefDefaultsLocaleOptions | undefined => {
+    if (language === "en") return undefined;
+    return {
+      mustNeverDefaults: ui.MUST_NEVER_DEFAULTS,
+      personalizationConstraintsDefaults: ui.PERSONALIZATION_CONSTRAINTS_DEFAULTS,
+    };
+  }, [language, ui]);
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -462,13 +472,13 @@ export default function BriefForm({ onSubmit }: Props) {
   useEffect(() => {
     const existing = loadDraftFromStorage();
     if (existing?.storyType) {
-      const normalized = normalizeBriefDefaults(existing);
+      const normalized = normalizeBriefDefaults(existing, briefLocaleOpts);
       setSavedDraft(normalized);
       if (normalized !== existing) {
         saveDraftToStorage(normalized);
       }
     }
-  }, []);
+  }, [briefLocaleOpts]);
 
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
   // Also record highest section opened so Section 5 progress stays honest when personalization is ON.
@@ -482,18 +492,18 @@ export default function BriefForm({ onSubmit }: Props) {
           base = { ...d, highestSectionVisited: activeStep };
         }
       }
-      const n = normalizeBriefDefaults(base);
+      const n = normalizeBriefDefaults(base, briefLocaleOpts);
       if (n === d && base === d) return d;
       saveDraftToStorage(n);
       return n;
     });
-  }, [activeStep, draft.storyType]);
+  }, [activeStep, draft.storyType, briefLocaleOpts]);
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
   const sectionCompletion: boolean[] = useMemo(
-    () => [1, 2, 3, 4, 5].map((n) => isSectionComplete(n, normalizeBriefDefaults(draft))),
-    [draft],
+    () => [1, 2, 3, 4, 5].map((n) => isSectionComplete(n, normalizeBriefDefaults(draft, briefLocaleOpts))),
+    [draft, briefLocaleOpts],
   );
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -504,7 +514,7 @@ export default function BriefForm({ onSubmit }: Props) {
 
   function saveAndAdvance(nextStep: number) {
     setDraft((d) => {
-      const next = normalizeBriefDefaults({ ...d, savedAt: Date.now() });
+      const next = normalizeBriefDefaults({ ...d, savedAt: Date.now() }, briefLocaleOpts);
       saveDraftToStorage(next);
       return next;
     });
@@ -522,10 +532,13 @@ export default function BriefForm({ onSubmit }: Props) {
 
   function updateSection1(updates: Partial<AgeAndScope>) {
     setDraft((d) =>
-      normalizeBriefDefaults({
-        ...d,
-        section1: { ...d.section1, ...updates },
-      }),
+      normalizeBriefDefaults(
+        {
+          ...d,
+          section1: { ...d.section1, ...updates },
+        },
+        briefLocaleOpts,
+      ),
     );
   }
 
@@ -550,7 +563,7 @@ export default function BriefForm({ onSubmit }: Props) {
   function attemptSubmit() {
     if (submitting) return;
 
-    let normalized = normalizeBriefDefaults(draft);
+    let normalized = normalizeBriefDefaults(draft, briefLocaleOpts);
     if (normalized !== draft) {
       setDraft(normalized);
       saveDraftToStorage(normalized);
@@ -593,7 +606,7 @@ export default function BriefForm({ onSubmit }: Props) {
         new Set([...(draft.acknowledgedWarnings ?? []), ...ids]),
       ),
     };
-    const finalDraft = normalizeBriefDefaults(merged);
+    const finalDraft = normalizeBriefDefaults(merged, briefLocaleOpts);
     setDraft(finalDraft);
     saveDraftToStorage(finalDraft);
     setHardWarningOpen(false);
@@ -607,7 +620,7 @@ export default function BriefForm({ onSubmit }: Props) {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      const finalDraft = normalizeBriefDefaults(brief);
+      const finalDraft = normalizeBriefDefaults(brief, briefLocaleOpts);
       if (finalDraft !== brief) {
         setDraft(finalDraft);
         saveDraftToStorage(finalDraft);
@@ -626,7 +639,7 @@ export default function BriefForm({ onSubmit }: Props) {
       // Intentionally keep localStorage until the user explicitly starts a new brief.
     } catch (err) {
       const message =
-        err instanceof Error ? err.message : "Something went wrong while submitting. Please try again.";
+        err instanceof Error ? err.message : ui.submitErrorGeneric;
       setSubmitError(message);
       console.error("[BriefForm] Submission failed:", err);
     } finally {
@@ -647,7 +660,7 @@ export default function BriefForm({ onSubmit }: Props) {
 
   function handleResumeDraft() {
     if (!savedDraft) return;
-    const normalized = normalizeBriefDefaults(savedDraft);
+    const normalized = normalizeBriefDefaults(savedDraft, briefLocaleOpts);
     setDraft(normalized);
     saveDraftToStorage(normalized);
     setSavedDraft(null);
@@ -746,7 +759,7 @@ export default function BriefForm({ onSubmit }: Props) {
               lineHeight: 1.4,
             }}
           >
-            {STORY_TYPE_LABELS[storyType]}
+            {ui.STORY_TYPE_LABELS[storyType]}
           </Typography>
           {draft.savedAt && (
             <Typography
@@ -754,7 +767,7 @@ export default function BriefForm({ onSubmit }: Props) {
               color={COLORS.textSecondary}
               sx={{ fontWeight: 500, opacity: 0.9 }}
             >
-              Saved {formatSavedAt(draft.savedAt)}
+              {ui.savedPrefix} {formatBriefSavedAt(draft.savedAt, dateLocale)}
             </Typography>
           )}
         </Box>
@@ -851,18 +864,18 @@ export default function BriefForm({ onSubmit }: Props) {
             "& .MuiAlert-message": { fontSize: "0.875rem" },
           }}
         >
-          Draft saved
+          {ui.draftSavedSnackbar}
         </Alert>
       </Snackbar>
 
       <HardBlockSubmitDialog
         open={hardBlockOpen}
-        items={gateHardBlocks}
+        items={translateSubmitGateItems(gateHardBlocks, ui)}
         onClose={handleHardBlockClose}
       />
       <HardWarningSubmitDialog
         open={hardWarningOpen}
-        items={gateHardWarnings}
+        items={translateSubmitGateItems(gateHardWarnings, ui)}
         understood={hardWarningAck}
         onUnderstoodChange={setHardWarningAck}
         onGoBack={handleHardWarningGoBack}

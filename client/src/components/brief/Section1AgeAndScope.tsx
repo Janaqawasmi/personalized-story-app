@@ -26,20 +26,15 @@ import BriefValidationSummary, {
 } from "./BriefValidationSummary";
 import {
   AGE_RANGES,
-  AGE_RANGE_LABELS,
   PEAK_INTENSITIES,
-  PEAK_INTENSITY_LABELS,
-  PEAK_INTENSITY_DEFINITIONS,
   STORY_LENGTHS,
   STORY_LENGTH_DEFAULT,
-  STORY_LENGTH_LABELS,
-  STORY_LENGTH_PREVIEWS,
-  WARN_SIGNIFICANT_YOUNG_AGE,
   type AgeAndScope,
   type AgeRange,
   type PeakIntensity,
   type StoryLength,
 } from "../../types/storyBrief";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 // ============================================================================
 // Style tokens
@@ -186,6 +181,8 @@ export default function Section1AgeAndScope({
   onContinue,
   onBack,
 }: Props) {
+  const ui = useStoryBriefUi();
+
   // Derive the current story length, defaulting to "standard" per spec
   const ageRange = value.ageRange ?? null;
   const peakIntensity = value.peakIntensity ?? null;
@@ -198,17 +195,17 @@ export default function Section1AgeAndScope({
   // Preview string for the currently selected age × length combination
   const lengthPreview: string | null =
     ageRange !== null
-      ? STORY_LENGTH_PREVIEWS[ageRange][storyLength]
+      ? ui.STORY_LENGTH_PREVIEWS[ageRange][storyLength]
       : null;
 
   const isComplete = ageRange !== null && peakIntensity !== null;
 
   const missingFields: BriefMissingField[] = [];
   if (ageRange === null) {
-    missingFields.push({ label: "Target age range", targetId: "field-1-1-label" });
+    missingFields.push({ label: ui.s1MissingAge, targetId: "field-1-1-label" });
   }
   if (peakIntensity === null) {
-    missingFields.push({ label: "Peak emotional intensity", targetId: "field-1-2-label" });
+    missingFields.push({ label: ui.s1MissingPeak, targetId: "field-1-2-label" });
   }
 
   function handleAgeRange(v: AgeRange) {
@@ -240,14 +237,13 @@ export default function Section1AgeAndScope({
           letterSpacing={1}
           mb={0.5}
         >
-          Section 1 of 5
+          {ui.s1Overline}
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
-          Age & Story Scope
+          {ui.s1Title}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
-          Age range governs language complexity, coping tool appropriateness, and structural
-          parameters. Set the scope before designing the clinical content.
+          {ui.s1Intro}
         </Typography>
       </Box>
 
@@ -255,7 +251,7 @@ export default function Section1AgeAndScope({
         {/* ═══════════════════════════════════════════════════════════════
             Field 1.1 — Target Age Range
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id="field-1-1-label" label="Target age range">
+        <FieldGroup id="field-1-1-label" label={ui.s1Field11}>
           <Box
             display="grid"
             gridTemplateColumns="repeat(4, 1fr)"
@@ -269,7 +265,7 @@ export default function Section1AgeAndScope({
                   key={range}
                   selected={selected}
                   onClick={() => handleAgeRange(range)}
-                  ariaLabel={`Age range ${AGE_RANGE_LABELS[range]}`}
+                  ariaLabel={ui.ariaAgeRange(ui.AGE_RANGE_LABELS[range])}
                 >
                   <Box
                     display="flex"
@@ -286,7 +282,7 @@ export default function Section1AgeAndScope({
                       fontSize="1.05rem"
                       color={selected ? COLORS.primary : COLORS.textPrimary}
                     >
-                      {AGE_RANGE_LABELS[range]}
+                      {ui.AGE_RANGE_LABELS[range]}
                     </Typography>
                   </Box>
                 </OptionCard>
@@ -300,9 +296,9 @@ export default function Section1AgeAndScope({
         {/* ═══════════════════════════════════════════════════════════════
             Field 1.2 — Peak Emotional Intensity
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id="field-1-2-label" label="Peak emotional intensity">
+        <FieldGroup id="field-1-2-label" label={ui.s1Field12}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Sets how distressed the protagonist becomes before the resolution.
+            {ui.s1Field12Helper}
           </Typography>
           <Stack spacing={1.25}>
             {PEAK_INTENSITIES.map((intensity) => {
@@ -312,7 +308,7 @@ export default function Section1AgeAndScope({
                   key={intensity}
                   selected={selected}
                   onClick={() => handlePeakIntensity(intensity)}
-                  ariaLabel={PEAK_INTENSITY_LABELS[intensity]}
+                  ariaLabel={ui.PEAK_INTENSITY_LABELS[intensity]}
                 >
                   <Box display="flex" alignItems="flex-start" gap={1.5} px={2.5} py={2} width="100%">
                     <Box pt={0.25}>
@@ -324,10 +320,10 @@ export default function Section1AgeAndScope({
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                         mb={0.25}
                       >
-                        {PEAK_INTENSITY_LABELS[intensity]}
+                        {ui.PEAK_INTENSITY_LABELS[intensity]}
                       </Typography>
                       <Typography variant="body2" color={COLORS.textSecondary} lineHeight={1.5}>
-                        {PEAK_INTENSITY_DEFINITIONS[intensity]}
+                        {ui.PEAK_INTENSITY_DEFINITIONS[intensity]}
                       </Typography>
                     </Box>
                   </Box>
@@ -347,11 +343,11 @@ export default function Section1AgeAndScope({
               }}
             >
               <Typography variant="body2" fontWeight={600} mb={0.25}>
-                Significant intensity with ages 3–5
+                {ui.s1IntensityWarningTitle}
               </Typography>
-              <Typography variant="body2">{WARN_SIGNIFICANT_YOUNG_AGE}</Typography>
+              <Typography variant="body2">{ui.WARN_SIGNIFICANT_YOUNG_AGE}</Typography>
               <Typography variant="caption" color="text.secondary" display="block" mt={0.75}>
-                You can continue, but you will need to acknowledge this before submitting the brief.
+                {ui.s1IntensityWarningFooter}
               </Typography>
             </Alert>
           )}
@@ -362,9 +358,9 @@ export default function Section1AgeAndScope({
         {/* ═══════════════════════════════════════════════════════════════
             Field 1.3 — Story Length
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id="field-1-3-label" label="Story length">
+        <FieldGroup id="field-1-3-label" label={ui.s1Field13}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Affects the available page budget. Default is Standard.
+            {ui.s1Field13Helper}
           </Typography>
           <Box display="flex" gap={1.5} sx={{ "@media (max-width: 480px)": { flexDirection: "column" } }}>
             {STORY_LENGTHS.map((length) => {
@@ -375,7 +371,7 @@ export default function Section1AgeAndScope({
                   selected={selected}
                   onClick={() => handleStoryLength(length)}
                   flex
-                  ariaLabel={STORY_LENGTH_LABELS[length]}
+                  ariaLabel={ui.STORY_LENGTH_LABELS[length]}
                 >
                   <Box
                     display="flex"
@@ -391,7 +387,7 @@ export default function Section1AgeAndScope({
                       fontWeight={selected ? 700 : 500}
                       color={selected ? COLORS.primary : COLORS.textPrimary}
                     >
-                      {STORY_LENGTH_LABELS[length]}
+                      {ui.STORY_LENGTH_LABELS[length]}
                     </Typography>
                   </Box>
                 </OptionCard>
@@ -419,7 +415,7 @@ export default function Section1AgeAndScope({
               </Typography>
             ) : (
               <Typography variant="body2" color={COLORS.border}>
-                Select an age range above to see story details.
+                {ui.s1PreviewPlaceholder}
               </Typography>
             )}
           </Box>
@@ -441,7 +437,7 @@ export default function Section1AgeAndScope({
               onClick={onBack}
               sx={{ color: COLORS.textSecondary, textTransform: "none" }}
             >
-              ← Back
+              {ui.back}
             </Button>
           )}
           <Button
@@ -458,7 +454,7 @@ export default function Section1AgeAndScope({
               "&:disabled": { opacity: 0.45 },
             }}
           >
-            Save & continue →
+            {ui.saveContinue}
           </Button>
         </Box>
       </Stack>

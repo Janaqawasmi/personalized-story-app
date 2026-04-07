@@ -9,6 +9,7 @@ import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
 import { Box, ButtonBase, Chip, Stack, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { COLORS } from "../../theme";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 export interface BriefMissingField {
   label: string;
@@ -54,6 +55,7 @@ interface Props {
 export default function BriefValidationSummary({ missing }: Props) {
   const theme = useTheme();
   const rtl = theme.direction === "rtl";
+  const ui = useStoryBriefUi();
   const missingCount = missing.length;
 
   if (missingCount === 0) return null;
@@ -63,7 +65,7 @@ export default function BriefValidationSummary({ missing }: Props) {
       component="section"
       role="status"
       aria-live="polite"
-      aria-label="Required fields still to complete"
+      aria-label={ui.validationAriaLabel}
       sx={{
         mb: 2.5,
         borderRadius: 3,
@@ -115,7 +117,7 @@ export default function BriefValidationSummary({ missing }: Props) {
                 mb: 0.25,
               }}
             >
-              Almost there
+              {ui.validationAlmostThere}
             </Typography>
             <Typography
               variant="body1"
@@ -123,7 +125,7 @@ export default function BriefValidationSummary({ missing }: Props) {
               color={COLORS.textPrimary}
               sx={{ mb: 0.5, letterSpacing: "-0.01em" }}
             >
-              To continue, complete:
+              {ui.validationToContinue}
             </Typography>
             <Typography
               variant="caption"
@@ -132,12 +134,12 @@ export default function BriefValidationSummary({ missing }: Props) {
               lineHeight={1.5}
               sx={{ maxWidth: 560 }}
             >
-              Select a field below to scroll to it and start filling it in.
+              {ui.validationHint}
             </Typography>
           </Box>
         </Stack>
         <Chip
-          label={missingCount === 1 ? "1 field left" : `${missingCount} fields left`}
+          label={missingCount === 1 ? ui.validationFieldsLeftOne : ui.validationFieldsLeftMany(missingCount)}
           size="small"
           sx={{
             mt: 0.25,
@@ -171,7 +173,7 @@ export default function BriefValidationSummary({ missing }: Props) {
               type="button"
               focusRipple
               onClick={() => scrollToBriefField(m.targetId)}
-              aria-label={`Go to ${m.label}`}
+              aria-label={ui.validationGoTo(m.label)}
               sx={{
                 width: "100%",
                 display: "flex",

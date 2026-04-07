@@ -33,25 +33,14 @@ import BriefValidationSummary, {
 } from "./BriefValidationSummary";
 import {
   PERSONALIZATION_DEFAULT,
-  PERSONALIZATION_OPTION_DESCRIPTIONS,
   PROTAGONIST_GENDERS,
-  PROTAGONIST_GENDER_LABELS,
-  PROTAGONIST_GENDER_NOTE,
   PROTAGONIST_TYPES,
-  PROTAGONIST_TYPE_LABELS,
-  PROTAGONIST_TYPE_AGE_GUIDANCE,
   PROTAGONIST_AGE_RELATIVES,
-  PROTAGONIST_AGE_RELATIVE_LABELS,
   PROTAGONIST_AGE_RELATIVE_DEFAULT,
   CAREGIVER_PRESENCES,
-  CAREGIVER_PRESENCE_LABELS,
-  CAREGIVER_PRESENCE_DESCRIPTIONS,
   NARRATIVE_DISTANCES,
-  NARRATIVE_DISTANCE_LABELS,
-  NARRATIVE_DISTANCE_DEFINITIONS,
   PARALLEL_CHALLENGE_CHAR_LIMIT,
   SUPPORTING_CHARACTERS,
-  SUPPORTING_CHARACTER_LABELS,
   SUPPORTING_CHARACTER_MAX_SELECT,
   CHARACTER_ROLE_NOTE_CHAR_LIMIT,
   CHARACTER_NOTES_CHAR_LIMIT,
@@ -60,6 +49,7 @@ import {
   type SupportingCharacter,
   type AgeRange,
 } from "../../types/storyBrief";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 // ============================================================================
 // Style tokens
@@ -94,10 +84,11 @@ interface FieldGroupProps {
   id: string;
   label: string;
   optional?: boolean;
+  optionalSuffix?: string;
   children: React.ReactNode;
 }
 
-function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
+function FieldGroup({ id, label, optional, optionalSuffix, children }: FieldGroupProps) {
   return (
     <Box component="fieldset" aria-labelledby={id} sx={{ border: "none", p: 0, m: 0 }}>
       <Typography
@@ -111,7 +102,7 @@ function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
         {label}
         {optional ? (
           <Typography component="span" variant="caption" color={COLORS.textSecondary} fontWeight={400}>
-            (optional)
+            {optionalSuffix ?? "(optional)"}
           </Typography>
         ) : (
           <Typography component="span" aria-hidden="true" color={COLORS.secondary} fontWeight={700}>
@@ -243,9 +234,10 @@ interface TextAreaProps {
   maxChars: number;
   placeholder: string;
   minRows?: number;
+  formatCounter: (used: number, max: number) => string;
 }
 
-function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: TextAreaProps) {
+function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3, formatCounter }: TextAreaProps) {
   const used = value.length;
   const remaining = maxChars - used;
   const nearLimit = remaining <= Math.ceil(maxChars * 0.1);
@@ -291,7 +283,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: T
           color={nearLimit ? COLORS.secondary : COLORS.textSecondary}
           fontWeight={nearLimit ? 600 : 400}
         >
-          {used} / {maxChars} characters
+          {formatCounter(used, maxChars)}
         </Typography>
       </Box>
     </Box>
@@ -303,6 +295,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: T
 // ============================================================================
 
 export default function Section4StoryWorld({ ageRange, value, onChange, onContinue, onBack }: Props) {
+  const ui = useStoryBriefUi();
   const uid = useId();
   const id = (suffix: string) => `${uid}-${suffix}`;
 
@@ -328,7 +321,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
   const supportingAtMax = supportingCharacters.length >= SUPPORTING_CHARACTER_MAX_SELECT;
 
   // Age guidance note for protagonist type
-  const ageGuidanceNote = ageRange ? (PROTAGONIST_TYPE_AGE_GUIDANCE[ageRange] ?? null) : null;
+  const ageGuidanceNote = ageRange ? (ui.PROTAGONIST_TYPE_AGE_GUIDANCE[ageRange] ?? null) : null;
 
   // Personalization + Direct note
   const showDirectPersonalizationNote = isPersonalized && narrativeDistance === "direct";
@@ -347,16 +340,16 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
 
   const missingFields: BriefMissingField[] = [];
   if (!isPersonalized && protagonistGender === null) {
-    missingFields.push({ label: "Protagonist gender", targetId: id("4-1-label") });
+    missingFields.push({ label: ui.s4MissingGender, targetId: id("4-1-label") });
   }
   if (!isPersonalized && rawProtagonistType === null) {
-    missingFields.push({ label: "Protagonist type", targetId: id("4-2-label") });
+    missingFields.push({ label: ui.s4MissingType, targetId: id("4-2-label") });
   }
   if (caregiverPresence === null) {
-    missingFields.push({ label: "Caregiver's presence", targetId: id("4-4-label") });
+    missingFields.push({ label: ui.s4MissingCaregiver, targetId: id("4-4-label") });
   }
   if (narrativeDistance === null) {
-    missingFields.push({ label: "Narrative distance", targetId: id("4-5-label") });
+    missingFields.push({ label: ui.s4MissingNarrative, targetId: id("4-5-label") });
   }
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -401,14 +394,13 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
           letterSpacing={1}
           mb={0.5}
         >
-          Section 4 of 5
+          {ui.s4Overline}
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
-          Story World
+          {ui.s4Title}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
-          The narrative design: who inhabits this story, how close it sits to the child's reality,
-          and who supports the protagonist.
+          {ui.s4Intro}
         </Typography>
       </Box>
 
@@ -416,9 +408,9 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         {/* ═══════════════════════════════════════════════════════════════
             Field 4.0 — Personalization Decision
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("4-0-label")} label="Personalization">
+        <FieldGroup id={id("4-0-label")} label={ui.s4Field40}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Determines whether the protagonist is the child themselves or a separate character.
+            {ui.s4Field40Helper}
           </Typography>
           <Box display="flex" gap={1.5} sx={{ "@media (max-width: 480px)": { flexDirection: "column" } }}>
             {(["yes", "no"] as const).map((opt) => {
@@ -429,7 +421,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                   selected={selected}
                   onClick={() => handlePersonalizationChange(opt)}
                   flex
-                  ariaLabel={opt === "yes" ? "Yes — personalize" : "No — fixed protagonist"}
+                  ariaLabel={opt === "yes" ? ui.s4AriaPersonalizationYes : ui.s4AriaPersonalizationNo}
                 >
                   <Box
                     display="flex"
@@ -446,7 +438,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                         fontWeight={selected ? 700 : 600}
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                       >
-                        {opt === "yes" ? "Yes — personalized" : "No — fixed protagonist"}
+                        {opt === "yes" ? ui.s4PersonalizationYes : ui.s4PersonalizationNo}
                       </Typography>
                     </Box>
                     <Typography
@@ -455,7 +447,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                       lineHeight={1.5}
                       pl={3.25}
                     >
-                      {PERSONALIZATION_OPTION_DESCRIPTIONS[opt]}
+                      {ui.PERSONALIZATION_OPTION_DESCRIPTIONS[opt]}
                     </Typography>
                   </Box>
                 </OptionCard>
@@ -470,9 +462,9 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
             Field 4.1 — Protagonist Gender  (hidden when personalization ON)
         ═══════════════════════════════════════════════════════════════ */}
         {!isPersonalized && (
-          <FieldGroup id={id("4-1-label")} label="Protagonist gender">
+          <FieldGroup id={id("4-1-label")} label={ui.s4Field41}>
             <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-              Select the gender for the protagonist you are designing.
+              {ui.s4Field41Helper}
             </Typography>
             <Box
               display="grid"
@@ -487,7 +479,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                     key={gender}
                     selected={selected}
                     onClick={() => onChange({ protagonistGender: gender })}
-                    ariaLabel={PROTAGONIST_GENDER_LABELS[gender]}
+                    ariaLabel={ui.PROTAGONIST_GENDER_LABELS[gender]}
                   >
                     <Box
                       display="flex"
@@ -504,17 +496,17 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                           fontWeight={selected ? 700 : 500}
                           color={selected ? COLORS.primary : COLORS.textPrimary}
                         >
-                          {PROTAGONIST_GENDER_LABELS[gender]}
+                          {ui.PROTAGONIST_GENDER_LABELS[gender]}
                         </Typography>
                       </Box>
-                      {PROTAGONIST_GENDER_NOTE[gender] && (
+                      {ui.PROTAGONIST_GENDER_NOTE[gender] && (
                         <Typography
                           variant="caption"
                           color={COLORS.textSecondary}
                           lineHeight={1.4}
                           pl={3.25}
                         >
-                          {PROTAGONIST_GENDER_NOTE[gender]}
+                          {ui.PROTAGONIST_GENDER_NOTE[gender]}
                         </Typography>
                       )}
                     </Box>
@@ -531,7 +523,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
             Field 4.2 — Protagonist Type
             Locked to "Child character" when personalization is ON
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("4-2-label")} label="Protagonist type">
+        <FieldGroup id={id("4-2-label")} label={ui.s4Field42}>
           {isPersonalized ? (
             /* Locked state */
             <Box>
@@ -550,14 +542,14 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                 <SelectedDot selected locked />
                 <Box>
                   <Typography variant="body2" fontWeight={600} color={COLORS.textSecondary}>
-                    Child character
+                    {ui.s4LockedChildTitle}
                   </Typography>
                   <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.4}>
-                    Locked — the protagonist is the child when personalization is on.
+                    {ui.s4LockedChildSubtitle}
                   </Typography>
                 </Box>
                 <Chip
-                  label="Locked"
+                  label={ui.s4LockedChip}
                   size="small"
                   sx={{
                     ml: "auto",
@@ -572,7 +564,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
           ) : (
             <Box>
               <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-                Choose how the protagonist is presented to the child reader.
+                {ui.s4Field42Helper}
               </Typography>
               <Stack spacing={1.25}>
                 {PROTAGONIST_TYPES.map((type) => {
@@ -582,7 +574,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                       key={type}
                       selected={selected}
                       onClick={() => onChange({ protagonistType: type })}
-                      ariaLabel={PROTAGONIST_TYPE_LABELS[type]}
+                      ariaLabel={ui.PROTAGONIST_TYPE_LABELS[type]}
                     >
                       <Box display="flex" alignItems="center" gap={1.5} px={2.5} py={1.75} width="100%">
                         <SelectedDot selected={selected} />
@@ -591,7 +583,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                           fontWeight={selected ? 700 : 500}
                           color={selected ? COLORS.primary : COLORS.textPrimary}
                         >
-                          {PROTAGONIST_TYPE_LABELS[type]}
+                          {ui.PROTAGONIST_TYPE_LABELS[type]}
                         </Typography>
                       </Box>
                     </OptionCard>
@@ -627,9 +619,9 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         ═══════════════════════════════════════════════════════════════ */}
         {!isPersonalized && (
           <>
-            <FieldGroup id={id("4-3-label")} label="Protagonist age relative to reader">
+            <FieldGroup id={id("4-3-label")} label={ui.s4Field43}>
               <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-                Affects identification and aspiration. Default is same age.
+                {ui.s4Field43Helper}
               </Typography>
               <Box display="flex" gap={1.5} sx={{ "@media (max-width: 480px)": { flexDirection: "column" } }}>
                 {PROTAGONIST_AGE_RELATIVES.map((opt) => {
@@ -640,7 +632,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                       selected={selected}
                       onClick={() => onChange({ protagonistAgeRelative: opt })}
                       flex
-                      ariaLabel={PROTAGONIST_AGE_RELATIVE_LABELS[opt]}
+                      ariaLabel={ui.PROTAGONIST_AGE_RELATIVE_LABELS[opt]}
                     >
                       <Box display="flex" alignItems="center" gap={1.25} px={2.5} py={1.75} width="100%">
                         <SelectedDot selected={selected} />
@@ -649,7 +641,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                           fontWeight={selected ? 700 : 500}
                           color={selected ? COLORS.primary : COLORS.textPrimary}
                         >
-                          {PROTAGONIST_AGE_RELATIVE_LABELS[opt]}
+                          {ui.PROTAGONIST_AGE_RELATIVE_LABELS[opt]}
                           {opt === PROTAGONIST_AGE_RELATIVE_DEFAULT && (
                             <Typography
                               component="span"
@@ -658,7 +650,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                               fontWeight={400}
                               ml={0.75}
                             >
-                              (default)
+                              {ui.s3DefaultSuffix}
                             </Typography>
                           )}
                         </Typography>
@@ -675,20 +667,20 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         {/* ═══════════════════════════════════════════════════════════════
             Field 4.4 — Caregiver's Presence
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("4-4-label")} label="Caregiver's presence">
+        <FieldGroup id={id("4-4-label")} label={ui.s4Field44}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Governs how much the caregiver is available during the story's difficult moment.
+            {ui.s4Field44Helper}
           </Typography>
           <Stack spacing={1.25}>
             {CAREGIVER_PRESENCES.map((option) => {
               const selected = caregiverPresence === option;
-              const desc = CAREGIVER_PRESENCE_DESCRIPTIONS[option];
+              const desc = ui.CAREGIVER_PRESENCE_DESCRIPTIONS[option];
               return (
                 <OptionCard
                   key={option}
                   selected={selected}
                   onClick={() => onChange({ caregiverPresence: option })}
-                  ariaLabel={CAREGIVER_PRESENCE_LABELS[option]}
+                  ariaLabel={ui.CAREGIVER_PRESENCE_LABELS[option]}
                 >
                   <Box
                     display="flex"
@@ -708,7 +700,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                         mb={desc ? 0.25 : 0}
                       >
-                        {CAREGIVER_PRESENCE_LABELS[option]}
+                        {ui.CAREGIVER_PRESENCE_LABELS[option]}
                       </Typography>
                       {desc && (
                         <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
@@ -728,9 +720,9 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         {/* ═══════════════════════════════════════════════════════════════
             Field 4.5 — Narrative Distance
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("4-5-label")} label="Narrative distance">
+        <FieldGroup id={id("4-5-label")} label={ui.s4Field45}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            How closely the story mirrors the child's real situation.
+            {ui.s4Field45Helper}
           </Typography>
           <Stack spacing={1.25}>
             {NARRATIVE_DISTANCES.map((dist) => {
@@ -740,7 +732,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                   key={dist}
                   selected={selected}
                   onClick={() => onChange({ narrativeDistance: dist })}
-                  ariaLabel={NARRATIVE_DISTANCE_LABELS[dist]}
+                  ariaLabel={ui.NARRATIVE_DISTANCE_LABELS[dist]}
                 >
                   <Box display="flex" alignItems="flex-start" gap={1.5} px={2.5} py={1.75} width="100%">
                     <Box pt={0.3}>
@@ -753,10 +745,10 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                         mb={0.25}
                       >
-                        {NARRATIVE_DISTANCE_LABELS[dist]}
+                        {ui.NARRATIVE_DISTANCE_LABELS[dist]}
                       </Typography>
                       <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
-                        {NARRATIVE_DISTANCE_DEFINITIONS[dist]}
+                        {ui.NARRATIVE_DISTANCE_DEFINITIONS[dist]}
                       </Typography>
                     </Box>
                   </Box>
@@ -777,19 +769,19 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
               }}
             >
               <Typography variant="body2" fontWeight={600} color={COLORS.primary} mb={0.5}>
-                What is the equivalent challenge in the parallel world?
+                {ui.s4ParallelTitle}
               </Typography>
               <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.25}>
-                Optional, but strongly encouraged. Without this, the agent will create the
-                parallel mapping on its own.
+                {ui.s4ParallelHelper}
               </Typography>
               <TextArea
                 id={id("4-5-parallel")}
                 value={parallelChallenge}
                 onChange={(v) => onChange({ parallelChallenge: v })}
                 maxChars={PARALLEL_CHALLENGE_CHAR_LIMIT}
-                placeholder="A magical library where the character can't find the room where their favorite book is kept…"
+                placeholder={ui.s4ParallelPlaceholder}
                 minRows={2}
+                formatCounter={ui.charactersCount}
               />
             </Box>
           )}
@@ -804,8 +796,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                 "& .MuiAlert-message": { fontSize: "0.875rem" },
               }}
             >
-              The story will closely mirror the child's real experience, using their name and
-              identity. Ensure the emotional intensity is appropriate.
+              {ui.s4DirectPersonalizationWarning}
             </Alert>
           )}
         </FieldGroup>
@@ -815,10 +806,9 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         {/* ═══════════════════════════════════════════════════════════════
             Field 4.6 — Supporting Characters
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("4-6-label")} label="Supporting characters" optional>
+        <FieldGroup id={id("4-6-label")} label={ui.s4Field46} optional optionalSuffix={ui.optionalSuffix}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Select up to {SUPPORTING_CHARACTER_MAX_SELECT}. Each selected character unlocks an
-            optional prompt for the story's key moment.
+            {ui.s4Field46Helper(SUPPORTING_CHARACTER_MAX_SELECT)}
           </Typography>
           <Stack spacing={1.25}>
             {SUPPORTING_CHARACTERS.map((char) => {
@@ -859,7 +849,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                           fontWeight={selected ? 600 : 400}
                           color={selected ? COLORS.primary : COLORS.textPrimary}
                         >
-                          {SUPPORTING_CHARACTER_LABELS[char]}
+                          {ui.SUPPORTING_CHARACTER_LABELS[char]}
                         </Typography>
                       </Box>
                     </CardActionArea>
@@ -885,10 +875,10 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
                             handleRoleNote(char, e.target.value);
                           }
                         }}
-                        placeholder="What does this character do at the story's key moment? (optional)"
+                        placeholder={ui.s4RolePlaceholder}
                         multiline
                         fullWidth
-                        inputProps={{ "aria-label": `Role note for ${SUPPORTING_CHARACTER_LABELS[char]}` }}
+                        inputProps={{ "aria-label": ui.s4RoleAria(ui.SUPPORTING_CHARACTER_LABELS[char]) }}
                         sx={{
                           px: 2,
                           py: 1.25,
@@ -926,19 +916,18 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
         {/* ═══════════════════════════════════════════════════════════════
             Field 4.7 — Character Notes
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("4-7-label")} label="Character notes" optional>
+        <FieldGroup id={id("4-7-label")} label={ui.s4Field47} optional optionalSuffix={ui.optionalSuffix}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Add detail about your characters — personality, appearance, habits, how they speak.
-            The character roles and presence you selected above will not be changed by what you
-            write here.
+            {ui.s4Field47Helper}
           </Typography>
           <TextArea
             id={id("4-7-input")}
             value={characterNotes}
             onChange={(v) => onChange({ characterNotes: v })}
             maxChars={CHARACTER_NOTES_CHAR_LIMIT}
-            placeholder="e.g. The caregiver always hums when they're nervous. The protagonist has a habit of chewing their sleeve…"
+            placeholder={ui.s4Field47Placeholder}
             minRows={3}
+            formatCounter={ui.charactersCount}
           />
         </FieldGroup>
 
@@ -958,7 +947,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
               onClick={onBack}
               sx={{ color: COLORS.textSecondary, textTransform: "none" }}
             >
-              ← Back
+              {ui.back}
             </Button>
           )}
           <Button
@@ -977,7 +966,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
               "&:disabled": { opacity: 0.45 },
             }}
           >
-            Save & continue →
+            {ui.saveContinue}
           </Button>
         </Box>
       </Stack>

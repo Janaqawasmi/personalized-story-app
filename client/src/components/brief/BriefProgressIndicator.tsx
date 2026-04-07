@@ -11,19 +11,7 @@
 import React from "react";
 import { Box, Tooltip, Typography } from "@mui/material";
 import { COLORS } from "../../theme";
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const SECTION_LABELS: Record<number, { full: string; short: string }> = {
-  1: { full: "Age & Story Scope",         short: "Scope"         },
-  2: { full: "Clinical Foundation",        short: "Foundation"    },
-  3: { full: "Therapeutic Architecture",   short: "Architecture"  },
-  4: { full: "Story World",                short: "Story World"   },
-  // Short label: still paired with Tooltip + aria full name (UX: avoid opaque “Config”).
-  5: { full: "Personalization",            short: "Personalize"   },
-};
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 // ============================================================================
 // Props
@@ -50,12 +38,14 @@ export default function BriefProgressIndicator({
   sectionCompletion,
   onNavigate,
 }: Props) {
+  const ui = useStoryBriefUi();
+  const SECTION_LABELS = ui.sectionLabels;
   const sections = [1, 2, 3, 4, 5];
 
   return (
     <Box
       role="navigation"
-      aria-label="Brief sections progress"
+      aria-label={ui.progressNavAriaLabel}
       sx={{ mb: { xs: 4, md: 5 } }}
     >
       <Box
@@ -71,13 +61,13 @@ export default function BriefProgressIndicator({
           const lockedFuture = num > currentSection && !isClickable;
           const fullName = SECTION_LABELS[num].full;
 
-          const stepAriaLabel = isClickable
-            ? `Go to section ${num}: ${fullName}`
-            : isCurrent
-              ? `Current section ${num}: ${fullName}`
-              : lockedFuture
-                ? `Section ${num}: ${fullName}. Locked until you can open this step.`
-                : `Section ${num}: ${fullName}`;
+          const stepAriaLabel = ui.progressStepAria({
+            num,
+            fullName,
+            clickable: !!isClickable,
+            isCurrent,
+            lockedFuture,
+          });
 
           return (
             <React.Fragment key={num}>
@@ -241,7 +231,7 @@ export default function BriefProgressIndicator({
         }}
       >
         <Typography variant="caption" color={COLORS.textSecondary} sx={{ fontWeight: 600 }}>
-          Section {currentSection} of 5
+          {ui.sectionMobileLine(currentSection)}
         </Typography>
         <Typography variant="caption" fontWeight={700} color={COLORS.primary} textAlign="center" px={1}>
           {SECTION_LABELS[currentSection]?.full ?? ""}

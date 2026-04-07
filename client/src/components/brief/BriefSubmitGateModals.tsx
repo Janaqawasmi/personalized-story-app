@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import { COLORS } from "../../theme";
 import type { SubmitGateItem } from "../../validation/briefSubmitGate";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 const DIALOG_PAPER_SX = {
   borderRadius: 3,
@@ -33,15 +34,15 @@ interface HardBlockDialogProps {
 }
 
 export function HardBlockSubmitDialog({ open, items, onClose }: HardBlockDialogProps) {
+  const ui = useStoryBriefUi();
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm" PaperProps={{ sx: DIALOG_PAPER_SX }}>
       <DialogTitle sx={{ fontWeight: 800, color: COLORS.textPrimary, pr: 2 }}>
-        Cannot submit yet
+        {ui.gateHardBlockTitle}
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ mb: 2, lineHeight: 1.6 }}>
-          This brief has a clinical-structure issue that must be fixed before submission. Update the
-          fields below, then try again.
+          {ui.gateHardBlockBody}
         </Typography>
         <Stack spacing={2}>
           {items.map((item) => (
@@ -75,7 +76,7 @@ export function HardBlockSubmitDialog({ open, items, onClose }: HardBlockDialogP
             "&:hover": { backgroundColor: COLORS.secondary },
           }}
         >
-          Go back & review
+          {ui.gateHardBlockButton}
         </Button>
       </DialogActions>
     </Dialog>
@@ -101,15 +102,15 @@ export function HardWarningSubmitDialog({
   onGoBack,
   onProceed,
 }: HardWarningSubmitDialogProps) {
+  const ui = useStoryBriefUi();
   return (
     <Dialog open={open} onClose={onGoBack} fullWidth maxWidth="sm" PaperProps={{ sx: DIALOG_PAPER_SX }}>
       <DialogTitle sx={{ fontWeight: 800, color: COLORS.textPrimary, pr: 2 }}>
-        Clinical safety check
+        {ui.gateHardWarningTitle}
       </DialogTitle>
       <DialogContent>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ mb: 2, lineHeight: 1.6 }}>
-          Your brief matches one or more combinations that need an explicit clinical decision before we
-          send it for generation. Review each note, then confirm if you still want to submit.
+          {ui.gateHardWarningBody}
         </Typography>
         <Stack spacing={2} sx={{ mb: 2 }}>
           {items.map((item, i) => (
@@ -137,7 +138,7 @@ export function HardWarningSubmitDialog({
           }
           label={
             <Typography variant="body2" color={COLORS.textPrimary} sx={{ lineHeight: 1.5 }}>
-              I understand and want to proceed
+              {ui.gateHardWarningCheckbox}
             </Typography>
           }
         />
@@ -156,7 +157,7 @@ export function HardWarningSubmitDialog({
           onClick={onGoBack}
           sx={{ color: COLORS.textSecondary, textTransform: "none", fontWeight: 600 }}
         >
-          Go back & review
+          {ui.gateHardBlockButton}
         </Button>
         <Button
           variant="contained"
@@ -170,7 +171,7 @@ export function HardWarningSubmitDialog({
             "&:disabled": { opacity: 0.45 },
           }}
         >
-          Proceed
+          {ui.gateProceed}
         </Button>
       </DialogActions>
     </Dialog>

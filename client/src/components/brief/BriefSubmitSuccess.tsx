@@ -8,6 +8,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DownloadIcon from "@mui/icons-material/Download";
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { COLORS } from "../../theme";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 interface Props {
   briefId: string;
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother }: Props) {
+  const ui = useStoryBriefUi();
   const [copyFeedback, setCopyFeedback] = useState<string | null>(null);
 
   function handleDownload() {
@@ -32,10 +34,10 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(jsonText);
-      setCopyFeedback("Copied");
+      setCopyFeedback(ui.successCopied);
       window.setTimeout(() => setCopyFeedback(null), 2000);
     } catch {
-      setCopyFeedback("Copy failed — select the text manually");
+      setCopyFeedback(ui.successCopyFailed);
       window.setTimeout(() => setCopyFeedback(null), 4000);
     }
   }
@@ -60,11 +62,10 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
           <CheckCircleOutlineIcon sx={{ fontSize: 34 }} />
         </Box>
         <Typography variant="h5" fontWeight={800} color={COLORS.textPrimary} gutterBottom>
-          Brief submitted successfully
+          {ui.successTitle}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 560, lineHeight: 1.6 }}>
-          Your brief is saved on the server. Keep the brief ID below for tracking. You can also download or
-          copy the JSON as a local backup.
+          {ui.successSubtitle}
         </Typography>
       </Stack>
 
@@ -79,7 +80,7 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
         }}
       >
         <Typography variant="caption" color={COLORS.textSecondary} fontWeight={700} display="block" mb={0.5}>
-          Brief ID
+          {ui.successBriefId}
         </Typography>
         <Typography
           variant="body1"
@@ -95,7 +96,7 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
       </Paper>
 
       <Typography variant="subtitle2" fontWeight={700} color={COLORS.textPrimary} mb={1}>
-        Brief JSON (backup)
+        {ui.successJsonTitle}
       </Typography>
       <Paper
         elevation={0}
@@ -127,7 +128,7 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
           onClick={handleDownload}
           sx={{ textTransform: "none", fontWeight: 600, borderColor: COLORS.border, color: COLORS.textPrimary }}
         >
-          Download JSON
+          {ui.successDownload}
         </Button>
         <Button
           type="button"
@@ -137,7 +138,7 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
           onClick={() => void handleCopy()}
           sx={{ textTransform: "none", fontWeight: 600, borderColor: COLORS.border, color: COLORS.textPrimary }}
         >
-          Copy to clipboard
+          {ui.successCopy}
         </Button>
         {copyFeedback && (
           <Typography variant="caption" color={COLORS.textSecondary} sx={{ alignSelf: "center" }}>
@@ -159,7 +160,7 @@ export default function BriefSubmitSuccess({ briefId, jsonText, onCreateAnother 
           "&:hover": { backgroundColor: COLORS.secondary },
         }}
       >
-        Create another brief
+        {ui.successCreateAnother}
       </Button>
     </Box>
   );

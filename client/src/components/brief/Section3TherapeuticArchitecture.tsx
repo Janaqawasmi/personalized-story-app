@@ -32,24 +32,14 @@ import BriefValidationSummary, {
 } from "./BriefValidationSummary";
 import {
   THERAPEUTIC_APPROACHES_BY_TYPE,
-  THERAPEUTIC_APPROACH_LABELS,
-  THERAPEUTIC_APPROACH_DEFINITIONS,
   CONFLICTING_APPROACH_PAIRS,
   SHAME_DIMENSIONS,
-  SHAME_DIMENSION_LABELS,
-  SHAME_DIMENSION_DESCRIPTIONS,
   SOMATIC_EXPRESSIONS,
-  SOMATIC_EXPRESSION_LABELS,
   SOMATIC_MAX_SELECT,
   SOMATIC_OTHER_CHAR_LIMIT,
-  COPING_TOOL_CATEGORIES_FEAR_ANXIETY,
-  COPING_TOOL_LABELS,
   ABSTRACT_COPING_TOOLS,
   RESOLUTION_OPTIONS,
-  RESOLUTION_LABELS,
-  RESOLUTION_DESCRIPTIONS,
   RESOLUTION_DEFAULTS,
-  MUST_NEVER_DEFAULTS,
   type TherapeuticArchitecture,
   type TherapeuticApproach,
   type SomaticExpression,
@@ -57,6 +47,7 @@ import {
   type StoryType,
   type AgeRange,
 } from "../../types/storyBrief";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 // ============================================================================
 // Style tokens
@@ -92,10 +83,11 @@ interface FieldGroupProps {
   id: string;
   label: string;
   optional?: boolean;
+  optionalSuffix?: string;
   children: React.ReactNode;
 }
 
-function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
+function FieldGroup({ id, label, optional, optionalSuffix, children }: FieldGroupProps) {
   return (
     <Box component="fieldset" aria-labelledby={id} sx={{ border: "none", p: 0, m: 0 }}>
       <Typography
@@ -109,7 +101,7 @@ function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
         {label}
         {optional ? (
           <Typography component="span" variant="caption" color={COLORS.textSecondary} fontWeight={400}>
-            (optional)
+            {optionalSuffix ?? "(optional)"}
           </Typography>
         ) : (
           <Typography component="span" aria-hidden="true" color={COLORS.secondary} fontWeight={700}>
@@ -235,9 +227,10 @@ interface TextAreaProps {
   maxChars: number;
   placeholder: string;
   minRows?: number;
+  formatCounter: (used: number, max: number) => string;
 }
 
-function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: TextAreaProps) {
+function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3, formatCounter }: TextAreaProps) {
   const used = value.length;
   const remaining = maxChars - used;
   const nearLimit = remaining <= Math.ceil(maxChars * 0.1);
@@ -283,7 +276,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3 }: T
           color={nearLimit ? COLORS.secondary : COLORS.textSecondary}
           fontWeight={nearLimit ? 600 : 400}
         >
-          {used} / {maxChars} characters
+          {formatCounter(used, maxChars)}
         </Typography>
       </Box>
     </Box>
@@ -302,6 +295,7 @@ export default function Section3TherapeuticArchitecture({
   onContinue,
   onBack,
 }: Props) {
+  const ui = useStoryBriefUi();
   const uid = useId();
   const id = (suffix: string) => `${uid}-${suffix}`;
 
@@ -315,7 +309,7 @@ export default function Section3TherapeuticArchitecture({
   const resolutionCompleteness =
     value.resolutionCompleteness ?? (RESOLUTION_DEFAULTS[storyType] ?? null);
   const mustNeverList =
-    value.mustNeverList ?? (MUST_NEVER_DEFAULTS[storyType] ?? [""]);
+    value.mustNeverList ?? (ui.MUST_NEVER_DEFAULTS[storyType] ?? [""]);
 
   const approaches = THERAPEUTIC_APPROACHES_BY_TYPE[storyType] ?? [];
 
@@ -351,25 +345,25 @@ export default function Section3TherapeuticArchitecture({
 
   const missingFields: BriefMissingField[] = [];
   if (primaryApproach === null) {
-    missingFields.push({ label: "Primary therapeutic approach", targetId: id("3-1-label") });
+    missingFields.push({ label: ui.s3MissingPrimary, targetId: id("3-1-label") });
   }
   if (shameDimension === null) {
-    missingFields.push({ label: "Shame dimension", targetId: id("3-3-label") });
+    missingFields.push({ label: ui.s3MissingShame, targetId: id("3-3-label") });
   }
   if (somaticExpressions.length === 0) {
     missingFields.push({
-      label: "How does the anxiety show up in the body?",
+      label: ui.s3MissingSomatic,
       targetId: id("3-4-label"),
     });
   }
   if (copingTool === null) {
-    missingFields.push({ label: "The coping tool", targetId: id("3-5-label") });
+    missingFields.push({ label: ui.s3MissingCoping, targetId: id("3-5-label") });
   }
   if (resolutionCompleteness === null) {
-    missingFields.push({ label: "Resolution completeness", targetId: id("3-6-label") });
+    missingFields.push({ label: ui.s3MissingResolution, targetId: id("3-6-label") });
   }
   if (mustNeverIncomplete) {
-    missingFields.push({ label: "What this story must never do", targetId: id("3-7-label") });
+    missingFields.push({ label: ui.s3MissingMustNever, targetId: id("3-7-label") });
   }
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -422,14 +416,13 @@ export default function Section3TherapeuticArchitecture({
           letterSpacing={1}
           mb={0.5}
         >
-          Section 3 of 5
+          {ui.s3Overline}
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
-          Therapeutic Architecture
+          {ui.s3Title}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
-          The clinical mechanism: how the story will work therapeutically. These decisions shape
-          the story's arc and the agent's narrative technique.
+          {ui.s3Intro}
         </Typography>
       </Box>
 
@@ -437,10 +430,9 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.1 — Primary Therapeutic Approach
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-1-label")} label="Primary therapeutic approach">
+        <FieldGroup id={id("3-1-label")} label={ui.s3Field31}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Determines the story's therapeutic spine — how the protagonist moves from difficulty
-            to resolution.
+            {ui.s3Field31Helper}
           </Typography>
           <Stack spacing={1.25}>
             {approaches.map((approach) => {
@@ -450,7 +442,7 @@ export default function Section3TherapeuticArchitecture({
                   key={approach}
                   selected={selected}
                   onClick={() => handlePrimaryApproach(approach)}
-                  ariaLabel={THERAPEUTIC_APPROACH_LABELS[approach]}
+                  ariaLabel={ui.THERAPEUTIC_APPROACH_LABELS[approach]}
                 >
                   <Box
                     display="flex"
@@ -470,10 +462,10 @@ export default function Section3TherapeuticArchitecture({
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                         mb={0.25}
                       >
-                        {THERAPEUTIC_APPROACH_LABELS[approach]}
+                        {ui.THERAPEUTIC_APPROACH_LABELS[approach]}
                       </Typography>
                       <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
-                        {THERAPEUTIC_APPROACH_DEFINITIONS[approach]}
+                        {ui.THERAPEUTIC_APPROACH_DEFINITIONS[approach]}
                       </Typography>
                     </Box>
                   </Box>
@@ -488,17 +480,16 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.2 — Supporting Approach (optional)
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-2-label")} label="Supporting approach" optional>
+        <FieldGroup id={id("3-2-label")} label={ui.s3Field32} optional optionalSuffix={ui.optionalSuffix}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Flavors the story without driving the arc. The primary approach selected above is
-            excluded from this list.
+            {ui.s3Field32Helper}
           </Typography>
           <Stack spacing={1.25}>
             {/* "None" deselect option */}
             <OptionCard
               selected={supportingApproach === null}
               onClick={() => handleSupportingApproach(null)}
-              ariaLabel="No supporting approach"
+              ariaLabel={ui.s3AriaNoSupporting}
             >
               <Box display="flex" alignItems="center" gap={1.5} px={2.5} py={1.5} width="100%">
                 <SelectedDot selected={supportingApproach === null} />
@@ -508,7 +499,7 @@ export default function Section3TherapeuticArchitecture({
                   color={supportingApproach === null ? COLORS.primary : COLORS.textSecondary}
                   fontStyle="italic"
                 >
-                  No supporting approach
+                  {ui.s3NoSupporting}
                 </Typography>
               </Box>
             </OptionCard>
@@ -522,7 +513,7 @@ export default function Section3TherapeuticArchitecture({
                     key={approach}
                     selected={selected}
                     onClick={() => handleSupportingApproach(approach)}
-                    ariaLabel={THERAPEUTIC_APPROACH_LABELS[approach]}
+                    ariaLabel={ui.THERAPEUTIC_APPROACH_LABELS[approach]}
                   >
                     <Box
                       display="flex"
@@ -542,10 +533,10 @@ export default function Section3TherapeuticArchitecture({
                           color={selected ? COLORS.primary : COLORS.textPrimary}
                           mb={0.25}
                         >
-                          {THERAPEUTIC_APPROACH_LABELS[approach]}
+                          {ui.THERAPEUTIC_APPROACH_LABELS[approach]}
                         </Typography>
                         <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
-                          {THERAPEUTIC_APPROACH_DEFINITIONS[approach]}
+                          {ui.THERAPEUTIC_APPROACH_DEFINITIONS[approach]}
                         </Typography>
                       </Box>
                     </Box>
@@ -560,7 +551,7 @@ export default function Section3TherapeuticArchitecture({
               severity="warning"
               sx={{ mt: 1.5, borderRadius: 2, "& .MuiAlert-message": { fontSize: "0.875rem" } }}
             >
-              These approaches can pull in different directions. Is this intentional?
+              {ui.s3ApproachConflictInline}
             </Alert>
           )}
         </FieldGroup>
@@ -570,9 +561,9 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.3 — Shame Dimension
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-3-label")} label="Shame dimension">
+        <FieldGroup id={id("3-3-label")} label={ui.s3Field33}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Governs how the agent handles self-blame or stigma in the story.
+            {ui.s3Field33Helper}
           </Typography>
           <Stack spacing={1.25}>
             {SHAME_DIMENSIONS.map((level) => {
@@ -582,7 +573,7 @@ export default function Section3TherapeuticArchitecture({
                   key={level}
                   selected={selected}
                   onClick={() => onChange({ shameDimension: level })}
-                  ariaLabel={SHAME_DIMENSION_LABELS[level]}
+                  ariaLabel={ui.SHAME_DIMENSION_LABELS[level]}
                 >
                   <Box
                     display="flex"
@@ -602,10 +593,10 @@ export default function Section3TherapeuticArchitecture({
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                         mb={0.25}
                       >
-                        {SHAME_DIMENSION_LABELS[level]}
+                        {ui.SHAME_DIMENSION_LABELS[level]}
                       </Typography>
                       <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
-                        {SHAME_DIMENSION_DESCRIPTIONS[level]}
+                        {ui.SHAME_DIMENSION_DESCRIPTIONS[level]}
                       </Typography>
                     </Box>
                   </Box>
@@ -620,10 +611,9 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.4 — Somatic Expression
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-4-label")} label="How does the anxiety show up in the body?">
+        <FieldGroup id={id("3-4-label")} label={ui.s3Field34}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Select up to 2. The agent uses these to mirror the child's physical experience in the
-            story.
+            {ui.s3Field34Helper}
           </Typography>
           <Box
             display="grid"
@@ -640,7 +630,7 @@ export default function Section3TherapeuticArchitecture({
                   selected={selected}
                   onClick={() => handleSomaticToggle(expr)}
                   disabled={disabled}
-                  ariaLabel={SOMATIC_EXPRESSION_LABELS[expr]}
+                  ariaLabel={ui.SOMATIC_EXPRESSION_LABELS[expr]}
                 >
                   <Box display="flex" alignItems="center" gap={1.25} px={2} py={1.5} width="100%">
                     <CheckDot selected={selected} />
@@ -649,7 +639,7 @@ export default function Section3TherapeuticArchitecture({
                       fontWeight={selected ? 600 : 400}
                       color={selected ? COLORS.primary : COLORS.textPrimary}
                     >
-                      {SOMATIC_EXPRESSION_LABELS[expr]}
+                      {ui.SOMATIC_EXPRESSION_LABELS[expr]}
                     </Typography>
                   </Box>
                 </OptionCard>
@@ -666,15 +656,16 @@ export default function Section3TherapeuticArchitecture({
               mb={0.75}
               fontStyle="italic"
             >
-              Anything else the body does? (optional)
+              {ui.s3SomaticOtherLabel}
             </Typography>
             <TextArea
               id={id("3-4-other")}
               value={somaticOther}
               onChange={(v) => onChange({ somaticOther: v })}
               maxChars={SOMATIC_OTHER_CHAR_LIMIT}
-              placeholder="Describe any other physical responses not listed above…"
+              placeholder={ui.s3SomaticOtherPlaceholder}
               minRows={2}
+              formatCounter={ui.charactersCount}
             />
           </Box>
         </FieldGroup>
@@ -684,14 +675,13 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.5 — The Coping Tool
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-5-label")} label="The coping tool">
+        <FieldGroup id={id("3-5-label")} label={ui.s3Field35}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            One tool only. The agent shows the protagonist using it at the story's most difficult
-            moment — demonstrated in action, never named.
+            {ui.s3Field35Helper}
           </Typography>
 
           <Stack spacing={2.5}>
-            {COPING_TOOL_CATEGORIES_FEAR_ANXIETY.map((category) => (
+            {ui.COPING_TOOL_CATEGORIES_FEAR_ANXIETY.map((category) => (
               <Box key={category.label}>
                 <Typography
                   variant="overline"
@@ -711,7 +701,7 @@ export default function Section3TherapeuticArchitecture({
                         key={tool}
                         selected={selected}
                         onClick={() => onChange({ copingTool: tool })}
-                        ariaLabel={COPING_TOOL_LABELS[tool]}
+                        ariaLabel={ui.COPING_TOOL_LABELS[tool]}
                       >
                         <Box
                           display="flex"
@@ -727,7 +717,7 @@ export default function Section3TherapeuticArchitecture({
                             fontWeight={selected ? 700 : 500}
                             color={selected ? COLORS.primary : COLORS.textPrimary}
                           >
-                            {COPING_TOOL_LABELS[tool]}
+                            {ui.COPING_TOOL_LABELS[tool]}
                           </Typography>
                         </Box>
                       </OptionCard>
@@ -751,8 +741,7 @@ export default function Section3TherapeuticArchitecture({
                 "& .MuiAlert-message": { fontSize: "0.875rem", color: COLORS.textSecondary },
               }}
             >
-              For younger children, the agent will show this as a simple physical action or
-              repeated pattern — not verbal self-talk.
+              {ui.s3AbstractAgeNote}
             </Alert>
           )}
         </FieldGroup>
@@ -762,9 +751,9 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.6 — Resolution Completeness
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-6-label")} label="Resolution completeness">
+        <FieldGroup id={id("3-6-label")} label={ui.s3Field36}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Governs the final scene. Default for Fear & Anxiety is Partial resolution.
+            {ui.s3Field36Helper}
           </Typography>
           <Stack spacing={1.25}>
             {RESOLUTION_OPTIONS.map((option) => {
@@ -774,7 +763,7 @@ export default function Section3TherapeuticArchitecture({
                   key={option}
                   selected={selected}
                   onClick={() => onChange({ resolutionCompleteness: option })}
-                  ariaLabel={RESOLUTION_LABELS[option]}
+                  ariaLabel={ui.RESOLUTION_LABELS[option]}
                 >
                   <Box
                     display="flex"
@@ -794,7 +783,7 @@ export default function Section3TherapeuticArchitecture({
                         color={selected ? COLORS.primary : COLORS.textPrimary}
                         mb={0.25}
                       >
-                        {RESOLUTION_LABELS[option]}
+                        {ui.RESOLUTION_LABELS[option]}
                         {option === RESOLUTION_DEFAULTS[storyType] && (
                           <Typography
                             component="span"
@@ -803,12 +792,12 @@ export default function Section3TherapeuticArchitecture({
                             fontWeight={400}
                             ml={0.75}
                           >
-                            (default)
+                            {ui.s3DefaultSuffix}
                           </Typography>
                         )}
                       </Typography>
                       <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.5}>
-                        {RESOLUTION_DESCRIPTIONS[option]}
+                        {ui.RESOLUTION_DESCRIPTIONS[option]}
                       </Typography>
                     </Box>
                   </Box>
@@ -823,10 +812,9 @@ export default function Section3TherapeuticArchitecture({
         {/* ═══════════════════════════════════════════════════════════════
             Field 3.7 — What This Story Must Never Do
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("3-7-label")} label="What this story must never do">
+        <FieldGroup id={id("3-7-label")} label={ui.s3Field37}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Clinical and content constraints together — the agent treats every item as a hard
-            rule. Pre-filled with defaults for this story type; keep, remove, or add.
+            {ui.s3Field37Helper}
           </Typography>
 
           <Stack spacing={1}>
@@ -873,7 +861,7 @@ export default function Section3TherapeuticArchitecture({
                 <InputBase
                   value={item}
                   onChange={(e) => handleMustNeverChange(idx, e.target.value)}
-                  placeholder="Add a constraint the agent must never violate…"
+                  placeholder={ui.s3MustNeverPlaceholder}
                   multiline
                   fullWidth
                   inputProps={{ "aria-label": `Must-never item ${idx + 1}` }}
@@ -929,7 +917,7 @@ export default function Section3TherapeuticArchitecture({
                 "& .MuiAlert-message": { fontSize: "0.8rem", color: COLORS.textSecondary },
               }}
             >
-              Each constraint must have content before you can continue.
+              {ui.s3MustNeverEmptyWarning}
             </Alert>
           )}
 
@@ -947,7 +935,7 @@ export default function Section3TherapeuticArchitecture({
               "&:hover": { borderColor: COLORS.primary, color: COLORS.primary },
             }}
           >
-            + Add constraint
+            {ui.s3AddConstraint}
           </Button>
         </FieldGroup>
 
@@ -967,7 +955,7 @@ export default function Section3TherapeuticArchitecture({
               onClick={onBack}
               sx={{ color: COLORS.textSecondary, textTransform: "none" }}
             >
-              ← Back
+              {ui.back}
             </Button>
           )}
           <Button
@@ -986,7 +974,7 @@ export default function Section3TherapeuticArchitecture({
               "&:disabled": { opacity: 0.45 },
             }}
           >
-            Save & continue →
+            {ui.saveContinue}
           </Button>
         </Box>
       </Stack>

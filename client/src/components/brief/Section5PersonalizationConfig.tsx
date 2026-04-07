@@ -32,12 +32,8 @@ import { COLORS } from "../../theme";
 import BriefValidationSummary, {
   type BriefMissingField,
 } from "./BriefValidationSummary";
-import {
-  PERSONALIZATION_CONSTRAINTS_DEFAULTS,
-  WHY_NOT_CHAR_LIMIT,
-  type PersonalizationConfig,
-  type StoryType,
-} from "../../types/storyBrief";
+import { WHY_NOT_CHAR_LIMIT, type PersonalizationConfig, type StoryType } from "../../types/storyBrief";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 // ============================================================================
 // Style tokens
@@ -74,10 +70,11 @@ interface FieldGroupProps {
   id: string;
   label: string;
   optional?: boolean;
+  optionalSuffix?: string;
   children: React.ReactNode;
 }
 
-function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
+function FieldGroup({ id, label, optional, optionalSuffix, children }: FieldGroupProps) {
   return (
     <Box component="fieldset" aria-labelledby={id} sx={{ border: "none", p: 0, m: 0 }}>
       <Typography
@@ -91,7 +88,7 @@ function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
         {label}
         {optional ? (
           <Typography component="span" variant="caption" color={COLORS.textSecondary} fontWeight={400}>
-            (optional)
+            {optionalSuffix ?? "(optional)"}
           </Typography>
         ) : (
           <Typography component="span" aria-hidden="true" color={COLORS.secondary} fontWeight={700}>
@@ -115,9 +112,10 @@ interface TextAreaProps {
   maxChars: number;
   placeholder: string;
   minRows?: number;
+  formatCounter: (used: number, max: number) => string;
 }
 
-function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4 }: TextAreaProps) {
+function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4, formatCounter }: TextAreaProps) {
   const used = value.length;
   const remaining = maxChars - used;
   const nearLimit = remaining <= Math.ceil(maxChars * 0.1);
@@ -163,7 +161,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4 }: T
           color={nearLimit ? COLORS.secondary : COLORS.textSecondary}
           fontWeight={nearLimit ? 600 : 400}
         >
-          {used} / {maxChars} characters
+          {formatCounter(used, maxChars)}
         </Typography>
       </Box>
     </Box>
@@ -183,6 +181,7 @@ export default function Section5PersonalizationConfig({
   onBack,
   submitting = false,
 }: Props) {
+  const ui = useStoryBriefUi();
   const uid = useId();
   const id = (suffix: string) => `${uid}-${suffix}`;
 
@@ -190,7 +189,7 @@ export default function Section5PersonalizationConfig({
 
   // Constraints — default to story type defaults if not yet set by parent
   const constraints =
-    value.constraints ?? (PERSONALIZATION_CONSTRAINTS_DEFAULTS[storyType] ?? [""]);
+    value.constraints ?? (ui.PERSONALIZATION_CONSTRAINTS_DEFAULTS[storyType] ?? [""]);
   const whyNot = value.whyNot ?? "";
 
   // ── Completion check ──────────────────────────────────────────────────────
@@ -202,7 +201,7 @@ export default function Section5PersonalizationConfig({
   const missingFields: BriefMissingField[] = [];
   if (!isPersonalized && !whyNot.trim()) {
     missingFields.push({
-      label: "Why is this story better with a fixed protagonist?",
+      label: ui.s5MissingWhyNot,
       targetId: id("5-2-label"),
     });
   }
@@ -237,15 +236,13 @@ export default function Section5PersonalizationConfig({
           letterSpacing={1}
           mb={0.5}
         >
-          Section 5 of 5
+          {ui.s5Overline}
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
-          Personalization Configuration
+          {ui.s5Title}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
-          {isPersonalized
-            ? "Define what parents are allowed to change when they personalize this story for their child."
-            : "Explain why this story works better with a fixed protagonist. This note is shown to parents."}
+          {isPersonalized ? ui.s5IntroOn : ui.s5IntroOff}
         </Typography>
       </Box>
 
@@ -254,10 +251,9 @@ export default function Section5PersonalizationConfig({
           /* ═══════════════════════════════════════════════════════════════
               Field 5.1 — Personalization Constraints (personalization ON)
           ═══════════════════════════════════════════════════════════════ */
-          <FieldGroup id={id("5-1-label")} label="Personalization constraints" optional>
+          <FieldGroup id={id("5-1-label")} label={ui.s5Field51} optional optionalSuffix={ui.optionalSuffix}>
             <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-              What must never be changed when a parent personalizes this story? Pre-filled with
-              defaults — keep, remove, or add.
+              {ui.s5Field51Helper}
             </Typography>
 
             <Stack spacing={1}>
@@ -304,7 +300,7 @@ export default function Section5PersonalizationConfig({
                   <InputBase
                     value={item}
                     onChange={(e) => handleConstraintChange(idx, e.target.value)}
-                    placeholder="Add a constraint parents must not override…"
+                    placeholder={ui.s5ConstraintPlaceholder}
                     multiline
                     fullWidth
                     inputProps={{ "aria-label": `Constraint item ${idx + 1}` }}
@@ -357,7 +353,7 @@ export default function Section5PersonalizationConfig({
                 "&:hover": { borderColor: COLORS.primary, color: COLORS.primary },
               }}
             >
-              + Add constraint
+              {ui.s3AddConstraint}
             </Button>
 
             <Alert
@@ -371,25 +367,24 @@ export default function Section5PersonalizationConfig({
                 "& .MuiAlert-message": { fontSize: "0.8rem", color: COLORS.textSecondary },
               }}
             >
-              These constraints are enforced during personalization — any parent customization
-              that would violate a constraint is blocked.
+              {ui.s5ConstraintsInfo}
             </Alert>
           </FieldGroup>
         ) : (
           /* ═══════════════════════════════════════════════════════════════
               Field 5.2 — Why Not (personalization OFF)
           ═══════════════════════════════════════════════════════════════ */
-          <FieldGroup id={id("5-2-label")} label="Why is this story better with a fixed protagonist?">
+          <FieldGroup id={id("5-2-label")} label={ui.s5Field52}>
             <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-              This note is shown to parents when they browse this story. Be direct and specific
-              about the clinical reason.
+              {ui.s5Field52Helper}
             </Typography>
             <TextArea
               id={id("5-2-input")}
               value={whyNot}
               onChange={(v) => onChange({ whyNot: v })}
               maxChars={WHY_NOT_CHAR_LIMIT}
-              placeholder="e.g. The protagonist's age and background are essential to the story's emotional arc and cannot be personalized without disrupting the therapeutic structure…"
+              placeholder={ui.s5Field52Placeholder}
+              formatCounter={ui.charactersCount}
             />
           </FieldGroup>
         )}
@@ -407,12 +402,10 @@ export default function Section5PersonalizationConfig({
           }}
         >
           <Typography variant="body2" fontWeight={600} color={COLORS.primary} mb={0.5}>
-            You're almost done
+            {ui.s5AlmostDoneTitle}
           </Typography>
           <Typography variant="caption" color={COLORS.textSecondary} lineHeight={1.6}>
-            After submission, the agent will generate a first draft of the story using all the
-            decisions you've made in this brief. You'll be able to review, annotate, and approve
-            the draft before it's published.
+            {ui.s5AlmostDoneBody}
           </Typography>
         </Box>
 
@@ -433,7 +426,7 @@ export default function Section5PersonalizationConfig({
               disabled={submitting}
               sx={{ color: COLORS.textSecondary, textTransform: "none" }}
             >
-              ← Back
+              {ui.back}
             </Button>
           )}
           <Button
@@ -452,7 +445,7 @@ export default function Section5PersonalizationConfig({
               "&:disabled": { opacity: 0.45 },
             }}
           >
-            {submitting ? "Submitting…" : "Submit brief →"}
+            {submitting ? ui.submitting : ui.submitBrief}
           </Button>
         </Box>
       </Stack>

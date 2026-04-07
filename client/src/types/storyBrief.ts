@@ -770,8 +770,17 @@ export function withSection1StoryLengthDefault(d: CompleteBrief): CompleteBrief 
   };
 }
 
+/** Optional locale-specific string lists for UI defaults (e.g. Hebrew brief copy). */
+export interface BriefDefaultsLocaleOptions {
+  mustNeverDefaults?: Record<StoryType, string[]>;
+  personalizationConstraintsDefaults?: Partial<Record<StoryType, string[]>>;
+}
+
 /** Commit Field 3.6 / 3.7 defaults when still absent (matches Section 3 UI). */
-export function mergeSection3UiDefaultsIntoDraft(draft: CompleteBrief): CompleteBrief {
+export function mergeSection3UiDefaultsIntoDraft(
+  draft: CompleteBrief,
+  locale?: BriefDefaultsLocaleOptions,
+): CompleteBrief {
   const st = draft.storyType;
   if (!st) return draft;
   const s = draft.section3;
@@ -787,7 +796,7 @@ export function mergeSection3UiDefaultsIntoDraft(draft: CompleteBrief): Complete
   }
 
   if (!s.mustNeverList?.length) {
-    const defs = MUST_NEVER_DEFAULTS[st];
+    const defs = locale?.mustNeverDefaults?.[st] ?? MUST_NEVER_DEFAULTS[st];
     if (defs?.length) {
       next.mustNeverList = [...defs];
       changed = true;
@@ -819,13 +828,17 @@ export function mergeSection4PersonalizationDefaults(draft: CompleteBrief): Comp
 }
 
 /** Commit personalization constraint defaults when optional list was never initialized. */
-export function mergeSection5ConstraintsDefault(draft: CompleteBrief): CompleteBrief {
+export function mergeSection5ConstraintsDefault(
+  draft: CompleteBrief,
+  locale?: BriefDefaultsLocaleOptions,
+): CompleteBrief {
   const st = draft.storyType;
   if (!st) return draft;
   const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
   if (!personalized) return draft;
   if (draft.section5.constraints !== undefined) return draft;
-  const defaults = PERSONALIZATION_CONSTRAINTS_DEFAULTS[st];
+  const defaults =
+    locale?.personalizationConstraintsDefaults?.[st] ?? PERSONALIZATION_CONSTRAINTS_DEFAULTS[st];
   if (!defaults?.length) return draft;
   return {
     ...draft,
@@ -834,12 +847,15 @@ export function mergeSection5ConstraintsDefault(draft: CompleteBrief): CompleteB
 }
 
 /** Apply all UI defaults so draft, progress, and storage stay aligned. */
-export function normalizeBriefDefaults(draft: CompleteBrief): CompleteBrief {
+export function normalizeBriefDefaults(
+  draft: CompleteBrief,
+  locale?: BriefDefaultsLocaleOptions,
+): CompleteBrief {
   let d = draft;
   d = withSection1StoryLengthDefault(d);
-  d = mergeSection3UiDefaultsIntoDraft(d);
+  d = mergeSection3UiDefaultsIntoDraft(d, locale);
   d = mergeSection4PersonalizationDefaults(d);
-  d = mergeSection5ConstraintsDefault(d);
+  d = mergeSection5ConstraintsDefault(d, locale);
   return d;
 }
 

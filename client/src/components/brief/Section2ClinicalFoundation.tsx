@@ -30,20 +30,15 @@ import BriefValidationSummary, {
 } from "./BriefValidationSummary";
 import {
   POPULATION_CHAR_LIMIT,
-  POPULATION_THINKING_SCAFFOLDS,
   TRIGGER_CHAR_LIMIT,
-  TRIGGER_LABELS,
-  TRIGGER_NUDGE,
   TRIGGER_NUDGE_THRESHOLD,
-  INTENTION_NUDGE,
   INTENTION_NUDGE_THRESHOLD,
-  INTENTION_GOOD_EXAMPLES,
-  INTENTION_BAD_EXAMPLES,
   CREATIVE_VISION_CHAR_LIMIT,
   ONE_TRUE_THING_CHAR_LIMIT,
   type ClinicalFoundation,
   type StoryType,
 } from "../../types/storyBrief";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 // ============================================================================
 // Style tokens (match Section 1 palette)
@@ -82,10 +77,12 @@ interface FieldGroupProps {
   id: string;
   label: string;
   optional?: boolean;
+  /** e.g. "(optional)" — required when `optional` is true */
+  optionalSuffix?: string;
   children: React.ReactNode;
 }
 
-function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
+function FieldGroup({ id, label, optional, optionalSuffix, children }: FieldGroupProps) {
   return (
     <Box component="fieldset" aria-labelledby={id} sx={{ border: "none", p: 0, m: 0 }}>
       <Typography
@@ -104,7 +101,7 @@ function FieldGroup({ id, label, optional, children }: FieldGroupProps) {
             color={COLORS.textSecondary}
             fontWeight={400}
           >
-            (optional)
+            {optionalSuffix ?? "(optional)"}
           </Typography>
         ) : (
           <Typography
@@ -133,9 +130,10 @@ interface TextAreaProps {
   maxChars: number;
   placeholder: string;
   minRows?: number;
+  formatCounter: (used: number, max: number) => string;
 }
 
-function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4 }: TextAreaProps) {
+function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4, formatCounter }: TextAreaProps) {
   const used = value.length;
   const remaining = maxChars - used;
   const nearLimit = remaining <= Math.ceil(maxChars * 0.1);
@@ -181,7 +179,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4 }: T
           color={nearLimit ? COLORS.secondary : COLORS.textSecondary}
           fontWeight={nearLimit ? 600 : 400}
         >
-          {used} / {maxChars} characters
+          {formatCounter(used, maxChars)}
         </Typography>
       </Box>
     </Box>
@@ -345,6 +343,7 @@ export default function Section2ClinicalFoundation({
   onContinue,
   onBack,
 }: Props) {
+  const ui = useStoryBriefUi();
   const uid = useId();
   const id = (suffix: string) => `${uid}-${suffix}`;
 
@@ -357,10 +356,10 @@ export default function Section2ClinicalFoundation({
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
-  const triggerLabel = TRIGGER_LABELS[storyType] ?? "The specific trigger";
-  const thinkingScaffold = POPULATION_THINKING_SCAFFOLDS[storyType];
-  const goodExamples = INTENTION_GOOD_EXAMPLES[storyType] ?? [];
-  const badExamples = INTENTION_BAD_EXAMPLES[storyType] ?? [];
+  const triggerLabel = ui.TRIGGER_LABELS[storyType] ?? ui.fallbackTriggerLabel;
+  const thinkingScaffold = ui.POPULATION_THINKING_SCAFFOLDS[storyType];
+  const goodExamples = ui.INTENTION_GOOD_EXAMPLES[storyType] ?? [];
+  const badExamples = ui.INTENTION_BAD_EXAMPLES[storyType] ?? [];
 
   const showTriggerNudge =
     trigger.length > 0 && trigger.length < TRIGGER_NUDGE_THRESHOLD;
@@ -380,7 +379,7 @@ export default function Section2ClinicalFoundation({
   const missingFields: BriefMissingField[] = [];
   if (!population.trim()) {
     missingFields.push({
-      label: "Emotional world of the population",
+      label: ui.s2MissingPopulation,
       targetId: id("2-1-label"),
     });
   }
@@ -388,10 +387,10 @@ export default function Section2ClinicalFoundation({
     missingFields.push({ label: triggerLabel, targetId: id("2-2-label") });
   }
   if (!intentionFeel.trim() || !intentionBecause.trim()) {
-    missingFields.push({ label: "Therapeutic intention", targetId: id("2-3-label") });
+    missingFields.push({ label: ui.s2MissingIntention, targetId: id("2-3-label") });
   }
   if (!creativeVision.trim()) {
-    missingFields.push({ label: "Clinical creative vision", targetId: id("2-4-label") });
+    missingFields.push({ label: ui.s2MissingCreative, targetId: id("2-4-label") });
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -407,14 +406,13 @@ export default function Section2ClinicalFoundation({
           letterSpacing={1}
           mb={0.5}
         >
-          Section 2 of 5
+          {ui.s2Overline}
         </Typography>
         <Typography variant="h5" fontWeight={700} mb={0.75}>
-          Clinical Foundation
+          {ui.s2Title}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
-          The clinical thinking that shapes this story: who these children are, what triggers the
-          difficulty, and what the story should leave them with.
+          {ui.s2Intro}
         </Typography>
       </Box>
 
@@ -422,10 +420,9 @@ export default function Section2ClinicalFoundation({
         {/* ═══════════════════════════════════════════════════════════════
             Field 2.1 — Emotional World of the Population
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("2-1-label")} label="Emotional world of the population">
+        <FieldGroup id={id("2-1-label")} label={ui.s2Field21}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            What is the emotional experience of the children this story is for? What are they
-            feeling, what are they avoiding, what do they need that they can't ask for?
+            {ui.s2Field21Helper}
           </Typography>
 
           {/* Thinking scaffold — collapses; never written to the field or payload */}
@@ -441,8 +438,9 @@ export default function Section2ClinicalFoundation({
             value={population}
             onChange={(v) => onChange({ population: v })}
             maxChars={POPULATION_CHAR_LIMIT}
-            placeholder="Describe the inner world of children who need this story…"
+            placeholder={ui.s2Field21Placeholder}
             minRows={5}
+            formatCounter={ui.charactersCount}
           />
         </FieldGroup>
 
@@ -453,7 +451,7 @@ export default function Section2ClinicalFoundation({
         ═══════════════════════════════════════════════════════════════ */}
         <FieldGroup id={id("2-2-label")} label={triggerLabel}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            What precise moment or situation triggers the anxiety this story addresses?
+            {ui.s2Field22Helper}
           </Typography>
 
           <TextArea
@@ -461,7 +459,8 @@ export default function Section2ClinicalFoundation({
             value={trigger}
             onChange={(v) => onChange({ trigger: v })}
             maxChars={TRIGGER_CHAR_LIMIT}
-            placeholder="Describe the inciting moment as specifically as possible…"
+            placeholder={ui.s2Field22Placeholder}
+            formatCounter={ui.charactersCount}
           />
 
           {showTriggerNudge && (
@@ -476,7 +475,7 @@ export default function Section2ClinicalFoundation({
                 "& .MuiAlert-message": { fontSize: "0.875rem", color: COLORS.textSecondary },
               }}
             >
-              {TRIGGER_NUDGE}
+              {ui.TRIGGER_NUDGE}
             </Alert>
           )}
         </FieldGroup>
@@ -486,9 +485,9 @@ export default function Section2ClinicalFoundation({
         {/* ═══════════════════════════════════════════════════════════════
             Field 2.3 — Therapeutic Intention
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("2-3-label")} label="Therapeutic intention">
+        <FieldGroup id={id("2-3-label")} label={ui.s2Field23}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={2}>
-            Complete both halves. The second half is the story's core message.
+            {ui.s2Field23Helper}
           </Typography>
 
           {/* Completion frame */}
@@ -510,14 +509,14 @@ export default function Section2ClinicalFoundation({
                   color={COLORS.textSecondary}
                   sx={{ flexShrink: 0, fontStyle: "italic" }}
                 >
-                  When a child closes this book, they should feel
+                  {ui.s2IntentionFeelPrefix}
                 </Typography>
                 <InlineInput
                   id={id("2-3-feel")}
                   value={intentionFeel}
                   onChange={(v) => onChange({ intentionFeel: v })}
-                  placeholder="quietly brave…"
-                  ariaLabel="they should feel"
+                  placeholder={ui.s2IntentionFeelPlaceholder}
+                  ariaLabel={ui.s2IntentionAriaFeel}
                 />
               </Box>
 
@@ -528,14 +527,14 @@ export default function Section2ClinicalFoundation({
                   color={COLORS.textSecondary}
                   sx={{ flexShrink: 0, fontStyle: "italic" }}
                 >
-                  because
+                  {ui.s2IntentionBecausePrefix}
                 </Typography>
                 <InlineInput
                   id={id("2-3-because")}
                   value={intentionBecause}
                   onChange={(v) => onChange({ intentionBecause: v })}
-                  placeholder="they have discovered that…"
-                  ariaLabel="because"
+                  placeholder={ui.s2IntentionBecausePlaceholder}
+                  ariaLabel={ui.s2IntentionAriaBecause}
                 />
               </Box>
             </Stack>
@@ -554,7 +553,7 @@ export default function Section2ClinicalFoundation({
                 "& .MuiAlert-message": { fontSize: "0.875rem", color: COLORS.textSecondary },
               }}
             >
-              {INTENTION_NUDGE}
+              {ui.INTENTION_NUDGE}
             </Alert>
           )}
 
@@ -571,7 +570,7 @@ export default function Section2ClinicalFoundation({
                     mb={0.75}
                     sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
                   >
-                    Strong examples
+                    {ui.s2StrongExamples}
                   </Typography>
                   <Stack spacing={0.75}>
                     {goodExamples.map((ex, i) => (
@@ -612,7 +611,7 @@ export default function Section2ClinicalFoundation({
                     mb={0.75}
                     sx={{ textTransform: "uppercase", letterSpacing: 0.5 }}
                   >
-                    Avoid this
+                    {ui.s2AvoidThis}
                   </Typography>
                   <Stack spacing={0.75}>
                     {badExamples.map((ex, i) => (
@@ -661,11 +660,9 @@ export default function Section2ClinicalFoundation({
         {/* ═══════════════════════════════════════════════════════════════
             Field 2.4 — Clinical Creative Vision
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("2-4-label")} label="Clinical creative vision">
+        <FieldGroup id={id("2-4-label")} label={ui.s2Field24}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Describe one specific image, moment, or detail you see at the heart of this story. Not
-            a mood — a scene. This image should support your therapeutic approach, not replace it.
-            What is happening, who is there, what does the child notice?
+            {ui.s2Field24Helper}
           </Typography>
 
           <TextArea
@@ -673,7 +670,8 @@ export default function Section2ClinicalFoundation({
             value={creativeVision}
             onChange={(v) => onChange({ creativeVision: v })}
             maxChars={CREATIVE_VISION_CHAR_LIMIT}
-            placeholder="e.g. The child finds a small glowing door at the end of a hallway…"
+            placeholder={ui.s2Field24Placeholder}
+            formatCounter={ui.charactersCount}
           />
         </FieldGroup>
 
@@ -682,11 +680,9 @@ export default function Section2ClinicalFoundation({
         {/* ═══════════════════════════════════════════════════════════════
             Field 2.5 — One True Thing
         ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id={id("2-5-label")} label="One true thing" optional>
+        <FieldGroup id={id("2-5-label")} label={ui.s2Field25} optional optionalSuffix={ui.optionalSuffix}>
           <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            Picture a child you have worked with who this story would have helped. Without
-            identifying them — one physical or emotional detail you remember: a gesture, a habit, a
-            sentence, a look on their face.
+            {ui.s2Field25Helper}
           </Typography>
 
           <TextArea
@@ -694,8 +690,9 @@ export default function Section2ClinicalFoundation({
             value={oneTrueThing}
             onChange={(v) => onChange({ oneTrueThing: v })}
             maxChars={ONE_TRUE_THING_CHAR_LIMIT}
-            placeholder="Leave blank to skip, or describe one small true detail…"
+            placeholder={ui.s2Field25Placeholder}
             minRows={3}
+            formatCounter={ui.charactersCount}
           />
         </FieldGroup>
 
@@ -715,7 +712,7 @@ export default function Section2ClinicalFoundation({
               onClick={onBack}
               sx={{ color: COLORS.textSecondary, textTransform: "none" }}
             >
-              ← Back
+              {ui.back}
             </Button>
           )}
           <Button
@@ -732,7 +729,7 @@ export default function Section2ClinicalFoundation({
               "&:disabled": { opacity: 0.45 },
             }}
           >
-            Save & continue →
+            {ui.saveContinue}
           </Button>
         </Box>
       </Stack>
