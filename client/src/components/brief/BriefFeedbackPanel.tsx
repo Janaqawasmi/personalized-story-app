@@ -1,7 +1,7 @@
 // client/src/components/brief/BriefFeedbackPanel.tsx
 //
-// Specialist review panel: section-scoped field verdicts, optional nuance tags,
-// overall notes — stored via API in Firestore (dammaStoryBriefs/{id}/feedback).
+// Specialist review panel: section-scoped field verdicts and optional nuance tags —
+// stored via API in Firestore (dammaStoryBriefs/{id}/feedback).
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -15,7 +15,6 @@ import {
   Chip,
   CircularProgress,
   Collapse,
-  Divider,
   FormControl,
   FormControlLabel,
   Link,
@@ -39,10 +38,8 @@ import {
   BRIEF_FEEDBACK_VERDICTS,
   BRIEF_FEEDBACK_VERDICT_LABELS,
   getFeedbackFieldIdsForStep,
-  getFeedbackSectionHeading,
   type BriefFeedbackVerdictId,
   type BriefFeedbackFieldQuickTagId,
-  type BriefFeedbackOverallQuickTagId,
   type BriefFieldFeedbackEntry,
   type StoryBriefFeedbackDoc,
 } from "../../types/storyBriefFeedback";
@@ -73,8 +70,6 @@ export default function BriefFeedbackPanel({
   activeStep,
   personalization,
 }: BriefFeedbackPanelProps) {
-  const [generalComment, setGeneralComment] = useState("");
-  const [overallTags, setOverallTags] = useState<Set<BriefFeedbackOverallQuickTagId>>(new Set());
   const [fieldFeedback, setFieldFeedback] = useState<Record<string, BriefFieldFeedbackEntry>>({});
   /** Per-field: show optional quick-tag row */
   const [nuanceOpen, setNuanceOpen] = useState<Record<string, boolean>>({});
@@ -88,19 +83,12 @@ export default function BriefFeedbackPanel({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
-  const sectionHeading = useMemo(
-    () => getFeedbackSectionHeading(activeStep, personalization),
-    [activeStep, personalization],
-  );
-
   const visibleFieldIds = useMemo(
     () => getFeedbackFieldIdsForStep(activeStep, personalization),
     [activeStep, personalization],
   );
 
   const canSave = useMemo(() => {
-    if (generalComment.trim().length > 0) return true;
-    if (overallTags.size > 0) return true;
     for (const entry of Object.values(fieldFeedback)) {
       if (
         entry.verdict != null ||
@@ -111,7 +99,7 @@ export default function BriefFeedbackPanel({
       }
     }
     return false;
-  }, [generalComment, overallTags, fieldFeedback]);
+  }, [fieldFeedback]);
 
   const loadHistory = useCallback(async () => {
     if (!briefId) return;
@@ -135,15 +123,6 @@ export default function BriefFeedbackPanel({
     }
     void loadHistory();
   }, [briefId, loadHistory]);
-
-  function toggleOverallTag(id: BriefFeedbackOverallQuickTagId) {
-    setOverallTags((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
 
   function toggleFieldTag(fieldId: string, tagId: BriefFeedbackFieldQuickTagId) {
     setFieldFeedback((prev) => {
@@ -201,13 +180,11 @@ export default function BriefFeedbackPanel({
 
     try {
       await submitDammaStoryBriefFeedback(briefId, {
-        generalComment,
-        overallQuickTags: Array.from(overallTags),
+        generalComment: "",
+        overallQuickTags: [],
         fieldFeedback: filteredFields,
       });
       setSubmitSuccess("Feedback saved.");
-      setGeneralComment("");
-      setOverallTags(new Set());
       setFieldFeedback({});
       setNuanceOpen({});
       void loadHistory();
@@ -234,8 +211,6 @@ export default function BriefFeedbackPanel({
     overflowY: { md: "auto" },
   };
 
-  const fieldCount = visibleFieldIds.length;
-
   return (
     <Paper
       elevation={0}
@@ -243,7 +218,7 @@ export default function BriefFeedbackPanel({
       aria-label="Story brief feedback"
       sx={panelPaperSx}
     >
-      <Stack spacing={0.5} sx={{ mb: 2 }}>
+      <Stack spacing={0.75} sx={{ mb: 2 }}>
         <Typography
           variant="overline"
           sx={{
@@ -255,9 +230,6 @@ export default function BriefFeedbackPanel({
           }}
         >
           Specialist feedback
-        </Typography>
-        <Typography variant="body2" color={COLORS.textSecondary} sx={{ lineHeight: 1.55 }}>
-          Optional review for the author. Rate only the fields you care about — nothing is required.
         </Typography>
         {briefId ? (
           <Chip
@@ -276,63 +248,7 @@ export default function BriefFeedbackPanel({
         ) : null}
       </Stack>
 
-      <Box
-        sx={{
-          mb: 2,
-          py: 1.25,
-          px: 1.5,
-          borderRadius: 2,
-          bgcolor: "rgba(97, 120, 145, 0.06)",
-          border: "1px solid rgba(208, 200, 192, 0.45)",
-        }}
-      >
-        <Typography variant="caption" fontWeight={800} color={COLORS.primary} display="block">
-          Current focus
-        </Typography>
-        <Typography variant="body2" fontWeight={600} color={COLORS.textPrimary} sx={{ mt: 0.25 }}>
-          {sectionHeading}
-        </Typography>
-        {fieldCount > 0 ? (
-          <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mt: 0.5 }}>
-            {fieldCount} field{fieldCount === 1 ? "" : "s"} in this step
-          </Typography>
-        ) : (
-          <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mt: 0.5 }}>
-            Field-by-field ratings appear when you work inside the brief steps.
-          </Typography>
-        )}
-      </Box>
-
-      {!briefId && (
-        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }} icon={false}>
-          <Typography variant="body2" fontWeight={600} gutterBottom>
-            Save isn’t available yet
-          </Typography>
-          <Typography variant="body2" color={COLORS.textSecondary}>
-            Submit this brief first, or open this page with{" "}
-            <Box component="span" sx={{ fontFamily: "ui-monospace, monospace", fontSize: "0.8rem" }}>
-              ?briefId=…
-            </Box>{" "}
-            in the URL.
-          </Typography>
-        </Alert>
-      )}
-
-      {/* ── Section fields (primary) ── */}
-      <Typography variant="subtitle2" fontWeight={700} color={COLORS.textPrimary} gutterBottom>
-        This step
-      </Typography>
-      <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1.5 }}>
-        One assessment per field. Add a note when something needs changing or isn’t clear.
-      </Typography>
-
-      {visibleFieldIds.length === 0 ? (
-        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }} icon={false}>
-          <Typography variant="body2" color={COLORS.textSecondary}>
-            Use overall notes below, or move through the brief to rate specific fields.
-          </Typography>
-        </Alert>
-      ) : (
+      {visibleFieldIds.length > 0 ? (
         <Stack spacing={1.75} sx={{ mb: 2 }}>
           {visibleFieldIds.map((fid) => {
             const { title, specId } = fieldMeta(fid);
@@ -458,41 +374,7 @@ export default function BriefFeedbackPanel({
             );
           })}
         </Stack>
-      )}
-
-      <Divider sx={{ my: 2 }} />
-
-      {/* ── Overall (secondary) ── */}
-      <Typography variant="subtitle2" fontWeight={700} color={COLORS.textPrimary} gutterBottom>
-        Whole brief
-      </Typography>
-      <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mb: 1 }}>
-        Quick signals across the entire brief, plus free text.
-      </Typography>
-      <Stack direction="row" flexWrap="wrap" useFlexGap spacing={0.75} sx={{ mb: 1.5 }}>
-        {BRIEF_FEEDBACK_OVERALL_QUICK_TAGS.map((t) => (
-          <Chip
-            key={t.id}
-            label={t.label}
-            size="small"
-            onClick={() => toggleOverallTag(t.id)}
-            color={overallTags.has(t.id) ? "primary" : "default"}
-            variant={overallTags.has(t.id) ? "filled" : "outlined"}
-            sx={{ fontWeight: 600 }}
-          />
-        ))}
-      </Stack>
-
-      <TextField
-        label="General comments"
-        placeholder="Themes, risks, or praise that aren’t tied to one field…"
-        multiline
-        minRows={2}
-        fullWidth
-        value={generalComment}
-        onChange={(e) => setGeneralComment(e.target.value)}
-        sx={{ mb: 2 }}
-      />
+      ) : null}
 
       {submitError && (
         <Alert severity="error" sx={{ mb: 1.5, borderRadius: 2 }}>
@@ -512,6 +394,7 @@ export default function BriefFeedbackPanel({
         onClick={() => void handleSubmit()}
         aria-busy={submitting}
         sx={{
+          mt: visibleFieldIds.length > 0 ? 0 : 1,
           py: 1.1,
           textTransform: "none",
           fontWeight: 700,
@@ -521,12 +404,6 @@ export default function BriefFeedbackPanel({
       >
         {submitting ? <CircularProgress size={22} color="inherit" /> : "Save feedback"}
       </Button>
-      {!canSave && briefId ? (
-        <Typography variant="caption" color={COLORS.textSecondary} display="block" sx={{ mt: 1, textAlign: "center" }}>
-          Add an assessment, tag, or comment to enable save.
-        </Typography>
-      ) : null}
-
       {briefId && (
         <Accordion
           disableGutters
