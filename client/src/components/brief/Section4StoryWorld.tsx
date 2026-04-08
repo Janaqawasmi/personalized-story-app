@@ -12,7 +12,7 @@
 //   4.6  Supporting characters        — multi-select up to 2 + role note per selected character
 //   4.7  Character notes              — free text 300 chars, optional
 //
-// Spec: /docs/dammah-story-brief-spec-v1.2.md §6
+// Spec: /docs/dammah-story-brief-spec-v1.3.md §6
 
 import React, { useId } from "react";
 import {

@@ -11,7 +11,7 @@
 //   3.6  Resolution completeness       — single select, 3 options, default partial
 //   3.7  What this story must never do — editable text list, pre-filled defaults, min 1 item
 //
-// Spec: /docs/dammah-story-brief-spec-v1.2.md §5
+// Spec: /docs/dammah-story-brief-spec-v1.3.md §5
 
 import React, { useId } from "react";
 import {

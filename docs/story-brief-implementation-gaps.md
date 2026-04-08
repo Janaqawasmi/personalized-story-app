@@ -1,6 +1,6 @@
 # Story Brief — implementation gaps and tracking
 
-This document tracks features described in `dammah-story-brief-spec-v1.2.md` that are **not yet fully implemented** in the codebase, or that differ between client and server. Update it when closing a gap.
+This document tracks features described in `dammah-story-brief-spec-v1.3.md` that are **not yet fully implemented** in the codebase, or that differ between client and server. Update it when closing a gap.
 
 ---
 

@@ -1,7 +1,7 @@
 // client/src/types/storyBriefFeedback.ts
 //
 // Specialist review feedback for a DAMMAH Story Brief (separate from form fields).
-// Field IDs align with /docs/dammah-story-brief-spec-v1.2.md numbering.
+// Field IDs align with /docs/dammah-story-brief-spec-v1.3.md numbering.
 
 /** Spec-aligned field targets for optional per-field feedback */
 export const BRIEF_FEEDBACK_FIELD_CATALOG: ReadonlyArray<{

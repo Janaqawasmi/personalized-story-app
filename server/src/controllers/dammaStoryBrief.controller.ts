@@ -1,6 +1,6 @@
 // server/src/controllers/dammaStoryBrief.controller.ts
 //
-// Persists the spec v1.2 Story Brief form aggregate (client CompleteBrief) for
+// Persists the spec v1.3 Story Brief form aggregate (client CompleteBrief) for
 // specialist submission. Separate from legacy LegacyStoryBrief documents.
 
 import { Request, Response } from "express";

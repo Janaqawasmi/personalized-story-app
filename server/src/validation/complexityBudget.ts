@@ -1,6 +1,6 @@
 // server/src/validation/complexityBudget.ts
 //
-// Complexity budget calculator for the Story Brief (spec v1.2, Section 16).
+// Complexity budget calculator for the Story Brief (spec v1.3, Section 16).
 //
 // Every narrative obligation has a base page cost (calibrated to ages 3–5).
 // The system sums all costs, scales by an age-range multiplier, and compares

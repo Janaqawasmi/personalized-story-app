@@ -12,7 +12,7 @@ The pilot launches with **Fear & Anxiety** stories only.
 
 ## The canonical source of truth
 
-**`/docs/dammah-story-brief-spec-v1.2.md`** is the single source of truth for the story brief design. Every field name, field type, option list, validation rule, default value, and conditional logic rule comes from this document. Do not invent fields or options that are not in the spec. Do not change field order. Do not rename fields.
+**`/docs/dammah-story-brief-spec-v1.3.md`** is the single source of truth for the story brief design. Every field name, field type, option list, validation rule, default value, and conditional logic rule comes from this document. Do not invent fields or options that are not in the spec. Do not change field order. Do not rename fields.
 
 When in doubt, read the spec. If the spec and existing code disagree, the spec wins.
 
@@ -154,7 +154,7 @@ The Fear & Anxiety type has 7 approaches. Each has a psychologist-facing definit
 
 ## Key rules for AI assistants working on this project
 
-1. **Read the spec before writing code.** Always reference `/docs/dammah-story-brief-spec-v1.2.md` for field definitions, options, and logic.
+1. **Read the spec before writing code.** Always reference `/docs/dammah-story-brief-spec-v1.3.md` for field definitions, options, and logic.
 2. **Field order is fixed.** The section order and field order within sections are finalized design decisions. Do not rearrange.
 3. **Structured fields override free text.** If character notes (4.7) conflict with a structured field, the structured field wins. This is an architectural rule, not a suggestion.
 4. **Therapeutic mechanism overrides creative vision.** Priority rules are defined in Section 14 of the spec. Follow them.
@@ -176,7 +176,7 @@ The Fear & Anxiety type has 7 approaches. Each has a psychologist-facing definit
 
 ```
 /docs/                              — specification documents
-  dammah-story-brief-spec-v1.2.md   — canonical story brief spec
+  dammah-story-brief-spec-v1.3.md   — canonical story brief spec
 /src/
   /models/                          — data models and schemas
   /validation/                      — cross-field validations and complexity budget
@@ -188,7 +188,7 @@ The Fear & Anxiety type has 7 approaches. Each has a psychologist-facing definit
 
 When asked to implement a feature:
 1. Identify which section(s) of the spec it relates to
-2. Read those sections from `/docs/dammah-story-brief-spec-v1.2.md`
+2. Read those sections from `/docs/dammah-story-brief-spec-v1.3.md`
 3. Implement exactly what the spec says — no additions, no omissions
 4. If the spec is ambiguous on a point, flag it rather than guessing
 

@@ -5,7 +5,7 @@
 // When personalization is OFF → Field 5.2 — Why Not (required, max 400 chars).
 // When personalization is ON → confirmation screen (no additional inputs), submit from Section 5.
 //
-// Spec: /docs/dammah-story-brief-spec-v1.2.md §7
+// Spec: /docs/dammah-story-brief-spec-v1.3.md §7
 
 import React, { useId } from "react";
 import { Box, Button, Divider, InputBase, Stack, Typography } from "@mui/material";

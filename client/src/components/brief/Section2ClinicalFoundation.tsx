@@ -9,7 +9,7 @@
 //   2.4  Clinical creative vision          — free text 400 chars
 //   2.5  One true thing                    — free text 300 chars, optional
 //
-// Spec: /docs/dammah-story-brief-spec-v1.2.md §4
+// Spec: /docs/dammah-story-brief-spec-v1.3.md §4
 
 import React, { useId, useState } from "react";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";

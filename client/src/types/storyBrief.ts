@@ -4,7 +4,7 @@
 //
 // These mirror the canonical definitions in server/src/models/storyBrief.model.ts
 // but carry no server-only dependencies (firebase-admin, etc.).
-// The spec source is /docs/dammah-story-brief-spec-v1.2.md.
+// The spec source is /docs/dammah-story-brief-spec-v1.3.md.
 
 // ============================================================================
 // Pre-brief: Story Type Selector

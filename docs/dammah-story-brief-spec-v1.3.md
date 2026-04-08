@@ -1,6 +1,6 @@
 # DAMMAH Story Brief — Final Specification
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Status:** Finalized — ready for development  
 **Scope:** Story creation brief filled in by licensed psychologists, consumed by AI Agent 1 to generate therapeutic story drafts  
 **Pilot:** Fear & Anxiety stories only
@@ -30,6 +30,7 @@
 19. [Fields Added](#19-fields-added)
 20. [Key Design Decisions](#20-key-design-decisions)
 21. [UI Requirements](#21-ui-requirements)
+    - [Complexity Handling UI](#complexity-handling-ui)
 22. [Pre-Development Deliverables](#22-pre-development-deliverables)
 
 ---
@@ -788,6 +789,10 @@ The format "they should feel ___ because ___" (without "understood that") accomm
 
 A brief can contain more narrative obligations (supporting approach, shame rules, two supporting characters, parallel world-building) than a short story can accommodate. Without protection, the agent compresses everything into a checklist story with no emotional breathing room. The complexity budget system (Section 16) calculates the total obligation load and warns the psychologist when the brief exceeds the selected story length. The narrative obligation tiers (Section 15) give the agent explicit priority rules for when compression is necessary — ensuring the therapeutic core is never sacrificed for secondary elements.
 
+### 15. Complexity handling is layered and non-duplicative
+
+Complexity is handled through five layers — a live meter for continuous awareness, a collaborative length-bump suggestion for the easiest fix, a mid-flow checkpoint at the heaviest decision point, a pre-submit warning as final check, and post-draft metadata for transparency. Each layer triggers at a distinct moment so the psychologist never sees the same message twice. No hard caps, no silent auto-bumps, no presets. The psychologist stays in control while the system makes the problem visible at the right moments.
+
 ---
 
 ## 21. UI Requirements
@@ -799,6 +804,32 @@ These are platform-level requirements that affect the brief form's usability. Th
 3. **No live story preview in V1:** The psychologist submits the complete brief and receives a full draft. A section-level preview feature may be explored post-pilot.
 4. **Illustration guidance out of scope for V1:** Illustration direction (visual tone, color palette, style, visual sensitivity constraints) is not part of the V1 story brief. It will be addressed in a separate specification.
 5. **Personalization engine out of scope for V1 brief spec:** The personalization engine (placeholder replacement, gendered language handling for non-English languages, name length considerations, photo/illustration integration) requires a separate specification. This brief spec defines what the agent produces (text with placeholders) but not how personalization is executed downstream.
+
+### Complexity Handling UI
+
+Sections [15](#15-agent-internal-narrative-obligation-tiers) and [16](#16-brief-complexity-budget) define backend logic: obligation tiers, weighted page costs, age-range multipliers, available page budgets, and the pre-submit overload warning copy. This subsection specifies how complexity is surfaced in the UI so psychologists get continuous awareness without redundant interruptions.
+
+The complexity handling strategy has **five layers**. Each layer triggers at a distinct moment so the psychologist never sees the same overload message twice in one session.
+
+**Layer 1 — Live Complexity Meter.** A persistent visual progress bar visible across all form sections. **Label:** "Story load" (not page numbers, not percentages). The bar fills as clinical elements are added. **Three color states:** green when load is well within budget, yellow when load is approaching the budget limit, red when load exceeds the budget. The default view shows only the bar and the label — no math, no page numbers. When clicked or hovered, the bar expands to show the underlying breakdown: each obligation contributing to the load, total page cost, and available budget for the selected age range × story length. The expanded view is the only place where page numbers appear. The meter uses the weighted page costs and age-range multipliers from Section 16.
+
+**Layer 2 — One-Click Length Bump Suggestion.** When the meter is in yellow or red state, the expanded view includes a collaborative suggestion (not a warning): *"This design may need more space. Want to switch to [Standard/Extended]?"* with a one-click button that updates the story length field. Tone is helpful, not critical. The system never changes length automatically. The suggestion is offered as an option — the psychologist can also reduce elements manually.
+
+**Layer 3 — Mid-Flow Checkpoint.** When the psychologist transitions from Section 3 (Therapeutic Architecture) to Section 4 (Story World), the system checks the current complexity load. If load is in yellow or red state, show a checkpoint modal: *"Before you add characters and story world details, your current design is approaching the available story length. You can continue and adjust later, or review your clinical choices now."* Offer two buttons: **"Continue to Section 4"** and **"Review Section 3."** This checkpoint fires **only once per session**, **only at the 3→4 transition**, and **only if load is already yellow or red**. If load is green, the transition is silent. **Rationale:** Most complexity decisions land in Section 3; checking at the end of Section 3 lets the psychologist adjust in place before adding more load in Section 4.
+
+**Layer 4 — Pre-Submit Warning.** A soft warning shown at submission time — but **only if** load is in red state **and** the psychologist has **not** already acknowledged the overload through the mid-flow checkpoint or the length bump suggestion. If the psychologist has already seen and dismissed an earlier signal, do not repeat the warning at submit — they have been informed. If no earlier signal fired (edge case), show the warning with the obligation breakdown. The psychologist can acknowledge and proceed. The substantive warning behavior and copy remain as defined in Section 16; this subsection adds the **de-duplication rule** so earlier acknowledgments suppress the submit-time repeat.
+
+**Layer 5 — Post-Draft Transparency Metadata.** When the agent generates a draft, it outputs metadata listing what was fully included, what was compressed, and what was omitted. This is the safety net for edge cases. Specified in Section 15 (output metadata requirement); unchanged here.
+
+**Inline clinical notes** (separate system). Inline notes at selection time (e.g., the cognitive reframing + ages 3–5 soft warning) remain in place for clinical mismatches. These are **not** part of the complexity handling system. The complexity meter handles cumulative load; inline notes handle specific field combinations with clinical issues. **Keep the two systems separate. Do not combine them.**
+
+**Layer sequencing rules** (to prevent duplicate messaging):
+
+- The meter is always visible but passive — it informs without interrupting.
+- The length bump suggestion appears only inside the expanded meter view, only when load is yellow or red.
+- The mid-flow checkpoint fires only once per session, only at Section 3 → 4 transition, only if load is yellow or red.
+- The pre-submit warning fires only if load is red **and** no earlier signal has been acknowledged.
+- The psychologist should never see the same overload message twice in one session.
 
 ---
 

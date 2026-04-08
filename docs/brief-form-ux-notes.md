@@ -2,7 +2,7 @@
 
 This document captures **product UX and visual design** guidance for the specialist Story Brief flow (`BriefForm` and section components). It does **not** replace the canonical field spec:
 
-- **Source of truth for fields, validation, and copy requirements:** [`dammah-story-brief-spec-v1.2.md`](./dammah-story-brief-spec-v1.2.md)
+- **Source of truth for fields, validation, and copy requirements:** [`dammah-story-brief-spec-v1.3.md`](./dammah-story-brief-spec-v1.3.md)
 
 Use this doc when polishing layout, hierarchy, feedback, and accessibility without changing spec-mandated behavior.
 

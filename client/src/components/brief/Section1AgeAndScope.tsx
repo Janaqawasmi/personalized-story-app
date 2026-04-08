@@ -7,7 +7,7 @@
 //   1.2  Peak emotional intensity — single-select, 3 options + inline definition
 //   1.3  Story length             — single-select, 3 options + dynamic preview string
 //
-// Spec: /docs/dammah-story-brief-spec-v1.2.md §3
+// Spec: /docs/dammah-story-brief-spec-v1.3.md §3
 
 import React from "react";
 import {

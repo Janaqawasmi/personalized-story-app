@@ -1,6 +1,6 @@
 // server/src/validation/crossFieldValidation.ts
 //
-// Cross-field validation engine for the Story Brief (spec v1.2, Section 8).
+// Cross-field validation engine for the Story Brief (spec v1.3, Section 8).
 //
 // Implements 12 rules:
 //   1 hard block   — prevents submission

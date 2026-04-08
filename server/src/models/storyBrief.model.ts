@@ -1,7 +1,7 @@
 // server/src/models/storyBrief.model.ts
 //
-// Complete data model for the DAMMAH Story Brief system (spec v1.2).
-// Canonical source: /docs/dammah-story-brief-spec-v1.2.md
+// Complete data model for the DAMMAH Story Brief system (spec v1.3).
+// Canonical source: /docs/dammah-story-brief-spec-v1.3.md
 //
 // This file defines:
 //   1. Value types (union types for every constrained field)
@@ -1513,7 +1513,7 @@ export function getSection5Visibility(personalization: boolean) {
 // Production `storyBriefs` documents and the current specialist API still use
 // this structure (therapeuticFocus, childProfile, status "created", etc.).
 // Prefer typing Firestore reads as LegacyStoryBrief until documents are migrated.
-// The spec v1.2 canonical shape is StoryBrief above.
+// The spec v1.3 canonical shape is StoryBrief above.
 
 export type LegacyStoryBriefStatus =
   | "created"

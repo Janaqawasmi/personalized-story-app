@@ -1,6 +1,6 @@
 // client/src/api/dammaStoryBrief.ts
 //
-// Submit the spec v1.2 Story Brief form (CompleteBrief) to the backend.
+// Submit the spec v1.3 Story Brief form (CompleteBrief) to the backend.
 
 import type { CompleteBrief } from "../types/storyBrief";
 import type { BriefFeedbackPayload, StoryBriefFeedbackDoc } from "../types/storyBriefFeedback";
