@@ -1,5 +1,6 @@
 import { Box, Typography, Container, Button, Skeleton } from "@mui/material";
 import { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { fetchStoriesWithFilters } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
@@ -93,6 +94,7 @@ function CatalogHeader({
 }
 
 export default function AllBooksPage() {
+  const [searchParams] = useSearchParams();
   const [allBooks, setAllBooks] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,6 +102,18 @@ export default function AllBooksPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   const t = useTranslation();
+
+  useEffect(() => {
+    const topic = searchParams.get("topic");
+    if (!topic || allBooks.length === 0) return;
+    const match = allBooks.some(
+      (b) => (b as any).primaryTopic === topic || (b as any).topicKey === topic
+    );
+    if (match) {
+      setSelectedCategory(topic);
+      setSelectedTopic("");
+    }
+  }, [searchParams, allBooks]);
 
   useEffect(() => {
     const loadStories = async () => {

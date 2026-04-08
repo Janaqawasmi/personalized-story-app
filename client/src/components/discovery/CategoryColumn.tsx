@@ -19,7 +19,7 @@ export default function CategoryColumn({
       <Typography sx={columnTitle}>{t("discovery.category")}</Typography>
 
       {CATEGORY_KEYS.map((key) => {
-        const label = t(`home.categories.${key}.title`);
+        const label = t(`home.categoryGroups.${key}.title`);
         return (
           <Box
             key={key}
