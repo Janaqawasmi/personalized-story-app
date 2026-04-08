@@ -76,6 +76,12 @@ function buildEnglishSpecialistUi(): SpecialistUi {
     copyJsonAria: "Copy JSON",
     reviewBackBottom: "← Back to all briefs",
     loadBriefError: "Failed to load brief",
+    reviewMissingBriefId: "Missing brief id in the URL.",
+
+    draftRedirectTitle: "Opening your brief",
+    draftRedirectBody:
+      "Taking you to your most recently saved draft, or a new brief if you have not started one yet.",
+    draftRedirectLoadingAria: "Loading",
     copyJsonSuccess: "JSON copied to clipboard",
     copyJsonFail: "Could not copy — select the text below",
   };

@@ -192,7 +192,7 @@ export default function SpecialistBriefsPage() {
             <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", fontWeight: 600 }}>
               {listError}
             </Typography>
-            {listError.includes("Insufficient permissions") && (
+            {listError.toLowerCase().includes("insufficient permissions") && (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5, lineHeight: 1.6 }}>
                 {sp.permissionHelpBeforeCode}
                 <Box

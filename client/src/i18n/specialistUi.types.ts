@@ -65,6 +65,13 @@ export type SpecialistUi = {
   copyJsonAria: string;
   reviewBackBottom: string;
   loadBriefError: string;
+  /** Shown when the review route has no :briefId param */
+  reviewMissingBriefId: string;
   copyJsonSuccess: string;
   copyJsonFail: string;
+
+  /** BriefFormDraftRedirect loading screen */
+  draftRedirectTitle: string;
+  draftRedirectBody: string;
+  draftRedirectLoadingAria: string;
 };

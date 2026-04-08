@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
+import { Link as RouterLink, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -40,7 +40,6 @@ const jsonPreSx = {
 
 export default function SpecialistBriefReviewPage() {
   const { lang, briefId } = useParams<{ lang: string; briefId: string }>();
-  const navigate = useNavigate();
   const ui = useStoryBriefUi();
   const sp = useSpecialistUi();
   const dateLocale = useBriefDateLocale();
@@ -53,7 +52,12 @@ export default function SpecialistBriefReviewPage() {
   const [copyHint, setCopyHint] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!briefId) return;
+    if (!briefId) {
+      setRecord(null);
+      setError(sp.reviewMissingBriefId);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -65,7 +69,7 @@ export default function SpecialistBriefReviewPage() {
     } finally {
       setLoading(false);
     }
-  }, [briefId, sp.loadBriefError]);
+  }, [briefId, sp.loadBriefError, sp.reviewMissingBriefId]);
 
   useEffect(() => {
     void load();

@@ -5,6 +5,7 @@ import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import { getOrCreateMostRecentDraftId } from "../../utils/briefDraftStorage";
 import SpecialistPortalShell from "../specialist/SpecialistPortalShell";
 import { COLORS } from "../../theme";
+import { useSpecialistUi } from "../../i18n/specialistUi";
 
 /**
  * `/specialist/create-brief` without a draft id redirects to the most recently
@@ -13,6 +14,7 @@ import { COLORS } from "../../theme";
 export default function BriefFormDraftRedirect() {
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
+  const sp = useSpecialistUi();
 
   useEffect(() => {
     const id = getOrCreateMostRecentDraftId();
@@ -43,12 +45,12 @@ export default function BriefFormDraftRedirect() {
             <EditNoteOutlinedIcon sx={{ fontSize: 36, color: COLORS.primary }} aria-hidden />
           </Box>
           <Typography variant="h6" fontWeight={800} sx={{ letterSpacing: "-0.02em" }}>
-            Opening your brief
+            {sp.draftRedirectTitle}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 320, lineHeight: 1.6 }}>
-            Taking you to your most recently saved draft, or a new brief if you have not started one yet.
+            {sp.draftRedirectBody}
           </Typography>
-          <CircularProgress size={36} thickness={4} sx={{ color: COLORS.primary }} aria-label="Loading" />
+          <CircularProgress size={36} thickness={4} sx={{ color: COLORS.primary }} aria-label={sp.draftRedirectLoadingAria} />
         </Stack>
       </Box>
     </SpecialistPortalShell>

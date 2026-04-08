@@ -70,6 +70,12 @@ export const SPECIALIST_UI_HE: SpecialistUi = {
   copyJsonAria: "העתק JSON",
   reviewBackBottom: "חזרה לכל התמציות",
   loadBriefError: "לא ניתן לטעון את התמצית",
+  reviewMissingBriefId: "חסר מזהה תמצית בכתובת.",
+
+  draftRedirectTitle: "פותחים את התמצית",
+  draftRedirectBody:
+    "מעבירים אותך לטיוטה האחרונה שנשמרה, או לתמצית חדשה אם עדיין לא התחלת.",
+  draftRedirectLoadingAria: "טוען",
   copyJsonSuccess: "JSON הועתק ללוח",
   copyJsonFail: "לא ניתן להעתיק — בחר את הטקסט למטה",
 };

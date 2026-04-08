@@ -84,11 +84,13 @@ export interface LocalDraftSummary {
 export function listLocalDraftSummaries(): LocalDraftSummary[] {
   migrateLegacyIfNeeded();
   const reg = readRegistry();
-  return Object.entries(reg.drafts).map(([draftId, d]) => ({
+  const rows = Object.entries(reg.drafts).map(([draftId, d]) => ({
     draftId,
     storyType: d.storyType ?? null,
     savedAt: d.savedAt,
   }));
+  rows.sort((a, b) => (b.savedAt ?? 0) - (a.savedAt ?? 0));
+  return rows;
 }
 
 /** Newest `savedAt` first; drafts without `savedAt` sort last. */
