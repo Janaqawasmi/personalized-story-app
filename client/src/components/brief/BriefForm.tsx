@@ -32,6 +32,8 @@ import {
   Snackbar,
   Stack,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { COLORS } from "../../theme";
 
@@ -388,6 +390,11 @@ export default function BriefForm({ onSubmit }: Props) {
   // Ref to scroll to the top of the section content on navigation
   const sectionTopRef = useRef<HTMLDivElement | null>(null);
 
+  const theme = useTheme();
+  const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
+  /** Fixed AppBar (Navbar.tsx height) + sticky SpecialistNavBar + small gap — keeps type/saved + progress bar clear of both. */
+  const briefScrollTopOffsetPx = isMdDown ? 188 : 172;
+
   const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
   // ── Load draft for this URL id; remount when draftId changes ───────────────
@@ -442,8 +449,16 @@ export default function BriefForm({ onSubmit }: Props) {
   }, [draft, briefLocaleOpts]);
 
   const scrollToTop = useCallback(() => {
-    sectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+    const el = sectionTopRef.current;
+    if (!el) return;
+    const offset = briefScrollTopOffsetPx;
+    const run = () => {
+      const rect = el.getBoundingClientRect();
+      const y = window.scrollY + rect.top - offset;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    };
+    requestAnimationFrame(run);
+  }, [briefScrollTopOffsetPx]);
 
   if (!draftId) {
     return <Navigate to={`/${lang ?? "he"}/specialist/create-brief`} replace />;
