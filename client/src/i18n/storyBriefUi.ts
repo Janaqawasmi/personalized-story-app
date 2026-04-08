@@ -344,6 +344,8 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     feedbackLoadError: "Could not load prior feedback",
     feedbackSaveError: "Save failed",
     feedbackSaved: "Feedback saved.",
+    feedbackNotYetSavableHint:
+      "Feedback is stored on the server only after you submit this brief. Submit the brief first, then you can save field notes here (or open this editor with a submitted brief id).",
     feedbackFields: {
       storyType: { label: "Story type (pre-brief)", section: "Pre-brief" },
       "1.1": { label: "Target age range", section: "Section 1 — Age & Story Scope" },

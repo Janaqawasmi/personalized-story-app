@@ -516,6 +516,8 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
   feedbackLoadError: "לא ניתן לטעון משוב קודם",
   feedbackSaveError: "השמירה נכשלה",
   feedbackSaved: "המשוב נשמר.",
+  feedbackNotYetSavableHint:
+    "המשוב נשמר בשרת רק אחרי ששולחים את הבריף. שלחו את הבריף תחילה, ואז אפשר לשמור כאן הערות לשדות (או לפתוח את העורך עם מזהה בריף שכבר נשלח).",
   feedbackFields: {
     storyType: { label: "סוג סיפור (לפני הבריף)", section: "לפני הבריף" },
     "1.1": { label: "טווח גיל יעד", section: "סעיף 1 — גיל והיקף הסיפור" },

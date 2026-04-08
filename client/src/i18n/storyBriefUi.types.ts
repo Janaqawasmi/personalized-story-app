@@ -301,6 +301,8 @@ export interface StoryBriefUi {
   feedbackLoadError: string;
   feedbackSaveError: string;
   feedbackSaved: string;
+  /** Shown when the brief has not been submitted yet (no server brief id). */
+  feedbackNotYetSavableHint: string;
   feedbackFields: Record<string, { label: string; section: string }>;
   feedbackVerdicts: Record<BriefFeedbackVerdictId, FeedbackVerdictUi>;
 }

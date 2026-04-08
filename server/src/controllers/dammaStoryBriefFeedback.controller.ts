@@ -4,6 +4,7 @@
 // dammaStoryBriefs/{briefId}/feedback/{feedbackId}
 
 import { Request, Response } from "express";
+import type { DocumentData } from "firebase-admin/firestore";
 import { firestore, admin } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
 import type { AuthenticatedUser } from "../middleware/auth.middleware";
@@ -21,6 +22,15 @@ import {
 } from "../models/dammaStoryBriefFeedback.model";
 
 const COLLECTION = "dammaStoryBriefs";
+
+function canAccessBriefForFeedback(
+  briefData: DocumentData,
+  user: AuthenticatedUser,
+): boolean {
+  const isOwner = briefData.submittedByUid === user.uid;
+  const isAdmin = user.role === "admin";
+  return isOwner || isAdmin;
+}
 
 function parseFeedbackBody(body: unknown): {
   generalComment: string;
@@ -136,6 +146,12 @@ export async function createDammaStoryBriefFeedback(req: Request, res: Response)
       return;
     }
 
+    const briefData = briefSnap.data()!;
+    if (!canAccessBriefForFeedback(briefData, user)) {
+      res.status(403).json({ success: false, error: "Forbidden" });
+      return;
+    }
+
     const parsed = parseFeedbackBody(req.body);
     if (!parsed) {
       res.status(400).json({ success: false, error: "Invalid request body" });
@@ -148,7 +164,6 @@ export async function createDammaStoryBriefFeedback(req: Request, res: Response)
       return;
     }
 
-    const briefData = briefSnap.data()!;
     const briefSnapshot = briefData.brief ?? null;
 
     const docBody = {
@@ -215,6 +230,12 @@ export async function listDammaStoryBriefFeedback(req: Request, res: Response): 
     const briefSnap = await briefRef.get();
     if (!briefSnap.exists) {
       res.status(404).json({ success: false, error: "Brief not found" });
+      return;
+    }
+
+    const briefData = briefSnap.data()!;
+    if (!canAccessBriefForFeedback(briefData, user)) {
+      res.status(403).json({ success: false, error: "Forbidden" });
       return;
     }
 

@@ -126,7 +126,7 @@ export default function BriefFeedbackPanel({
     } finally {
       setHistoryLoading(false);
     }
-  }, [briefId, ui]);
+  }, [briefId, ui.feedbackLoadError]);
 
   useEffect(() => {
     if (!briefId) {
@@ -246,6 +246,12 @@ export default function BriefFeedbackPanel({
           />
         ) : null}
       </Stack>
+
+      {!briefId && (
+        <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+          {ui.feedbackNotYetSavableHint}
+        </Alert>
+      )}
 
       {visibleFieldIds.length > 0 ? (
         <Stack spacing={1.75} sx={{ mb: 2 }}>
