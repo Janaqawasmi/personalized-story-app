@@ -71,6 +71,11 @@ const GATE_META: Record<
   },
 };
 
+/** Title shown in read-only brief review for acknowledged warning/block IDs (spec §8). */
+export function getSubmitGateTitleForDisplay(id: string): string | undefined {
+  return GATE_META[id]?.title;
+}
+
 function isConflictingPair(a: TherapeuticApproach, b: TherapeuticApproach): boolean {
   return CONFLICTING_APPROACH_PAIRS.some(
     ([x, y]) => (a === x && b === y) || (a === y && b === x),

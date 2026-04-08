@@ -84,6 +84,13 @@ function buildEnglishSpecialistUi(): SpecialistUi {
     draftRedirectLoadingAria: "Loading",
     copyJsonSuccess: "JSON copied to clipboard",
     copyJsonFail: "Could not copy — select the text below",
+
+    reviewTabBrief: "Brief",
+    reviewTabJson: "Raw JSON",
+    reviewTabsAriaLabel: "Brief summary or raw JSON payload",
+    reviewFieldEmpty: "—",
+    reviewParseWarning: "Some stored fields could not be read; the summary below may be incomplete. Use Raw JSON for the exact payload.",
+    reviewAcknowledgedTitle: "Acknowledged clinical checks",
   };
 }
 

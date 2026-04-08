@@ -70,6 +70,14 @@ export type SpecialistUi = {
   copyJsonSuccess: string;
   copyJsonFail: string;
 
+  /** Brief review: readable summary vs JSON */
+  reviewTabBrief: string;
+  reviewTabJson: string;
+  reviewTabsAriaLabel: string;
+  reviewFieldEmpty: string;
+  reviewParseWarning: string;
+  reviewAcknowledgedTitle: string;
+
   /** BriefFormDraftRedirect loading screen */
   draftRedirectTitle: string;
   draftRedirectBody: string;

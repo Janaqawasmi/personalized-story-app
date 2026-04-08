@@ -10,6 +10,8 @@ import {
   Paper,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -19,9 +21,11 @@ import DownloadIcon from "@mui/icons-material/Download";
 import { fetchDammaStoryBrief } from "../api/dammaStoryBrief";
 import { COLORS } from "../theme";
 import SpecialistPortalShell, { specialistMainPaperSx } from "../components/specialist/SpecialistPortalShell";
+import SubmittedBriefReadView from "../components/specialist/SubmittedBriefReadView";
 import { useStoryBriefUi, useBriefDateLocale, formatBriefSavedAt } from "../i18n/storyBriefUi";
 import { useSpecialistUi } from "../i18n/specialistUi";
 import type { StoryType } from "../types/storyBrief";
+import { parseStoredBrief } from "../utils/parseStoredBrief";
 
 const jsonPreSx = {
   p: 2.5,
@@ -29,7 +33,7 @@ const jsonPreSx = {
   bgcolor: "rgba(97, 120, 145, 0.06)",
   border: `1px solid ${COLORS.border}`,
   overflow: "auto",
-  maxHeight: { xs: 360, sm: 480 },
+  maxHeight: { xs: 360, sm: 560 },
   fontSize: "0.75rem",
   lineHeight: 1.55,
   whiteSpace: "pre-wrap",
@@ -37,6 +41,29 @@ const jsonPreSx = {
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   m: 0,
 };
+
+function TabPanel({
+  children,
+  value,
+  index,
+  idPrefix,
+}: {
+  children: React.ReactNode;
+  value: number;
+  index: number;
+  idPrefix: string;
+}) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`${idPrefix}-panel-${index}`}
+      aria-labelledby={`${idPrefix}-tab-${index}`}
+    >
+      <Box sx={{ pt: 2, display: value === index ? "block" : "none" }}>{children}</Box>
+    </div>
+  );
+}
 
 export default function SpecialistBriefReviewPage() {
   const { lang, briefId } = useParams<{ lang: string; briefId: string }>();
@@ -50,6 +77,7 @@ export default function SpecialistBriefReviewPage() {
     null,
   );
   const [copyHint, setCopyHint] = useState<string | null>(null);
+  const [tab, setTab] = useState(0);
 
   const load = useCallback(async () => {
     if (!briefId) {
@@ -80,6 +108,10 @@ export default function SpecialistBriefReviewPage() {
 
   const jsonText = record?.brief != null ? JSON.stringify(record.brief, null, 2) : "";
 
+  const parsed = record?.brief != null ? parseStoredBrief(record.brief) : { brief: null, issues: [] as string[] };
+  const displayBrief = parsed.brief;
+  const parseIssues = parsed.issues;
+
   function handleDownloadJson() {
     if (!record?.brief) return;
     const text = JSON.stringify(record.brief, null, 2);
@@ -105,6 +137,7 @@ export default function SpecialistBriefReviewPage() {
   }
 
   const briefsHref = `/${lang ?? "he"}/specialist/briefs`;
+  const tabPrefix = "specialist-brief-review";
 
   return (
     <SpecialistPortalShell maxWidth={900}>
@@ -197,46 +230,82 @@ export default function SpecialistBriefReviewPage() {
 
           <Divider sx={{ my: 2, borderColor: COLORS.border }} />
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            sx={{ mb: 2 }}
-            alignItems={{ xs: "stretch", sm: "center" }}
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            aria-label={sp.reviewTabsAriaLabel}
+            sx={{
+              borderBottom: 1,
+              borderColor: COLORS.border,
+              "& .MuiTab-root": { textTransform: "none", fontWeight: 700, minHeight: 48 },
+            }}
           >
-            <Button
-              variant="contained"
-              startIcon={<DownloadIcon />}
-              onClick={handleDownloadJson}
-              sx={{ fontWeight: 700, boxShadow: "0 8px 24px -8px rgba(97, 120, 145, 0.45)" }}
+            <Tab label={sp.reviewTabBrief} id={`${tabPrefix}-tab-0`} aria-controls={`${tabPrefix}-panel-0`} />
+            <Tab label={sp.reviewTabJson} id={`${tabPrefix}-tab-1`} aria-controls={`${tabPrefix}-panel-1`} />
+          </Tabs>
+
+          <TabPanel value={tab} index={0} idPrefix={tabPrefix}>
+            {parseIssues.length > 0 && (
+              <Alert severity="warning" sx={{ borderRadius: 2, mb: 2 }}>
+                {sp.reviewParseWarning}
+              </Alert>
+            )}
+            {displayBrief ? (
+              <SubmittedBriefReadView brief={displayBrief} emptyLabel={sp.reviewFieldEmpty} specialistUi={sp} />
+            ) : (
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                {sp.reviewParseWarning}
+              </Alert>
+            )}
+          </TabPanel>
+
+          <TabPanel value={tab} index={1} idPrefix={tabPrefix}>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ mb: 2 }}
+              alignItems={{ xs: "stretch", sm: "center" }}
             >
-              {ui.successDownload}
-            </Button>
-            <Tooltip title={sp.copyJsonTooltip}>
-              <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={() => void handleCopyJson()} sx={{ borderColor: COLORS.border }}>
-                {sp.copyJsonButton}
+              <Button
+                variant="contained"
+                startIcon={<DownloadIcon />}
+                onClick={handleDownloadJson}
+                sx={{ fontWeight: 700, boxShadow: "0 8px 24px -8px rgba(97, 120, 145, 0.45)" }}
+              >
+                {ui.successDownload}
               </Button>
-            </Tooltip>
-          </Stack>
-          {copyHint && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-              {copyHint}
-            </Typography>
-          )}
+              <Tooltip title={sp.copyJsonTooltip}>
+                <Button
+                  variant="outlined"
+                  startIcon={<ContentCopyIcon />}
+                  onClick={() => void handleCopyJson()}
+                  sx={{ borderColor: COLORS.border }}
+                >
+                  {sp.copyJsonButton}
+                </Button>
+              </Tooltip>
+            </Stack>
+            {copyHint && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                {copyHint}
+              </Typography>
+            )}
 
-          <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-            <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
-              {sp.payloadReadOnly}
-            </Typography>
-            <Tooltip title={sp.copyTooltip}>
-              <IconButton size="small" aria-label={sp.copyJsonAria} onClick={() => void handleCopyJson()}>
-                <ContentCopyIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </Stack>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+                {sp.payloadReadOnly}
+              </Typography>
+              <Tooltip title={sp.copyTooltip}>
+                <IconButton size="small" aria-label={sp.copyJsonAria} onClick={() => void handleCopyJson()}>
+                  <ContentCopyIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
 
-          <Box component="pre" sx={jsonPreSx}>
-            {jsonText}
-          </Box>
+            <Box component="pre" sx={jsonPreSx}>
+              {jsonText}
+            </Box>
+          </TabPanel>
 
           <Button
             component={RouterLink}

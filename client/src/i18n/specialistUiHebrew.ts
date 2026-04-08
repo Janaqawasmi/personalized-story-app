@@ -78,4 +78,12 @@ export const SPECIALIST_UI_HE: SpecialistUi = {
   draftRedirectLoadingAria: "טוען",
   copyJsonSuccess: "JSON הועתק ללוח",
   copyJsonFail: "לא ניתן להעתיק — בחר את הטקסט למטה",
+
+  reviewTabBrief: "תמצית",
+  reviewTabJson: "JSON גולמי",
+  reviewTabsAriaLabel: "תמצית קריאה או מטען JSON גולמי",
+  reviewFieldEmpty: "—",
+  reviewParseWarning:
+    "חלק מהשדות השמורים לא נקראו; הסיכום למטה עשוי להיות חלקי. השתמשו ב-JSON הגולמי למטען המדויק.",
+  reviewAcknowledgedTitle: "בדיקות קליניות שאושרו",
 };
