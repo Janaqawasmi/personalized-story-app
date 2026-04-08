@@ -43,14 +43,14 @@ This document tracks features described in `dammah-story-brief-spec-v1.3.md` tha
 **Implemented (client):** `client/src/validation/briefInformativeValidation.ts` mirrors:
 
 - §8 **soft** cross-field rules (messages aligned with `server/src/validation/crossFieldValidation.ts`).
-- §16 **complexity budget** overload (aligned with `server/src/validation/complexityBudget.ts`).
+- §16 **complexity budget** overload via `@dammah/story-brief-complexity` (same engine as the meter and `server` complexity validation).
 
 **UI:** `BriefInformativeWarningsPanel` in `BriefForm`, shown when all five sections are complete. **Non-blocking.**
 
 **Remaining differences to watch:**
 
 - Server `StoryBrief` uses nested types (e.g. `typeSpecificField.somatic_expression`); the client uses flatter section objects (`somaticExpressions[]`). Logic is kept equivalent for Fear & Anxiety; if the server model diverges, re-run parity tests.
-- Any future change to `CROSS_FIELD_VALIDATIONS` or `OBLIGATION_WEIGHTS` on the server should be copied or shared with the client module above.
+- Any future change to `CROSS_FIELD_VALIDATIONS` on the server should be copied or shared with the client soft-warning copy above. §16 weights live in `@dammah/story-brief-complexity`.
 
 ---
 
