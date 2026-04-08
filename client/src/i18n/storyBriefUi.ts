@@ -64,7 +64,6 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     NARRATIVE_DISTANCE_LABELS: SB.NARRATIVE_DISTANCE_LABELS,
     NARRATIVE_DISTANCE_DEFINITIONS: SB.NARRATIVE_DISTANCE_DEFINITIONS,
     SUPPORTING_CHARACTER_LABELS: SB.SUPPORTING_CHARACTER_LABELS,
-    PERSONALIZATION_CONSTRAINTS_DEFAULTS: SB.PERSONALIZATION_CONSTRAINTS_DEFAULTS,
 
     preBriefOverline: "Pre-brief",
     preBriefTitle: "Choose the lens this story looks through",
@@ -238,15 +237,9 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
 
     s5Overline: "Section 5 of 5",
     s5Title: "Personalization Configuration",
-    s5IntroOn: "Define what parents are allowed to change when they personalize this story for their child.",
+    s5IntroOn: "This story is personalized. Parents can personalize it with the child’s name and photo.",
     s5IntroOff:
       "Explain why this story works better with a fixed protagonist. This note is shown to parents.",
-    s5Field51: "Personalization constraints",
-    s5Field51Helper:
-      "What must never be changed when a parent personalizes this story? Pre-filled with defaults — keep, remove, or add.",
-    s5ConstraintPlaceholder: "Add a constraint parents must not override…",
-    s5ConstraintsInfo:
-      "These constraints are enforced during personalization — any parent customization that would violate a constraint is blocked.",
     s5Field52: "Why is this story better with a fixed protagonist?",
     s5Field52Helper:
       "This note is shown to parents when they browse this story. Be direct and specific about the clinical reason.",
@@ -371,7 +364,6 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
       "4.5": { label: "Narrative distance (and parallel challenge if applicable)", section: "Section 4 — Story World" },
       "4.6": { label: "Supporting characters", section: "Section 4 — Story World" },
       "4.7": { label: "Character notes", section: "Section 4 — Story World" },
-      "5.1": { label: "Personalization constraints", section: "Section 5 — Personalization Configuration" },
       "5.2": { label: "Why not personalize", section: "Section 5 — Personalization Configuration" },
     },
     feedbackVerdicts: {

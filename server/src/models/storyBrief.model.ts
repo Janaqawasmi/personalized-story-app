@@ -326,12 +326,6 @@ export interface StoryWorld {
 
 export interface PersonalizationConfig {
   /**
-   * Field 5.1 — Personalization constraints. Free text list with pre-filled defaults.
-   * Conditional: only present when personalization is ON. Optional (defaults shown).
-   */
-  personalizationConstraints?: string[];
-
-  /**
    * Field 5.2 — Why not. Free text.
    * Conditional: required when personalization is OFF.
    */
@@ -848,17 +842,6 @@ export const MUST_NEVER_DEFAULTS: Record<StoryType, string[]> = {
 };
 
 // ---------------------------------------------------------------------------
-// Personalization Constraints Defaults (Field 5.1) — Fear & Anxiety only for pilot
-// ---------------------------------------------------------------------------
-
-export const PERSONALIZATION_CONSTRAINT_DEFAULTS: Partial<Record<StoryType, string[]>> = {
-  fear_anxiety: [
-    "The coping tool must not be changed or removed",
-    "The caregiver's role must not be altered",
-  ],
-};
-
-// ---------------------------------------------------------------------------
 // Resolution Completeness Defaults — per story type
 // ---------------------------------------------------------------------------
 
@@ -978,8 +961,6 @@ export interface StoryTypeFieldConfig {
   personalizationDefault: boolean;
   /** Pre-filled defaults for field 3.7 */
   mustNeverDefaults: string[];
-  /** Pre-filled defaults for field 5.1 */
-  personalizationConstraintDefaults: string[];
 }
 
 export const STORY_TYPE_ROUTING: Record<StoryType, StoryTypeFieldConfig> = {
@@ -990,8 +971,6 @@ export const STORY_TYPE_ROUTING: Record<StoryType, StoryTypeFieldConfig> = {
     resolutionDefault: "partial",
     personalizationDefault: true,
     mustNeverDefaults: MUST_NEVER_DEFAULTS.fear_anxiety,
-    personalizationConstraintDefaults:
-      PERSONALIZATION_CONSTRAINT_DEFAULTS.fear_anxiety ?? [],
   },
   big_emotions: {
     approaches: [],
@@ -1000,7 +979,6 @@ export const STORY_TYPE_ROUTING: Record<StoryType, StoryTypeFieldConfig> = {
     resolutionDefault: "partial",
     personalizationDefault: true,
     mustNeverDefaults: MUST_NEVER_DEFAULTS.big_emotions,
-    personalizationConstraintDefaults: [],
   },
   loss_grief: {
     approaches: [],
@@ -1009,7 +987,6 @@ export const STORY_TYPE_ROUTING: Record<StoryType, StoryTypeFieldConfig> = {
     resolutionDefault: "partial",
     personalizationDefault: true,
     mustNeverDefaults: MUST_NEVER_DEFAULTS.loss_grief,
-    personalizationConstraintDefaults: [],
   },
   identity_self_worth: {
     approaches: [],
@@ -1018,7 +995,6 @@ export const STORY_TYPE_ROUTING: Record<StoryType, StoryTypeFieldConfig> = {
     resolutionDefault: "partial",
     personalizationDefault: true,
     mustNeverDefaults: MUST_NEVER_DEFAULTS.identity_self_worth,
-    personalizationConstraintDefaults: [],
   },
   life_transitions: {
     approaches: [],
@@ -1027,7 +1003,6 @@ export const STORY_TYPE_ROUTING: Record<StoryType, StoryTypeFieldConfig> = {
     resolutionDefault: "partial",
     personalizationDefault: true,
     mustNeverDefaults: MUST_NEVER_DEFAULTS.life_transitions,
-    personalizationConstraintDefaults: [],
   },
 };
 
@@ -1485,15 +1460,6 @@ export const FIELD_REGISTRY: Record<string, FieldDefinition> = {
     conditionalVisibility: null,
     variesByType: false,
   },
-  "5.1": {
-    id: "5.1",
-    name: "Personalization constraints",
-    section: "Personalization Configuration",
-    fieldType: "free_text_list",
-    required: false,
-    conditionalVisibility: "Only shown when personalization is ON",
-    variesByType: true,
-  },
   "5.2": {
     id: "5.2",
     name: "Why not",
@@ -1532,11 +1498,10 @@ export function showParallelChallengeField(distance: NarrativeDistance): boolean
 
 /**
  * Returns which Section 5 fields are visible based on personalization.
- * Spec: ON → 5.1 (constraints), OFF → 5.2 (why not).
+ * Spec: ON → confirmation screen (no additional inputs), OFF → 5.2 (why not).
  */
 export function getSection5Visibility(personalization: boolean) {
   return {
-    showPersonalizationConstraints: personalization,
     showWhyNot: !personalization,
   };
 }

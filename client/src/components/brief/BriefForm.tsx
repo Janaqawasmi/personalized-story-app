@@ -331,8 +331,7 @@ function firstIncompleteSection(
   localeOpts?: BriefDefaultsLocaleOptions,
 ): number {
   const norm = normalizeBriefDefaults(draft, localeOpts);
-  const personalized = (norm.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
-  const maxSection = personalized ? 4 : 5;
+  const maxSection = 5;
   for (let s = 1; s <= maxSection; s++) {
     if (!isSectionComplete(s, norm)) return s;
   }
@@ -357,7 +356,6 @@ export default function BriefForm({ onSubmit }: Props) {
     if (language === "en") return undefined;
     return {
       mustNeverDefaults: ui.MUST_NEVER_DEFAULTS,
-      personalizationConstraintsDefaults: ui.PERSONALIZATION_CONSTRAINTS_DEFAULTS,
     };
   }, [language, ui]);
 
@@ -413,16 +411,8 @@ export default function BriefForm({ onSubmit }: Props) {
     setDraft((d) => normalizeBriefDefaults(d, briefLocaleOpts));
   }, [briefLocaleOpts]);
 
-  // If personalization is turned ON while on Section 5, return to Section 4 (that step is removed from the flow).
-  useEffect(() => {
-    const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
-    if (personalized && activeStep === 5) {
-      setActiveStep(4);
-    }
-  }, [draft.section4.personalization, activeStep]);
-
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
-  // Also record highest section opened for progress (1–5, or 1–4 when personalization is ON).
+  // Also record highest section opened for progress (1–5).
   useEffect(() => {
     if (!draftId || !draft.storyType || activeStep === 0) return;
     setDraft((d) => {
@@ -443,13 +433,13 @@ export default function BriefForm({ onSubmit }: Props) {
   // ── Computed ──────────────────────────────────────────────────────────────
 
   const personalizationOn = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
-  const progressStepCount: 4 | 5 = personalizationOn ? 4 : 5;
+  const progressStepCount: 5 = 5;
 
   const sectionCompletion: boolean[] = useMemo(() => {
     const norm = normalizeBriefDefaults(draft, briefLocaleOpts);
-    const steps = personalizationOn ? [1, 2, 3, 4] : [1, 2, 3, 4, 5];
+    const steps = [1, 2, 3, 4, 5];
     return steps.map((n) => isSectionComplete(n, norm));
-  }, [draft, briefLocaleOpts, personalizationOn]);
+  }, [draft, briefLocaleOpts]);
 
   const scrollToTop = useCallback(() => {
     sectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -548,12 +538,8 @@ export default function BriefForm({ onSubmit }: Props) {
     setDraft(next);
     saveDraftForDraftId(draftKey, next);
     setSavedSnackbar(true);
-    if (personalizationOn) {
-      runSubmitPipeline(next);
-    } else {
-      setActiveStep(5);
-      setTimeout(scrollToTop, 50);
-    }
+    setActiveStep(5);
+    setTimeout(scrollToTop, 50);
   }
 
   function handleHardBlockClose() {
@@ -788,17 +774,16 @@ export default function BriefForm({ onSubmit }: Props) {
             value={draft.section4}
             onChange={updateSection4}
             onContinue={continueFromStoryWorld}
-            continueLabel={
-              personalizationOn ? (submitting ? ui.submitting : ui.submitBrief) : ui.saveContinue
-            }
-            continueIsSubmit={personalizationOn}
+            continueLabel={ui.saveContinue}
+            continueIsSubmit={false}
             submitting={submitting}
             onBack={() => goBack(3)}
           />
         )}
 
-        {activeStep === 5 && !personalizationOn && (
+        {activeStep === 5 && (
           <Section5PersonalizationConfig
+            personalization={personalizationOn ? "yes" : "no"}
             value={draft.section5}
             onChange={updateSection5}
             onSubmit={attemptSubmit}

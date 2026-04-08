@@ -80,7 +80,6 @@ export interface StoryBriefUi {
   NARRATIVE_DISTANCE_LABELS: Record<NarrativeDistance, string>;
   NARRATIVE_DISTANCE_DEFINITIONS: Record<NarrativeDistance, string>;
   SUPPORTING_CHARACTER_LABELS: Record<SupportingCharacter, string>;
-  PERSONALIZATION_CONSTRAINTS_DEFAULTS: Partial<Record<StoryType, string[]>>;
 
   preBriefOverline: string;
   preBriefTitle: string;
@@ -229,10 +228,6 @@ export interface StoryBriefUi {
   s5Title: string;
   s5IntroOn: string;
   s5IntroOff: string;
-  s5Field51: string;
-  s5Field51Helper: string;
-  s5ConstraintPlaceholder: string;
-  s5ConstraintsInfo: string;
   s5Field52: string;
   s5Field52Helper: string;
   s5Field52Placeholder: string;

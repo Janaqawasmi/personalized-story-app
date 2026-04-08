@@ -689,18 +689,6 @@ export interface StoryWorld {
 // ============================================================================
 
 // ---------------------------------------------------------------------------
-// Field 5.1 — Personalization Constraints (shown when personalization ON)
-// ---------------------------------------------------------------------------
-
-/** Pre-filled defaults per story type (spec §7). */
-export const PERSONALIZATION_CONSTRAINTS_DEFAULTS: Partial<Record<StoryType, string[]>> = {
-  fear_anxiety: [
-    "The coping tool must not be changed or removed",
-    "The caregiver's role must not be altered",
-  ],
-};
-
-// ---------------------------------------------------------------------------
 // Field 5.2 — Why Not (shown when personalization OFF, required)
 // ---------------------------------------------------------------------------
 
@@ -711,8 +699,6 @@ export const WHY_NOT_CHAR_LIMIT = 400;
 // ---------------------------------------------------------------------------
 
 export interface PersonalizationConfig {
-  /** 5.1 — optional, pre-filled defaults shown when personalization ON */
-  constraints: string[];
   /** 5.2 — required when personalization OFF, max 400 chars */
   whyNot: string;
 }
@@ -737,7 +723,7 @@ export interface CompleteBrief {
   savedAt?: number;
   /**
    * Highest section index (1–5) the specialist has navigated to in this session.
-   * When personalization is ON, the flow ends at section 4 (section 5 is skipped).
+   * Used to show progress completion state.
    */
   highestSectionVisited?: number;
 }
@@ -772,7 +758,6 @@ export function withSection1StoryLengthDefault(d: CompleteBrief): CompleteBrief 
 /** Optional locale-specific string lists for UI defaults (e.g. Hebrew brief copy). */
 export interface BriefDefaultsLocaleOptions {
   mustNeverDefaults?: Record<StoryType, string[]>;
-  personalizationConstraintsDefaults?: Partial<Record<StoryType, string[]>>;
 }
 
 /** Commit Field 3.6 / 3.7 defaults when still absent (matches Section 3 UI). */
@@ -826,14 +811,6 @@ export function mergeSection4PersonalizationDefaults(draft: CompleteBrief): Comp
   return { ...draft, section4: next };
 }
 
-/** Section 5 constraint defaults are not merged — parents only add name/photo at personalization time. */
-export function mergeSection5ConstraintsDefault(
-  draft: CompleteBrief,
-  _locale?: BriefDefaultsLocaleOptions,
-): CompleteBrief {
-  return draft;
-}
-
 /** Apply all UI defaults so draft, progress, and storage stay aligned. */
 export function normalizeBriefDefaults(
   draft: CompleteBrief,
@@ -843,7 +820,6 @@ export function normalizeBriefDefaults(
   d = withSection1StoryLengthDefault(d);
   d = mergeSection3UiDefaultsIntoDraft(d, locale);
   d = mergeSection4PersonalizationDefaults(d);
-  d = mergeSection5ConstraintsDefault(d, locale);
   return d;
 }
 
@@ -906,8 +882,8 @@ export function isSectionComplete(section: number, draft: CompleteBrief): boolea
     case 5: {
       const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
       if (personalized) {
-        // Flow skips Section 5 when personalization is ON — complete once Story World is done.
-        return isSectionComplete(4, draft);
+        // When personalized, Section 5 is a confirmation screen (no additional inputs).
+        return true;
       }
       return !!(draft.section5.whyNot?.trim());
     }

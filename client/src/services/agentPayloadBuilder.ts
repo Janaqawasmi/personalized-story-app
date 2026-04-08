@@ -480,7 +480,6 @@ export interface AgentPayload {
   characterNotes: string | null;
 
   // --- Section 5: Personalization Configuration ---
-  personalizationConstraints: string[];
   whyNotPersonalized: string | null;
 
   // === Agent-Internal Context (not shown to psychologist) ===
@@ -544,9 +543,11 @@ export function buildAgentPayload(brief: CompleteBrief): AgentPayload {
   const s2 = requireSection<ClinicalFoundation>(brief.section2, "section2");
   const s3 = requireSection<TherapeuticArchitecture>(brief.section3, "section3");
   const s4 = requireSection<StoryWorld>(brief.section4, "section4");
-  const s5 = requireSection<PersonalizationConfig>(brief.section5, "section5");
 
   const isPersonalized = s4.personalization === "yes";
+  const s5 = isPersonalized
+    ? (brief.section5 as Partial<PersonalizationConfig>)
+    : requireSection<PersonalizationConfig>(brief.section5, "section5");
 
   return {
     formatVersion: "1.2",
@@ -643,10 +644,7 @@ export function buildAgentPayload(brief: CompleteBrief): AgentPayload {
     characterNotes: s4.characterNotes?.trim() || null,
 
     // --- Section 5 ---
-    personalizationConstraints: isPersonalized
-      ? (s5.constraints ?? []).filter((c) => c.trim())
-      : [],
-    whyNotPersonalized: !isPersonalized ? s5.whyNot : null,
+    whyNotPersonalized: !isPersonalized ? (s5 as PersonalizationConfig).whyNot : null,
 
     // === Agent-Internal Context ===
 

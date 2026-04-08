@@ -350,14 +350,11 @@
 
 ### If Personalization is ON:
 
-**Field 5.1 — Personalization Constraints**
+**Section 5 — Personalized story confirmation (no additional inputs)**
 
-- **Type:** Free text list with pre-filled defaults, optional (but defaults are shown)
-- **Pre-filled defaults for Fear & Anxiety:**
-  - The coping tool must not be changed or removed
-  - The caregiver's role must not be altered
-- **Prompt:** *"What must never be changed when a parent personalizes this story?"*
-- **Agent/system use:** These constraints are enforced during personalization. Any parent customization that would violate a constraint is blocked.
+- **Purpose:** Confirm what the parent can personalize for this story.
+- **UI copy:** *"This story is personalized. Parents can personalize it with the child’s name and photo."*
+- **System behavior:** No additional configuration is collected in this section.
 
 ### If Personalization is OFF:
 

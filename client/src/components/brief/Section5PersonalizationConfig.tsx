@@ -1,9 +1,9 @@
 // client/src/components/brief/Section5PersonalizationConfig.tsx
 //
-// Story Brief — Section 5: Personalization Configuration (personalization OFF only)
+// Story Brief — Section 5: Personalization Configuration
 //
 // When personalization is OFF → Field 5.2 — Why Not (required, max 400 chars).
-// When personalization is ON, this section is not shown; the brief is submitted from Story World (Section 4).
+// When personalization is ON → confirmation screen (no additional inputs), submit from Section 5.
 //
 // Spec: /docs/dammah-story-brief-spec-v1.2.md §7
 
@@ -17,6 +17,7 @@ import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 const CARD_TINT = "#EEF2F5";
 
 interface Props {
+  personalization: "yes" | "no";
   value: Partial<PersonalizationConfig>;
   onChange: (updates: Partial<PersonalizationConfig>) => void;
   onSubmit: () => void;
@@ -123,6 +124,7 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 4, for
 }
 
 export default function Section5PersonalizationConfig({
+  personalization,
   value,
   onChange,
   onSubmit,
@@ -134,10 +136,11 @@ export default function Section5PersonalizationConfig({
   const id = (suffix: string) => `${uid}-${suffix}`;
 
   const whyNot = value.whyNot ?? "";
-  const isComplete = whyNot.trim().length > 0;
+  const isPersonalized = personalization === "yes";
+  const isComplete = isPersonalized ? true : whyNot.trim().length > 0;
 
   const missingFields: BriefMissingField[] = [];
-  if (!whyNot.trim()) {
+  if (!isPersonalized && !whyNot.trim()) {
     missingFields.push({
       label: ui.s5MissingWhyNot,
       targetId: id("5-2-label"),
@@ -154,24 +157,26 @@ export default function Section5PersonalizationConfig({
           {ui.s5Title}
         </Typography>
         <Typography variant="body2" color={COLORS.textSecondary} sx={{ maxWidth: 720 }}>
-          {ui.s5IntroOff}
+          {isPersonalized ? ui.s5IntroOn : ui.s5IntroOff}
         </Typography>
       </Box>
 
       <Stack spacing={5}>
-        <FieldGroup id={id("5-2-label")} label={ui.s5Field52}>
-          <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            {ui.s5Field52Helper}
-          </Typography>
-          <TextArea
-            id={id("5-2-input")}
-            value={whyNot}
-            onChange={(v) => onChange({ whyNot: v })}
-            maxChars={WHY_NOT_CHAR_LIMIT}
-            placeholder={ui.s5Field52Placeholder}
-            formatCounter={ui.charactersCount}
-          />
-        </FieldGroup>
+        {!isPersonalized && (
+          <FieldGroup id={id("5-2-label")} label={ui.s5Field52}>
+            <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
+              {ui.s5Field52Helper}
+            </Typography>
+            <TextArea
+              id={id("5-2-input")}
+              value={whyNot}
+              onChange={(v) => onChange({ whyNot: v })}
+              maxChars={WHY_NOT_CHAR_LIMIT}
+              placeholder={ui.s5Field52Placeholder}
+              formatCounter={ui.charactersCount}
+            />
+          </FieldGroup>
+        )}
 
         <Divider />
 
