@@ -1,11 +1,5 @@
 import type { CompleteBrief } from "../types/storyBrief";
-import {
-  calculateComplexityLoad,
-  COMPLEXITY_LOAD_GREEN_THRESHOLD,
-  COMPLEXITY_LOAD_YELLOW_THRESHOLD,
-  PAGE_BUDGET_TABLE,
-  AGE_RANGE_MULTIPLIERS,
-} from "./complexityBudget";
+import { calculateComplexityLoad, PAGE_BUDGET_TABLE, AGE_RANGE_MULTIPLIERS } from "./complexityBudget";
 import { createEmptyBrief } from "../types/storyBrief";
 
 function baseBrief(over: Partial<CompleteBrief> = {}): CompleteBrief {
@@ -60,12 +54,12 @@ describe("calculateComplexityLoad", () => {
     const r = calculateComplexityLoad(brief);
     // Core 5 + 1 somatic 0.5 = 5.5 raw → 5.5 scaled @ 3–5
     expect(r.totalPageCost).toBe(5.5);
-    const max = PAGE_BUDGET_TABLE["3-5"].standard.max;
-    expect(r.totalPageCost).toBeLessThan(COMPLEXITY_LOAD_GREEN_THRESHOLD * max);
+    const min = PAGE_BUDGET_TABLE["3-5"].standard.min;
+    expect(r.totalPageCost).toBeLessThanOrEqual(min);
     expect(r.state).toBe("green");
   });
 
-  test("brief in yellow band (between 70% and 90% of budget max)", () => {
+  test("brief in yellow band (§16 overload: past min, within max)", () => {
     const brief = baseBrief({
       section3: {
         ...baseBrief().section3,
@@ -79,15 +73,13 @@ describe("calculateComplexityLoad", () => {
       },
     });
     const r = calculateComplexityLoad(brief);
-    const max = PAGE_BUDGET_TABLE["3-5"].standard.max;
-    const low = COMPLEXITY_LOAD_GREEN_THRESHOLD * max;
-    const high = COMPLEXITY_LOAD_YELLOW_THRESHOLD * max;
-    expect(r.totalPageCost).toBeGreaterThanOrEqual(low);
-    expect(r.totalPageCost).toBeLessThanOrEqual(high);
+    const { min, max } = PAGE_BUDGET_TABLE["3-5"].standard;
+    expect(r.totalPageCost).toBeGreaterThan(min);
+    expect(r.totalPageCost).toBeLessThanOrEqual(max);
     expect(r.state).toBe("yellow");
   });
 
-  test("brief above 90% of budget max is red", () => {
+  test("brief past page band max is red", () => {
     const brief = baseBrief({
       section3: {
         ...baseBrief().section3,
@@ -104,7 +96,7 @@ describe("calculateComplexityLoad", () => {
     });
     const r = calculateComplexityLoad(brief);
     const max = PAGE_BUDGET_TABLE["3-5"].standard.max;
-    expect(r.totalPageCost).toBeGreaterThan(COMPLEXITY_LOAD_YELLOW_THRESHOLD * max);
+    expect(r.totalPageCost).toBeGreaterThan(max);
     expect(r.state).toBe("red");
   });
 

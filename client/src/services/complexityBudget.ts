@@ -1,5 +1,5 @@
 /**
- * Story brief complexity load (spec §16 weights, §10 page budgets, UI state thresholds).
+ * Story brief complexity load (spec §16 weights, §10 page budgets, load state vs page band).
  * Pure functions — no React or I/O.
  */
 
@@ -64,16 +64,6 @@ export const PAGE_BUDGET_TABLE: Record<
     extended: { min: 20, max: 28 },
   },
 };
-
-// ---------------------------------------------------------------------------
-// Load state thresholds — fraction of budget.max (UI spec)
-// ---------------------------------------------------------------------------
-
-/** Load is green while strictly below this fraction of `budget.max`. */
-export const COMPLEXITY_LOAD_GREEN_THRESHOLD = 0.7;
-
-/** Load is yellow from `GREEN_THRESHOLD` up to and including this fraction of `budget.max`; above is red. */
-export const COMPLEXITY_LOAD_YELLOW_THRESHOLD = 0.9;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -228,11 +218,15 @@ function collectRawObligations(brief: StoryBrief): RawObligation[] {
   return out;
 }
 
-function loadStateForTotal(total: number, budgetMax: number): ComplexityLoadState {
-  const greenLine = COMPLEXITY_LOAD_GREEN_THRESHOLD * budgetMax;
-  const yellowLine = COMPLEXITY_LOAD_YELLOW_THRESHOLD * budgetMax;
-  if (total < greenLine) return "green";
-  if (total <= yellowLine) return "yellow";
+/**
+ * Load state aligned with §16 page band `[min, max]` and §21 Layer 4 (pre-submit only when red):
+ * - green: total ≤ min (not past the lower bound of the chosen length)
+ * - yellow: min < total ≤ max (§16 soft-warning “overload” zone, still within published range)
+ * - red: total > max (past the upper bound; Layer 4 pre-submit modal)
+ */
+function loadStateForTotal(total: number, budgetMin: number, budgetMax: number): ComplexityLoadState {
+  if (total <= budgetMin) return "green";
+  if (total <= budgetMax) return "yellow";
   return "red";
 }
 
@@ -240,7 +234,7 @@ function loadStateForTotal(total: number, budgetMax: number): ComplexityLoadStat
  * Computes weighted narrative obligation load for a story brief draft.
  *
  * Uses §16 weights, per-obligation age scaling (same multiplier on each weight, then summed),
- * §10/§16 page ranges for the selected age × length, and green/yellow/red bands vs `budget.max`.
+ * §10/§16 page ranges for the selected age × length, and green/yellow/red vs that band.
  */
 export function calculateComplexityLoad(brief: StoryBrief): ComplexityLoadResult {
   const ageRange = resolveAgeRange(brief);
@@ -260,7 +254,7 @@ export function calculateComplexityLoad(brief: StoryBrief): ComplexityLoadResult
     scaledCost: roundToHalf(r.rawCost * multiplier),
   }));
 
-  const state = loadStateForTotal(totalPageCost, budget.max);
+  const state = loadStateForTotal(totalPageCost, budget.min, budget.max);
 
   return {
     totalPageCost,
