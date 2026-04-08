@@ -112,6 +112,18 @@ export interface StoryBriefUi {
   midFlowCheckpointContinue: string;
   midFlowCheckpointReview: string;
 
+  /** Spec §16 / §21 Layer 4 — pre-submit complexity overload (deduplicated). */
+  preSubmitComplexityTitle: string;
+  preSubmitComplexityBody: (
+    approxPages: number,
+    lengthLabel: string,
+    budgetMin: number,
+    budgetMax: number,
+  ) => string;
+  preSubmitComplexityBreakdownHeading: string;
+  preSubmitComplexitySubmitAnyway: string;
+  preSubmitComplexityGoBack: string;
+
   sectionOf: (section: number) => string;
   sectionLabels: Record<number, { full: string; short: string }>;
   progressNavAriaLabel: string;

@@ -108,6 +108,20 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     midFlowCheckpointContinue: "Continue to Section 4",
     midFlowCheckpointReview: "Review Section 3",
 
+    preSubmitComplexityTitle: "Story length and design load",
+    preSubmitComplexityBody: (approxPages, lengthLabel, budgetMin, budgetMax) => {
+      const t = approxPages % 1 === 0 ? String(approxPages) : approxPages.toFixed(1);
+      return (
+        `Your story design requires approximately ${t} pages to include all elements well. ` +
+        `You've selected ${lengthLabel} (${budgetMin}–${budgetMax} pages). ` +
+        `Consider increasing the story length, or reducing complexity by removing a supporting character, ` +
+        `changing the supporting approach, or adjusting the shame level.`
+      );
+    },
+    preSubmitComplexityBreakdownHeading: "What’s contributing to the load",
+    preSubmitComplexitySubmitAnyway: "Submit anyway",
+    preSubmitComplexityGoBack: "Go back and adjust",
+
     sectionOf: (section) => `Section ${section} of 5`,
     sectionLabels: {
       1: { full: "Age & Story Scope", short: "Scope" },

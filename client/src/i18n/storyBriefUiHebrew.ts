@@ -284,6 +284,19 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
   midFlowCheckpointContinue: "המשך לסעיף 4 — עולם הסיפור",
   midFlowCheckpointReview: "חזרה לסעיף 3",
 
+  preSubmitComplexityTitle: "אורך הסיפור ועומס העיצוב",
+  preSubmitComplexityBody: (approxPages, lengthLabel, budgetMin, budgetMax) => {
+    const t = approxPages % 1 === 0 ? String(approxPages) : approxPages.toFixed(1);
+    return (
+      `העיצוב דורש בערך ${t} עמודים כדי לכלול את כל האלמנטים היטב. ` +
+      `נבחר ${lengthLabel} (${budgetMin}–${budgetMax} עמודים). ` +
+      `אפשר להאריך את הסיפור או להפחית מורכבות — למשל להסיר דמות משנית, לשנות גישה משנית או לכוון את רמת הבושה.`
+    );
+  },
+  preSubmitComplexityBreakdownHeading: "מה תורם לעומס",
+  preSubmitComplexitySubmitAnyway: "שליחה בכל זאת",
+  preSubmitComplexityGoBack: "חזרה לעריכה",
+
   sectionOf: (section) => `סעיף ${section} מתוך 5`,
   sectionLabels: {
     1: { full: "גיל והיקף הסיפור", short: "היקף" },

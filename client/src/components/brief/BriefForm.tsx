@@ -57,6 +57,7 @@ import {
   normalizeBriefDefaults,
   omitUiOnlyBriefFields,
   PERSONALIZATION_DEFAULT,
+  STORY_LENGTH_DEFAULT,
   type AgeAndScope,
   type BriefDefaultsLocaleOptions,
   type ClinicalFoundation,
@@ -80,8 +81,8 @@ import {
   loadDraftForDraftId,
   saveDraftForDraftId,
 } from "../../utils/briefDraftStorage";
-import { useComplexitySignals } from "../../services/complexitySignalTracker";
-import { calculateComplexityLoad } from "../../services/complexityBudget";
+import { ComplexitySignalProvider, useComplexitySignals } from "../../services/complexitySignalTracker";
+import { calculateComplexityLoad, type ComplexityLoadResult } from "../../services/complexityBudget";
 
 /**
  * Centered main column (~760–880px per docs/brief-form-ux-notes.md).
@@ -348,7 +349,7 @@ function firstIncompleteSection(
 // BriefForm — main orchestrator
 // ============================================================================
 
-export default function BriefForm({ onSubmit }: Props) {
+function BriefFormInner({ onSubmit }: Props) {
   const [searchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
   const { draftId, lang } = useParams<{ draftId: string; lang: string }>();
@@ -401,10 +402,23 @@ export default function BriefForm({ onSubmit }: Props) {
 
   const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
-  const { resetComplexitySession, hasSeenMidFlowCheckpoint } = useComplexitySignals();
+  const {
+    resetComplexitySession,
+    hasSeenMidFlowCheckpoint,
+    shouldShowPreSubmitWarning,
+  } = useComplexitySignals();
 
   /** Spec §21 Layer 3 — pause 3→4 when load is yellow/red and checkpoint not yet shown this session */
   const [midFlowCheckpointOpen, setMidFlowCheckpointOpen] = useState(false);
+
+  /** Spec §21 Layer 4 — pre-submit complexity (red load, no prior checkpoint/length-bump ack) */
+  const [complexityPreSubmitOpen, setComplexityPreSubmitOpen] = useState(false);
+  const [pendingNormalizedForConfirm, setPendingNormalizedForConfirm] = useState<CompleteBrief | null>(
+    null,
+  );
+  const [complexityPreSubmitSnapshot, setComplexityPreSubmitSnapshot] = useState<ComplexityLoadResult | null>(
+    null,
+  );
 
   // ── Load draft for this URL id; remount when draftId changes ───────────────
 
@@ -571,6 +585,14 @@ export default function BriefForm({ onSubmit }: Props) {
       return;
     }
 
+    const complexityLoad = calculateComplexityLoad(normalized);
+    if (shouldShowPreSubmitWarning(complexityLoad.state)) {
+      setPendingNormalizedForConfirm(normalized);
+      setComplexityPreSubmitSnapshot(complexityLoad);
+      setComplexityPreSubmitOpen(true);
+      return;
+    }
+
     setConfirmDraft(normalized);
     setConfirmOpen(true);
   }
@@ -629,6 +651,23 @@ export default function BriefForm({ onSubmit }: Props) {
     const toSubmit = confirmDraft;
     setConfirmDraft(null);
     void submitBrief(toSubmit);
+  }
+
+  function handleComplexityPreSubmitAnyway() {
+    setComplexityPreSubmitOpen(false);
+    const pending = pendingNormalizedForConfirm;
+    setPendingNormalizedForConfirm(null);
+    setComplexityPreSubmitSnapshot(null);
+    if (pending) {
+      setConfirmDraft(pending);
+      setConfirmOpen(true);
+    }
+  }
+
+  function handleComplexityPreSubmitGoBack() {
+    setComplexityPreSubmitOpen(false);
+    setPendingNormalizedForConfirm(null);
+    setComplexityPreSubmitSnapshot(null);
   }
 
   async function submitBrief(brief: CompleteBrief) {
@@ -884,6 +923,79 @@ export default function BriefForm({ onSubmit }: Props) {
         onReview={handleMidFlowCheckpointReview}
       />
 
+      <Dialog
+        open={complexityPreSubmitOpen}
+        onClose={(_e, reason) => {
+          if (reason === "backdropClick" || reason === "escapeKeyDown") return;
+        }}
+        disableEscapeKeyDown
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="pre-submit-complexity-title"
+        PaperProps={{
+          sx: {
+            borderRadius: 2.5,
+            border: `1px solid rgba(208, 200, 192, 0.55)`,
+            bgcolor: COLORS.surface,
+          },
+        }}
+      >
+        <DialogTitle id="pre-submit-complexity-title" sx={{ fontWeight: 800 }}>
+          {ui.preSubmitComplexityTitle}
+        </DialogTitle>
+        <DialogContent>
+          {complexityPreSubmitSnapshot && pendingNormalizedForConfirm && (
+            <Stack spacing={2}>
+              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.75 }}>
+                {ui.preSubmitComplexityBody(
+                  complexityPreSubmitSnapshot.totalPageCost,
+                  ui.STORY_LENGTH_LABELS[
+                    pendingNormalizedForConfirm.section1.storyLength ?? STORY_LENGTH_DEFAULT
+                  ],
+                  complexityPreSubmitSnapshot.budget.min,
+                  complexityPreSubmitSnapshot.budget.max,
+                )}
+              </Typography>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: COLORS.primary }}>
+                {ui.preSubmitComplexityBreakdownHeading}
+              </Typography>
+              <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5, listStyle: "disc" }}>
+                {complexityPreSubmitSnapshot.breakdown.map((row) => (
+                  <Typography
+                    key={row.id}
+                    component="li"
+                    variant="body2"
+                    sx={{ lineHeight: 1.55 }}
+                  >
+                    {ui.complexityBreakdownLine(row.displayLabel, row.scaledCost)}
+                  </Typography>
+                ))}
+              </Stack>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1, flexWrap: "wrap" }}>
+          <Button
+            type="button"
+            onClick={handleComplexityPreSubmitGoBack}
+            disabled={submitting}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            {ui.preSubmitComplexityGoBack}
+          </Button>
+          <Button
+            type="button"
+            variant="contained"
+            color="primary"
+            onClick={handleComplexityPreSubmitAnyway}
+            disabled={submitting}
+            sx={{ textTransform: "none", fontWeight: 800 }}
+          >
+            {ui.preSubmitComplexitySubmitAnyway}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <HardBlockSubmitDialog
         open={hardBlockOpen}
         items={translateSubmitGateItems(gateHardBlocks, ui)}
@@ -936,5 +1048,14 @@ export default function BriefForm({ onSubmit }: Props) {
         </Alert>
       </Snackbar>
     </>
+  );
+}
+
+export default function BriefForm(props: Props) {
+  const { draftId } = useParams<{ draftId: string; lang: string }>();
+  return (
+    <ComplexitySignalProvider key={draftId ?? "draft"}>
+      <BriefFormInner {...props} />
+    </ComplexitySignalProvider>
   );
 }
