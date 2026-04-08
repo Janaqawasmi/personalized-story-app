@@ -471,6 +471,16 @@ function BriefFormInner({ onSubmit }: Props) {
     return steps.map((n) => isSectionComplete(n, norm));
   }, [draft, briefLocaleOpts]);
 
+  /** Normalized draft for ComplexityMeter — updates as fields change (§16 / §21). */
+  const normalizedBriefForComplexity = useMemo(
+    () => normalizeBriefDefaults(draft, briefLocaleOpts),
+    [draft, briefLocaleOpts],
+  );
+
+  /** Sticky meter only while editing Sections 1–5 (not step 0; success view uses early return). */
+  const showComplexityMeter =
+    !!draft.storyType && activeStep >= 1 && activeStep <= 5;
+
   const scrollToTop = useCallback(() => {
     const el = sectionTopRef.current;
     if (!el) return;
@@ -879,7 +889,7 @@ function BriefFormInner({ onSubmit }: Props) {
           />
         )}
 
-        {draft.storyType && activeStep >= 1 && activeStep <= 5 && (
+        {showComplexityMeter && (
           <Box
             aria-hidden
             sx={{
@@ -890,9 +900,10 @@ function BriefFormInner({ onSubmit }: Props) {
         )}
     </BriefPageWithSidebar>
 
-      {draft.storyType && activeStep >= 1 && activeStep <= 5 && (
+      {/* §21 Layer 1 — sticky bottom bar while editing Sections 1–5. Hidden on story-type screen (step 0) and after submit (early returns above). Layout: fixed footer; main column uses BriefFeedbackPanel on md+, not a second meter column. */}
+      {showComplexityMeter && (
         <ComplexityMeter
-          brief={normalizeBriefDefaults(draft, briefLocaleOpts)}
+          brief={normalizedBriefForComplexity}
           onLengthChange={(next) => updateSection1({ storyLength: next })}
         />
       )}
