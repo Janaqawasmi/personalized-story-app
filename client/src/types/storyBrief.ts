@@ -882,8 +882,10 @@ export function isSectionComplete(section: number, draft: CompleteBrief): boolea
     case 5: {
       const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
       if (personalized) {
-        // When personalized, Section 5 is a confirmation screen (no additional inputs).
-        return true;
+        // Confirmation-only step (no extra inputs). Do not mark complete until Story World is
+        // satisfied — otherwise default personalization ("yes") makes the stepper show step 5
+        // green before the user has filled earlier sections.
+        return isSectionComplete(4, draft);
       }
       return !!(draft.section5.whyNot?.trim());
     }
