@@ -18,6 +18,7 @@ import { COLORS } from "../../theme";
 import type { CompleteBrief, StoryLength } from "../../types/storyBrief";
 import { STORY_LENGTH_DEFAULT } from "../../types/storyBrief";
 import { calculateComplexityLoad, type ComplexityLoadState } from "../../services/complexityBudget";
+import { useComplexitySignals } from "../../services/complexitySignalTracker";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 
 const BRIEF_COLUMN_MAX_PX = 840;
@@ -53,6 +54,7 @@ export interface ComplexityMeterProps {
 export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMeterProps) {
   const theme = useTheme();
   const ui = useStoryBriefUi();
+  const { markLengthBumpAcknowledged } = useComplexitySignals();
   const warningMain = theme.palette.warning?.main ?? "#ED9B40";
 
   const [hovered, setHovered] = useState(false);
@@ -241,7 +243,10 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
                       variant="outlined"
                       color="primary"
                       size="small"
-                      onClick={() => onLengthChange?.(nextLen)}
+                      onClick={() => {
+                        markLengthBumpAcknowledged();
+                        onLengthChange?.(nextLen);
+                      }}
                       sx={{ flexShrink: 0, fontWeight: 700 }}
                     >
                       {ui.complexityLengthBumpCta(ui.STORY_LENGTH_LABELS[nextLen])}

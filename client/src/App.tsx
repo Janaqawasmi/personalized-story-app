@@ -14,7 +14,7 @@ import AgeResultsPage from "./pages/AgeResultsPage";
 import CategoryResultsPage from "./pages/CategoryResultsPage";
 import TopicResultsPage from "./pages/TopicResultsPage";
 
-import BriefForm from "./components/brief/BriefForm";
+import BriefFormWithComplexitySignals from "./components/brief/BriefFormWithComplexitySignals";
 import BriefFormDraftRedirect from "./components/brief/BriefFormDraftRedirect";
 import SpecialistBriefsPage from "./pages/SpecialistBriefsPage";
 import SpecialistBriefReviewPage from "./pages/SpecialistBriefReviewPage";
@@ -103,7 +103,7 @@ function AppContent() {
               <Route path="briefs" element={<SpecialistBriefsPage />} />
               <Route path="briefs/:briefId" element={<SpecialistBriefReviewPage />} />
               <Route path="create-brief" element={<BriefFormDraftRedirect />} />
-              <Route path="create-brief/:draftId" element={<BriefForm />} />
+              <Route path="create-brief/:draftId" element={<BriefFormWithComplexitySignals />} />
             </Route>
           </Route>
 

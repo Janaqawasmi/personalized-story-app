@@ -79,6 +79,7 @@ import {
   loadDraftForDraftId,
   saveDraftForDraftId,
 } from "../../utils/briefDraftStorage";
+import { useComplexitySignals } from "../../services/complexitySignalTracker";
 
 /**
  * Centered main column (~760–880px per docs/brief-form-ux-notes.md).
@@ -398,6 +399,8 @@ export default function BriefForm({ onSubmit }: Props) {
 
   const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
+  const { resetComplexitySession } = useComplexitySignals();
+
   // ── Load draft for this URL id; remount when draftId changes ───────────────
 
   useEffect(() => {
@@ -622,6 +625,7 @@ export default function BriefForm({ onSubmit }: Props) {
         briefId = result.briefId;
       }
       deleteDraftForDraftId(draftKey);
+      resetComplexitySession();
       setSubmitSuccess({ briefId, jsonText });
     } catch (err) {
       const message =
@@ -635,6 +639,7 @@ export default function BriefForm({ onSubmit }: Props) {
 
   function handleCreateAnotherBrief() {
     deleteDraftForDraftId(draftKey);
+    resetComplexitySession();
     setSubmitSuccess(null);
     setSubmitError(null);
     const nid = createNewDraftIdWithEmptyBrief();
