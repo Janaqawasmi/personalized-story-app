@@ -56,7 +56,8 @@ function AppContent() {
           }}
         />
       )}
-      <Box sx={{ pt: isFullScreen ? 0 : 10 }}>
+      {/* Match fixed Navbar AppBar height (components/layout/Navbar.tsx) — default theme spacing 7/7.5 → 56px / 60px */}
+      <Box sx={{ pt: isFullScreen ? 0 : { xs: 7, md: 7.5 } }}>
         <Routes>
           {/* ───────────── HOME ───────────── */}
           <Route index element={<HomePage />} />
