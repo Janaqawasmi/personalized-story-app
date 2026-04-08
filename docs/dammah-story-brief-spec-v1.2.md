@@ -835,7 +835,9 @@ Section 13 currently defines approaches for Fear & Anxiety only. Before any non-
 
 ## Complete Field Summary
 
-**Total fields:** 19 core fields (plus 1 pre-brief selector, plus conditional sub-fields)
+**Total fields:** 19 core fields (plus 1 pre-brief selector, plus conditional sub-fields).
+
+**Section 5:** Per Section 7, when personalization is **ON** there are **no data fields** in this section (confirmation UI only). When personalization is **OFF**, only Field 5.2 applies. There is no separate “constraints list” field in Section 5 in V1.
 
 | # | Field | Section | Type | Required | Conditional Logic |
 |---|-------|---------|------|----------|-------------------|
@@ -863,8 +865,8 @@ Section 13 currently defines approaches for Fear & Anxiety only. Before any non-
 | 4.5 | Narrative distance | Story World | Single choice | Yes | Sub-field: parallel equivalent challenge (200 chars, optional but encouraged) |
 | 4.6 | Supporting characters | Story World | Multi-choice, up to 2 | Conditional | Required if relational tool + no present caregiver. Functional role sub-field per character (150 chars, optional) |
 | 4.7 | Character notes | Story World | Free text, 300 chars | No | Adds texture only. Cannot override structured fields. |
-| 5.1 | Personalization constraints | Personalization Config | Free text list + defaults | No (defaults shown) | Only if personalization ON |
-| 5.2 | Why not | Personalization Config | Free text | Conditional | Only if personalization OFF |
+| — | *(Section 5 — personalization ON)* | Personalization Config | *(no inputs)* | — | Confirmation copy only (see Section 7). Parents personalize name/photo downstream. |
+| 5.2 | Why not (fixed protagonist) | Personalization Config | Free text | Conditional — required if personalization OFF | Explains to parents why the protagonist is not personalized. Shown to parents. |
 
 ---
 
