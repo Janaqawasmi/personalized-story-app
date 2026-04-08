@@ -1,0 +1,16 @@
+{
+  "name": "@dammah/story-brief-complexity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared Section 16 complexity budget engine (pure functions)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

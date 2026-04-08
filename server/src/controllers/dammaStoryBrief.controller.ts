@@ -9,6 +9,7 @@ import { firestore, admin } from "../config/firebase";
 import { AuditTrail } from "../services/auditTrail.service";
 import type { AuthenticatedUser } from "../middleware/auth.middleware";
 import { serializeTimestamp } from "../utils/serializeTimestamp";
+import { calculateComplexityBudgetFromClientWire } from "../validation/complexityBudget";
 
 const COLLECTION = "dammaStoryBriefs";
 
@@ -191,6 +192,14 @@ export async function createDammaStoryBrief(req: Request, res: Response): Promis
 
     const docRef = await firestore.collection(COLLECTION).add(doc);
 
+    let complexityAudit: { totalPageCost: number; isOverBudget: boolean } | undefined;
+    try {
+      const cb = calculateComplexityBudgetFromClientWire(briefPayload);
+      complexityAudit = { totalPageCost: cb.totalPageCost, isOverBudget: cb.isOverBudget };
+    } catch {
+      // Malformed body — omit complexity fields; brief still stored as submitted
+    }
+
     await AuditTrail.log({
       action: "damma_brief.submitted",
       actor: AuditTrail.actorFromRequest(user),
@@ -198,6 +207,12 @@ export async function createDammaStoryBrief(req: Request, res: Response): Promis
       resourceId: docRef.id,
       metadata: {
         storyType: (briefPayload as { storyType?: string }).storyType,
+        ...(complexityAudit !== undefined
+          ? {
+              complexityTotalPageCost: complexityAudit.totalPageCost,
+              complexityIsOverBudget: complexityAudit.isOverBudget,
+            }
+          : {}),
       },
     });
 

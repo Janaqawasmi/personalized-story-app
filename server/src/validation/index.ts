@@ -29,9 +29,18 @@ export {
 
 export {
   calculateComplexityBudget,
+  calculateComplexityBudgetFromClientWire,
   type ComplexityBudgetResult,
   type ObligationItem,
 } from "./complexityBudget";
+
+export { extractComplexityPartsFromStoryBrief } from "./complexityParts";
+
+export {
+  extractComplexityPartsFromClientWire,
+  isClientWireBriefPayload,
+  type NormalizedComplexityParts,
+} from "@dammah/story-brief-complexity";
 
 // ============================================================================
 // Types

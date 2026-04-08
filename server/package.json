@@ -10,6 +10,7 @@
     "seed:reference": "ts-node scripts/seedReferenceData.ts",
     "seed:clinicalRules": "ts-node scripts/seedClinicalRules.ts",
     "test:agent1": "ts-node scripts/testAgent1.ts",
+    "complexity:parity": "ts-node scripts/complexityWireParity.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -17,6 +18,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@dammah/story-brief-complexity": "file:../packages/story-brief-complexity",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
