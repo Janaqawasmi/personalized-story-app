@@ -43,6 +43,7 @@ import Section3TherapeuticArchitecture from "./Section3TherapeuticArchitecture";
 import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
+import ComplexityMeter from "./ComplexityMeter";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
 import BriefFeedbackPanel from "./BriefFeedbackPanel";
@@ -806,7 +807,24 @@ export default function BriefForm({ onSubmit }: Props) {
             submitting={submitting}
           />
         )}
+
+        {draft.storyType && activeStep >= 1 && activeStep <= 5 && (
+          <Box
+            aria-hidden
+            sx={{
+              height: { xs: 96, sm: 104 },
+              flexShrink: 0,
+            }}
+          />
+        )}
     </BriefPageWithSidebar>
+
+      {draft.storyType && activeStep >= 1 && activeStep <= 5 && (
+        <ComplexityMeter
+          brief={normalizeBriefDefaults(draft, briefLocaleOpts)}
+          onLengthChange={(next) => updateSection1({ storyLength: next })}
+        />
+      )}
 
       {/* ── "Saved" snackbar ─────────────────────────────────────────── */}
       <Snackbar

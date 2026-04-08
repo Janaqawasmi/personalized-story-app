@@ -95,6 +95,16 @@ export interface StoryBriefUi {
   draftSavedSnackbar: string;
   submitErrorGeneric: string;
 
+  /** Spec §21 — Complexity Handling UI (live meter + length bump). */
+  complexityMeterTitle: string;
+  complexityMeterAria: (expanded: boolean) => string;
+  complexityTotalApprox: (pages: number) => string;
+  complexityBudgetSummary: (min: number, max: number, lengthLabel: string, ageLabel: string) => string;
+  complexityBreakdownLine: (label: string, pages: number) => string;
+  complexityLengthBumpMessage: (nextLengthLabel: string) => string;
+  complexityLengthBumpCta: (nextLengthLabel: string) => string;
+  complexityLengthBumpMaxed: string;
+
   sectionOf: (section: number) => string;
   sectionLabels: Record<number, { full: string; short: string }>;
   progressNavAriaLabel: string;

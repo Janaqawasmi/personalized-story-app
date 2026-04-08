@@ -256,6 +256,24 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
   draftSavedSnackbar: "הטיוטה נשמרה",
   submitErrorGeneric: "משהו השתבש בשליחה. נסו שוב.",
 
+  complexityMeterTitle: "עומס הסיפור",
+  complexityMeterAria: (expanded) =>
+    expanded ? "עומס הסיפור — פרטים גלויים" : "עומס הסיפור — לחצו או רחפו לפרטים",
+  complexityTotalApprox: (pages) => {
+    const t = pages % 1 === 0 ? String(pages) : pages.toFixed(1);
+    return `סך עומס משוער: ‎${t} עמודים`;
+  },
+  complexityBudgetSummary: (min, max, lengthLabel, ageLabel) =>
+    `${min}–${max} עמודים (${lengthLabel}, גילאי ${ageLabel})`,
+  complexityBreakdownLine: (label, pages) => {
+    const t = pages % 1 === 0 ? String(pages) : pages.toFixed(1);
+    return `${label} — ‎~${t} עמודים`;
+  },
+  complexityLengthBumpMessage: (nextLengthLabel) =>
+    `ייתכן שהעיצוב דורש יותר מקום. לעבור ל־${nextLengthLabel}?`,
+  complexityLengthBumpCta: (nextLengthLabel) => `מעבר ל־${nextLengthLabel}`,
+  complexityLengthBumpMaxed: "כבר נבחר האורך הארוך ביותר לטווח הגיל הזה.",
+
   sectionOf: (section) => `סעיף ${section} מתוך 5`,
   sectionLabels: {
     1: { full: "גיל והיקף הסיפור", short: "היקף" },

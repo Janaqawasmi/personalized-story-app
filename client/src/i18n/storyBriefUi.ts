@@ -80,6 +80,24 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     draftSavedSnackbar: "Draft saved",
     submitErrorGeneric: "Something went wrong while submitting. Please try again.",
 
+    complexityMeterTitle: "Story load",
+    complexityMeterAria: (expanded) =>
+      expanded ? "Story load — details visible" : "Story load — click or hover for details",
+    complexityTotalApprox: (pages) => {
+      const t = pages % 1 === 0 ? String(pages) : pages.toFixed(1);
+      return `Total approximate load: ${t} pages`;
+    },
+    complexityBudgetSummary: (min, max, lengthLabel, ageLabel) =>
+      `${min}–${max} pages for ${lengthLabel}, ages ${ageLabel}`,
+    complexityBreakdownLine: (label, pages) => {
+      const t = pages % 1 === 0 ? String(pages) : pages.toFixed(1);
+      return `${label} — ~${t} pages`;
+    },
+    complexityLengthBumpMessage: (nextLengthLabel) =>
+      `This design may need more space. Want to switch to ${nextLengthLabel}?`,
+    complexityLengthBumpCta: (nextLengthLabel) => `Switch to ${nextLengthLabel}`,
+    complexityLengthBumpMaxed: "You're already using the longest length option for this age range.",
+
     sectionOf: (section) => `Section ${section} of 5`,
     sectionLabels: {
       1: { full: "Age & Story Scope", short: "Scope" },
