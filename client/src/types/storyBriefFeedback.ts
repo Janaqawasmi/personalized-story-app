@@ -41,7 +41,7 @@ export const BRIEF_FEEDBACK_FIELD_IDS = BRIEF_FEEDBACK_FIELD_CATALOG.map((f) => 
 
 /**
  * Field IDs to show in the feedback panel for the current brief step.
- * Mirrors form visibility: Section 4 hides 4.1 / 4.3 when personalization is on; Section 5 shows 5.1 or 5.2.
+ * Mirrors form visibility: Section 4 hides 4.1 / 4.3 when personalization is on; Section 5 is skipped when on (only 5.2 when personalization is off).
  *
  * @param step — `0` = pre-brief story type; `1`–`5` = sections; `null` = no section context (e.g. post-submit screen)
  */
@@ -61,7 +61,7 @@ export function getFeedbackFieldIdsForStep(
     return ["4.0", "4.2", "4.4", "4.5", "4.6", "4.7"];
   }
   if (step === 5) {
-    return personalization === "yes" ? ["5.1"] : ["5.2"];
+    return personalization === "yes" ? [] : ["5.2"];
   }
   return [];
 }

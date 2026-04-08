@@ -96,7 +96,7 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
       if (lockedFuture) return `Section ${num}: ${fullName}. Locked until you can open this step.`;
       return `Section ${num}: ${fullName}`;
     },
-    sectionMobileLine: (current) => `Section ${current} of 5`,
+    sectionMobileLine: (current, ofTotal = 5) => `Section ${current} of ${ofTotal}`,
 
     s1Overline: "Section 1 of 5",
     s1Title: "Age & Story Scope",
@@ -282,6 +282,11 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
       "Your brief matches one or more combinations that need an explicit clinical decision before we send it for generation. Review each note, then confirm if you still want to submit.",
     gateHardWarningCheckbox: "I understand and want to proceed",
     gateProceed: "Proceed",
+    confirmSubmitTitle: "Submit this brief?",
+    confirmSubmitBody:
+      "This will send the brief to the server for story generation. You can still review the submitted JSON afterwards, but you will not be able to edit this draft.",
+    confirmSubmitCancel: "Cancel",
+    confirmSubmitConfirm: "Yes, submit",
     submitGateCopy: {
       relational_tool_no_responder: {
         title: "Someone to turn to is required",

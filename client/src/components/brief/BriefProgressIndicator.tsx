@@ -22,6 +22,8 @@ interface Props {
   currentSection: number;
   /** Index corresponds to section number minus 1 (e.g. [0] = section 1). */
   sectionCompletion: boolean[];
+  /** When personalization is ON, Story World is the last step (4 sections). */
+  totalSections?: 4 | 5;
   /**
    * If provided, clicking a completed or past section navigates to it.
    * Receives the section number (1–5).
@@ -36,11 +38,13 @@ interface Props {
 export default function BriefProgressIndicator({
   currentSection,
   sectionCompletion,
+  totalSections = 5,
   onNavigate,
 }: Props) {
   const ui = useStoryBriefUi();
   const SECTION_LABELS = ui.sectionLabels;
-  const sections = [1, 2, 3, 4, 5];
+  const sections =
+    totalSections === 4 ? ([1, 2, 3, 4] as const) : ([1, 2, 3, 4, 5] as const);
 
   return (
     <Box
@@ -231,7 +235,7 @@ export default function BriefProgressIndicator({
         }}
       >
         <Typography variant="caption" color={COLORS.textSecondary} sx={{ fontWeight: 600 }}>
-          {ui.sectionMobileLine(currentSection)}
+          {ui.sectionMobileLine(currentSection, totalSections)}
         </Typography>
         <Typography variant="caption" fontWeight={700} color={COLORS.primary} textAlign="center" px={1}>
           {SECTION_LABELS[currentSection]?.full ?? ""}

@@ -24,6 +24,10 @@ import {
   Button,
   Card,
   CardActionArea,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Snackbar,
   Stack,
@@ -48,6 +52,7 @@ import {
   isSectionComplete,
   normalizeBriefDefaults,
   omitUiOnlyBriefFields,
+  PERSONALIZATION_DEFAULT,
   type AgeAndScope,
   type BriefDefaultsLocaleOptions,
   type ClinicalFoundation,
@@ -326,10 +331,12 @@ function firstIncompleteSection(
   localeOpts?: BriefDefaultsLocaleOptions,
 ): number {
   const norm = normalizeBriefDefaults(draft, localeOpts);
-  for (let s = 1; s <= 5; s++) {
+  const personalized = (norm.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+  const maxSection = personalized ? 4 : 5;
+  for (let s = 1; s <= maxSection; s++) {
     if (!isSectionComplete(s, norm)) return s;
   }
-  return 5;
+  return maxSection;
 }
 
 // ============================================================================
@@ -376,6 +383,10 @@ export default function BriefForm({ onSubmit }: Props) {
   );
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Final confirmation before sending to server
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmDraft, setConfirmDraft] = useState<CompleteBrief | null>(null);
+
   // Ref to scroll to the top of the section content on navigation
   const sectionTopRef = useRef<HTMLDivElement | null>(null);
 
@@ -402,8 +413,16 @@ export default function BriefForm({ onSubmit }: Props) {
     setDraft((d) => normalizeBriefDefaults(d, briefLocaleOpts));
   }, [briefLocaleOpts]);
 
+  // If personalization is turned ON while on Section 5, return to Section 4 (that step is removed from the flow).
+  useEffect(() => {
+    const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+    if (personalized && activeStep === 5) {
+      setActiveStep(4);
+    }
+  }, [draft.section4.personalization, activeStep]);
+
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
-  // Also record highest section opened so Section 5 progress stays honest when personalization is ON.
+  // Also record highest section opened for progress (1–5, or 1–4 when personalization is ON).
   useEffect(() => {
     if (!draftId || !draft.storyType || activeStep === 0) return;
     setDraft((d) => {
@@ -423,10 +442,14 @@ export default function BriefForm({ onSubmit }: Props) {
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  const sectionCompletion: boolean[] = useMemo(
-    () => [1, 2, 3, 4, 5].map((n) => isSectionComplete(n, normalizeBriefDefaults(draft, briefLocaleOpts))),
-    [draft, briefLocaleOpts],
-  );
+  const personalizationOn = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
+  const progressStepCount: 4 | 5 = personalizationOn ? 4 : 5;
+
+  const sectionCompletion: boolean[] = useMemo(() => {
+    const norm = normalizeBriefDefaults(draft, briefLocaleOpts);
+    const steps = personalizationOn ? [1, 2, 3, 4] : [1, 2, 3, 4, 5];
+    return steps.map((n) => isSectionComplete(n, norm));
+  }, [draft, briefLocaleOpts, personalizationOn]);
 
   const scrollToTop = useCallback(() => {
     sectionTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -488,11 +511,11 @@ export default function BriefForm({ onSubmit }: Props) {
 
   // ── Submission ────────────────────────────────────────────────────────────
 
-  function attemptSubmit() {
+  function runSubmitPipeline(source: CompleteBrief) {
     if (submitting) return;
 
-    let normalized = normalizeBriefDefaults(draft, briefLocaleOpts);
-    if (normalized !== draft) {
+    let normalized = normalizeBriefDefaults(source, briefLocaleOpts);
+    if (normalized !== source) {
       setDraft(normalized);
       saveDraftForDraftId(draftKey, normalized);
     }
@@ -512,7 +535,25 @@ export default function BriefForm({ onSubmit }: Props) {
       return;
     }
 
-    void submitBrief(normalized);
+    setConfirmDraft(normalized);
+    setConfirmOpen(true);
+  }
+
+  function attemptSubmit() {
+    runSubmitPipeline(draft);
+  }
+
+  function continueFromStoryWorld() {
+    const next = normalizeBriefDefaults({ ...draft, savedAt: Date.now() }, briefLocaleOpts);
+    setDraft(next);
+    saveDraftForDraftId(draftKey, next);
+    setSavedSnackbar(true);
+    if (personalizationOn) {
+      runSubmitPipeline(next);
+    } else {
+      setActiveStep(5);
+      setTimeout(scrollToTop, 50);
+    }
   }
 
   function handleHardBlockClose() {
@@ -540,7 +581,22 @@ export default function BriefForm({ onSubmit }: Props) {
     setHardWarningOpen(false);
     setGateHardWarnings([]);
     setHardWarningAck(false);
-    void submitBrief(finalDraft);
+    runSubmitPipeline(finalDraft);
+  }
+
+  function handleConfirmClose() {
+    if (submitting) return;
+    setConfirmOpen(false);
+    setConfirmDraft(null);
+  }
+
+  function handleConfirmSubmit() {
+    if (submitting) return;
+    if (!confirmDraft) return;
+    setConfirmOpen(false);
+    const toSubmit = confirmDraft;
+    setConfirmDraft(null);
+    void submitBrief(toSubmit);
   }
 
   async function submitBrief(brief: CompleteBrief) {
@@ -685,6 +741,7 @@ export default function BriefForm({ onSubmit }: Props) {
           <BriefProgressIndicator
             currentSection={activeStep}
             sectionCompletion={sectionCompletion}
+            totalSections={progressStepCount}
             onNavigate={(section) => {
               if (section < activeStep || sectionCompletion[section - 1]) {
                 setActiveStep(section);
@@ -730,15 +787,18 @@ export default function BriefForm({ onSubmit }: Props) {
             ageRange={ageRange}
             value={draft.section4}
             onChange={updateSection4}
-            onContinue={() => saveAndAdvance(5)}
+            onContinue={continueFromStoryWorld}
+            continueLabel={
+              personalizationOn ? (submitting ? ui.submitting : ui.submitBrief) : ui.saveContinue
+            }
+            continueIsSubmit={personalizationOn}
+            submitting={submitting}
             onBack={() => goBack(3)}
           />
         )}
 
-        {activeStep === 5 && (
+        {activeStep === 5 && !personalizationOn && (
           <Section5PersonalizationConfig
-            storyType={storyType}
-            personalization={personalization}
             value={draft.section5}
             onChange={updateSection5}
             onSubmit={attemptSubmit}
@@ -780,6 +840,28 @@ export default function BriefForm({ onSubmit }: Props) {
         onGoBack={handleHardWarningGoBack}
         onProceed={handleHardWarningProceed}
       />
+
+      <Dialog open={confirmOpen} onClose={handleConfirmClose} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 800 }}>{ui.confirmSubmitTitle}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.7 }}>
+            {ui.confirmSubmitBody}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleConfirmClose} disabled={submitting} sx={{ textTransform: "none" }}>
+            {ui.confirmSubmitCancel}
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmSubmit}
+            disabled={submitting}
+            sx={{ textTransform: "none", fontWeight: 800 }}
+          >
+            {ui.confirmSubmitConfirm}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={submitError != null}

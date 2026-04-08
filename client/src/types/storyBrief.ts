@@ -737,8 +737,7 @@ export interface CompleteBrief {
   savedAt?: number;
   /**
    * Highest section index (1–5) the specialist has navigated to in this session.
-   * Used for progress UI: Section 5 must not show complete (personalization ON) until this is 5,
-   * since Field 5.1 constraints are optional and would otherwise mark the step green too early.
+   * When personalization is ON, the flow ends at section 4 (section 5 is skipped).
    */
   highestSectionVisited?: number;
 }
@@ -827,23 +826,12 @@ export function mergeSection4PersonalizationDefaults(draft: CompleteBrief): Comp
   return { ...draft, section4: next };
 }
 
-/** Commit personalization constraint defaults when optional list was never initialized. */
+/** Section 5 constraint defaults are not merged — parents only add name/photo at personalization time. */
 export function mergeSection5ConstraintsDefault(
   draft: CompleteBrief,
-  locale?: BriefDefaultsLocaleOptions,
+  _locale?: BriefDefaultsLocaleOptions,
 ): CompleteBrief {
-  const st = draft.storyType;
-  if (!st) return draft;
-  const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
-  if (!personalized) return draft;
-  if (draft.section5.constraints !== undefined) return draft;
-  const defaults =
-    locale?.personalizationConstraintsDefaults?.[st] ?? PERSONALIZATION_CONSTRAINTS_DEFAULTS[st];
-  if (!defaults?.length) return draft;
-  return {
-    ...draft,
-    section5: { ...draft.section5, constraints: [...defaults] },
-  };
+  return draft;
 }
 
 /** Apply all UI defaults so draft, progress, and storage stay aligned. */
@@ -918,8 +906,8 @@ export function isSectionComplete(section: number, draft: CompleteBrief): boolea
     case 5: {
       const personalized = (draft.section4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
       if (personalized) {
-        // 5.1 is optional — do not treat the step as done until the specialist opens Config.
-        return (draft.highestSectionVisited ?? 0) >= 5;
+        // Flow skips Section 5 when personalization is ON — complete once Story World is done.
+        return isSectionComplete(4, draft);
       }
       return !!(draft.section5.whyNot?.trim());
     }

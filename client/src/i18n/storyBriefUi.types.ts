@@ -106,7 +106,7 @@ export interface StoryBriefUi {
     isCurrent: boolean;
     lockedFuture: boolean;
   }) => string;
-  sectionMobileLine: (current: number) => string;
+  sectionMobileLine: (current: number, ofTotal?: number) => string;
 
   s1Overline: string;
   s1Title: string;
@@ -263,6 +263,10 @@ export interface StoryBriefUi {
   gateHardWarningBody: string;
   gateHardWarningCheckbox: string;
   gateProceed: string;
+  confirmSubmitTitle: string;
+  confirmSubmitBody: string;
+  confirmSubmitCancel: string;
+  confirmSubmitConfirm: string;
   submitGateCopy: Record<
     | "relational_tool_no_responder"
     | "significant_intensity_young_age"

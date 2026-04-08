@@ -69,6 +69,12 @@ interface Props {
   value: Partial<StoryWorld>;
   onChange: (updates: Partial<StoryWorld>) => void;
   onContinue: () => void;
+  /** Defaults to "Save & continue"; use "Submit brief" when this is the last step (personalization ON). */
+  continueLabel?: string;
+  /** Match Section 5 submit styling when the primary action submits the brief. */
+  continueIsSubmit?: boolean;
+  /** True while a submit started from this step is in flight. */
+  submitting?: boolean;
   onBack?: () => void;
 }
 
@@ -294,8 +300,18 @@ function TextArea({ id, value, onChange, maxChars, placeholder, minRows = 3, for
 // Main component
 // ============================================================================
 
-export default function Section4StoryWorld({ ageRange, value, onChange, onContinue, onBack }: Props) {
+export default function Section4StoryWorld({
+  ageRange,
+  value,
+  onChange,
+  onContinue,
+  continueLabel,
+  continueIsSubmit = false,
+  submitting = false,
+  onBack,
+}: Props) {
   const ui = useStoryBriefUi();
+  const primaryCtaLabel = continueLabel ?? ui.saveContinue;
   const uid = useId();
   const id = (suffix: string) => `${uid}-${suffix}`;
 
@@ -945,6 +961,7 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
             <Button
               variant="text"
               onClick={onBack}
+              disabled={submitting}
               sx={{ color: COLORS.textSecondary, textTransform: "none" }}
             >
               {ui.back}
@@ -955,18 +972,18 @@ export default function Section4StoryWorld({ ageRange, value, onChange, onContin
             onClick={() => {
               if (isComplete) onContinue();
             }}
-            disabled={!isComplete}
+            disabled={!isComplete || submitting}
             sx={{
               px: 4,
               py: 1.25,
-              backgroundColor: COLORS.primary,
+              backgroundColor: continueIsSubmit ? COLORS.secondary : COLORS.primary,
               fontWeight: 600,
               textTransform: "none",
-              "&:hover": { backgroundColor: COLORS.secondary },
+              "&:hover": { backgroundColor: continueIsSubmit ? "#6B3D4A" : COLORS.secondary },
               "&:disabled": { opacity: 0.45 },
             }}
           >
-            {ui.saveContinue}
+            {primaryCtaLabel}
           </Button>
         </Box>
       </Stack>

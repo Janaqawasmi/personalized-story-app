@@ -277,7 +277,7 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
     if (lockedFuture) return `סעיף ${num}: ${fullName}. נעול עד שאפשר לפתוח את הצעד.`;
     return `סעיף ${num}: ${fullName}`;
   },
-  sectionMobileLine: (current) => `סעיף ${current} מתוך 5`,
+  sectionMobileLine: (current, ofTotal = 5) => `סעיף ${current} מתוך ${ofTotal}`,
 
   s1Overline: "סעיף 1 מתוך 5",
   s1Title: "גיל והיקף הסיפור",
@@ -454,6 +454,11 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
     "הבריף תואם שילוב שלדורש החלטה קלינית מפורשת לפני שליחה ליצירה. עברו על כל הערה, ואז אשרו אם אתם רוצים עדיין לשלוח.",
   gateHardWarningCheckbox: "הבנתי ואני רוצה להמשיך",
   gateProceed: "המשך",
+  confirmSubmitTitle: "לשלוח את הבריף?",
+  confirmSubmitBody:
+    "הפעולה תשלח את הבריף לשרת ליצירת סיפור. תוכלו עדיין לסקור את ה-JSON שנשלח לאחר מכן, אבל לא תוכלו להמשיך לערוך את הטיוטה הזו.",
+  confirmSubmitCancel: "ביטול",
+  confirmSubmitConfirm: "כן, שליחה",
   submitGateCopy: {
     relational_tool_no_responder: {
       title: "נדרשת דמות שאפשר לפנות אליה",
