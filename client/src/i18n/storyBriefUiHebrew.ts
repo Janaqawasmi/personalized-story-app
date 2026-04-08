@@ -274,6 +274,16 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
   complexityLengthBumpCta: (nextLengthLabel) => `מעבר ל־${nextLengthLabel}`,
   complexityLengthBumpMaxed: "כבר נבחר האורך הארוך ביותר לטווח הגיל הזה.",
 
+  midFlowCheckpointTitle: "לפני עולם הסיפור",
+  midFlowCheckpointBody:
+    "לפני שמוסיפים דמויות ופרטי עולם, העיצוב הנוכחי מתקרב לגבול אורך הסיפור הזמין. אפשר להמשיך ולכוון אחר כך, או לעבור שוב על הבחירות הקליניות כעת.",
+  midFlowCheckpointLoadLine: (approxPages, budgetMin, budgetMax) => {
+    const t = approxPages % 1 === 0 ? String(approxPages) : approxPages.toFixed(1);
+    return `העיצוב דורש כיום כ־${t} עמודים. תקציב אורך לסיפור: ${budgetMin}–${budgetMax} עמודים.`;
+  },
+  midFlowCheckpointContinue: "המשך לסעיף 4 — עולם הסיפור",
+  midFlowCheckpointReview: "חזרה לסעיף 3",
+
   sectionOf: (section) => `סעיף ${section} מתוך 5`,
   sectionLabels: {
     1: { full: "גיל והיקף הסיפור", short: "היקף" },

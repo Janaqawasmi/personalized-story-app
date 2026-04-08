@@ -105,6 +105,13 @@ export interface StoryBriefUi {
   complexityLengthBumpCta: (nextLengthLabel: string) => string;
   complexityLengthBumpMaxed: string;
 
+  /** Spec §21 Layer 3 — mid-flow checkpoint (Section 3 → 4). */
+  midFlowCheckpointTitle: string;
+  midFlowCheckpointBody: string;
+  midFlowCheckpointLoadLine: (approxPages: number, budgetMin: number, budgetMax: number) => string;
+  midFlowCheckpointContinue: string;
+  midFlowCheckpointReview: string;
+
   sectionOf: (section: number) => string;
   sectionLabels: Record<number, { full: string; short: string }>;
   progressNavAriaLabel: string;

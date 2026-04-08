@@ -44,6 +44,7 @@ import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
 import ComplexityMeter from "./ComplexityMeter";
+import MidFlowCheckpoint from "./MidFlowCheckpoint";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
 import BriefFeedbackPanel from "./BriefFeedbackPanel";
@@ -80,6 +81,7 @@ import {
   saveDraftForDraftId,
 } from "../../utils/briefDraftStorage";
 import { useComplexitySignals } from "../../services/complexitySignalTracker";
+import { calculateComplexityLoad } from "../../services/complexityBudget";
 
 /**
  * Centered main column (~760–880px per docs/brief-form-ux-notes.md).
@@ -399,7 +401,10 @@ export default function BriefForm({ onSubmit }: Props) {
 
   const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
-  const { resetComplexitySession } = useComplexitySignals();
+  const { resetComplexitySession, hasSeenMidFlowCheckpoint } = useComplexitySignals();
+
+  /** Spec §21 Layer 3 — pause 3→4 when load is yellow/red and checkpoint not yet shown this session */
+  const [midFlowCheckpointOpen, setMidFlowCheckpointOpen] = useState(false);
 
   // ── Load draft for this URL id; remount when draftId changes ───────────────
 
@@ -486,6 +491,28 @@ export default function BriefForm({ onSubmit }: Props) {
   function goBack(prevStep: number) {
     setActiveStep(prevStep);
     setTimeout(scrollToTop, 50);
+  }
+
+  function requestAdvanceFromSection3() {
+    const norm = normalizeBriefDefaults(draft, briefLocaleOpts);
+    const load = calculateComplexityLoad(norm);
+    if (
+      (load.state === "yellow" || load.state === "red") &&
+      !hasSeenMidFlowCheckpoint
+    ) {
+      setMidFlowCheckpointOpen(true);
+      return;
+    }
+    saveAndAdvance(4);
+  }
+
+  function handleMidFlowCheckpointContinue() {
+    setMidFlowCheckpointOpen(false);
+    saveAndAdvance(4);
+  }
+
+  function handleMidFlowCheckpointReview() {
+    setMidFlowCheckpointOpen(false);
   }
 
   // ── Section-level onChange mergers ────────────────────────────────────────
@@ -784,7 +811,7 @@ export default function BriefForm({ onSubmit }: Props) {
             ageRange={ageRange}
             value={draft.section3}
             onChange={updateSection3}
-            onContinue={() => saveAndAdvance(4)}
+            onContinue={requestAdvanceFromSection3}
             onBack={() => goBack(2)}
           />
         )}
@@ -849,6 +876,13 @@ export default function BriefForm({ onSubmit }: Props) {
           {ui.draftSavedSnackbar}
         </Alert>
       </Snackbar>
+
+      <MidFlowCheckpoint
+        open={midFlowCheckpointOpen}
+        brief={normalizeBriefDefaults(draft, briefLocaleOpts)}
+        onContinue={handleMidFlowCheckpointContinue}
+        onReview={handleMidFlowCheckpointReview}
+      />
 
       <HardBlockSubmitDialog
         open={hardBlockOpen}
