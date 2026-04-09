@@ -3,6 +3,7 @@ import { Box, Divider } from "@mui/material";
 import HeroSection from "../components/home/HeroSection";
 import CategoryStrip from "../components/home/CategoryStrip";
 import HowItWorksSection from "../components/home/HowItWorksSection";
+import FeaturedStoriesSection from "../components/home/FeaturedStoriesSection";
 import PersonalizationDemo from "../components/home/PersonalizationDemo";
 import TrustStatsStrip from "../components/home/TrustStatsStrip";
 import TestimonialsSection from "../components/home/TestimonialsSection";
@@ -15,7 +16,8 @@ export default function HomePage() {
       <CategoryStrip />
       <HowItWorksSection />
       <Divider sx={{ borderColor: "#D0C8C0" }} />
-      {/* Featured stories: fetch featured story_templates when ready; use StoryGridCard + SectionHeader (home.featured.*) */}
+      <FeaturedStoriesSection />
+      <Divider sx={{ borderColor: "#D0C8C0" }} />
       <PersonalizationDemo />
       <TrustStatsStrip />
       <TestimonialsSection />
