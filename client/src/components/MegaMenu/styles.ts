@@ -1,6 +1,7 @@
 // src/components/MegaMenu/styles.ts
 import { Theme } from "@mui/material/styles";
 import { SystemStyleObject } from "@mui/system";
+import { Z_INDEX_MEGA_MENU_PANEL } from "../../constants/zIndex";
 
 // Dropdown panel - attached to navbar
 export const panel: SystemStyleObject<Theme> = {
@@ -8,7 +9,7 @@ export const panel: SystemStyleObject<Theme> = {
   top: 64, // Height of AppBar
   left: 0,
   right: 0,
-  zIndex: 1301, // Above AppBar
+  zIndex: Z_INDEX_MEGA_MENU_PANEL, // Above AppBar
   backgroundColor: (theme: Theme) => theme.palette.background.paper,
   borderTop: "none", // No border line
   borderBottomLeftRadius: (theme: Theme) => theme.shape.borderRadius,

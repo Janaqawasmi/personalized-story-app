@@ -5,6 +5,7 @@ import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { COLORS } from "../../theme";
 import { useSpecialistUi } from "../../i18n/specialistUi";
+import { Z_INDEX_SPECIALIST_NAVBAR } from "../../constants/zIndex";
 
 /**
  * Secondary navigation for specialist routes (below the main app Navbar).
@@ -51,7 +52,7 @@ export default function SpecialistNavBar() {
         boxShadow: "0 2px 8px rgba(97, 120, 145, 0.06)",
         position: "sticky",
         top: { xs: 56, md: 60 },
-        zIndex: 1100,
+        zIndex: Z_INDEX_SPECIALIST_NAVBAR,
       }}
     >
       <Stack

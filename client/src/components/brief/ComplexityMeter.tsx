@@ -20,6 +20,7 @@ import { STORY_LENGTH_DEFAULT } from "../../types/storyBrief";
 import { calculateComplexityLoad, type ComplexityLoadState } from "../../services/complexityBudget";
 import { useComplexitySignals } from "../../services/complexitySignalTracker";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
+import { Z_INDEX_COMPLEXITY_METER } from "../../constants/zIndex";
 
 const BRIEF_COLUMN_MAX_PX = 840;
 
@@ -55,7 +56,7 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
   const theme = useTheme();
   const ui = useStoryBriefUi();
   const { markLengthBumpAcknowledged } = useComplexitySignals();
-  const warningMain = theme.palette.warning?.main ?? "#ED9B40";
+  const warningMain = theme.palette.warning.main;
 
   const [hovered, setHovered] = useState(false);
   const [pinned, setPinned] = useState(false);
@@ -133,7 +134,7 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
         right: 0,
         bottom: 0,
         /* Below MUI Snackbar (1400) so save/submit toasts stay visible */
-        zIndex: (theme) => theme.zIndex.appBar,
+        zIndex: Z_INDEX_COMPLEXITY_METER,
         borderRadius: 0,
         borderTop: `1px solid ${COLORS.border}`,
         backgroundColor: COLORS.surface,

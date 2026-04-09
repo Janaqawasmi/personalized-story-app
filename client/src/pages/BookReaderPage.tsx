@@ -26,6 +26,7 @@ import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
 import BookCover from "../components/book/BookCover";
 import BookSpread from "../components/book/BookSpread";
 import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
+import { Z_INDEX_BOOK_READER_TOP_CONTROLS } from "../constants/zIndex";
 import InstructionModal from "../components/InstructionModal";
 import { useTranslation } from "../i18n/useTranslation";
 import { useReader } from "../contexts/ReaderContext";
@@ -692,7 +693,7 @@ export default function BookReaderPage() {
                 alignItems: "center",
                 justifyContent: "space-between",
                 px: 3,
-                zIndex: 1300,
+                zIndex: Z_INDEX_BOOK_READER_TOP_CONTROLS,
                 opacity: 1,
                 pointerEvents: "auto",
               }}
