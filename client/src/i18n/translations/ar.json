@@ -59,6 +59,10 @@
     "audioReading": "القراءة الصوتية",
     "imageComingSoon": "ستظهر الصورة هنا قريباً"
   },
+  "personalize": {
+    "saving": "جاري الحفظ...",
+    "startStory": "ابدأ القصة"
+  },
   "storyDetail": {
     "galleryLabel": "شاهد ما بداخل القصة",
     "previewPlaceholderChildName": "طفلك",

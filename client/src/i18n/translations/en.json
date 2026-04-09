@@ -428,6 +428,8 @@
     "labelBack": "Back",
     "labelContinue": "Continue",
     "openStory": "Open the Story",
+    "saving": "Saving...",
+    "startStory": "Start Story",
 
     "celebrateName": "{name}'s story is ready.",
     "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
