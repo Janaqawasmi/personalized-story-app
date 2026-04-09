@@ -100,6 +100,30 @@ describe("calculateComplexityLoad", () => {
     expect(r.state).toBe("red");
   });
 
+  test("boundary: total equal to budget.max is yellow; one increment above is red", () => {
+    // For age 3–5, short max = 8. Build exactly 8 and then 8.5.
+    // Obligations: core 5 + 2 chars (2) + supporting approach (1) = 8.0
+    const atMax = baseBrief({
+      section1: { ...baseBrief().section1, storyLength: "short" },
+      section3: { ...baseBrief().section3, supportingApproach: "modeling", somaticExpressions: [] },
+      section4: { ...baseBrief().section4, supportingCharacters: ["peer_shows_possible", "peer_alongside"] },
+    });
+    const rAtMax = calculateComplexityLoad(atMax);
+    expect(rAtMax.budget).toEqual(PAGE_BUDGET_TABLE["3-5"].short);
+    expect(rAtMax.totalPageCost).toBe(8);
+    expect(rAtMax.state).toBe("yellow");
+
+    // Add one 0.5 obligation to go above max by one increment.
+    const aboveMax = baseBrief({
+      section1: { ...baseBrief().section1, storyLength: "short" },
+      section3: { ...baseBrief().section3, supportingApproach: "modeling", somaticExpressions: ["freezing"] },
+      section4: { ...baseBrief().section4, supportingCharacters: ["peer_shows_possible", "peer_alongside"] },
+    });
+    const rAboveMax = calculateComplexityLoad(aboveMax);
+    expect(rAboveMax.totalPageCost).toBe(8.5);
+    expect(rAboveMax.state).toBe("red");
+  });
+
   test("same obligations across all four age ranges scale total by multiplier", () => {
     const template = baseBrief({
       section3: {

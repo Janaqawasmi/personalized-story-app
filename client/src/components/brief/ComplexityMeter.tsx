@@ -75,17 +75,8 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
     return Math.min(Math.max(load.totalPageCost / max, 0), 1);
   }, [load.budget.max, load.totalPageCost]);
 
-  // Bar color must reflect the spec thresholds (min triggers warning; max is hard cap).
-  // Keep the rest of the UI logic on `load.state` unchanged.
-  const barState: ComplexityLoadState = useMemo(() => {
-    const pages = load.totalPageCost;
-    const { min, max } = load.budget;
-    if (pages <= min) return "green";
-    if (pages < max) return "yellow";
-    return "red";
-  }, [load.budget, load.totalPageCost]);
-
-  const barColor = barColorForState(barState, warningMain);
+  // Use engine-computed state so UI color can never diverge from the shared §16 logic.
+  const barColor = barColorForState(load.state, warningMain);
 
   const minTickPct = useMemo(() => {
     const { min, max } = load.budget;
