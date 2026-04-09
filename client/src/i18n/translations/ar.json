@@ -38,7 +38,18 @@
   "navbar": {
     "browseStories": "تصفح القصص",
     "hebrew": "עברית",
-    "english": "English"
+    "english": "English",
+    "labels": {
+      "favorites": "المفضلة",
+      "cart": "السلة",
+      "search": "بحث"
+    },
+    "userMenu": {
+      "myStories": "قصصي",
+      "favorites": "المفضلة",
+      "adminPanel": "لوحة الإدارة",
+      "logout": "تسجيل الخروج"
+    }
   },
   "footer": {
     "copyright": "© DAMMAH — All rights reserved"
@@ -183,5 +194,160 @@
   },
   "sticky": {
     "subline": "رقمي · لمرة واحدة"
+  },
+  "admin": {
+    "common": {
+      "loading": "جاري التحميل…"
+    },
+    "layout": {
+      "panelSubtitle": "لوحة الإدارة",
+      "siteAdmin": "مسؤول الموقع"
+    },
+    "nav": {
+      "sectionOverview": "نظرة عامة",
+      "sectionPeople": "الأشخاص",
+      "sectionContent": "المحتوى",
+      "sectionBusiness": "الأعمال",
+      "dashboard": "لوحة التحكم",
+      "analytics": "التحليلات",
+      "users": "المستخدمون",
+      "psychologists": "الأخصائيون",
+      "stories": "القصص",
+      "moderation": "الإشراف",
+      "ai": "استخدام الذكاء الاصطناعي",
+      "revenue": "الإيرادات",
+      "system": "صحة النظام"
+    },
+    "pages": {
+      "overview": {
+        "title": "صباح الخير، المسؤول",
+        "subtitle": "{date} · بيانات مباشرة"
+      },
+      "analytics": {
+        "title": "تحليلات المنصة",
+        "subtitle": "التفاعل والإكمال وتقسيم اللغات"
+      },
+      "users": {
+        "title": "إدارة المستخدمين",
+        "subtitle": "الرعاة والحسابات المهنية"
+      },
+      "psychologists": {
+        "title": "الأخصائيون والمبدعون",
+        "subtitle": "لوحة الصدارة ومسار الانضمام"
+      },
+      "stories": {
+        "title": "كتالوج القصص",
+        "subtitle": "مراجعة واعتماد قوالب القصص"
+      },
+      "moderation": {
+        "title": "الإشراف على المحتوى",
+        "subtitle": "محتوى مُبلغ عنه يحتاج انتباهك"
+      },
+      "ai": {
+        "title": "الذكاء الاصطناعي والصحة",
+        "subtitle": "صحة التوليد والأخطاء والتكلفة"
+      },
+      "revenue": {
+        "title": "الإيرادات",
+        "subtitle": "المبيعات والأسعار والمؤشرات"
+      },
+      "system": {
+        "title": "صحة النظام",
+        "subtitle": "البنية والحصص في Firebase"
+      }
+    },
+    "overview": {
+      "kpiEyebrow": "المؤشرات الرئيسية · هذا الشهر"
+    },
+    "kpi": {
+      "personalizations": "قصص مخصصة",
+      "caregivers": "رعاة نشطون",
+      "conversionRate": "معدل التحويل",
+      "revenue": "الإيرادات (₪)",
+      "deltaUpPersonalizations": "+18% عن الشهر الماضي",
+      "deltaUpCaregivers": "+11% عن الشهر الماضي",
+      "deltaDownConversion": "↓ 2.1% عن الشهر الماضي",
+      "deltaUpRevenue": "+24% عن الشهر الماضي"
+    },
+    "funnel": {
+      "title": "قمع التحويل",
+      "thisMonth": "هذا الشهر",
+      "catalogViews": "مشاهدات الكتالوج (تقديري)",
+      "storyDetail": "مشاهدات صفحة القصة",
+      "personalizeStarted": "بدء التخصيص",
+      "previewRead": "قراءة المعاينة",
+      "purchased": "تم الشراء",
+      "insight": "هناك هبوط كبير من المعاينة إلى الشراء. فكّروا في اقتباس من أخصائي بعد المعاينة."
+    },
+    "categories": {
+      "title": "أهم الفئات العلاجية"
+    },
+    "alerts": {
+      "title": "تنبيهات نشطة",
+      "allClear": "لا توجد تنبيهات — كل شيء على ما يرام"
+    },
+    "activity": {
+      "title": "نشاط حديث",
+      "empty": "لا يوجد نشاط حديث."
+    },
+    "stories": {
+      "sectionEyebrow": "إدارة كتالوج القصص",
+      "kpiPending": "قيد المراجعة",
+      "kpiPendingSub": "يحتاج إلى اهتمامك",
+      "kpiAvgWait": "متوسط وقت الانتظار",
+      "kpiAvgWaitSub": "الهدف: أقل من 48 ساعة",
+      "kpiApprovedMonth": "المعتمدة هذا الشهر",
+      "kpiApprovedSub": "+4 عن الشهر الماضي",
+      "pendingTitle": "قصص تنتظر الموافقة",
+      "allClear": "لا يوجد قصص معلقة.",
+      "approve": "موافقة",
+      "reject": "رفض",
+      "rejectPrompt": "سبب الرفض (سيُرسل للمبدع):",
+      "spreads": "فتحات",
+      "justSubmitted": "أُرسل للتو",
+      "waitingHours": "انتظار {hours} س",
+      "waitingDays": "انتظار {days} يوم"
+    },
+    "psychologists": {
+      "sectionEyebrow": "الأخصائيون ومبدعو القصص",
+      "leaderboard": "لوحة الصدارة",
+      "colCreator": "المبدع",
+      "colSpecialty": "التخصص",
+      "colStories": "القصص",
+      "colPersonalizations": "التخصيصات",
+      "colCompletion": "الإكمال",
+      "colStatus": "الحالة",
+      "joined": "انضم {date}",
+      "statusActive": "نشط",
+      "statusPending": "معلق",
+      "statusReview": "قيد المراجعة"
+    },
+    "users": {
+      "title": "الرعاة",
+      "colName": "الاسم",
+      "colEmail": "البريد",
+      "colPurchases": "المشتريات",
+      "colRole": "الدور"
+    },
+    "analytics": {
+      "title": "التحليلات",
+      "body": "ستُربط الرسوم والتصدير بخادم التحليلات. استخدم الصفحة الرئيسية للمقاييس المباشرة من Firestore."
+    },
+    "ai": {
+      "title": "استخدام الذكاء الاصطناعي",
+      "body": "راقب زمن الاستجابة والأعطال والتكلفة التقديرية عبر السجلات والقياس عن بُعد."
+    },
+    "revenue": {
+      "title": "الإيرادات",
+      "body": "اربط webhooks مزود الدفع ومجموعات الشراء للتقارير الكاملة."
+    },
+    "system": {
+      "title": "صحة النظام",
+      "body": "يمكن ربط وحدة تحكم Firebase والحصص هنا."
+    },
+    "moderation": {
+      "title": "الإشراف",
+      "body": "راجع قوالب القصص تحت «القصص». يمكن توسيع سير عمل المحتوى المُبلغ عنه لاحقًا."
+    }
   }
 }

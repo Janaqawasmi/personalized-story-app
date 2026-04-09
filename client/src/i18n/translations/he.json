@@ -11,6 +11,7 @@
     "userMenu": {
       "myStories": "הסיפורים שלי",
       "favorites": "מועדפים",
+      "adminPanel": "פאנל ניהול",
       "logout": "התנתקות"
     }
   },
@@ -657,5 +658,160 @@
   },
   "sticky": {
     "subline": "דיגיטלי · חד-פעמי"
+  },
+  "admin": {
+    "common": {
+      "loading": "טוען…"
+    },
+    "layout": {
+      "panelSubtitle": "פאנל ניהול",
+      "siteAdmin": "מנהל אתר"
+    },
+    "nav": {
+      "sectionOverview": "סקירה",
+      "sectionPeople": "אנשים",
+      "sectionContent": "תוכן",
+      "sectionBusiness": "עסקים",
+      "dashboard": "לוח בקרה",
+      "analytics": "אנליטיקה",
+      "users": "משתמשים",
+      "psychologists": "פסיכולוגים",
+      "stories": "סיפורים",
+      "moderation": "ניהול תוכן",
+      "ai": "שימוש ב-AI",
+      "revenue": "הכנסות",
+      "system": "בריאות המערכת"
+    },
+    "pages": {
+      "overview": {
+        "title": "בוקר טוב, מנהל",
+        "subtitle": "{date} · נתונים חיים"
+      },
+      "analytics": {
+        "title": "אנליטיקת פלטפורמה",
+        "subtitle": "מעורבות, השלמה ופילוח שפות"
+      },
+      "users": {
+        "title": "ניהול משתמשים",
+        "subtitle": "מטפלים וחשבונות מקצועיים"
+      },
+      "psychologists": {
+        "title": "פסיכולוגים ויוצרים",
+        "subtitle": "לוח מובילים וצינור קליטה"
+      },
+      "stories": {
+        "title": "קטלוג סיפורים",
+        "subtitle": "אישור ודחיית תבניות סיפור"
+      },
+      "moderation": {
+        "title": "ניהול תוכן",
+        "subtitle": "תוכן שדווח דורש תשומת לב"
+      },
+      "ai": {
+        "title": "שימוש ובריאות AI",
+        "subtitle": "מעקב שגיאות, עלויות ויציבות יצירה"
+      },
+      "revenue": {
+        "title": "הכנסות",
+        "subtitle": "מכירות, מחירים ומדדים עסקיים"
+      },
+      "system": {
+        "title": "בריאות המערכת",
+        "subtitle": "תשתית ומכסות Firebase"
+      }
+    },
+    "overview": {
+      "kpiEyebrow": "מדדי מפתח · החודש"
+    },
+    "kpi": {
+      "personalizations": "סיפורים מותאמים",
+      "caregivers": "מטפלים פעילים",
+      "conversionRate": "שיעור המרה",
+      "revenue": "הכנסות (₪)",
+      "deltaUpPersonalizations": "+18% לעומת חודש קודם",
+      "deltaUpCaregivers": "+11% לעומת חודש קודם",
+      "deltaDownConversion": "↓ 2.1% לעומת חודש קודם",
+      "deltaUpRevenue": "+24% לעומת חודש קודם"
+    },
+    "funnel": {
+      "title": "משפך המרה",
+      "thisMonth": "החודש",
+      "catalogViews": "צפיות בקטלוג (משוער)",
+      "storyDetail": "צפיות בעמוד סיפור",
+      "personalizeStarted": "התחלת התאמה",
+      "previewRead": "קריאת תצוגה מקדימה",
+      "purchased": "נרכש",
+      "insight": "נשירה גבוהה מתצוגה מקדימה לרכישה. שקלו הוספת ציטוט מטפל אחרי התצוגה."
+    },
+    "categories": {
+      "title": "קטגוריות טיפוליות מובילות"
+    },
+    "alerts": {
+      "title": "התראות פעילות",
+      "allClear": "הכול תקין — אין התראות"
+    },
+    "activity": {
+      "title": "פעילות אחרונה",
+      "empty": "אין פעילות אחרונה."
+    },
+    "stories": {
+      "sectionEyebrow": "ניהול קטלוג סיפורים",
+      "kpiPending": "ממתינים לאישור",
+      "kpiPendingSub": "דורשים טיפול",
+      "kpiAvgWait": "זמן המתנה ממוצע",
+      "kpiAvgWaitSub": "יעד: מתחת ל־48 שעות",
+      "kpiApprovedMonth": "אושרו החודש",
+      "kpiApprovedSub": "+4 לעומת חודש קודם",
+      "pendingTitle": "סיפורים ממתינים לאישור",
+      "allClear": "הכול עדכני — אין סיפורים ממתינים.",
+      "approve": "אשר",
+      "reject": "דחה",
+      "rejectPrompt": "סיבת הדחייה (תישלח ליוצר):",
+      "spreads": "פריסות",
+      "justSubmitted": "נשלח עכשיו",
+      "waitingHours": "ממתין {hours} ש׳",
+      "waitingDays": "ממתין {days} ימים"
+    },
+    "psychologists": {
+      "sectionEyebrow": "פסיכולוגים ויוצרי סיפורים",
+      "leaderboard": "לוח מובילים",
+      "colCreator": "יוצר",
+      "colSpecialty": "התמחות",
+      "colStories": "סיפורים",
+      "colPersonalizations": "התאמות",
+      "colCompletion": "השלמה",
+      "colStatus": "סטטוס",
+      "joined": "הצטרף {date}",
+      "statusActive": "פעיל",
+      "statusPending": "ממתין",
+      "statusReview": "בבדיקה"
+    },
+    "users": {
+      "title": "מטפלים",
+      "colName": "שם",
+      "colEmail": "אימייל",
+      "colPurchases": "רכישות",
+      "colRole": "תפקיד"
+    },
+    "analytics": {
+      "title": "אנליטיקה",
+      "body": "גרפים מפורטים וייצוא יתחברו לשרת האנליטיקה. השתמשו בסקירה למדדים חיים מ-Firestore."
+    },
+    "ai": {
+      "title": "שימוש ב-AI",
+      "body": "מעקב אחרי זמני תגובה, כשלים ועלות משוערת דרך לוגים וטלמטריה עתידית."
+    },
+    "revenue": {
+      "title": "הכנסות",
+      "body": "חברו webhook של ספק תשלומים ואוספי רכישות לדוחות מלאים."
+    },
+    "system": {
+      "title": "בריאות המערכת",
+      "body": "אפשר לקשר לקונסולת Firebase, מכסות וזמינות."
+    },
+    "moderation": {
+      "title": "ניהול תוכן",
+      "body": "אשרו תבניות סיפור תחת ״סיפורים״. כאן אפשר להרחיב לתוכן משתמשים שדווח."
+    }
   }
 }

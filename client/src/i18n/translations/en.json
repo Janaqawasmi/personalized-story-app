@@ -11,6 +11,7 @@
     "userMenu": {
       "myStories": "My Stories",
       "favorites": "Favorites",
+      "adminPanel": "Admin Panel",
       "logout": "Logout"
     }
   },
@@ -657,5 +658,160 @@
   },
   "sticky": {
     "subline": "Digital · one-time"
+  },
+  "admin": {
+    "common": {
+      "loading": "Loading..."
+    },
+    "layout": {
+      "panelSubtitle": "Admin Panel",
+      "siteAdmin": "Site Admin"
+    },
+    "nav": {
+      "sectionOverview": "Overview",
+      "sectionPeople": "People",
+      "sectionContent": "Content",
+      "sectionBusiness": "Business",
+      "dashboard": "Dashboard",
+      "analytics": "Analytics",
+      "users": "Users",
+      "psychologists": "Psychologists",
+      "stories": "Stories",
+      "moderation": "Moderation",
+      "ai": "AI Usage",
+      "revenue": "Revenue",
+      "system": "System Health"
+    },
+    "pages": {
+      "overview": {
+        "title": "Good morning, Admin",
+        "subtitle": "{date} · Live data"
+      },
+      "analytics": {
+        "title": "Platform analytics",
+        "subtitle": "Engagement, completion and language breakdown"
+      },
+      "users": {
+        "title": "User management",
+        "subtitle": "Manage caregivers and professional accounts"
+      },
+      "psychologists": {
+        "title": "Psychologists & creators",
+        "subtitle": "Creator leaderboard and onboarding pipeline"
+      },
+      "stories": {
+        "title": "Story catalog",
+        "subtitle": "Review and approve story templates"
+      },
+      "moderation": {
+        "title": "Content moderation",
+        "subtitle": "Flagged content requires your attention"
+      },
+      "ai": {
+        "title": "AI usage & health",
+        "subtitle": "Generation health, errors and cost tracking"
+      },
+      "revenue": {
+        "title": "Revenue",
+        "subtitle": "Sales, pricing tiers and business metrics"
+      },
+      "system": {
+        "title": "System health",
+        "subtitle": "Infrastructure status and Firebase quotas"
+      }
+    },
+    "overview": {
+      "kpiEyebrow": "Key metrics · this month"
+    },
+    "kpi": {
+      "personalizations": "Stories personalized",
+      "caregivers": "Active caregivers",
+      "conversionRate": "Conversion rate",
+      "revenue": "Revenue (ILS)",
+      "deltaUpPersonalizations": "+18% vs last month",
+      "deltaUpCaregivers": "+11% vs last month",
+      "deltaDownConversion": "↓ 2.1% vs last month",
+      "deltaUpRevenue": "+24% vs last month"
+    },
+    "funnel": {
+      "title": "Conversion funnel",
+      "thisMonth": "this month",
+      "catalogViews": "Catalog views (est.)",
+      "storyDetail": "Story detail views",
+      "personalizeStarted": "Personalize started",
+      "previewRead": "Preview read",
+      "purchased": "Purchased",
+      "insight": "Preview → Purchase drop-off is high. Consider adding a post-preview therapist quote nudge."
+    },
+    "categories": {
+      "title": "Top therapeutic categories"
+    },
+    "alerts": {
+      "title": "Active alerts",
+      "allClear": "All clear — no active alerts"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "empty": "No recent activity."
+    },
+    "stories": {
+      "sectionEyebrow": "Story catalog management",
+      "kpiPending": "Pending review",
+      "kpiPendingSub": "Needs your attention",
+      "kpiAvgWait": "Avg. wait time",
+      "kpiAvgWaitSub": "Target: under 48h",
+      "kpiApprovedMonth": "Approved this month",
+      "kpiApprovedSub": "+4 vs last month",
+      "pendingTitle": "Stories awaiting approval",
+      "allClear": "All caught up — no pending stories.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectPrompt": "Rejection reason (will be sent to creator):",
+      "spreads": "spreads",
+      "justSubmitted": "Just submitted",
+      "waitingHours": "Waiting {hours}h",
+      "waitingDays": "Waiting {days}d"
+    },
+    "psychologists": {
+      "sectionEyebrow": "Psychologists & story creators",
+      "leaderboard": "Creator leaderboard",
+      "colCreator": "Creator",
+      "colSpecialty": "Specialty",
+      "colStories": "Stories",
+      "colPersonalizations": "Personalizations",
+      "colCompletion": "Completion",
+      "colStatus": "Status",
+      "joined": "Joined {date}",
+      "statusActive": "Active",
+      "statusPending": "Pending",
+      "statusReview": "Review"
+    },
+    "users": {
+      "title": "Caregivers",
+      "colName": "Name",
+      "colEmail": "Email",
+      "colPurchases": "Purchases",
+      "colRole": "Role"
+    },
+    "analytics": {
+      "title": "Analytics",
+      "body": "Detailed charts and exports will connect to your analytics backend. Use the Overview funnel for live Firestore-based metrics."
+    },
+    "ai": {
+      "title": "AI usage",
+      "body": "Monitor model latency, failures, and estimated cost from server logs and future telemetry endpoints."
+    },
+    "revenue": {
+      "title": "Revenue",
+      "body": "Connect payment provider webhooks and purchase subcollections for full revenue reporting."
+    },
+    "system": {
+      "title": "System health",
+      "body": "Firebase console, quotas, and uptime checks can be linked here."
+    },
+    "moderation": {
+      "title": "Moderation",
+      "body": "Review pending story templates under Stories. Flagged user content workflows can be added here."
+    }
   }
 }

@@ -732,7 +732,11 @@ const GenerateDraftPage: React.FC = () => {
                           </Stack>
                           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
                         <Chip
-                              label={formatAgeGroup(brief.childProfile.ageGroup)}
+                              label={
+                                brief.childProfile?.ageGroup
+                                  ? formatAgeGroup(brief.childProfile.ageGroup)
+                                  : "—"
+                              }
                           size="small"
                           color="primary"
                           variant="outlined"
@@ -879,7 +883,7 @@ const GenerateDraftPage: React.FC = () => {
                             Primary Topic
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {formatDisplayText(brief.therapeuticFocus.primaryTopic) || "—"}
+                            {formatDisplayText(brief.therapeuticFocus?.primaryTopic || "") || "—"}
                           </Typography>
                         </Box>
                         <Box>
@@ -887,7 +891,7 @@ const GenerateDraftPage: React.FC = () => {
                             Situation
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {formatDisplayText(brief.therapeuticFocus.specificSituation) || "—"}
+                            {formatDisplayText(brief.therapeuticFocus?.specificSituation || "") || "—"}
                           </Typography>
                         </Box>
                         <Box>

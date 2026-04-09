@@ -304,6 +304,16 @@ export default function Navbar({
                   >
                     {t("navbar.userMenu.favorites")}
                   </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      const prefix = lang || language;
+                      navigateDirect(`/${prefix}/admin/overview`);
+                      handleUserMenuClose();
+                      setSearchOpen(false);
+                    }}
+                  >
+                    {t("navbar.userMenu.adminPanel")}
+                  </MenuItem>
                   <MenuItem onClick={handleLogout}>{t("navbar.userMenu.logout")}</MenuItem>
                 </Menu>
               </Box>
