@@ -15,7 +15,7 @@ function baseBrief(over: Partial<CompleteBrief> = {}): CompleteBrief {
       primaryApproach: "normalization",
       supportingApproach: null,
       shameDimension: "not_significant",
-      somaticExpressions: ["freezing"],
+      somaticExpressions: ["freezing_going_still"],
       somaticOther: "",
       copingTool: "deep_breathing",
       resolutionCompleteness: "partial",
@@ -26,7 +26,7 @@ function baseBrief(over: Partial<CompleteBrief> = {}): CompleteBrief {
       protagonistGender: null,
       protagonistType: "child",
       protagonistAgeRelative: "same_age",
-      caregiverPresence: "present_comforting",
+      caregiverPresence: "present_and_comforting",
       narrativeDistance: "direct",
       parallelChallenge: "",
       supportingCharacters: [],
@@ -65,7 +65,7 @@ describe("calculateComplexityLoad", () => {
         ...baseBrief().section3,
         supportingApproach: "modeling",
         shameDimension: "central",
-        somaticExpressions: ["freezing", "tension"],
+        somaticExpressions: ["freezing_going_still", "tension_clenching"],
       },
       section4: {
         ...baseBrief().section4,
@@ -85,12 +85,12 @@ describe("calculateComplexityLoad", () => {
         ...baseBrief().section3,
         supportingApproach: "modeling",
         shameDimension: "central",
-        somaticExpressions: ["freezing", "tension"],
+        somaticExpressions: ["freezing_going_still", "tension_clenching"],
       },
       section4: {
         ...baseBrief().section4,
         supportingCharacters: ["peer_shows_possible", "peer_alongside"],
-        caregiverPresence: "leaves_returns",
+        caregiverPresence: "leaves_and_returns",
         narrativeDistance: "parallel",
       },
     });
@@ -116,7 +116,7 @@ describe("calculateComplexityLoad", () => {
     // Add one 0.5 obligation to go above max by one increment.
     const aboveMax = baseBrief({
       section1: { ...baseBrief().section1, storyLength: "short" },
-      section3: { ...baseBrief().section3, supportingApproach: "modeling", somaticExpressions: ["freezing"] },
+      section3: { ...baseBrief().section3, supportingApproach: "modeling", somaticExpressions: ["freezing_going_still"] },
       section4: { ...baseBrief().section4, supportingCharacters: ["peer_shows_possible", "peer_alongside"] },
     });
     const rAboveMax = calculateComplexityLoad(aboveMax);
@@ -130,7 +130,7 @@ describe("calculateComplexityLoad", () => {
         ...baseBrief().section3,
         supportingApproach: "modeling",
         shameDimension: "central",
-        somaticExpressions: ["freezing", "tension"],
+        somaticExpressions: ["freezing_going_still", "tension_clenching"],
       },
       section4: {
         ...baseBrief().section4,
@@ -162,7 +162,7 @@ describe("calculateComplexityLoad", () => {
     const brief = baseBrief({
       section3: {
         ...baseBrief().section3,
-        somaticExpressions: ["freezing", "tension"],
+        somaticExpressions: ["freezing_going_still", "tension_clenching"],
       },
       section4: {
         ...baseBrief().section4,
@@ -186,7 +186,7 @@ describe("calculateComplexityLoad", () => {
           ...baseBrief().section3,
           supportingApproach: "modeling",
           shameDimension: "central",
-          somaticExpressions: ["freezing", "tension"],
+          somaticExpressions: ["freezing_going_still", "tension_clenching"],
         },
         section4: {
           ...baseBrief().section4,
@@ -200,12 +200,12 @@ describe("calculateComplexityLoad", () => {
           ...baseBrief().section3,
           supportingApproach: "modeling",
           shameDimension: "present",
-          somaticExpressions: ["freezing", "tension"],
+          somaticExpressions: ["freezing_going_still", "tension_clenching"],
         },
         section4: {
           ...baseBrief().section4,
           supportingCharacters: ["peer_shows_possible", "peer_alongside"],
-          caregiverPresence: "leaves_returns",
+          caregiverPresence: "leaves_and_returns",
           narrativeDistance: "metaphorical",
         },
       }),
@@ -215,12 +215,12 @@ describe("calculateComplexityLoad", () => {
           ...baseBrief().section3,
           supportingApproach: null,
           shameDimension: "central",
-          somaticExpressions: ["freezing", "tension"],
+          somaticExpressions: ["freezing_going_still", "tension_clenching"],
         },
         section4: {
           ...baseBrief().section4,
           supportingCharacters: ["peer_shows_possible"],
-          caregiverPresence: "waiting_end",
+          caregiverPresence: "waiting_at_the_end",
           narrativeDistance: "parallel",
         },
       }),

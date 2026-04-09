@@ -33,11 +33,6 @@ const SOFT_MESSAGES: Record<string, string> = {
     "For younger children, the agent will show this tool as a simple physical action or repeated pattern — not verbal self-talk.",
   cognitive_reframing_young_age:
     "Cognitive reframing requires developmental capacity for perspective-taking. For ages 3–5, consider Normalization, Modeling, or Psychoeducation instead.",
-  trigger_lacks_specificity: "Can you add what the child sees, hears, or feels in this moment?",
-  intention_too_brief:
-    "This may be too brief for the agent to work with. Can you make the second half more specific?",
-  personalization_direct_intensity:
-    "The story will closely mirror the child's real experience, using their name and identity. Ensure the emotional intensity is appropriate.",
 };
 
 /** Same keyword list as server crossFieldValidation.ts */
@@ -161,7 +156,7 @@ export function evaluateBriefInformativeValidation(
   const softWarnings: InformativeSoftIssue[] = [];
 
   // --- Soft: self-regulation + present comforting ---
-  if (s3.primaryApproach === "self_regulation" && s4.caregiverPresence === "present_comforting") {
+  if (s3.primaryApproach === "self_regulation" && s4.caregiverPresence === "present_and_comforting") {
     softWarnings.push({
       id: "self_regulation_comforting_caregiver",
       message: SOFT_MESSAGES.self_regulation_comforting_caregiver,
@@ -209,33 +204,10 @@ export function evaluateBriefInformativeValidation(
     });
   }
 
-  // --- Soft: trigger < 80 (duplicates field nudge; still listed for summary) ---
-  if (s2.trigger.length < 80) {
-    softWarnings.push({
-      id: "trigger_lacks_specificity",
-      message: SOFT_MESSAGES.trigger_lacks_specificity,
-      fields: ["2.2"],
-    });
-  }
-
-  // --- Soft: intention combined < 60 ---
-  const intLen = s2.intentionFeel.length + s2.intentionBecause.length;
-  if (intLen < 60) {
-    softWarnings.push({
-      id: "intention_too_brief",
-      message: SOFT_MESSAGES.intention_too_brief,
-      fields: ["2.3"],
-    });
-  }
-
-  // --- Soft: personalization ON + direct ---
-  if (personalized && s4.narrativeDistance === "direct") {
-    softWarnings.push({
-      id: "personalization_direct_intensity",
-      message: SOFT_MESSAGES.personalization_direct_intensity,
-      fields: ["4.0", "4.5"],
-    });
-  }
+  // Field-level nudges (spec §4 / §6) are intentionally NOT included here:
+  // - trigger brevity (<80 chars) is nudged inline in Section 2.2 UI
+  // - intention brevity (<60 chars combined) is nudged inline in Section 2.3 UI
+  // - personalization + direct note is shown inline in Section 4.5 UI
 
   // --- §16 Complexity (shared package — same as meter + server warning) ---
   const engine = computeComplexityFromParts(extractComplexityPartsFromClientWire(b));

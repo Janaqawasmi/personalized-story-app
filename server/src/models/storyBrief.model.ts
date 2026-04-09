@@ -1031,7 +1031,7 @@ export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
       "The coping tool requires someone the protagonist can turn to. Please add a present caregiver or a supporting character who can respond.",
   },
 
-  // ── Hard warnings (3 rules) ───────────────────────────────────────────
+  // ── Hard warnings ─────────────────────────────────────────────────────
 
   {
     id: "significant_intensity_young_age",
@@ -1050,14 +1050,14 @@ export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
   },
   {
     id: "conflicting_approach_pair",
-    severity: "hard_warning",
+    severity: "soft_warning",
     description:
       "Primary and supporting approaches are a potentially conflicting therapeutic pair (Field 3.2 conflict handling)",
     message:
       "These approaches can pull in different directions. Is this intentional?",
   },
 
-  // ── Soft warnings (8 rules) ───────────────────────────────────────────
+  // ── Soft warnings ─────────────────────────────────────────────────────
 
   {
     id: "self_regulation_comforting_caregiver",
@@ -1097,30 +1097,6 @@ export const CROSS_FIELD_VALIDATIONS: CrossFieldValidation[] = [
     description: 'Primary approach = "Cognitive reframing" AND age range = 3–5',
     message:
       "Cognitive reframing requires developmental capacity for perspective-taking. For ages 3–5, consider Normalization, Modeling, or Psychoeducation instead.",
-  },
-  {
-    id: "trigger_lacks_specificity",
-    severity: "soft_warning",
-    description:
-      "Trigger text (Field 2.2) is under 80 characters — may lack the sensory detail the agent needs",
-    message:
-      "Can you add what the child sees, hears, or feels in this moment?",
-  },
-  {
-    id: "intention_too_brief",
-    severity: "soft_warning",
-    description:
-      "Therapeutic intention (Field 2.3) combined text under 60 characters — may be too vague for the agent",
-    message:
-      "This may be too brief for the agent to work with. Can you make the second half more specific?",
-  },
-  {
-    id: "personalization_direct_intensity",
-    severity: "soft_warning",
-    description:
-      'Personalization ON + narrative distance = "Direct" — story will closely mirror the child\'s real experience',
-    message:
-      "The story will closely mirror the child's real experience, using their name and identity. Ensure the emotional intensity is appropriate.",
   },
 ];
 

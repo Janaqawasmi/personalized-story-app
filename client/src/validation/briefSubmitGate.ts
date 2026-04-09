@@ -1,22 +1,23 @@
 // client/src/validation/briefSubmitGate.ts
 //
-// Pre-submit gate: hard blocks and hard warnings (spec §8), aligned with
-// server/src/validation/crossFieldValidation.ts
+// Pre-submit gate: hard blocks and hard warnings (spec §8).
+//
+// NOTE: Field 3.2 "conflicting approach pair" is a selection-time note in the spec,
+// not a submit-time hard warning. We keep the pair detection for inline UI, but it does
+// not belong in this submit gate.
 
 import type { CompleteBrief } from "../types/storyBrief";
 import {
-  CONFLICTING_APPROACH_PAIRS,
   type CaregiverPresence,
   type CopingTool,
   type SupportingCharacter,
-  type TherapeuticApproach,
 } from "../types/storyBrief";
 
 // ── Constants (mirror server storyBrief.model) ─────────────────────────────
 
 const RELATIONAL_COPING_TOOLS: readonly CopingTool[] = ["safe_person", "asking_for_help"];
 
-const NON_PRESENT_CAREGIVERS: readonly CaregiverPresence[] = ["waiting_end", "not_present"];
+const NON_PRESENT_CAREGIVERS: readonly CaregiverPresence[] = ["waiting_at_the_end", "not_present"];
 
 const RESPONDING_CHARACTERS: readonly SupportingCharacter[] = [
   "peer_shows_possible",
@@ -62,24 +63,11 @@ const GATE_META: Record<
     clinicalNote:
       "Graduated exposure relies on manageable doses of discomfort. Constant soothing can short-circuit the approach unless you have structured that dynamic intentionally for this case.",
   },
-  conflicting_approach_pair: {
-    severity: "hard_warning",
-    title: "Potentially conflicting therapeutic approaches",
-    message: "These approaches can pull in different directions. Is this intentional?",
-    clinicalNote:
-      "Mixed mechanisms can confuse the story’s emotional arc. Proceed only if you are deliberately layering approaches and know how the draft should prioritize them.",
-  },
 };
 
 /** Title shown in read-only brief review for acknowledged warning/block IDs (spec §8). */
 export function getSubmitGateTitleForDisplay(id: string): string | undefined {
   return GATE_META[id]?.title;
-}
-
-function isConflictingPair(a: TherapeuticApproach, b: TherapeuticApproach): boolean {
-  return CONFLICTING_APPROACH_PAIRS.some(
-    ([x, y]) => (a === x && b === y) || (a === y && b === x),
-  );
 }
 
 function checkRelationalToolNoResponder(brief: CompleteBrief): SubmitGateItem | null {
@@ -128,7 +116,7 @@ function checkSignificantIntensityYoungAge(brief: CompleteBrief): SubmitGateItem
 function checkGraduatedExposureComfortingCaregiver(brief: CompleteBrief): SubmitGateItem | null {
   if (
     brief.section3.primaryApproach === "graduated_exposure" &&
-    brief.section4.caregiverPresence === "present_comforting"
+    brief.section4.caregiverPresence === "present_and_comforting"
   ) {
     const m = GATE_META.graduated_exposure_comforting_caregiver;
     return {
@@ -140,21 +128,6 @@ function checkGraduatedExposureComfortingCaregiver(brief: CompleteBrief): Submit
     };
   }
   return null;
-}
-
-function checkConflictingApproachPair(brief: CompleteBrief): SubmitGateItem | null {
-  const primary = brief.section3.primaryApproach;
-  const supporting = brief.section3.supportingApproach;
-  if (!primary || !supporting) return null;
-  if (!isConflictingPair(primary, supporting)) return null;
-  const m = GATE_META.conflicting_approach_pair;
-  return {
-    id: "conflicting_approach_pair",
-    severity: m.severity,
-    title: m.title,
-    message: m.message,
-    clinicalNote: m.clinicalNote,
-  };
 }
 
 /**
@@ -178,9 +151,6 @@ export function evaluateBriefSubmitGate(brief: CompleteBrief): {
 
   const gradComfort = checkGraduatedExposureComfortingCaregiver(brief);
   if (gradComfort) hardWarnings.push(gradComfort);
-
-  const conflict = checkConflictingApproachPair(brief);
-  if (conflict) hardWarnings.push(conflict);
 
   return {
     hardBlocks,

@@ -347,27 +347,27 @@ export const SHAME_DIMENSION_DESCRIPTIONS: Record<ShameDimension, string> = {
 // ---------------------------------------------------------------------------
 
 export const SOMATIC_EXPRESSIONS = [
-  "freezing",
+  "freezing_going_still",
   "crying_clinging",
-  "stomach_ache",
-  "heart_racing",
-  "restless",
-  "going_quiet",
-  "tension",
-  "sweating",
+  "stomach_ache_feeling_sick",
+  "heart_racing_cant_breathe",
+  "restless_fidgety",
+  "going_quiet_shutting_down",
+  "tension_clenching",
+  "sweating_feeling_hot",
 ] as const;
 
 export type SomaticExpression = (typeof SOMATIC_EXPRESSIONS)[number];
 
 export const SOMATIC_EXPRESSION_LABELS: Record<SomaticExpression, string> = {
-  freezing: "Freezing / going still",
+  freezing_going_still: "Freezing / going still",
   crying_clinging: "Crying / clinging",
-  stomach_ache: "Stomach ache / feeling sick",
-  heart_racing: "Heart racing / can't breathe",
-  restless: "Restless / fidgety / can't sit still",
-  going_quiet: "Going quiet / shutting down",
-  tension: "Tension / clenching (jaw, fists, shoulders)",
-  sweating: "Sweating / feeling hot",
+  stomach_ache_feeling_sick: "Stomach ache / feeling sick",
+  heart_racing_cant_breathe: "Heart racing / can't breathe",
+  restless_fidgety: "Restless / fidgety / can't sit still",
+  going_quiet_shutting_down: "Going quiet / shutting down",
+  tension_clenching: "Tension / clenching (jaw, fists, shoulders)",
+  sweating_feeling_hot: "Sweating / feeling hot",
 };
 
 export const SOMATIC_MAX_SELECT = 2;
@@ -380,12 +380,12 @@ export const SOMATIC_OTHER_CHAR_LIMIT = 150;
 export const COPING_TOOLS = [
   "deep_breathing",
   "counting",
-  "grounding_senses",
+  "grounding_through_senses",
   "positive_self_talk",
   "visualization",
   "routine_awareness",
   "safe_person",
-  "comfort_object",
+  "comfort_object_or_memory",
   "asking_for_help",
 ] as const;
 
@@ -394,12 +394,12 @@ export type CopingTool = (typeof COPING_TOOLS)[number];
 export const COPING_TOOL_LABELS: Record<CopingTool, string> = {
   deep_breathing: "Deep breathing",
   counting: "Counting",
-  grounding_senses: "Grounding through senses",
+  grounding_through_senses: "Grounding through senses",
   positive_self_talk: "Positive self-talk",
   visualization: "Visualization",
   routine_awareness: "Routine awareness",
   safe_person: "Safe person",
-  comfort_object: "Comfort object or memory",
+  comfort_object_or_memory: "Comfort object or memory",
   asking_for_help: "Asking for help",
 };
 
@@ -410,9 +410,9 @@ export interface CopingToolCategory {
 
 /** Grouped coping tool options for Fear & Anxiety (Body / Mind / Connection). */
 export const COPING_TOOL_CATEGORIES_FEAR_ANXIETY: CopingToolCategory[] = [
-  { label: "Body", tools: ["deep_breathing", "counting", "grounding_senses"] },
+  { label: "Body", tools: ["deep_breathing", "counting", "grounding_through_senses"] },
   { label: "Mind", tools: ["positive_self_talk", "visualization", "routine_awareness"] },
-  { label: "Connection", tools: ["safe_person", "comfort_object", "asking_for_help"] },
+  { label: "Connection", tools: ["safe_person", "comfort_object_or_memory", "asking_for_help"] },
 ];
 
 /** Abstract tools — trigger an age note when age range is 3–5. */
@@ -581,25 +581,25 @@ export const PROTAGONIST_AGE_RELATIVE_LABELS: Record<ProtagonistAgeRelative, str
 // ---------------------------------------------------------------------------
 
 export const CAREGIVER_PRESENCES = [
-  "present_comforting",
-  "guides_side",
-  "leaves_returns",
-  "waiting_end",
+  "present_and_comforting",
+  "guides_from_the_side",
+  "leaves_and_returns",
+  "waiting_at_the_end",
   "not_present",
 ] as const;
 export type CaregiverPresence = (typeof CAREGIVER_PRESENCES)[number];
 
 export const CAREGIVER_PRESENCE_LABELS: Record<CaregiverPresence, string> = {
-  present_comforting: "Present and comforting",
-  guides_side: "Guides from the side",
-  leaves_returns: "Leaves and returns",
-  waiting_end: "Waiting at the end",
+  present_and_comforting: "Present and comforting",
+  guides_from_the_side: "Guides from the side",
+  leaves_and_returns: "Leaves and returns",
+  waiting_at_the_end: "Waiting at the end",
   not_present: "Not present",
 };
 
 /** Extra clarifying description shown only for certain options. */
 export const CAREGIVER_PRESENCE_DESCRIPTIONS: Partial<Record<CaregiverPresence, string>> = {
-  leaves_returns:
+  leaves_and_returns:
     "The caregiver departs during the story and comes back. The story includes both the goodbye and the reunion.",
 };
 
@@ -692,6 +692,8 @@ export interface StoryWorld {
 // Field 5.2 — Why Not (shown when personalization OFF, required)
 // ---------------------------------------------------------------------------
 
+// NOTE (implementation detail): the v1.3 spec does not define a character limit for Field 5.2.
+// We enforce 400 chars in the implementation for UX + quality; add this to the spec in the next update.
 export const WHY_NOT_CHAR_LIMIT = 400;
 
 // ---------------------------------------------------------------------------

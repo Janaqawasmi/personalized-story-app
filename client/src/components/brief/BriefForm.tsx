@@ -406,7 +406,7 @@ function BriefFormInner({ onSubmit }: Props) {
     shouldShowPreSubmitWarning,
   } = useComplexitySignals();
 
-  /** Spec §21 Layer 4 — pre-submit complexity (red load, no prior checkpoint/length-bump ack) */
+  /** Spec §21 Layer 3 — pre-submit complexity (red load, no prior checkpoint/length-bump ack) */
   const [complexityPreSubmitOpen, setComplexityPreSubmitOpen] = useState(false);
   const [pendingNormalizedForConfirm, setPendingNormalizedForConfirm] = useState<CompleteBrief | null>(
     null,

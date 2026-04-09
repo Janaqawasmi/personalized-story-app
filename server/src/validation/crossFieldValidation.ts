@@ -2,10 +2,13 @@
 //
 // Cross-field validation engine for the Story Brief (spec v1.3, Section 8).
 //
-// Implements 12 rules:
-//   1 hard block   — prevents submission
-//   3 hard warnings — require explicit acknowledgment to proceed
-//   8 soft warnings — shown but do not block
+// Implements spec §8 cross-field validations:
+//   - 1 hard block   — prevents submission
+//   - hard warnings  — require explicit acknowledgment to proceed
+//   - soft warnings  — shown but do not block
+//
+// NOTE: Field-level nudges (trigger/intention brevity; personalization+direct note) are not
+// modeled as §8 cross-field validations in v1.3; they are surfaced inline in the form UI.
 //
 // Each rule is a standalone function for testability. The main entry point
 // `validateBriefCrossFields` runs all rules against a complete brief.
@@ -247,45 +250,6 @@ function checkCognitiveReframingYoungAge(
   return null;
 }
 
-// ── Soft warning #6 ────────────────────────────────────────────────────────
-
-function checkTriggerLacksSpecificity(
-  brief: StoryBrief,
-): TriggeredValidation | null {
-  if (brief.clinicalFoundation.trigger.length < 80) {
-    return trigger("trigger_lacks_specificity", ["2.2"]);
-  }
-  return null;
-}
-
-// ── Soft warning #7 ────────────────────────────────────────────────────────
-
-function checkIntentionTooBrief(
-  brief: StoryBrief,
-): TriggeredValidation | null {
-  const { feel, because } = brief.clinicalFoundation.therapeuticIntention;
-  const combinedLength = feel.length + because.length;
-
-  if (combinedLength < 60) {
-    return trigger("intention_too_brief", ["2.3"]);
-  }
-  return null;
-}
-
-// ── Soft warning #8 ────────────────────────────────────────────────────────
-
-function checkPersonalizationDirectIntensity(
-  brief: StoryBrief,
-): TriggeredValidation | null {
-  if (
-    brief.storyWorld.personalization &&
-    brief.storyWorld.narrativeDistance === "direct"
-  ) {
-    return trigger("personalization_direct_intensity", ["4.0", "4.5"]);
-  }
-  return null;
-}
-
 // ============================================================================
 // Rule Registry (ordered by severity, then by spec order)
 // ============================================================================
@@ -298,6 +262,7 @@ const RULE_CHECKERS: RuleChecker[] = [
   // Hard warnings
   checkSignificantIntensityYoungAge,
   checkGraduatedExposureComfortingCaregiver,
+  // Field 3.2 note: conflicting approach pair is intentionally soft (inline note in UI)
   checkConflictingApproachPair,
   // Soft warnings
   checkSelfRegulationComfortingCaregiver,
@@ -305,9 +270,6 @@ const RULE_CHECKERS: RuleChecker[] = [
   checkSeparationAnxietyNoCaregiver,
   checkAbstractToolYoungAge,
   checkCognitiveReframingYoungAge,
-  checkTriggerLacksSpecificity,
-  checkIntentionTooBrief,
-  checkPersonalizationDirectIntensity,
 ];
 
 // ============================================================================
