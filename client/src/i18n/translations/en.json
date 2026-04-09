@@ -103,8 +103,54 @@
     },
     "featured": {
       "label": "Featured stories",
-      "title": "Stories children love",
-      "browse_all": "Browse all stories"
+      "eyebrow": "Therapeutic stories",
+      "title": "Where every child",
+      "title_em": "becomes the hero",
+      "browse_all": "Browse all stories",
+      "filter_all": "All stories",
+      "filter_fear": "Fear",
+      "filter_anxiety": "Anxiety",
+      "filter_confidence": "Confidence",
+      "filter_grief": "Grief",
+      "filter_change": "Change",
+      "filter_anger": "Anger",
+      "badge_new": "New",
+      "price_suffix": "/ digital",
+      "cta_view": "View Story",
+      "see_all": "See all 18 stories",
+      "empty": "No stories in this category yet — more coming soon.",
+      "stories": [
+        {
+          "title": "The Night the Stars Were Afraid",
+          "ageRange": "Ages 4–8",
+          "description": "A gentle journey through the dark with a brave little star as guide. Helps children face nighttime fears with courage."
+        },
+        {
+          "title": "Mia and the Worry Cloud",
+          "ageRange": "Ages 3–7",
+          "description": "Mia learns that worries are just clouds — and clouds always pass. A soothing story rooted in CBT principles."
+        },
+        {
+          "title": "The Captain of Her Heart",
+          "ageRange": "Ages 5–10",
+          "description": "A daring adventure that reminds every child of their inner strength. Perfect before school transitions."
+        },
+        {
+          "title": "Grandma's Garden Lives On",
+          "ageRange": "Ages 4–9",
+          "description": "A tender story about loss, love, and how the people we love always stay with us. Gently introduces grief."
+        },
+        {
+          "title": "The New House on Maple Street",
+          "ageRange": "Ages 3–8",
+          "description": "Moving to a new home feels scary — until the child discovers it can also mean new adventures."
+        },
+        {
+          "title": "Leo and the Big Red Feeling",
+          "ageRange": "Ages 4–8",
+          "description": "Leo learns that big feelings are okay — it's what you do with them that matters. Validated by therapists."
+        }
+      ]
     },
     "personalize_demo": {
       "label": "Magic in seconds",
