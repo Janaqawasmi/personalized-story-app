@@ -137,25 +137,6 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────
-    // Clinical Rules (read-only for authenticated)
-    // ────────────────────────────────────────────────────
-
-    match /clinicalRulesVersions/{versionId} {
-      allow read: if isSpecialistOrAdmin();
-      allow write: if false;
-
-      match /{subcollection}/{docId} {
-        allow read: if isSpecialistOrAdmin();
-        allow write: if false;
-      }
-    }
-
-    match /settings/{docId} {
-      allow read: if isSpecialistOrAdmin();
-      allow write: if false;
-    }
-
-    // ────────────────────────────────────────────────────
     // Reference Data (public read)
     // ────────────────────────────────────────────────────
 
