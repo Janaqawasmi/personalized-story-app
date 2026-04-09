@@ -81,6 +81,10 @@ export function extractComplexityPartsFromClientWire(wire: unknown): NormalizedC
 
   /** Matches specialist UI: somatic for Fear & Anxiety or undecided story type (`null`). */
   const storyType = w.storyType;
+  // Pilot scope note: in the pilot, somatic-expression obligations are counted only for Fear & Anxiety.
+  // When additional story types become active (e.g., Big Emotions and others), their somatic‑equivalent
+  // type-specific fields will need explicit handling here. Spec reference: Section 17 (Field 3.4 varies
+  // completely by story type).
   const allowSomatic = storyType === "fear_anxiety" || storyType == null;
   let somaticSelectionCount = 0;
   if (allowSomatic) {

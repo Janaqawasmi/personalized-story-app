@@ -596,7 +596,9 @@ function BriefFormInner({ onSubmit }: Props) {
     }
 
     const complexityLoad = calculateComplexityLoad(normalized);
-    if (shouldShowPreSubmitWarning(complexityLoad.state)) {
+    const storyLength = normalized.section1.storyLength ?? STORY_LENGTH_DEFAULT;
+    const isAtMaxStoryLength = storyLength === "extended";
+    if (!isAtMaxStoryLength && shouldShowPreSubmitWarning(complexityLoad.state)) {
       setPendingNormalizedForConfirm(normalized);
       setComplexityPreSubmitSnapshot(complexityLoad);
       setComplexityPreSubmitOpen(true);
@@ -664,6 +666,12 @@ function BriefFormInner({ onSubmit }: Props) {
   }
 
   function handleComplexityPreSubmitAnyway() {
+    if (!pendingNormalizedForConfirm) {
+      console.warn(
+        "[BriefForm] handleComplexityPreSubmitAnyway called with no pending normalized draft; this should be unreachable in normal usage.",
+      );
+      return;
+    }
     setComplexityPreSubmitOpen(false);
     const pending = pendingNormalizedForConfirm;
     setPendingNormalizedForConfirm(null);
