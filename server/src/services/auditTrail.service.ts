@@ -27,21 +27,11 @@ export type AuditAction =
   | "brief.updated"
   | "damma_brief.submitted" // Spec v1.3 form aggregate (dammaStoryBriefs collection)
   | "damma_brief.feedback_submitted" // Specialist review feedback (subcollection feedback)
-  // Contract lifecycle
-  | "contract.built"
-  | "contract.preview"
-  | "contract.viewed" // When specialist loads persisted contract
-  | "contract.override_applied"
-  // Approval lifecycle
-  | "contract.approved"
-  | "contract.rejected"
-  | "contract.approval_revoked" // When override invalidates a previous approval
   // Generation lifecycle
   | "generation.requested"
   | "generation.started"
   | "generation.completed"
-  | "generation.failed"
-  | "generation.blocked"; // Blocked by missing approval
+  | "generation.failed";
 
 /**
  * A single audit trail entry. Immutable once written.
@@ -59,10 +49,10 @@ export interface AuditEntry {
   };
 
   /** The primary resource this action relates to */
-  resourceType: "storyBrief" | "generationContract" | "storyDraft";
+  resourceType: "storyBrief" | "storyDraft";
   resourceId: string;
 
-  /** Optional secondary resource (e.g., briefId when acting on a contract) */
+  /** Optional secondary resource ID for cross-linking */
   relatedResourceId?: string;
 
   /** Action-specific metadata (e.g., override details, rejection reason) */

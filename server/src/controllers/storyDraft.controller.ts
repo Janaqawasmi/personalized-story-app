@@ -157,9 +157,6 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
       return;
     }
 
-    // The approved contract is already loaded by the guard middleware
-    const approvedContract = req.approvedContract;
-
     // Log generation start
     if (req.user) {
       await AuditTrail.log({
@@ -168,7 +165,6 @@ export const generateDraftFromBrief = async (req: Request, res: Response): Promi
         resourceType: "storyDraft",
         resourceId: briefId,
         relatedResourceId: briefId,
-        metadata: { rulesVersionUsed: approvedContract?.rulesVersionUsed },
       });
     }
 

@@ -120,16 +120,6 @@ service cloud.firestore {
       }
     }
 
-    match /generationContracts/{contractId} {
-      allow read: if isSpecialistOrAdmin();
-      allow write: if false;
-
-      match /history/{historyId} {
-        allow read: if isSpecialistOrAdmin();
-        allow write: if false;
-      }
-    }
-
     match /storyDrafts/{draftId} {
       allow read: if isSpecialistOrAdmin();
       allow write: if false;

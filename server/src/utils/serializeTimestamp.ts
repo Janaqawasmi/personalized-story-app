@@ -47,30 +47,3 @@ export function serializeTimestamp(ts: any): string | undefined {
 
   return undefined;
 }
-
-/**
- * Serializes a GenerationContract's timestamps to ISO strings for JSON responses.
- *
- * Handles: createdAt, updatedAt, approval.decidedAt, approval.expiresAt.
- * Pass `extras` to merge additional top-level fields into the output.
- */
-export function serializeContractForResponse(
-  contract: Record<string, any>,
-  extras?: Record<string, any>
-): Record<string, any> {
-  return {
-    ...contract,
-    createdAt: serializeTimestamp(contract.createdAt),
-    updatedAt: contract.updatedAt ? serializeTimestamp(contract.updatedAt) : undefined,
-    approval: contract.approval
-      ? {
-          ...contract.approval,
-          decidedAt: serializeTimestamp(contract.approval.decidedAt),
-          expiresAt: contract.approval.expiresAt
-            ? serializeTimestamp(contract.approval.expiresAt)
-            : undefined,
-        }
-      : undefined,
-    ...extras,
-  };
-}
