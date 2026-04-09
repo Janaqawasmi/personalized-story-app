@@ -14,23 +14,10 @@ describe("ComplexitySignalProvider / useComplexitySignals", () => {
   test("initial state — nothing shown or acknowledged", () => {
     const { result } = renderHook(() => useComplexitySignals(), { wrapper });
 
-    expect(result.current.hasSeenMidFlowCheckpoint).toBe(false);
     expect(result.current.hasAcknowledgedLengthBump).toBe(false);
     expect(result.current.shouldShowPreSubmitWarning("green")).toBe(false);
     expect(result.current.shouldShowPreSubmitWarning("yellow")).toBe(false);
     expect(result.current.shouldShowPreSubmitWarning("red")).toBe(true);
-  });
-
-  test("after mid-flow checkpoint seen — pre-submit red warning suppressed", () => {
-    const { result } = renderHook(() => useComplexitySignals(), { wrapper });
-
-    act(() => {
-      result.current.markMidFlowCheckpointSeen();
-    });
-
-    expect(result.current.hasSeenMidFlowCheckpoint).toBe(true);
-    expect(result.current.hasAcknowledgedLengthBump).toBe(false);
-    expect(result.current.shouldShowPreSubmitWarning("red")).toBe(false);
   });
 
   test("after length bump acknowledged — pre-submit red warning suppressed", () => {
@@ -40,20 +27,6 @@ describe("ComplexitySignalProvider / useComplexitySignals", () => {
       result.current.markLengthBumpAcknowledged();
     });
 
-    expect(result.current.hasSeenMidFlowCheckpoint).toBe(false);
-    expect(result.current.hasAcknowledgedLengthBump).toBe(true);
-    expect(result.current.shouldShowPreSubmitWarning("red")).toBe(false);
-  });
-
-  test("after both mid-flow and length bump — still suppressed on red", () => {
-    const { result } = renderHook(() => useComplexitySignals(), { wrapper });
-
-    act(() => {
-      result.current.markMidFlowCheckpointSeen();
-      result.current.markLengthBumpAcknowledged();
-    });
-
-    expect(result.current.hasSeenMidFlowCheckpoint).toBe(true);
     expect(result.current.hasAcknowledgedLengthBump).toBe(true);
     expect(result.current.shouldShowPreSubmitWarning("red")).toBe(false);
   });
@@ -65,24 +38,11 @@ describe("ComplexitySignalProvider / useComplexitySignals", () => {
     nonRed.forEach((st) => {
       expect(result.current.shouldShowPreSubmitWarning(st)).toBe(false);
     });
-
-    act(() => {
-      result.current.markMidFlowCheckpointSeen();
-    });
-    nonRed.forEach((st) => {
-      expect(result.current.shouldShowPreSubmitWarning(st)).toBe(false);
-    });
   });
 
   test("pre-submit: red + neither acknowledgment → show", () => {
     const { result } = renderHook(() => useComplexitySignals(), { wrapper });
     expect(result.current.shouldShowPreSubmitWarning("red")).toBe(true);
-  });
-
-  test("pre-submit: red + only mid-flow → hide", () => {
-    const { result } = renderHook(() => useComplexitySignals(), { wrapper });
-    act(() => result.current.markMidFlowCheckpointSeen());
-    expect(result.current.shouldShowPreSubmitWarning("red")).toBe(false);
   });
 
   test("pre-submit: red + only length bump → hide", () => {
@@ -95,7 +55,6 @@ describe("ComplexitySignalProvider / useComplexitySignals", () => {
     const { result } = renderHook(() => useComplexitySignals(), { wrapper });
 
     act(() => {
-      result.current.markMidFlowCheckpointSeen();
       result.current.markLengthBumpAcknowledged();
     });
     expect(result.current.shouldShowPreSubmitWarning("red")).toBe(false);
@@ -104,7 +63,6 @@ describe("ComplexitySignalProvider / useComplexitySignals", () => {
       result.current.resetComplexitySession();
     });
 
-    expect(result.current.hasSeenMidFlowCheckpoint).toBe(false);
     expect(result.current.hasAcknowledgedLengthBump).toBe(false);
     expect(result.current.shouldShowPreSubmitWarning("red")).toBe(true);
   });

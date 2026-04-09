@@ -105,13 +105,6 @@ export interface StoryBriefUi {
   complexityLengthBumpCta: (nextLengthLabel: string) => string;
   complexityLengthBumpMaxed: string;
 
-  /** Spec §21 Layer 3 — mid-flow checkpoint (Section 3 → 4). */
-  midFlowCheckpointTitle: string;
-  midFlowCheckpointBody: string;
-  midFlowCheckpointLoadLine: (approxPages: number, budgetMin: number, budgetMax: number) => string;
-  midFlowCheckpointContinue: string;
-  midFlowCheckpointReview: string;
-
   /** Spec §16 / §21 Layer 4 — pre-submit complexity overload (deduplicated). */
   preSubmitComplexityTitle: string;
   preSubmitComplexityBody: (

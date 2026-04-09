@@ -17,13 +17,11 @@ import type { ComplexityLoadState } from "./complexityBudget";
 // ---------------------------------------------------------------------------
 
 export interface ComplexitySignalsApi {
-  hasSeenMidFlowCheckpoint: boolean;
-  markMidFlowCheckpointSeen: () => void;
   hasAcknowledgedLengthBump: boolean;
   markLengthBumpAcknowledged: () => void;
   /**
    * Pre-submit overload warning (Layer 4): show only when load is red and the psychologist
-   * has not yet acknowledged overload via the mid-flow checkpoint or the length-bump action.
+   * has not yet acknowledged overload via the length-bump action.
    */
   shouldShowPreSubmitWarning: (currentState: ComplexityLoadState) => boolean;
   /**
@@ -36,12 +34,10 @@ export interface ComplexitySignalsApi {
 const ComplexitySignalContext = createContext<ComplexitySignalsApi | null>(null);
 
 interface InternalState {
-  midFlowCheckpointSeen: boolean;
   lengthBumpAcknowledged: boolean;
 }
 
 const INITIAL: InternalState = {
-  midFlowCheckpointSeen: false,
   lengthBumpAcknowledged: false,
 };
 
@@ -55,10 +51,6 @@ export interface ComplexitySignalProviderProps {
 export function ComplexitySignalProvider({ children }: ComplexitySignalProviderProps) {
   const [state, setState] = useState<InternalState>(INITIAL);
 
-  const markMidFlowCheckpointSeen = useCallback(() => {
-    setState((s) => ({ ...s, midFlowCheckpointSeen: true }));
-  }, []);
-
   const markLengthBumpAcknowledged = useCallback(() => {
     setState((s) => ({ ...s, lengthBumpAcknowledged: true }));
   }, []);
@@ -70,25 +62,21 @@ export function ComplexitySignalProvider({ children }: ComplexitySignalProviderP
   const shouldShowPreSubmitWarning = useCallback(
     (currentState: ComplexityLoadState) => {
       if (currentState !== "red") return false;
-      if (state.midFlowCheckpointSeen || state.lengthBumpAcknowledged) return false;
+      if (state.lengthBumpAcknowledged) return false;
       return true;
     },
-    [state.midFlowCheckpointSeen, state.lengthBumpAcknowledged],
+    [state.lengthBumpAcknowledged],
   );
 
   const value = useMemo<ComplexitySignalsApi>(
     () => ({
-      hasSeenMidFlowCheckpoint: state.midFlowCheckpointSeen,
-      markMidFlowCheckpointSeen,
       hasAcknowledgedLengthBump: state.lengthBumpAcknowledged,
       markLengthBumpAcknowledged,
       shouldShowPreSubmitWarning,
       resetComplexitySession,
     }),
     [
-      state.midFlowCheckpointSeen,
       state.lengthBumpAcknowledged,
-      markMidFlowCheckpointSeen,
       markLengthBumpAcknowledged,
       shouldShowPreSubmitWarning,
       resetComplexitySession,

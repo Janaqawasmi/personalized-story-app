@@ -98,16 +98,6 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     complexityLengthBumpCta: (nextLengthLabel) => `Switch to ${nextLengthLabel}`,
     complexityLengthBumpMaxed: "You're already using the longest length option for this age range.",
 
-    midFlowCheckpointTitle: "Before Story World",
-    midFlowCheckpointBody:
-      "Before you add characters and story world details, your current design is approaching the available story length. You can continue and adjust later, or review your clinical choices now.",
-    midFlowCheckpointLoadLine: (approxPages, budgetMin, budgetMax) => {
-      const t = approxPages % 1 === 0 ? String(approxPages) : approxPages.toFixed(1);
-      return `Your design currently needs about ${t} pages. Story length budget: ${budgetMin}–${budgetMax} pages.`;
-    },
-    midFlowCheckpointContinue: "Continue to Section 4",
-    midFlowCheckpointReview: "Review Section 3",
-
     preSubmitComplexityTitle: "Story length and design load",
     preSubmitComplexityBody: (approxPages, lengthLabel, budgetMin, budgetMax) => {
       const t = approxPages % 1 === 0 ? String(approxPages) : approxPages.toFixed(1);

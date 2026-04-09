@@ -44,7 +44,6 @@ import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
 import ComplexityMeter from "./ComplexityMeter";
-import MidFlowCheckpoint from "./MidFlowCheckpoint";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
 import BriefFeedbackPanel from "./BriefFeedbackPanel";
@@ -404,12 +403,8 @@ function BriefFormInner({ onSubmit }: Props) {
 
   const {
     resetComplexitySession,
-    hasSeenMidFlowCheckpoint,
     shouldShowPreSubmitWarning,
   } = useComplexitySignals();
-
-  /** Spec §21 Layer 3 — pause 3→4 when load is yellow/red and checkpoint not yet shown this session */
-  const [midFlowCheckpointOpen, setMidFlowCheckpointOpen] = useState(false);
 
   /** Spec §21 Layer 4 — pre-submit complexity (red load, no prior checkpoint/length-bump ack) */
   const [complexityPreSubmitOpen, setComplexityPreSubmitOpen] = useState(false);
@@ -515,28 +510,6 @@ function BriefFormInner({ onSubmit }: Props) {
   function goBack(prevStep: number) {
     setActiveStep(prevStep);
     setTimeout(scrollToTop, 50);
-  }
-
-  function requestAdvanceFromSection3() {
-    const norm = normalizeBriefDefaults(draft, briefLocaleOpts);
-    const load = calculateComplexityLoad(norm);
-    if (
-      (load.state === "yellow" || load.state === "red") &&
-      !hasSeenMidFlowCheckpoint
-    ) {
-      setMidFlowCheckpointOpen(true);
-      return;
-    }
-    saveAndAdvance(4);
-  }
-
-  function handleMidFlowCheckpointContinue() {
-    setMidFlowCheckpointOpen(false);
-    saveAndAdvance(4);
-  }
-
-  function handleMidFlowCheckpointReview() {
-    setMidFlowCheckpointOpen(false);
   }
 
   // ── Section-level onChange mergers ────────────────────────────────────────
@@ -868,7 +841,7 @@ function BriefFormInner({ onSubmit }: Props) {
             ageRange={ageRange}
             value={draft.section3}
             onChange={updateSection3}
-            onContinue={requestAdvanceFromSection3}
+            onContinue={() => saveAndAdvance(4)}
             onBack={() => goBack(2)}
           />
         )}
@@ -934,13 +907,6 @@ function BriefFormInner({ onSubmit }: Props) {
           {ui.draftSavedSnackbar}
         </Alert>
       </Snackbar>
-
-      <MidFlowCheckpoint
-        open={midFlowCheckpointOpen}
-        brief={normalizeBriefDefaults(draft, briefLocaleOpts)}
-        onContinue={handleMidFlowCheckpointContinue}
-        onReview={handleMidFlowCheckpointReview}
-      />
 
       <Dialog
         open={complexityPreSubmitOpen}
