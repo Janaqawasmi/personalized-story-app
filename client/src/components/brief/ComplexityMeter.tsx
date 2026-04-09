@@ -74,7 +74,40 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
     return Math.min(Math.max(load.totalPageCost / max, 0), 1);
   }, [load.budget.max, load.totalPageCost]);
 
-  const barColor = barColorForState(load.state, warningMain);
+  // Bar color must reflect the spec thresholds (min triggers warning; max is hard cap).
+  // Keep the rest of the UI logic on `load.state` unchanged.
+  const barState: ComplexityLoadState = useMemo(() => {
+    const pages = load.totalPageCost;
+    const { min, max } = load.budget;
+    if (pages <= min) return "green";
+    if (pages < max) return "yellow";
+    return "red";
+  }, [load.budget, load.totalPageCost]);
+
+  const barColor = barColorForState(barState, warningMain);
+
+  const minTickPct = useMemo(() => {
+    const { min, max } = load.budget;
+    if (max <= 0) return 0;
+    return Math.min(Math.max(min / max, 0), 1) * 100;
+  }, [load.budget]);
+
+  const zone1Pct = useMemo(() => {
+    const pages = load.totalPageCost;
+    const { min, max } = load.budget;
+    if (max <= 0) return 0;
+    const z1 = Math.min(Math.max(pages, 0), min);
+    return (z1 / max) * 100;
+  }, [load.budget, load.totalPageCost]);
+
+  const zone2Pct = useMemo(() => {
+    const pages = load.totalPageCost;
+    const { min, max } = load.budget;
+    if (max <= 0) return 0;
+    const capped = Math.min(Math.max(pages, 0), max);
+    const z2 = Math.max(capped - min, 0);
+    return (z2 / max) * 100;
+  }, [load.budget, load.totalPageCost]);
 
   const nextLen = nextStoryLength(storyLength);
   const showLengthBump =
@@ -159,21 +192,48 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
             <Box
               sx={{
                 direction: "ltr",
+                position: "relative",
+                display: "flex",
                 height: 10,
                 borderRadius: 5,
                 bgcolor: "rgba(97, 120, 145, 0.12)",
                 overflow: "hidden",
               }}
             >
+              {/* budget.min tick (recommended limit), positioned on the max-denominator scale */}
               <Box
                 sx={{
-                  width: `${fillRatio * 100}%`,
+                  position: "absolute",
+                  left: `${minTickPct}%`,
+                  top: 0,
+                  bottom: 0,
+                  width: 2,
+                  transform: "translateX(-1px)",
+                  bgcolor: "rgba(255,255,255,0.7)",
+                  zIndex: 1,
+                  pointerEvents: "none",
+                }}
+              />
+              <Box
+                sx={{
+                  width: `${Math.min(zone1Pct, 100)}%`,
                   height: "100%",
                   bgcolor: barColor,
                   borderRadius: 5,
                   transition: "width 0.25s ease, background-color 0.2s ease",
                 }}
               />
+              {/* Zone 2 only appears once load exceeds budget.min */}
+              {zone2Pct > 0 && (
+                <Box
+                  sx={{
+                    width: `${Math.min(zone2Pct, 100)}%`,
+                    height: "100%",
+                    bgcolor: barColor,
+                    transition: "width 0.25s ease, background-color 0.2s ease",
+                  }}
+                />
+              )}
             </Box>
           </Box>
           <Box
