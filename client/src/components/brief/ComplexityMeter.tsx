@@ -310,6 +310,7 @@ export default function ComplexityMeter({ brief, onLengthChange }: ComplexityMet
                       }}
                       sx={{ flexShrink: 0, fontWeight: 700 }}
                     >
+                      {/* Checked: this button is rendered outside the header Stack that toggles expand/collapse, so stopPropagation is not required. */}
                       {ui.complexityLengthBumpCta(ui.STORY_LENGTH_LABELS[nextLen])}
                     </Button>
                   </Stack>

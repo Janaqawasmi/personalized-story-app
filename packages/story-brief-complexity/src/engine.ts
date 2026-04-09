@@ -134,9 +134,6 @@ export function computeComplexityFromParts(parts: NormalizedComplexityParts): Co
     });
   }
 
-  const baseSum = rawRows.reduce((s, r) => s + r.rawCost, 0);
-  const totalPageCost = roundToHalf(baseSum * multiplier);
-
   const clientBreakdown: ComplexityBreakdownEntry[] = rawRows.map((r) => ({
     id: r.id,
     name: r.name,
@@ -144,6 +141,10 @@ export function computeComplexityFromParts(parts: NormalizedComplexityParts): Co
     rawCost: r.rawCost,
     scaledCost: roundToHalf(r.rawCost * multiplier),
   }));
+
+  // Derive total from the already-rounded line items so the displayed total always
+  // equals the sum of the displayed breakdown (prevents 0.5 discrepancies).
+  const totalPageCost = roundToHalf(clientBreakdown.reduce((s, r) => s + r.scaledCost, 0));
 
   const serverObligations: ServerObligationRow[] = rawRows.map((r) => ({
     label: r.serverLabel,

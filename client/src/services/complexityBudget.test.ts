@@ -153,4 +153,61 @@ describe("calculateComplexityLoad", () => {
     expect(somatic?.rawCost).toBe(1);
     expect(chars?.rawCost).toBe(2);
   });
+
+  test("totalPageCost equals sum of already-rounded breakdown line items (3 multi-obligation cases)", () => {
+    const cases: CompleteBrief[] = [
+      // Case A: 5+ obligations
+      baseBrief({
+        section3: {
+          ...baseBrief().section3,
+          supportingApproach: "modeling",
+          shameDimension: "central",
+          somaticExpressions: ["freezing", "tension"],
+        },
+        section4: {
+          ...baseBrief().section4,
+          supportingCharacters: ["peer_shows_possible", "teacher_adult_guides"],
+          narrativeDistance: "parallel",
+        },
+      }),
+      // Case B: 6+ obligations (caregiver overhead + 2 chars)
+      baseBrief({
+        section3: {
+          ...baseBrief().section3,
+          supportingApproach: "modeling",
+          shameDimension: "present",
+          somaticExpressions: ["freezing", "tension"],
+        },
+        section4: {
+          ...baseBrief().section4,
+          supportingCharacters: ["peer_shows_possible", "peer_alongside"],
+          caregiverPresence: "leaves_returns",
+          narrativeDistance: "metaphorical",
+        },
+      }),
+      // Case C: 4+ obligations (no supporting approach, but shame + narrative + chars)
+      baseBrief({
+        section3: {
+          ...baseBrief().section3,
+          supportingApproach: null,
+          shameDimension: "central",
+          somaticExpressions: ["freezing", "tension"],
+        },
+        section4: {
+          ...baseBrief().section4,
+          supportingCharacters: ["peer_shows_possible"],
+          caregiverPresence: "waiting_end",
+          narrativeDistance: "parallel",
+        },
+      }),
+    ];
+
+    cases.forEach((brief) => {
+      const r = calculateComplexityLoad(brief);
+      // The UI displays per-line `scaledCost`; total must match their sum exactly.
+      const sum = r.breakdown.reduce((s, row) => s + row.scaledCost, 0);
+      expect(r.totalPageCost).toBe(sum);
+      expect(r.breakdown.length).toBeGreaterThanOrEqual(4);
+    });
+  });
 });
