@@ -13,7 +13,8 @@
       "favorites": "Favorites",
       "adminPanel": "Admin Panel",
       "logout": "Logout"
-    }
+    },
+    "arabic": "Arabic"
   },
   "footer": {
     "copyright": "© DAMMAH — All rights reserved"
@@ -385,12 +386,10 @@
     "createStory": "Create the story",
     "imageTooLarge": "Image is too large. Please select an image smaller than 5MB",
     "story": "Story",
-
     "step1Of4": "Step 1 of 4",
     "step2Of4": "Step 2 of 4",
     "step3Of4": "Step 3 of 4",
     "step4Of4": "Step 4 of 4",
-
     "nameHeadingLine1": "What's your",
     "nameHeadingLine2": "child's name?",
     "nameSub": "Their name will be woven through every line — making this story entirely, unmistakably theirs.",
@@ -399,7 +398,6 @@
     "previewSentenceSuffix": " looked up at the night sky — and for a moment, every star seemed to shine just for them.",
     "previewSentenceEmpty": "Once upon a time, there was a child who believed in the magic of stories…",
     "previewEmpty": "Once upon a time, there was a child who believed in the magic of stories…",
-
     "genderHeadingLine1": "Is your child",
     "genderHeadingLine2": "a girl or a boy?",
     "genderSub": "So every word feels natural — she, her, hers / he, him, his. No detail left generic.",
@@ -407,7 +405,6 @@
     "boy": "Boy",
     "girlPronouns": "She · Her · Hers",
     "boyPronouns": "He · Him · His",
-
     "photoHeadingLine1": "A photo of",
     "photoHeadingFallback": "your child",
     "photoSub": "{name}'s face will appear in the first illustrated spreads — not a generic child, but them.",
@@ -419,22 +416,18 @@
     "trust1": "Illustrations only",
     "trust2": "Never shared",
     "trust3": "Deleted after",
-
     "styleHeadingLine1": "Choose the",
     "styleHeadingLine2": "illustration style",
     "styleSub": "Every page will be rendered in this mood. Pick the world you want {name} to step into.",
     "styleSubFallback": "your child",
-
     "labelBack": "Back",
     "labelContinue": "Continue",
     "openStory": "Open the Story",
     "saving": "Saving...",
     "startStory": "Start Story",
-
     "celebrateName": "{name}'s story is ready.",
     "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
     "celebrateTagPhoto": "Photo ready",
-
     "leftPersonalizing": "Personalizing",
     "leftYourChild": "Your child",
     "leftWaitingName": "Waiting for a name…",

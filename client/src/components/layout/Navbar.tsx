@@ -374,6 +374,12 @@ export default function Navbar({
               >
                 {t("navbar.english")}
               </MenuItem>
+              <MenuItem
+                onClick={() => handleLanguageChange("ar")}
+                selected={language === "ar"}
+              >
+                {t("navbar.arabic")}
+              </MenuItem>
             </Menu>
           </Box>
         </Box>
