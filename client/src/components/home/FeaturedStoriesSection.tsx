@@ -26,7 +26,6 @@ export default function FeaturedStoriesSection() {
   const arrow = isRTL ? "←" : "→";
 
   const [activeFilter, setActiveFilter] = useState<FilterValue>("all");
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
   const { stories, loading } = useFeaturedStories();
 
@@ -34,15 +33,6 @@ export default function FeaturedStoriesSection() {
     activeFilter === "all"
       ? stories
       : stories.filter((s) => s.topic === activeFilter);
-
-  const handleFavorite = (id: string) => {
-    setFavorites((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
   const handleCardClick = (id: string) => {
     navigate(`/stories/${id}`);
@@ -259,10 +249,8 @@ export default function FeaturedStoriesSection() {
                   description={story.description}
                   price={story.price}
                   isNew={story.isNew}
-                  isFavorited={favorites.has(story.id)}
                   coverGradient={story.coverGradient}
                   coverImage={story.coverImage}
-                  onFavoriteToggle={handleFavorite}
                   onClick={handleCardClick}
                 />
               </Box>

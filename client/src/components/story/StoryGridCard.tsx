@@ -1,8 +1,11 @@
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, IconButton } from "@mui/material";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import FavoriteIcon from "@mui/icons-material/Favorite";
 import type { StoryTopic } from "../../constants/topicColors";
 import { STORY_TOPIC_TAG_STYLES } from "../../constants/topicColors";
 import StarField from "../home/StarField";
 import { useTranslation } from "../../i18n/useTranslation";
+import { useFavorite } from "../../hooks/useFavorite";
 
 interface StoryGridCardProps {
   id: string;
@@ -12,10 +15,8 @@ interface StoryGridCardProps {
   description: string;
   price: number;
   isNew?: boolean;
-  isFavorited?: boolean;
   coverGradient: string;
   coverImage: string | null;
-  onFavoriteToggle?: (id: string) => void;
   onClick: (id: string) => void;
 }
 
@@ -27,14 +28,21 @@ export default function StoryGridCard({
   description,
   price,
   isNew = false,
-  isFavorited = false,
   coverGradient,
   coverImage,
-  onFavoriteToggle,
   onClick,
 }: StoryGridCardProps) {
   const t = useTranslation();
   const colors = STORY_TOPIC_TAG_STYLES[topic];
+
+  const { isFavorite, toggle, loading: favoriteLoading } = useFavorite(id, {
+    storyId: id,
+    title,
+    coverImage: coverImage ?? null,
+    ageGroup: ageRange || null,
+    category: topic || null,
+    topic: topic || null,
+  });
 
   return (
     <Box
@@ -118,37 +126,35 @@ export default function StoryGridCard({
           </Box>
         )}
 
-        {onFavoriteToggle && (
-          <Box
-            component="button"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onFavoriteToggle(id);
-            }}
-            sx={{
-              position: "absolute",
-              top: 14,
-              insetInlineEnd: 14,
-              zIndex: 5,
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: isFavorited ? "rgba(130,77,92,0.85)" : "rgba(255,255,255,0.18)",
-              border: isFavorited ? "1px solid transparent" : "1px solid rgba(255,255,255,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              fontSize: "14px",
-              color: "#fff",
-              transition: "all 0.2s",
-              "&:hover": { background: "rgba(130,77,92,0.85)" },
-            }}
-          >
-            {isFavorited ? "♥" : "♡"}
-          </Box>
-        )}
+        <IconButton
+          onClick={(e) => {
+            e.stopPropagation();
+            void toggle();
+          }}
+          disabled={favoriteLoading}
+          size="small"
+          aria-label="toggle favorite"
+          sx={{
+            position: "absolute",
+            top: 10,
+            insetInlineEnd: 10,
+            zIndex: 5,
+            width: 32,
+            height: 32,
+            bgcolor: "rgba(255,255,255,0.88)",
+            backdropFilter: "blur(4px)",
+            border: "0.5px solid rgba(255,255,255,0.95)",
+            transition: "background 0.15s",
+            "&:hover": { bgcolor: "#fff" },
+            "&:disabled": { opacity: 0.5 },
+          }}
+        >
+          {isFavorite ? (
+            <FavoriteIcon sx={{ fontSize: 16, color: "#D4537E" }} />
+          ) : (
+            <FavoriteBorderIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+          )}
+        </IconButton>
 
         <Box sx={{ position: "relative", zIndex: 2 }}>
           <Typography
