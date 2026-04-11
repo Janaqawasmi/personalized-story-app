@@ -10,8 +10,25 @@ export default function RequireAdmin() {
 
   useEffect(() => {
     const auth = getAuth();
-    const unsub = onAuthStateChanged(auth, (user) => {
-      setStatus(user ? "allowed" : "denied");
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setStatus("denied");
+        return;
+      }
+      try {
+        // Force refresh so newly-set custom claims (e.g. admin) land in the token immediately
+        const tokenResult = await user.getIdTokenResult(true);
+        const role = tokenResult.claims.role;
+        if (role === "admin") {
+          setStatus("allowed");
+        } else {
+          console.warn("[RequireAdmin] Access denied. User role:", role, "Full claims:", tokenResult.claims);
+          setStatus("denied");
+        }
+      } catch (err) {
+        console.error("[RequireAdmin] Failed to read token claims:", err);
+        setStatus("denied");
+      }
     });
     return () => unsub();
   }, []);

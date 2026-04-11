@@ -64,16 +64,24 @@ router.post("/register-caregiver", async (req: Request, res: Response) => {
   console.log("[register-caregiver] Processing registration for:", { uid, email });
 
   try {
-    // ── 2. Check if user already has caregiver role ────────────────────────
-    // If they already have the claim, we still ensure the Firestore doc exists
-    // but skip the claim-setting step.
+    // ── 2. Check if user already has caregiver role (from token) ───────────
     const existingClaims = decodedToken;
     const alreadyCaregiver = existingClaims.role === "caregiver";
 
     // ── 3. Set the "caregiver" custom claim ────────────────────────────────
+    let caregiverClaimJustSet = false;
     if (!alreadyCaregiver) {
-      await admin.auth().setCustomUserClaims(uid, { role: "caregiver" });
-      console.log("[register-caregiver] Custom claim 'caregiver' set for:", uid);
+      // Don't overwrite existing roles (e.g., admin, specialist) — only set caregiver if no role exists
+      const existingUser = await admin.auth().getUser(uid);
+      const rawRole = existingUser.customClaims?.role;
+      const existingRole = typeof rawRole === "string" ? rawRole : undefined;
+      if (!existingRole) {
+        await admin.auth().setCustomUserClaims(uid, { role: "caregiver" });
+        caregiverClaimJustSet = true;
+        console.log("[register-caregiver] Custom claim 'caregiver' set for:", uid);
+      } else {
+        console.log("[register-caregiver] Preserving existing role:", existingRole, uid);
+      }
     } else {
       console.log("[register-caregiver] User already has caregiver role:", uid);
     }
@@ -102,7 +110,9 @@ router.post("/register-caregiver", async (req: Request, res: Response) => {
       success: true,
       message: alreadyCaregiver
         ? "Caregiver document ensured (role already set)"
-        : "Caregiver registered successfully",
+        : caregiverClaimJustSet
+          ? "Caregiver registered successfully"
+          : "Caregiver document ensured (existing role preserved)",
       uid,
     });
   } catch (error: any) {
