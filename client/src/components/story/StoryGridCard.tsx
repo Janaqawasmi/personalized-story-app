@@ -14,6 +14,7 @@ interface StoryGridCardProps {
   isNew?: boolean;
   isFavorited?: boolean;
   coverGradient: string;
+  coverImage: string | null;
   onFavoriteToggle?: (id: string) => void;
   onClick: (id: string) => void;
 }
@@ -28,6 +29,7 @@ export default function StoryGridCard({
   isNew = false,
   isFavorited = false,
   coverGradient,
+  coverImage,
   onFavoriteToggle,
   onClick,
 }: StoryGridCardProps) {
@@ -62,13 +64,35 @@ export default function StoryGridCard({
           p: "20px",
         }}
       >
-        <StarField count={22} />
+        {coverImage ? (
+          <Box
+            component="img"
+            src={coverImage}
+            alt={title}
+            sx={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "center top",
+              zIndex: 0,
+            }}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = "none";
+            }}
+          />
+        ) : null}
+
+        <StarField count={coverImage ? 10 : 22} />
 
         <Box
           sx={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 60%)",
+            zIndex: 1,
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.15) 50%, transparent 100%)",
           }}
         />
 

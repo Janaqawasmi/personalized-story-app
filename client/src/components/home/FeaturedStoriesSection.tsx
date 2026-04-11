@@ -3,7 +3,7 @@ import { Box, Typography, Button } from "@mui/material";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useLanguage } from "../../i18n/context/useLanguage";
-import { FEATURED_STORIES } from "../../data/featuredStories";
+import { useFeaturedStories } from "../../hooks/useFeaturedStories";
 import { STORY_TOPIC_TAG_STYLES, type StoryTopic } from "../../constants/topicColors";
 import StoryGridCard from "../story/StoryGridCard";
 
@@ -28,10 +28,12 @@ export default function FeaturedStoriesSection() {
   const [activeFilter, setActiveFilter] = useState<FilterValue>("all");
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
+  const { stories, loading } = useFeaturedStories();
+
   const filtered =
     activeFilter === "all"
-      ? FEATURED_STORIES
-      : FEATURED_STORIES.filter((s) => s.topic === activeFilter);
+      ? stories
+      : stories.filter((s) => s.topic === activeFilter);
 
   const handleFavorite = (id: string) => {
     setFavorites((prev) => {
@@ -45,6 +47,38 @@ export default function FeaturedStoriesSection() {
   const handleCardClick = (id: string) => {
     navigate(`/stories/${id}`);
   };
+
+  if (loading) {
+    return (
+      <Box
+        component="section"
+        sx={{ background: "#fff", py: 12, px: { xs: 4, md: 8 } }}
+      >
+        <Box
+          sx={{
+            maxWidth: "1200px",
+            mx: "auto",
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(3, 1fr)" },
+            gap: 3,
+          }}
+        >
+          {[1, 2, 3].map((i) => (
+            <Box
+              key={i}
+              sx={{
+                borderRadius: "20px",
+                height: "340px",
+                background: "#f0ebe5",
+                animation: "pulse 1.5s ease-in-out infinite",
+                animationDelay: `${i * 0.15}s`,
+              }}
+            />
+          ))}
+        </Box>
+      </Box>
+    );
+  }
 
   return (
     <Box component="section" sx={{ background: "#fff", py: 12, px: { xs: 4, md: 8 } }}>
@@ -219,14 +253,15 @@ export default function FeaturedStoriesSection() {
               >
                 <StoryGridCard
                   id={story.id}
-                  title={t(story.titleKey)}
-                  ageRange={t(story.ageRangeKey)}
+                  title={story.title}
+                  ageRange={story.ageRange}
                   topic={story.topic}
-                  description={t(story.descriptionKey)}
+                  description={story.description}
                   price={story.price}
                   isNew={story.isNew}
                   isFavorited={favorites.has(story.id)}
                   coverGradient={story.coverGradient}
+                  coverImage={story.coverImage}
                   onFavoriteToggle={handleFavorite}
                   onClick={handleCardClick}
                 />

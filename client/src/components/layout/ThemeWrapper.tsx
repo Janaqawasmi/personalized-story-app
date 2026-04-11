@@ -46,6 +46,10 @@ export default function ThemeWrapper({ children }: ThemeWrapperProps) {
             0%, 100% { opacity: 0.8; transform: scale(1); }
             50% { opacity: 0.2; transform: scale(0.5); }
           }
+          @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+          }
           @keyframes floatChip {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-8px); }
