@@ -12,7 +12,10 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-const STORAGE_KEY = "app_language";
+// Source-of-truth locale key used across the app (e.g. BookReaderPage).
+const STORAGE_KEY = "lang";
+// Back-compat: older builds stored language under this key.
+const LEGACY_STORAGE_KEY = "app_language";
 const VALID_LANGUAGES: Language[] = ["he", "en", "ar"];
 
 function getDirection(lang: Language): Direction {
@@ -26,9 +29,10 @@ function isValidLanguage(lang: string): lang is Language {
 function getInitialLanguage(): Language {
   // Priority: localStorage → default to "he"
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored && isValidLanguage(stored)) {
-    return stored;
-  }
+  if (stored && isValidLanguage(stored)) return stored;
+
+  const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
+  if (legacyStored && isValidLanguage(legacyStored)) return legacyStored;
   return "he";
 }
 
@@ -49,6 +53,7 @@ export function LanguageProvider({ children, initialLanguage }: LanguageProvider
     if (isValidLanguage(lang)) {
       setLanguageState(lang);
       localStorage.setItem(STORAGE_KEY, lang);
+      localStorage.setItem(LEGACY_STORAGE_KEY, lang);
     }
   };
 

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { getApprovedStoryTemplate } from "../services/template.service";
 import { personalizeTemplate } from "../services/personalization.service";
 import { firestore } from "../config/firebase";
+import { COLLECTIONS } from "../shared/firestore/paths";
 
 export async function createPersonalizedStory(
   req: Request,
@@ -28,7 +29,7 @@ export async function createPersonalizedStory(
 
     // 3️⃣ Save to Firestore
     const docRef = await firestore
-      .collection("personalized_stories")
+      .collection(COLLECTIONS.PERSONALIZED_STORIES)
       .add({
         templateId,
         child: {

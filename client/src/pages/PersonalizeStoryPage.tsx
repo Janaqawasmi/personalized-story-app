@@ -21,6 +21,7 @@ import {
   getExpectedNameScriptForStoryLanguage,
   shouldWarnNameScriptMismatch,
 } from "../utils/childNameValidation";
+import { generatePreview, type AgeGroup } from "../api/caregiverApi";
 
 type VisualStyle =
   | "watercolor"
@@ -35,6 +36,8 @@ type StoryPersonalizationData = {
   photoFile?: File;
   photoPreviewUrl: string;
   visualStyle: VisualStyle;
+  /** Firestore preview API band (`/api/caregiver/previews/generate`). Default in state: `"6_9"` (~6–9y). */
+  childAgeGroup?: AgeGroup;
 };
 
 type PersonalizationSession = {
@@ -569,12 +572,15 @@ export default function PersonalizeStoryPage() {
     childName: "",
     gender: undefined,
     visualStyle: "watercolor",
+    childAgeGroup: "6_9",
   });
   const [session, setSession] = useState<PersonalizationSession | null>(null);
   const [showResumeScreen, setShowResumeScreen] = useState(false);
   const [showCompletedScreen, setShowCompletedScreen] = useState(false);
   const [showFinalError, setShowFinalError] = useState(false);
   const [childNameBlurred, setChildNameBlurred] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const styleDisplay = useMemo(
     () => [
@@ -685,6 +691,7 @@ export default function PersonalizeStoryPage() {
                 childName: sanitizeChildName(existingSession.data.childName || ""),
                 gender: existingSession.data.gender,
                 visualStyle: existingSession.data.visualStyle || "watercolor",
+                childAgeGroup: existingSession.data.childAgeGroup ?? "6_9",
               });
             }
           } else if (existingSession.status === "draft") {
@@ -787,7 +794,7 @@ export default function PersonalizeStoryPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!storyId) return;
 
     if (!validateAllSteps()) {
@@ -797,6 +804,8 @@ export default function PersonalizeStoryPage() {
     }
 
     setShowFinalError(false);
+    setIsSaving(true);
+    setSaveError(null);
 
     const completePersonalization: StoryPersonalizationData = {
       childName: personalization.childName!,
@@ -804,9 +813,29 @@ export default function PersonalizeStoryPage() {
       photoFile: personalization.photoFile!,
       photoPreviewUrl: personalization.photoPreviewUrl!,
       visualStyle: personalization.visualStyle!,
+      childAgeGroup: personalization.childAgeGroup ?? "6_9",
     };
 
     savePersonalizationSession(storyId, completePersonalization, "completed");
+    console.log("[handleComplete] localStorage saved ✅", completePersonalization);
+
+    try {
+      console.log("[handleComplete] Calling generatePreview API...");
+      const result = await generatePreview({
+        templateId: storyId,
+        childFirstName: completePersonalization.childName,
+        childGender: completePersonalization.gender,
+        childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
+        photoFile: completePersonalization.photoFile!,
+      });
+      console.log("[handleComplete] Firestore write succeeded ✅", result);
+    } catch (err) {
+      console.error("[handleComplete] Firestore save failed ❌", err);
+      setSaveError("Cloud sync failed. Preview still works.");
+    } finally {
+      setIsSaving(false);
+    }
+
     navigate(`/stories/${storyId}/read`);
   };
 
@@ -834,6 +863,7 @@ export default function PersonalizeStoryPage() {
       gender: undefined,
 
       visualStyle: "watercolor",
+      childAgeGroup: "6_9",
     });
     setChildNameBlurred(false);
     setActiveStep(0);
@@ -848,6 +878,7 @@ export default function PersonalizeStoryPage() {
       childName: "",
       gender: undefined,
       visualStyle: "watercolor",
+      childAgeGroup: "6_9",
     });
     setChildNameBlurred(false);
     setActiveStep(0);
@@ -1871,38 +1902,52 @@ export default function PersonalizeStoryPage() {
               }}
             >
               {isCelebration ? (
-                <Button
-                  onClick={handleComplete}
-                  fullWidth
-                  sx={{
-                    px: "28px",
-                    py: "13px",
-                    background: "linear-gradient(110deg, #170d1e 0%, #824D5C 100%)",
-                    border: "none",
-                    borderRadius: "12px",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "#fff",
-                    boxShadow: "0 4px 16px rgba(130,77,92,0.25)",
-                    transition: "all 0.3s cubic-bezier(0.34,1.26,0.64,1)",
-                    textTransform: "none",
-                    position: "relative",
-                    overflow: "hidden",
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      inset: 0,
-                      background: "linear-gradient(110deg, rgba(255,255,255,0.12), transparent)",
-                      pointerEvents: "none",
-                    },
-                    "&:hover": {
-                      transform: "translateY(-2px) scale(1.02)",
-                      boxShadow: "0 10px 30px rgba(130,77,92,0.4)",
-                    },
-                  }}
-                >
-                  📖 {t("personalize.openStory")}
-                </Button>
+                <Box sx={{ width: "100%" }}>
+                  <Button
+                    onClick={handleComplete}
+                    disabled={isSaving}
+                    variant="contained"
+                    fullWidth
+                    sx={{
+                      px: "28px",
+                      py: "13px",
+                      background: "linear-gradient(110deg, #170d1e 0%, #824D5C 100%)",
+                      border: "none",
+                      borderRadius: "12px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#fff",
+                      boxShadow: "0 4px 16px rgba(130,77,92,0.25)",
+                      transition: "all 0.3s cubic-bezier(0.34,1.26,0.64,1)",
+                      textTransform: "none",
+                      position: "relative",
+                      overflow: "hidden",
+                      "&::before": {
+                        content: '""',
+                        position: "absolute",
+                        inset: 0,
+                        background: "linear-gradient(110deg, rgba(255,255,255,0.12), transparent)",
+                        pointerEvents: "none",
+                      },
+                      "&:hover": {
+                        transform: "translateY(-2px) scale(1.02)",
+                        boxShadow: "0 10px 30px rgba(130,77,92,0.4)",
+                      },
+                      "&.Mui-disabled": {
+                        background: "linear-gradient(110deg, #170d1e 0%, #824D5C 100%)",
+                        color: "#fff",
+                        opacity: 0.7,
+                      },
+                    }}
+                  >
+                    {isSaving ? t("personalize.saving") : t("personalize.startStory")}
+                  </Button>
+                  {saveError && (
+                    <Typography color="error" variant="caption" sx={{ mt: 1, display: "block" }}>
+                      {saveError}
+                    </Typography>
+                  )}
+                </Box>
               ) : (
                 <>
                   <Button

@@ -11,8 +11,10 @@
     "userMenu": {
       "myStories": "My Stories",
       "favorites": "Favorites",
+      "adminPanel": "Admin Panel",
       "logout": "Logout"
-    }
+    },
+    "arabic": "Arabic"
   },
   "footer": {
     "copyright": "© DAMMAH — All rights reserved"
@@ -39,7 +41,7 @@
       },
       "cta": "Start Your Story"
     },
-    "categories": {
+    "categoryGroups": {
       "title": "Browse by Category",
       "subtitle": "Start with the world that fits your child",
       "emotional": {
@@ -62,6 +64,147 @@
         "title": "Therapeutic",
         "subtitle": "ADHD, autism, phobias, emotional regulation"
       }
+    },
+    "hero": {
+      "badge": "Therapeutic · Personalized · Magical",
+      "title_line1": "Every child deserves",
+      "title_line2": "a story written",
+      "title_em": "just for them",
+      "subtitle": "AI-powered storybooks personalized with your child's name, photo, and world — designed by therapists to nurture courage, confidence, and calm.",
+      "cta_primary": "Create Your Child's Story",
+      "cta_preview": "See a preview",
+      "trust_count": "4,200+ families",
+      "trust_text": "have created personalized stories for their children",
+      "chip_confidence": "Boosts confidence",
+      "chip_free_spreads": "2 free spreads",
+      "chip_cbt": "CBT-based stories"
+    },
+    "categories": {
+      "label": "Stories for every emotion",
+      "fear": "Fear & Nightmares",
+      "anxiety": "Worry & Anxiety",
+      "confidence": "Confidence",
+      "grief": "Grief & Loss",
+      "change": "Big Changes",
+      "anger": "Anger & Frustration"
+    },
+    "how": {
+      "label": "Simple process",
+      "title": "From your heart to their hands in minutes",
+      "subtitle": "Four simple steps to a story your child will treasure forever.",
+      "step1_title": "Choose a story",
+      "step1_desc": "Browse our library of therapist-designed stories for each emotion and age group.",
+      "step2_title": "Personalize",
+      "step2_desc": "Add your child's name, gender, and optional photo. Pick an illustration style.",
+      "step3_title": "Preview for free",
+      "step3_desc": "Get 2 free personalized spreads instantly — no payment needed to see the magic.",
+      "step4_title": "Unlock & share",
+      "step4_desc": "Purchase to unlock the full story. Read online or order a beautiful printed book."
+    },
+    "featured": {
+      "label": "Featured stories",
+      "eyebrow": "Therapeutic stories",
+      "title": "Where every child",
+      "title_em": "becomes the hero",
+      "browse_all": "Browse all stories",
+      "filter_all": "All stories",
+      "filter_fear": "Fear",
+      "filter_anxiety": "Anxiety",
+      "filter_confidence": "Confidence",
+      "filter_grief": "Grief",
+      "filter_change": "Change",
+      "filter_anger": "Anger",
+      "badge_new": "New",
+      "price_suffix": "/ digital",
+      "cta_view": "View Story",
+      "see_all": "See all 18 stories",
+      "empty": "No stories in this category yet — more coming soon.",
+      "stories": [
+        {
+          "title": "The Night the Stars Were Afraid",
+          "ageRange": "Ages 4–8",
+          "description": "A gentle journey through the dark with a brave little star as guide. Helps children face nighttime fears with courage."
+        },
+        {
+          "title": "Mia and the Worry Cloud",
+          "ageRange": "Ages 3–7",
+          "description": "Mia learns that worries are just clouds — and clouds always pass. A soothing story rooted in CBT principles."
+        },
+        {
+          "title": "The Captain of Her Heart",
+          "ageRange": "Ages 5–10",
+          "description": "A daring adventure that reminds every child of their inner strength. Perfect before school transitions."
+        },
+        {
+          "title": "Grandma's Garden Lives On",
+          "ageRange": "Ages 4–9",
+          "description": "A tender story about loss, love, and how the people we love always stay with us. Gently introduces grief."
+        },
+        {
+          "title": "The New House on Maple Street",
+          "ageRange": "Ages 3–8",
+          "description": "Moving to a new home feels scary — until the child discovers it can also mean new adventures."
+        },
+        {
+          "title": "Leo and the Big Red Feeling",
+          "ageRange": "Ages 4–8",
+          "description": "Leo learns that big feelings are okay — it's what you do with them that matters. Validated by therapists."
+        }
+      ]
+    },
+    "personalize_demo": {
+      "label": "Magic in seconds",
+      "title": "Watch it come alive",
+      "subtitle": "Type your child's name and see it woven into a real story spread — right here, right now.",
+      "form_title": "Personalize this story",
+      "name_label": "Child's name",
+      "name_placeholder": "e.g. Yael",
+      "gender_label": "Gender",
+      "gender_girl": "Girl",
+      "gender_boy": "Boy",
+      "style_label": "Illustration style",
+      "style_fantasy": "Fantasy",
+      "style_watercolor": "Watercolor",
+      "style_cozy": "Cozy",
+      "cta": "Generate My Free Preview",
+      "cta_loading": "Generating...",
+      "cta_done": "Preview ready!",
+      "free_badge": "2 free personalized spreads",
+      "free_sub": "No payment needed · See the magic first",
+      "locked_badge": "Full story: 12 spreads + illustrations",
+      "locked_sub": "Unlock from ₪29 · Print edition available",
+      "spread_suffix": "Spread 1 of 2 (free preview)"
+    },
+    "trust": {
+      "stat1_num": "4,200+",
+      "stat1_desc": "families using DAMMAH stories",
+      "stat2_num": "18",
+      "stat2_desc": "therapeutic story templates",
+      "stat3_num": "98%",
+      "stat3_desc": "of parents rated it 5 stars",
+      "stat4_num": "3",
+      "stat4_desc": "languages supported: HE · AR · EN"
+    },
+    "testimonials": {
+      "label": "What parents say",
+      "title": "Real families, real impact",
+      "t1_quote": "My daughter asked to read her story every night for a week. She kept pointing at the illustrations saying 'that's me!' — it genuinely helped her feel less afraid of the dark.",
+      "t1_name": "Sarah M.",
+      "t1_role": "Mom of a 5-year-old, Tel Aviv",
+      "t2_quote": "As a child psychologist, I was skeptical. But the story was gentle, accurate to CBT principles, and most importantly — my son loved it. I recommend it to all my parents now.",
+      "t2_name": "Dr. Dina R.",
+      "t2_role": "Child Psychologist, Haifa",
+      "t3_quote": "I ordered the printed version for my grandson's birthday. The quality is beautiful and he hasn't put it down. Watching him see his name on every page — priceless.",
+      "t3_name": "Rachel K.",
+      "t3_role": "Grandmother, Jerusalem"
+    },
+    "cta_final": {
+      "title_line1": "Your child's story",
+      "title_line2": "is waiting to be told",
+      "subtitle": "Start with 2 free personalized spreads. No credit card needed. Just your child's name and a little bit of magic.",
+      "cta_primary": "Create a Free Story",
+      "cta_secondary": "Browse stories first",
+      "note": "Free preview · No payment required · Ready in seconds"
     }
   },
   "megaMenu": {
@@ -289,12 +432,10 @@
     "createStory": "Create the story",
     "imageTooLarge": "Image is too large. Please select an image smaller than 5MB",
     "story": "Story",
-
     "step1Of4": "Step 1 of 4",
     "step2Of4": "Step 2 of 4",
     "step3Of4": "Step 3 of 4",
     "step4Of4": "Step 4 of 4",
-
     "nameHeadingLine1": "What's your",
     "nameHeadingLine2": "child's name?",
     "nameSub": "Their name will be woven through every line — making this story entirely, unmistakably theirs.",
@@ -303,7 +444,6 @@
     "previewSentenceSuffix": " looked up at the night sky — and for a moment, every star seemed to shine just for them.",
     "previewSentenceEmpty": "Once upon a time, there was a child who believed in the magic of stories…",
     "previewEmpty": "Once upon a time, there was a child who believed in the magic of stories…",
-
     "genderHeadingLine1": "Is your child",
     "genderHeadingLine2": "a girl or a boy?",
     "genderSub": "So every word feels natural — she, her, hers / he, him, his. No detail left generic.",
@@ -311,7 +451,6 @@
     "boy": "Boy",
     "girlPronouns": "She · Her · Hers",
     "boyPronouns": "He · Him · His",
-
     "photoHeadingLine1": "A photo of",
     "photoHeadingFallback": "your child",
     "photoSub": "{name}'s face will appear in the first illustrated spreads — not a generic child, but them.",
@@ -323,20 +462,18 @@
     "trust1": "Illustrations only",
     "trust2": "Never shared",
     "trust3": "Deleted after",
-
     "styleHeadingLine1": "Choose the",
     "styleHeadingLine2": "illustration style",
     "styleSub": "Every page will be rendered in this mood. Pick the world you want {name} to step into.",
     "styleSubFallback": "your child",
-
     "labelBack": "Back",
     "labelContinue": "Continue",
     "openStory": "Open the Story",
-
+    "saving": "Saving...",
+    "startStory": "Start Story",
     "celebrateName": "{name}'s story is ready.",
     "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
     "celebrateTagPhoto": "Photo ready",
-
     "leftPersonalizing": "Personalizing",
     "leftYourChild": "Your child",
     "leftWaitingName": "Waiting for a name…",
@@ -562,5 +699,160 @@
   },
   "sticky": {
     "subline": "Digital · one-time"
+  },
+  "admin": {
+    "common": {
+      "loading": "Loading..."
+    },
+    "layout": {
+      "panelSubtitle": "Admin Panel",
+      "siteAdmin": "Site Admin"
+    },
+    "nav": {
+      "sectionOverview": "Overview",
+      "sectionPeople": "People",
+      "sectionContent": "Content",
+      "sectionBusiness": "Business",
+      "dashboard": "Dashboard",
+      "analytics": "Analytics",
+      "users": "Users",
+      "psychologists": "Psychologists",
+      "stories": "Stories",
+      "moderation": "Moderation",
+      "ai": "AI Usage",
+      "revenue": "Revenue",
+      "system": "System Health"
+    },
+    "pages": {
+      "overview": {
+        "title": "Good morning, Admin",
+        "subtitle": "{date} · Live data"
+      },
+      "analytics": {
+        "title": "Platform analytics",
+        "subtitle": "Engagement, completion and language breakdown"
+      },
+      "users": {
+        "title": "User management",
+        "subtitle": "Manage caregivers and professional accounts"
+      },
+      "psychologists": {
+        "title": "Psychologists & creators",
+        "subtitle": "Creator leaderboard and onboarding pipeline"
+      },
+      "stories": {
+        "title": "Story catalog",
+        "subtitle": "Review and approve story templates"
+      },
+      "moderation": {
+        "title": "Content moderation",
+        "subtitle": "Flagged content requires your attention"
+      },
+      "ai": {
+        "title": "AI usage & health",
+        "subtitle": "Generation health, errors and cost tracking"
+      },
+      "revenue": {
+        "title": "Revenue",
+        "subtitle": "Sales, pricing tiers and business metrics"
+      },
+      "system": {
+        "title": "System health",
+        "subtitle": "Infrastructure status and Firebase quotas"
+      }
+    },
+    "overview": {
+      "kpiEyebrow": "Key metrics · this month"
+    },
+    "kpi": {
+      "personalizations": "Stories personalized",
+      "caregivers": "Active caregivers",
+      "conversionRate": "Conversion rate",
+      "revenue": "Revenue (ILS)",
+      "deltaUpPersonalizations": "+18% vs last month",
+      "deltaUpCaregivers": "+11% vs last month",
+      "deltaDownConversion": "↓ 2.1% vs last month",
+      "deltaUpRevenue": "+24% vs last month"
+    },
+    "funnel": {
+      "title": "Conversion funnel",
+      "thisMonth": "this month",
+      "catalogViews": "Catalog views (est.)",
+      "storyDetail": "Story detail views",
+      "personalizeStarted": "Personalize started",
+      "previewRead": "Preview read",
+      "purchased": "Purchased",
+      "insight": "Preview → Purchase drop-off is high. Consider adding a post-preview therapist quote nudge."
+    },
+    "categories": {
+      "title": "Top therapeutic categories"
+    },
+    "alerts": {
+      "title": "Active alerts",
+      "allClear": "All clear — no active alerts"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "empty": "No recent activity."
+    },
+    "stories": {
+      "sectionEyebrow": "Story catalog management",
+      "kpiPending": "Pending review",
+      "kpiPendingSub": "Needs your attention",
+      "kpiAvgWait": "Avg. wait time",
+      "kpiAvgWaitSub": "Target: under 48h",
+      "kpiApprovedMonth": "Approved this month",
+      "kpiApprovedSub": "+4 vs last month",
+      "pendingTitle": "Stories awaiting approval",
+      "allClear": "All caught up — no pending stories.",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectPrompt": "Rejection reason (will be sent to creator):",
+      "spreads": "spreads",
+      "justSubmitted": "Just submitted",
+      "waitingHours": "Waiting {hours}h",
+      "waitingDays": "Waiting {days}d"
+    },
+    "psychologists": {
+      "sectionEyebrow": "Psychologists & story creators",
+      "leaderboard": "Creator leaderboard",
+      "colCreator": "Creator",
+      "colSpecialty": "Specialty",
+      "colStories": "Stories",
+      "colPersonalizations": "Personalizations",
+      "colCompletion": "Completion",
+      "colStatus": "Status",
+      "joined": "Joined {date}",
+      "statusActive": "Active",
+      "statusPending": "Pending",
+      "statusReview": "Review"
+    },
+    "users": {
+      "title": "Caregivers",
+      "colName": "Name",
+      "colEmail": "Email",
+      "colPurchases": "Purchases",
+      "colRole": "Role"
+    },
+    "analytics": {
+      "title": "Analytics",
+      "body": "Detailed charts and exports will connect to your analytics backend. Use the Overview funnel for live Firestore-based metrics."
+    },
+    "ai": {
+      "title": "AI usage",
+      "body": "Monitor model latency, failures, and estimated cost from server logs and future telemetry endpoints."
+    },
+    "revenue": {
+      "title": "Revenue",
+      "body": "Connect payment provider webhooks and purchase subcollections for full revenue reporting."
+    },
+    "system": {
+      "title": "System health",
+      "body": "Firebase console, quotas, and uptime checks can be linked here."
+    },
+    "moderation": {
+      "title": "Moderation",
+      "body": "Review pending story templates under Stories. Flagged user content workflows can be added here."
+    }
   }
 }
