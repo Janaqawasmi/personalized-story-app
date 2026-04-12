@@ -110,11 +110,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    match /generationContracts/{contractId} {
+    // Spec v1.2 Story Brief form aggregate — server (Admin SDK) writes only
+    match /dammaStoryBriefs/{briefId} {
       allow read: if isSpecialistOrAdmin();
       allow write: if false;
 
-      match /history/{historyId} {
+      match /feedback/{feedbackId} {
         allow read: if isSpecialistOrAdmin();
         allow write: if false;
       }
@@ -134,25 +135,6 @@ service cloud.firestore {
       allow create: if false;
       allow update: if false;
       allow delete: if false;
-    }
-
-    // ────────────────────────────────────────────────────
-    // Clinical Rules (read-only for authenticated)
-    // ────────────────────────────────────────────────────
-
-    match /clinicalRulesVersions/{versionId} {
-      allow read: if isSpecialistOrAdmin();
-      allow write: if false;
-
-      match /{subcollection}/{docId} {
-        allow read: if isSpecialistOrAdmin();
-        allow write: if false;
-      }
-    }
-
-    match /settings/{docId} {
-      allow read: if isSpecialistOrAdmin();
-      allow write: if false;
     }
 
     // ────────────────────────────────────────────────────

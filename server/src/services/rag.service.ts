@@ -1,5 +1,5 @@
 import { db } from "../config/firebase";
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 
 type BriefLike = {
   topicKey?: string;
@@ -12,7 +12,7 @@ type BriefLike = {
 /**
  * Maps StoryBrief to BriefLike format for RAG service compatibility
  */
-function mapStoryBriefToBriefLike(brief: StoryBrief): BriefLike {
+function mapStoryBriefToBriefLike(brief: LegacyStoryBrief): BriefLike {
   // Map age group from "0_3" format to expected format if needed
   // For now, we'll use the ageGroup as-is, but you may need to convert it
   const ageGroupMapping: Record<string, string> = {
@@ -48,10 +48,9 @@ function compact(items?: string[], max = 8) {
   return items.slice(0, max).map((x) => `- ${x}`).join("\n");
 }
 
-export async function retrieveKnowledgeForStory(brief: BriefLike | StoryBrief) {
-  // If it's a StoryBrief, convert it to BriefLike format
-  if ('therapeuticFocus' in brief && 'childProfile' in brief) {
-    brief = mapStoryBriefToBriefLike(brief as StoryBrief);
+export async function retrieveKnowledgeForStory(brief: BriefLike | LegacyStoryBrief) {
+  if ("therapeuticFocus" in brief && "childProfile" in brief) {
+    brief = mapStoryBriefToBriefLike(brief as LegacyStoryBrief);
   }
   let { topicKey, targetAgeGroup } = brief;
 

@@ -24,6 +24,7 @@ import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
 import { useAuth } from "../../contexts/AuthContext";
+import { Z_INDEX_NAVBAR } from "../../constants/zIndex";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
 import { MegaSelection } from "../MegaMenu/types";
@@ -107,7 +108,7 @@ export default function Navbar({
     color: theme.palette.text.primary,
     px: 4,
     height: { xs: 56, md: 60 }, // ✅ SOURCE OF TRUTH
-    zIndex: 1300,
+    zIndex: Z_INDEX_NAVBAR,
     pointerEvents: "auto",
   }}
 >

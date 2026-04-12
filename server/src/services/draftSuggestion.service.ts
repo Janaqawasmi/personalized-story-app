@@ -1,7 +1,7 @@
 // server/src/services/draftSuggestion.service.ts
 import { firestore, admin } from "../config/firebase";
 import { StoryDraft } from "../models/storyDraft.model";
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { DraftSuggestion, CreateSuggestionInput } from "../models/draftSuggestion.model";
 import { loadWritingRules } from "./ragWritingRules.service";
 import { buildDraftSuggestionPrompt } from "./draftSuggestionPromptBuilder.service";
@@ -103,7 +103,7 @@ export async function createSuggestionForDraft(params: {
     throw new Error("Story brief not found");
   }
 
-  const brief = briefDoc.data() as StoryBrief;
+  const brief = briefDoc.data() as LegacyStoryBrief;
 
   // 5. Load RAG rules
   const ragRulesText = await loadWritingRules();
@@ -112,7 +112,7 @@ export async function createSuggestionForDraft(params: {
   const promptParams: {
     language: "ar" | "he";
     ragRulesText: string;
-    brief: StoryBrief;
+    brief: LegacyStoryBrief;
     pageNumber?: number;
     originalText: string;
     instruction: string;

@@ -9,6 +9,7 @@
 //   router.post("/briefs", requireAuth, requireRole("specialist"), createStoryBrief);
 
 import { Request, Response, NextFunction } from "express";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import { admin } from "../config/firebase";
 
 // ============================================================================
@@ -38,13 +39,34 @@ export interface AuthenticatedUser {
 // Allowed roles (extend as the platform grows)
 // ============================================================================
 
-export type UserRole = "specialist" | "admin" | "viewer";
+export type UserRole = "specialist" | "admin" | "viewer" | "caregiver";
 
+/** Must match roles set via setCustomUserClaims (see scripts/setUserRole.ts). */
 const VALID_ROLES: ReadonlySet<string> = new Set<UserRole>([
   "specialist",
   "admin",
   "viewer",
+  "caregiver",
 ]);
+
+/**
+ * Reads `role` from custom claims. Matching is case-insensitive so "Admin" and "admin"
+ * both work. If `role` is missing but `admin: true` is set (some setups), treats as admin.
+ */
+function roleFromDecodedToken(decoded: DecodedIdToken): string {
+  const raw = decoded.role;
+  if (typeof raw === "string") {
+    const lower = raw.toLowerCase();
+    if (VALID_ROLES.has(lower)) {
+      return lower;
+    }
+  }
+  const asRecord = decoded as Record<string, unknown>;
+  if (asRecord.admin === true) {
+    return "admin";
+  }
+  return "viewer";
+}
 
 // ============================================================================
 // Middleware: requireAuth
@@ -92,9 +114,7 @@ export async function requireAuth(
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-    const role = typeof decodedToken.role === "string" && VALID_ROLES.has(decodedToken.role)
-      ? decodedToken.role
-      : "viewer"; // Default to least privilege
+    const role = roleFromDecodedToken(decodedToken);
 
     req.user = {
       uid: decodedToken.uid,

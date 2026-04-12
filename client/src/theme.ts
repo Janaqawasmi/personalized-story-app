@@ -43,6 +43,7 @@ export const COLORS = {
 
   // States
   success: "#4CAF50",
+  warning: "#ED9B40",
   error: "#E53935",
 };
 
@@ -70,6 +71,9 @@ export function createAppTheme(direction: Direction = "rtl"): Theme {
       },
       success: {
         main: COLORS.success,
+      },
+      warning: {
+        main: COLORS.warning,
       },
     },
 

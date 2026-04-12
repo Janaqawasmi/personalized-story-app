@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { db } from "../config/firebase";
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { StoryDraft } from "../models/storyDraft.model";
 
 /**
@@ -135,7 +135,7 @@ export const approveDraft = async (req: Request, res: Response) => {
       try {
         const briefSnap = await db.collection("storyBriefs").doc(draft.briefId).get();
         if (briefSnap.exists) {
-          const briefData = briefSnap.data() as StoryBrief;
+          const briefData = briefSnap.data() as LegacyStoryBrief;
           primaryTopic = briefData.therapeuticFocus?.primaryTopic;
           specificSituation = briefData.therapeuticFocus?.specificSituation;
           ageGroup = briefData.childProfile?.ageGroup;

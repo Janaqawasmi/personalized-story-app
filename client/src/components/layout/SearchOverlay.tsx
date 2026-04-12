@@ -22,6 +22,10 @@ import {
   import { useTranslation } from "../../i18n/useTranslation";
   import { useLanguage } from "../../i18n/context/useLanguage";
   import { useAuth } from "../../contexts/AuthContext";
+  import {
+    Z_INDEX_SEARCH_OVERLAY_BACKDROP,
+    Z_INDEX_SEARCH_OVERLAY_PANEL,
+  } from "../../constants/zIndex";
   
   type SearchOverlayProps = {
     isOpen: boolean;
@@ -442,7 +446,7 @@ import {
             right: 0,
             bottom: 0,
             backgroundColor: theme.palette.background.default,
-            zIndex: 1200,
+            zIndex: Z_INDEX_SEARCH_OVERLAY_BACKDROP,
             pointerEvents: "auto",
           }}
           onClick={onClose}
@@ -455,7 +459,7 @@ import {
             left: 0,
             right: 0,
             backgroundColor: theme.palette.background.default,
-            zIndex: 1201,
+            zIndex: Z_INDEX_SEARCH_OVERLAY_PANEL,
             maxHeight: "calc(100vh - 64px)",
             overflowY: "auto",
             direction: "rtl",

@@ -1,0 +1,15 @@
+# Render Blueprint — API (Express in /server)
+# After push: Dashboard → link repo OR apply Blueprint. Set secret in UI:
+#   FIREBASE_SERVICE_ACCOUNT_JSON = full JSON from Firebase service account key
+services:
+  - type: web
+    name: personalized-story-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false

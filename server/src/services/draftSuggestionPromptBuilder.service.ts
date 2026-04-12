@@ -1,5 +1,5 @@
 // server/src/services/draftSuggestionPromptBuilder.service.ts
-import { StoryBrief } from "../models/storyBrief.model";
+import type { LegacyStoryBrief } from "../models/storyBrief.model";
 import { formatAgeGroupLabel } from "../data/categories";
 
 /**
@@ -19,7 +19,7 @@ function formatDisplayText(text: string): string {
 export function buildDraftSuggestionPrompt(params: {
   language: "ar" | "he";
   ragRulesText: string;
-  brief: StoryBrief;
+  brief: LegacyStoryBrief;
   pageNumber?: number;
   originalText: string;
   instruction: string;

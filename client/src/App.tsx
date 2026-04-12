@@ -14,12 +14,11 @@ import AgeResultsPage from "./pages/AgeResultsPage";
 import CategoryResultsPage from "./pages/CategoryResultsPage";
 import TopicResultsPage from "./pages/TopicResultsPage";
 
-import AdminStoryBriefForm from "./pages/AdminStoryBriefForm";
-import GenerateDraftPage from "./pages/GenerateDraftPage";
-import SpecialistDraftList from "./pages/SpecialistDraftList";
-import ReviewDraftPage from "./pages/ReviewDraftPage";
-import PromptPreviewPage from "./pages/PromptPreviewPage";
-import AdminContractReviewPage from "./pages/AdminContractReviewPage";
+import BriefForm from "./components/brief/BriefForm";
+import BriefFormDraftRedirect from "./components/brief/BriefFormDraftRedirect";
+import SpecialistBriefsPage from "./pages/SpecialistBriefsPage";
+import SpecialistBriefReviewPage from "./pages/SpecialistBriefReviewPage";
+import SpecialistLayout from "./components/specialist/SpecialistLayout";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -69,7 +68,8 @@ function AppContent() {
           }}
         />
       )}
-      <Box sx={{ pt: isFullScreen ? 0 : 10 }}>
+      {/* Match fixed Navbar AppBar height (components/layout/Navbar.tsx) — default theme spacing 7/7.5 → 56px / 60px */}
+      <Box sx={{ pt: isFullScreen ? 0 : { xs: 7, md: 7.5 } }}>
         <Routes>
           {/* ───────────── HOME ───────────── */}
           <Route index element={<HomePage />} />
@@ -126,19 +126,13 @@ function AppContent() {
 
           {/* ───────────── SPECIALIST ───────────── */}
           <Route path="specialist" element={<RequireAuth />}>
-            <Route index element={<SpecialistDraftList />} />
-            <Route path="create-brief" element={<AdminStoryBriefForm />} />
-            <Route path="generate-draft" element={<GenerateDraftPage />} />
-            <Route path="drafts" element={<SpecialistDraftList />} />
-            <Route path="drafts/:draftId" element={<ReviewDraftPage />} />
-            <Route
-              path="story-briefs/:briefId/prompt-preview"
-              element={<PromptPreviewPage />}
-            />
-            <Route
-              path="story-briefs/:briefId/contract"
-              element={<AdminContractReviewPage />}
-            />
+            <Route element={<SpecialistLayout />}>
+              <Route index element={<Navigate to="briefs" replace />} />
+              <Route path="briefs" element={<SpecialistBriefsPage />} />
+              <Route path="briefs/:briefId" element={<SpecialistBriefReviewPage />} />
+              <Route path="create-brief" element={<BriefFormDraftRedirect />} />
+              <Route path="create-brief/:draftId" element={<BriefForm />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<Navigate to="/he" replace />} />
