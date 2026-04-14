@@ -3,11 +3,7 @@ import { Request, Response } from "express";
 import admin from "firebase-admin";
 import { firestore } from "../config/firebase";
 import type { LegacyStoryBrief } from "../models/storyBrief.model";
-import { StoryDraft, GenerateDraftInput, GenerationConfig, DraftPage } from "../models/storyDraft.model";
-import { buildStoryDraftPrompt } from "../services/storyPromptBuilder";
-import { loadWritingRules } from "../services/ragWritingRules.service";
-import { generateStoryDraft } from "../services/llmClient.service";
-import { parseDraftOutput } from "../services/draftParser.service";
+import { StoryDraft, DraftPage } from "../models/storyDraft.model";
 import { AuditTrail } from "../services/auditTrail.service";
 
 // Note: req.user is already typed globally by auth.middleware.ts
@@ -135,276 +131,6 @@ export const getDraftById = async (req: Request, res: Response): Promise<void> =
     });
   }
 };
-
-/**
- * Generate a story draft from a story brief
- * POST /api/admin/story-briefs/:briefId/generate-draft
- * 
- * TODO: Add idempotency protection for generate-draft
- */
-export const generateDraftFromBrief = async (req: Request, res: Response): Promise<void> => {
-  const { briefId } = req.params; // Extract early so it's available in catch block
-  
-  try {
-    const input = req.body as GenerateDraftInput;
-
-    // Validate briefId
-    if (!briefId) {
-      res.status(400).json({
-        success: false,
-        error: "briefId parameter is required",
-      });
-      return;
-    }
-
-    // Log generation start
-    if (req.user) {
-      await AuditTrail.log({
-        action: "generation.started",
-        actor: AuditTrail.actorFromRequest(req.user),
-        resourceType: "storyDraft",
-        resourceId: briefId,
-        relatedResourceId: briefId,
-      });
-    }
-
-    if (!req.user) {
-      res.status(401).json({ success: false, error: "Authentication required" });
-      return;
-    }
-    const createdBy = req.user.uid;
-
-    // Validate input
-    if (!input.length || !input.tone) {
-      res.status(400).json({
-        success: false,
-        error: "length and tone are required",
-      });
-      return;
-    }
-
-    const briefRef = firestore.collection("storyBriefs").doc(briefId);
-    const now = admin.firestore.Timestamp.now();
-
-    // Load brief first to derive generationConfig
-    const briefDoc = await briefRef.get();
-    if (!briefDoc.exists) {
-      res.status(404).json({
-        success: false,
-        error: "Story brief not found",
-      });
-      return;
-    }
-
-    const briefData = briefDoc.data() as LegacyStoryBrief;
-
-    // Validate brief status before transaction
-    if (briefData.status !== "created") {
-      res.status(409).json({
-        success: false,
-        error: `Cannot generate draft: brief status is "${briefData.status}", expected "created"`,
-      });
-      return;
-    }
-
-    // Derive generationConfig from StoryBrief (single source of truth)
-    // TODO: Add language field to StoryBrief model to store target language
-    //       For now, defaulting to Arabic as the primary language
-    const generationConfig: GenerationConfig = {
-      language: "ar", // TODO: Derive from briefData.language once added to StoryBrief model
-      targetAgeGroup: briefData.childProfile.ageGroup,
-      length: input.length,
-      tone: input.tone,
-      emphasis: input.emphasis ?? "balanced",
-    };
-
-    // Use transaction to ensure atomicity
-    const draftId = await firestore.runTransaction(async (transaction) => {
-      // Re-check brief status in transaction (optimistic locking)
-      const briefDocInTx = await transaction.get(briefRef);
-      if (!briefDocInTx.exists) {
-        throw new Error("Story brief not found");
-      }
-
-      const briefDataInTx = briefDocInTx.data() as LegacyStoryBrief;
-      if (briefDataInTx.status !== "created") {
-        throw new Error(`Cannot generate draft: brief status is "${briefDataInTx.status}", expected "created"`);
-      }
-
-      // Update brief status to "draft_generating" and lock it
-      transaction.update(briefRef, {
-        status: "draft_generating",
-        lockedAt: now,
-        updatedAt: now,
-      });
-
-      // Create new draft with "generating" status
-      const draftRef = firestore.collection("storyDrafts").doc();
-      const draft: Omit<StoryDraft, "title" | "pages"> = {
-      briefId,
-        createdBy,
-        status: "generating",
-        version: 1,
-        revisionCount: 0,
-        generationConfig,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      transaction.set(draftRef, draft);
-
-      return draftRef.id;
-    });
-
-    // Generation happens AFTER transaction (LLM call outside transaction)
-    const startTime = Date.now();
-    let rawModelOutput: string | undefined;
-    
-    try {
-      // Build prompt using existing prompt builder
-      const ragContext = await loadWritingRules();
-      const prompt = buildStoryDraftPrompt(briefData, ragContext);
-
-      // Call LLM
-      rawModelOutput = await generateStoryDraft(prompt);
-      
-      // Parse output
-      const parsedDraft = parseDraftOutput(rawModelOutput);
-
-      const generationDuration = Date.now() - startTime;
-
-      // Log generation (minimal - no prompt or content)
-      console.log(`Draft generated: draftId=${draftId}, duration=${generationDuration}ms, pages=${parsedDraft.pages.length}`);
-
-      // Update draft with generated content
-      const draftRef = firestore.collection("storyDrafts").doc(draftId);
-      await draftRef.update({
-      status: "generated",
-        title: parsedDraft.title,
-        pages: parsedDraft.pages,
-        rawModelOutput: rawModelOutput, // Store raw output for debugging
-        updatedAt: admin.firestore.Timestamp.now(),
-      });
-
-      // Update brief status to "draft_generated"
-      await briefRef.update({
-        status: "draft_generated",
-        lockedByDraftId: draftId,
-        updatedAt: admin.firestore.Timestamp.now(),
-      });
-
-      // Log generation completion
-      if (req.user) {
-        await AuditTrail.log({
-          action: "generation.completed",
-          actor: AuditTrail.actorFromRequest(req.user),
-          resourceType: "storyDraft",
-          resourceId: draftId,
-          relatedResourceId: briefId,
-        });
-      }
-
-      res.status(201).json({
-      success: true,
-        draftId,
-        status: "generated",
-      });
-    } catch (generationError: any) {
-      const generationDuration = Date.now() - startTime;
-      
-      // Log error (minimal)
-      console.error(`Draft generation failed: draftId=${draftId}, duration=${generationDuration}ms, error=${generationError.message}`);
-
-      // Determine error reason
-      let errorReason = "GENERATION_ERROR";
-      if (generationError.message?.includes("parse") || generationError.message?.includes("JSON")) {
-        errorReason = "PARSE_ERROR";
-      }
-
-      // If generation fails, update draft and brief status
-      const draftRef = firestore.collection("storyDrafts").doc(draftId);
-      const updateData: any = {
-        status: "failed",
-        error: {
-          message: generationError.message || "Failed to generate draft",
-          reason: errorReason,
-        },
-        updatedAt: admin.firestore.Timestamp.now(),
-      };
-      
-      // Store raw output if available (even on failure, for debugging)
-      if (rawModelOutput) {
-        updateData.rawModelOutput = rawModelOutput;
-      }
-      
-      await draftRef.update(updateData);
-
-      // Reset brief status back to "created" and unlock
-      const briefUpdateData: any = {
-        status: "created",
-        updatedAt: admin.firestore.Timestamp.now(),
-      };
-      briefUpdateData.lockedAt = admin.firestore.FieldValue.delete();
-      
-      await briefRef.update(briefUpdateData);
-
-      // Log generation failure
-      if (req.user) {
-        await AuditTrail.log({
-          action: "generation.failed",
-          actor: AuditTrail.actorFromRequest(req.user),
-          resourceType: "storyDraft",
-          resourceId: briefId,
-          metadata: { error: generationError.message },
-        });
-      }
-
-      throw generationError;
-    }
-  } catch (error: any) {
-    console.error("Error generating draft:", error);
-
-    // Log generation failure (if not already logged above)
-    if (req.user && briefId && !error.message?.includes("Cannot generate draft") && !error.message?.includes("not found")) {
-      await AuditTrail.log({
-        action: "generation.failed",
-        actor: AuditTrail.actorFromRequest(req.user),
-        resourceType: "storyDraft",
-        resourceId: briefId,
-        metadata: { error: error.message },
-      });
-    }
-
-    // Check if it's a conflict error (status not "created")
-    if (error.message?.includes("Cannot generate draft")) {
-      res.status(409).json({
-        success: false,
-        error: error.message,
-      });
-      return;
-    }
-
-    // Check if brief not found
-    if (error.message?.includes("not found")) {
-      res.status(404).json({
-        success: false,
-        error: error.message,
-      });
-      return;
-    }
-
-    res.status(500).json({
-      success: false,
-      error: "Failed to generate story draft",
-      details: error.message,
-    });
-  }
-};
-
-/**
- * Extend Express Request to include user from auth middleware
- */
-// Note: req.user is already typed globally by auth.middleware.ts
 
 /**
  * Enter edit mode for a draft
@@ -641,7 +367,7 @@ export const updateDraft = async (req: Request, res: Response): Promise<void> =>
     // Log draft edit to audit trail
     if (req.user) {
       await AuditTrail.log({
-        action: "brief.updated",
+        action: "draft.updated",
         actor: AuditTrail.actorFromRequest(req.user),
         resourceType: "storyDraft",
         resourceId: draftId,
@@ -814,7 +540,7 @@ export const approveDraft = async (req: Request, res: Response): Promise<void> =
         metadata.templateId = templateId;
       }
       await AuditTrail.log({
-        action: "generation.completed",
+        action: "draft.approved",
         actor: AuditTrail.actorFromRequest(req.user),
         resourceType: "storyDraft",
         resourceId: draftId,

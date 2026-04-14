@@ -1,9 +1,4 @@
 // client/src/api/api.ts
-//
-// PHASE 1 CHANGES:
-//   - All API calls now include Authorization header with Firebase ID token
-//   - Added getAuthHeaders() helper for consistent auth header injection
-
 import { getAuth } from "firebase/auth";
 
 // ============================================================================
@@ -48,7 +43,7 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
   return res.json();
 }
 
-// ---------- Specialist Review APIs ----------
+// ---------- Specialist Draft APIs ----------
 
 export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
   try {
@@ -68,17 +63,7 @@ export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
   }
 }
 
-// Old endpoint (out of scope for current phase)
-// export async function fetchDraftById(draftId: string): Promise<StoryDraft> {
-//   const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}`);
-//   if (!res.ok) {
-//     throw new Error(`Failed to load draft (${res.status})`);
-//   }
-//   const data = await res.json();
-//   return data.draft;
-// }
-
-// Phase 2: READ-ONLY draft viewing + Edit/Approve flow
+// Active flow: read-only draft viewing + edit/approve operations.
 export interface StoryDraftView {
   id: string;
   briefId?: string;
