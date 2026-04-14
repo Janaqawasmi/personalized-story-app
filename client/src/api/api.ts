@@ -50,26 +50,6 @@ export async function testConnection(): Promise<{ success: boolean; error?: stri
 
 // ---------- Specialist Review APIs ----------
 
-export interface StoryDraftPage {
-  pageNumber: number;
-  text: string;
-  imagePrompt: string;
-  emotionalTone?: string;
-}
-
-export interface StoryDraft {
-  id: string;
-  title?: string;
-  topicKey?: string;
-  targetAgeGroup?: string;
-  language?: string;
-  status?: string;
-  pages: StoryDraftPage[];
-  createdAt?: string;
-  approvedBy?: string;
-  approvedAt?: string;
-}
-
 export async function fetchDraftsForReview(): Promise<StoryDraftView[]> {
   try {
     const headers = await getAuthHeaders();
@@ -247,110 +227,6 @@ export async function approveDraft(draftId: string): Promise<{ success: boolean;
     }
     const data = await res.json();
     return data;
-  } catch (err) {
-    if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
-    }
-    throw err;
-  }
-}
-
-// ---------- Review Session APIs ----------
-
-export interface ReviewSession {
-  id: string;
-  draftId: string;
-  specialistId: string;
-  revisionCount: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-  messages?: Message[];
-  proposals?: Proposal[];
-}
-
-export interface Message {
-  id: string;
-  role: 'specialist' | 'assistant';
-  content: string;
-  specialistId?: string;
-  proposalId?: string;
-  createdAt: string;
-}
-
-export interface Proposal {
-  id: string;
-  messageId: string;
-  basedOnRevisionCount: number;
-  proposedPages: StoryDraftPage[];
-  summary: string;
-  safetyNotes: string;
-  applied?: boolean;
-  appliedAt?: string;
-  appliedBy?: string;
-  createdAt: string;
-}
-
-export async function createReviewSession(draftId: string, specialistId: string): Promise<{ success: boolean; sessionId: string; revisionCount: number }> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/drafts/${draftId}/sessions`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ specialistId }),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-    throw new Error(errorData.error || errorData.details || `Failed to create review session (${res.status})`);
-  }
-  return res.json();
-}
-
-export async function getReviewSession(sessionId: string): Promise<ReviewSession> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/sessions/${sessionId}`);
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-    throw new Error(errorData.error || errorData.details || `Failed to fetch review session (${res.status})`);
-  }
-  const data = await res.json();
-  return data.session;
-}
-
-export async function sendMessage(sessionId: string, content: string, specialistId: string): Promise<{ success: boolean; messageId: string; proposalId: string; proposal: Proposal }> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/sessions/${sessionId}/messages`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content, specialistId }),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-    throw new Error(errorData.error || errorData.details || `Failed to send message (${res.status})`);
-  }
-  return res.json();
-}
-
-export async function applyProposal(sessionId: string, proposalId: string, specialistId: string): Promise<{ success: boolean; revisionCount: number }> {
-  const res = await fetch(`${API_BASE}/api/specialist/reviews/sessions/${sessionId}/proposals/${proposalId}/apply`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ specialistId }),
-  });
-  if (!res.ok) {
-    const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-    throw new Error(errorData.error || errorData.details || `Failed to apply proposal (${res.status})`);
-  }
-  return res.json();
-}
-
-// ---------- Topic Tags API ----------
-
-export async function fetchTopicTags(): Promise<string[]> {
-  try {
-    const res = await fetch(`${API_BASE}/api/specialist/reviews/topic-tags`);
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: `Request failed with status ${res.status}` }));
-      throw new Error(errorData.error || errorData.details || `Failed to load topic tags (${res.status})`);
-    }
-    const data = await res.json();
-    return data.data ?? [];
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
       throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');

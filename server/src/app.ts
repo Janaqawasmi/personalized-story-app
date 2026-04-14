@@ -27,7 +27,6 @@ import storyDraftRoutes from "./routes/storyDraft.routes";
 import dammaStoryBriefRouter from "./routes/dammaStoryBrief.routes";
 import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
-import storyReviewRoutes from "./routes/storyReview.routes";
 import specialistPromptRoutes from "./routes/specialistPrompt.routes";
 import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
@@ -89,9 +88,6 @@ app.use("/api/caregiver/stories", caregiverStoriesRouter);
 // PHASE 1 FIX: Removed duplicate mount of storyDraftRoutes.
 // Previously mounted twice at "/api/story-drafts" — this caused
 // double middleware execution and unpredictable behavior.
-
-// REVIEW/APPROVAL ENDPOINTS — uncomment when storyReview routes are updated with auth
-// app.use("/api/specialist/reviews", storyReviewRoutes);
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {
