@@ -25,6 +25,8 @@ export type AuditAction =
   // Brief lifecycle
   | "brief.created"
   | "brief.updated"
+  | "draft.updated"
+  | "draft.approved"
   | "damma_brief.submitted" // Spec v1.3 form aggregate (dammaStoryBriefs collection)
   | "damma_brief.feedback_submitted" // Specialist review feedback (subcollection feedback)
   // Generation lifecycle

@@ -562,7 +562,7 @@ export default function PersonalizeStoryPage() {
       t("personalize.steps.step4"),
       t("personalize.steps.step5"),
     ],
-    [t, language]
+    [t]
   );
 
   const [story, setStory] = useState<StoryTemplate | null>(null);
@@ -615,7 +615,7 @@ export default function PersonalizeStoryPage() {
         bg: "linear-gradient(135deg, #f0e4d4, #e8d4c0)",
       },
     ],
-    [t, language]
+    [t]
   );
 
   const childNameValue = personalization.childName ?? "";

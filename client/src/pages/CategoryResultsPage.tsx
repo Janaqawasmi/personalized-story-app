@@ -74,7 +74,7 @@ export default function CategoryResultsPage() {
       setSelectedTopic(null);
       window.history.replaceState({}, document.title, location.pathname + location.search);
     }
-  }, [location.key, location.pathname, location.search]);
+  }, [location.key, location.pathname, location.search, location.state?.age, location.state?.fromMegaMenu]);
 
   const situationIds =
     data?.situations
@@ -97,7 +97,7 @@ export default function CategoryResultsPage() {
         }))
       );
     });
-  }, [categoryId, selectedAge, selectedTopic, situationIds, data]);
+  }, [categoryId, selectedAge, selectedTopic, situationIds, data, t]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 
