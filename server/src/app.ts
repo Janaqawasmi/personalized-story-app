@@ -1,7 +1,6 @@
 // server/src/app.ts
 //
 // PHASE 1 CHANGES:
-//   - Removed duplicate storyDraftRoutes mount
 //   - All specialist/admin routes now go through auth middleware (applied at router level)
 //   - Added comment explaining which routes are protected and how
 
@@ -23,11 +22,9 @@ import cors from "cors";
 
 import { admin, firestore } from "./config/firebase";
 
-import storyDraftRoutes from "./routes/storyDraft.routes";
 import dammaStoryBriefRouter from "./routes/dammaStoryBrief.routes";
 import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
-import specialistPromptRoutes from "./routes/specialistPrompt.routes";
 import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
 
@@ -58,10 +55,6 @@ app.use(express.json());
 //     - Specialist routes to require auth + role checks
 //     - Generation routes to apply any additional governance middleware (if used)
 //
-//   See individual route files for their auth requirements:
-//     - storyDraft.routes.ts    → requireAuth on all (read-only)
-//
-
 // Public routes (no auth required)
 app.use("/api/story-templates", templateRoutes);
 app.use("/api/stories", storiesRoutes);
@@ -75,8 +68,6 @@ app.use("/api/auth", registerCaregiverRouter);
 
 // Protected routes (auth enforced at router level)
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
-app.use("/api/story-drafts", storyDraftRoutes);
-app.use("/api/specialist", specialistPromptRoutes);
 
 // Caregiver endpoints (auth enforced in each router)
 app.use("/api/caregiver/cart", caregiverCartRouter);
@@ -84,10 +75,6 @@ app.use("/api/caregiver/previews", caregiverPreviewsRouter);
 app.use("/api/caregiver/checkout", caregiverCheckoutRouter);
 app.use("/api/caregiver/account", caregiverAccountRouter);
 app.use("/api/caregiver/stories", caregiverStoriesRouter);
-
-// PHASE 1 FIX: Removed duplicate mount of storyDraftRoutes.
-// Previously mounted twice at "/api/story-drafts" — this caused
-// double middleware execution and unpredictable behavior.
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {
