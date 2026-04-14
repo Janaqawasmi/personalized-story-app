@@ -4,7 +4,7 @@
 **Pilot scope:** Fear & Anxiety stories, all four age ranges (3–5, 5–7, 7–9, 9–12)
 **Canonical sources:**
 - Story Brief Specification: `/docs/dammah-story-brief-spec-v1.3.md`
-- Agent 1 Specification: `/server/src/agent1/docs/00-overview.md`
+- Agent 1 Specification: `/docs/agent1/dammah-agent1-spec-v3_2.md`
 - Field model: `server/src/models/storyBrief.model.ts` and `client/src/types/storyBrief.ts`
 
 ---
@@ -34,12 +34,12 @@ The architecture is a 2-step LLM chain wrapped by a rule-based pre-check and a S
 
 | Question | File |
 |---|---|
-| What is this thing and how does it work end-to-end? | `server/src/agent1/docs/00-overview.md` |
+| What is this thing and how does it work end-to-end? | `docs/agent1/dammah-agent1-spec-v3_2.md` |
 | Where do the files live and how do I run a generation? | `server/src/agent1/docs/01-architecture.md` |
-| What inputs does Agent 1 receive? What does it output? | `server/src/agent1/docs/02-data-contracts.md` |
-| How is the Story Architect prompt built? | `server/src/agent1/docs/prompts/step1-story-architect.md` |
-| How is the Author prompt built? | `server/src/agent1/docs/prompts/step2-author.md` |
-| How is the post-validation prompt built? | `server/src/agent1/docs/prompts/step3-post-validation.md` |
+| What inputs does Agent 1 receive? What does it output? | `docs/agent1/dammah-agent1-spec-v3_2.md` |
+| How is the Story Architect prompt built? | `docs/agent1/dammah-agent1-spec-v3_2.md` |
+| How is the Author prompt built? | `docs/agent1/dammah-agent1-spec-v3_2.md` |
+| How is the post-validation prompt built? | `docs/agent1/dammah-agent1-spec-v3_2.md` |
 | What's the right way to handle errors, retries, costs? | `server/src/agent1/docs/operations/error-handling.md` |
 | What does the model file actually export? Which constants do I import? | `server/src/agent1/docs/types/model-file-reference.md` |
 | How do I test this? What does "good output" look like? | `server/src/agent1/docs/testing/test-strategy.md` |
@@ -51,11 +51,11 @@ The architecture is a 2-step LLM chain wrapped by a rule-based pre-check and a S
 
 If you are an AI coding agent (Cursor, Claude Code, etc.) starting work on this codebase:
 
-1. Read `server/src/agent1/docs/00-overview.md` first. Always.
+1. Read `docs/agent1/dammah-agent1-spec-v3_2.md` first. Always.
 2. Then read the specific deep doc for the file you are about to touch.
 3. **Never branch on display strings.** Always import token constants from `server/src/models/storyBrief.model.ts`. See `types/model-file-reference.md` for the full list.
 4. **Never duplicate constants** that already exist in the model file (`STRUCTURAL_PARAMS`, `OBLIGATION_WEIGHTS`, `AGE_WEIGHT_MULTIPLIERS`, `CROSS_FIELD_VALIDATIONS`, `STORY_TYPE_ROUTING`, `FIELD_REGISTRY`). Import them.
-5. **Never read `STORY_TYPE_ROUTING[storyType].mustNeverDefaults` when generating a story** — that constant holds *pre-fill* defaults. The operative list is `storyBrief.therapeuticArchitecture.mustNeverList`, the psychologist's *final edited* list. Sending defaults instead reverses the psychologist's clinical judgment and is a critical bug. See `prompts/step2-author.md` §H.
+5. **Never read `STORY_TYPE_ROUTING[storyType].mustNeverDefaults` when generating a story** — that constant holds *pre-fill* defaults. The operative list is `storyBrief.therapeuticArchitecture.mustNeverList`, the psychologist's *final edited* list. Sending defaults instead reverses the psychologist's clinical judgment and is a critical bug. See `docs/agent1/dammah-agent1-spec-v3_2.md` for the canonical prompt constraints.
 6. Brief v1.3 is the canonical source of truth for clinical logic. The model file is the canonical source for token values. If a deep spec disagrees with either, the deep spec is wrong.
 
 ---
@@ -87,16 +87,11 @@ If you are an AI coding agent (Cursor, Claude Code, etc.) starting work on this 
 
 ```
 docs/agent1/
+├── dammah-agent1-spec-v3_2.md         ← canonical Agent 1 specification (v3.2)
 └── README.md                          ← you are here
 
 server/src/agent1/docs/
-├── 00-overview.md                     ← system overview, design decisions, the one rule
 ├── 01-architecture.md                 ← directory layout, runtime flow, module boundaries
-├── 02-data-contracts.md               ← input/output schemas, all TypeScript types
-├── prompts/
-│   ├── step1-story-architect.md       ← Story Architect prompt template + per-section logic
-│   ├── step2-author.md                ← Author prompt template + per-section logic
-│   └── step3-post-validation.md       ← Post-validation prompt + output schema
 ├── types/
 │   └── model-file-reference.md        ← which constants to import, exact tokens, anti-drift rules
 ├── operations/
