@@ -57,7 +57,7 @@ export default function SearchPage() {
     };
 
     performSearch();
-  }, [query]);
+  }, [query, t]);
 
   // Update local state when URL query changes
   useEffect(() => {

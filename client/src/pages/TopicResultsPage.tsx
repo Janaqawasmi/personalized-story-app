@@ -70,7 +70,7 @@ export default function TopicResultsPage() {
       setSelectedAge(location.state.age ?? null);
       window.history.replaceState({}, document.title, location.pathname);
     }
-  }, [location.key, location.pathname]);
+  }, [location.key, location.pathname, location.state?.age, location.state?.fromMegaMenu]);
 
   useEffect(() => {
     if (!topicId) return;
@@ -86,7 +86,7 @@ export default function TopicResultsPage() {
         }))
       );
     });
-  }, [topicId, selectedAge]);
+  }, [topicId, selectedAge, t]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 
