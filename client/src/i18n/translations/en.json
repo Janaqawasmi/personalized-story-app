@@ -17,7 +17,45 @@
     "arabic": "Arabic"
   },
   "footer": {
-    "copyright": "© DAMMAH — All rights reserved"
+    "tagline": "Therapeutic stories that help children navigate big feelings — personalized for every child.",
+    "newsletter": {
+      "label": "Get new stories to your inbox",
+      "placeholder": "your@email.com",
+      "cta": "Subscribe"
+    },
+    "headings": {
+      "explore": "Explore",
+      "support": "Support",
+      "company": "Company",
+      "legal": "Legal"
+    },
+    "links": {
+      "allStories": "All stories",
+      "byEmotion": "By emotion",
+      "byAge": "By age group",
+      "howItWorks": "How it works",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "contact": "Contact us",
+      "parentGuide": "Parent guide",
+      "approach": "Our approach",
+      "myOrders": "My orders",
+      "about": "About DAMMAH",
+      "blog": "Blog",
+      "careers": "Careers",
+      "press": "Press",
+      "privacy": "Privacy policy",
+      "terms": "Terms of service",
+      "childSafety": "Child safety",
+      "refund": "Refund policy",
+      "cookies": "Cookies"
+    },
+    "trust": {
+      "safe": "Child-safe content",
+      "therapy": "Therapeutic approach",
+      "secure": "Secure payment"
+    },
+    "copyright": "© {year} DAMMAH. Made with care for every child."
   },
   "home": {
     "journey": {

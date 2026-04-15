@@ -17,7 +17,45 @@
     "arabic": "عربي"
   },
   "footer": {
-    "copyright": "© DAMMAH — All rights reserved"
+    "tagline": "قصص علاجية تساعد الأطفال على التعامل مع المشاعر الكبيرة — مخصصة لكل طفل.",
+    "newsletter": {
+      "label": "احصل على قصص جديدة عبر البريد",
+      "placeholder": "your@email.com",
+      "cta": "اشتراك"
+    },
+    "headings": {
+      "explore": "استكشف",
+      "support": "الدعم",
+      "company": "الشركة",
+      "legal": "قانوني"
+    },
+    "links": {
+      "allStories": "جميع القصص",
+      "byEmotion": "حسب الشعور",
+      "byAge": "حسب العمر",
+      "howItWorks": "كيف يعمل",
+      "pricing": "الأسعار",
+      "faq": "الأسئلة الشائعة",
+      "contact": "اتصل بنا",
+      "parentGuide": "دليل الوالدين",
+      "approach": "منهجنا",
+      "myOrders": "طلباتي",
+      "about": "عن DAMMAH",
+      "blog": "المدونة",
+      "careers": "وظائف",
+      "press": "الصحافة",
+      "privacy": "سياسة الخصوصية",
+      "terms": "شروط الخدمة",
+      "childSafety": "سلامة الأطفال",
+      "refund": "سياسة الاسترجاع",
+      "cookies": "ملفات تعريف الارتباط"
+    },
+    "trust": {
+      "safe": "محتوى آمن للأطفال",
+      "therapy": "منهج علاجي",
+      "secure": "دفع آمن"
+    },
+    "copyright": "© {year} DAMMAH. صُنع بحب لكل طفل."
   },
   "home": {
     "journey": {

@@ -7,6 +7,7 @@ import { useReader } from "./contexts/ReaderContext";
 
 import Navbar from "./components/layout/Navbar";
 import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 import LanguageLayout from "./components/layout/LanguageLayout";
 import ThemeWrapper from "./components/layout/ThemeWrapper";
 import HomePage from "./pages/HomePage";
@@ -146,9 +147,7 @@ function AppContent() {
       </Box>
 
       {!isFullScreen && (
-        <Box sx={{ mt: 10 }}>
-          <Footer />
-        </Box>
+        <Footer />
       )}
     </Box>
     </ThemeWrapper>
@@ -158,6 +157,7 @@ function AppContent() {
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <AuthProvider>
         <Routes>
           {/* Root redirect to /he */}

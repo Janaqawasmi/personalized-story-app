@@ -17,7 +17,45 @@
     "arabic": "عربي"
   },
   "footer": {
-    "copyright": "© DAMMAH — All rights reserved"
+    "tagline": "סיפורים טיפוליים שעוזרים לילדים להתמודד עם רגשות גדולים — מותאמים אישית לכל ילד.",
+    "newsletter": {
+      "label": "קבלו סיפורים חדשים למייל",
+      "placeholder": "your@email.com",
+      "cta": "הרשמה"
+    },
+    "headings": {
+      "explore": "גלו",
+      "support": "תמיכה",
+      "company": "החברה",
+      "legal": "משפטי"
+    },
+    "links": {
+      "allStories": "כל הסיפורים",
+      "byEmotion": "לפי רגש",
+      "byAge": "לפי גיל",
+      "howItWorks": "איך זה עובד",
+      "pricing": "מחירים",
+      "faq": "שאלות נפוצות",
+      "contact": "צרו קשר",
+      "parentGuide": "מדריך להורים",
+      "approach": "הגישה שלנו",
+      "myOrders": "ההזמנות שלי",
+      "about": "אודות DAMMAH",
+      "blog": "בלוג",
+      "careers": "קריירה",
+      "press": "עיתונות",
+      "privacy": "מדיניות פרטיות",
+      "terms": "תנאי שימוש",
+      "childSafety": "בטיחות ילדים",
+      "refund": "מדיניות החזרים",
+      "cookies": "עוגיות"
+    },
+    "trust": {
+      "safe": "תוכן בטוח לילדים",
+      "therapy": "גישה טיפולית",
+      "secure": "תשלום מאובטח"
+    },
+    "copyright": "© {year} DAMMAH. נוצר באהבה לכל ילד."
   },
   "home": {
     "journey": {
