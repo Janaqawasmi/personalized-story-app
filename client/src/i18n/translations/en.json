@@ -190,29 +190,6 @@
         }
       ]
     },
-    "personalize_demo": {
-      "label": "Magic in seconds",
-      "title": "Watch it come alive",
-      "subtitle": "Type your child's name and see it woven into a real story spread — right here, right now.",
-      "form_title": "Personalize this story",
-      "name_label": "Child's name",
-      "name_placeholder": "e.g. Yael",
-      "gender_label": "Gender",
-      "gender_girl": "Girl",
-      "gender_boy": "Boy",
-      "style_label": "Illustration style",
-      "style_fantasy": "Fantasy",
-      "style_watercolor": "Watercolor",
-      "style_cozy": "Cozy",
-      "cta": "Generate My Free Preview",
-      "cta_loading": "Generating...",
-      "cta_done": "Preview ready!",
-      "free_badge": "2 free personalized spreads",
-      "free_sub": "No payment needed · See the magic first",
-      "locked_badge": "Full story: 12 spreads + illustrations",
-      "locked_sub": "Unlock from ₪29 · Print edition available",
-      "spread_suffix": "Spread 1 of 2 (free preview)"
-    },
     "trust": {
       "stat1_num": "4,200+",
       "stat1_desc": "families using DAMMAH stories",
