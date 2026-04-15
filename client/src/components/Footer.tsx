@@ -1,6 +1,24 @@
-import { Box, Container, Typography, IconButton, Stack } from "@mui/material";
+import {
+  Box,
+  Container,
+  Typography,
+  IconButton,
+  Stack,
+  Collapse,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { motion } from "framer-motion";
-import { Instagram, Facebook, Youtube, Shield, Heart, Lock, Send } from "lucide-react";
+import {
+  Instagram,
+  Facebook,
+  Youtube,
+  Shield,
+  Heart,
+  Lock,
+  Send,
+  ChevronDown,
+} from "lucide-react";
 import { useState } from "react";
 import dammahLogo from "../assets/brand/dammah-logo.png";
 import { COLORS } from "../theme";
@@ -51,6 +69,13 @@ export default function Footer() {
   const { isRTL } = useLanguage();
   const navigate = useLangNavigate();
   const [email, setEmail] = useState("");
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (key: string) => {
+    setOpenSection((prev) => (prev === key ? null : key));
+  };
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,28 +83,72 @@ export default function Footer() {
     setEmail("");
   };
 
-  const renderColumn = (titleKey: string, links: FooterLink[]) => (
-    <Box>
-      <Typography
+  const renderColumn = (
+    sectionKey: string,
+    titleKey: string,
+    links: FooterLink[]
+  ) => {
+    const isOpen = openSection === sectionKey;
+
+    const heading = (
+      <Box
+        onClick={isMobile ? () => toggleSection(sectionKey) : undefined}
         sx={{
-          fontFamily: "'Playfair Display', Georgia, serif",
-          fontSize: 15,
-          fontWeight: 500,
-          color: COLORS.textPrimary,
-          mb: 2,
-          letterSpacing: "0.3px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: isMobile ? "pointer" : "default",
+          py: { xs: 1.5, md: 0 },
+          borderBottom: {
+            xs: `1px solid ${FOOTER_BORDER}`,
+            md: "none",
+          },
+          userSelect: "none",
+          transition: "color 0.2s",
+          "&:hover": isMobile ? { color: COLORS.secondary } : {},
         }}
       >
-        {t(titleKey)}
-      </Typography>
-      <Stack spacing={1.25}>
+        <Typography
+          sx={{
+            fontFamily: "'Playfair Display', Georgia, serif",
+            fontSize: 15,
+            fontWeight: 500,
+            color: "inherit",
+            mb: { xs: 0, md: 2 },
+            letterSpacing: "0.3px",
+          }}
+        >
+          {t(titleKey)}
+        </Typography>
+        {isMobile && (
+          <ChevronDown
+            size={18}
+            color={FOOTER_LINK}
+            style={{
+              transition: "transform 0.25s ease",
+              transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+              flexShrink: 0,
+            }}
+          />
+        )}
+      </Box>
+    );
+
+    const linksList = (
+      <Stack spacing={1.25} sx={{ pt: { xs: 1.5, md: 0 }, pb: { xs: 1.5, md: 0 } }}>
         {links.map((link) => (
           <Box
             key={link.labelKey}
             component={motion.a}
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
-              navigate(link.path);
+              if (link.path.includes("#")) {
+                const [pathPart, hashPart] = link.path.split("#");
+                const lang = window.location.pathname.split("/")[1] || "he";
+                window.location.assign(`/${lang}${pathPart}#${hashPart}`);
+              } else {
+                navigate(link.path);
+              }
             }}
             whileHover={{ x: isRTL ? -2 : 2 }}
             sx={{
@@ -96,8 +165,21 @@ export default function Footer() {
           </Box>
         ))}
       </Stack>
-    </Box>
-  );
+    );
+
+    return (
+      <Box>
+        {heading}
+        {isMobile ? (
+          <Collapse in={isOpen} timeout={250} unmountOnExit>
+            {linksList}
+          </Collapse>
+        ) : (
+          linksList
+        )}
+      </Box>
+    );
+  };
 
   const trustItems = [
     { Icon: Shield, key: "footer.trust.safe" },
@@ -122,15 +204,19 @@ export default function Footer() {
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "1fr 1fr",
               md: "1.6fr 1fr 1fr 1fr 1fr",
             },
-            gap: { xs: 4, md: 5 },
+            gap: { xs: 0, md: 5 },
             mb: 5,
           }}
         >
           {/* Brand column */}
-          <Box sx={{ gridColumn: { xs: "1 / -1", md: "auto" } }}>
+          <Box
+            sx={{
+              gridColumn: { xs: "1 / -1", md: "auto" },
+              mb: { xs: 3, md: 0 },
+            }}
+          >
             <Box
               onClick={() => navigate("/")}
               sx={{
@@ -283,10 +369,10 @@ export default function Footer() {
           </Box>
 
           {/* Link columns */}
-          {renderColumn("footer.headings.explore", LINKS.explore)}
-          {renderColumn("footer.headings.support", LINKS.support)}
-          {renderColumn("footer.headings.company", LINKS.company)}
-          {renderColumn("footer.headings.legal", LINKS.legal)}
+          {renderColumn("explore", "footer.headings.explore", LINKS.explore)}
+          {renderColumn("support", "footer.headings.support", LINKS.support)}
+          {renderColumn("company", "footer.headings.company", LINKS.company)}
+          {renderColumn("legal", "footer.headings.legal", LINKS.legal)}
         </Box>
 
         {/* Trust strip */}
