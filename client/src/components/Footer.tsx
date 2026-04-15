@@ -136,7 +136,7 @@ export default function Footer() {
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1.25,
+                gap: 1.5,
                 mb: 1.5,
                 cursor: "pointer",
                 width: "fit-content",
@@ -147,7 +147,7 @@ export default function Footer() {
                 src={dammahLogo}
                 alt="DAMMAH"
                 sx={{
-                  height: 40,
+                  height: 90,
                   width: "auto",
                   objectFit: "contain",
                   display: "block",
