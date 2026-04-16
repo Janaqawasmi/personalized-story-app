@@ -56,7 +56,7 @@
 
 **Tests:**
 
-- Unit tests for each helper. Token helpers should test against every value of the relevant enum (8 caregiver tokens, 9 coping tools, etc.).
+- Unit tests for each helper. Token helpers should test against every value of the relevant enum (5 caregiver tokens, 9 coping tools, etc.).
 - `getApproachInstruction` should be tested for all 7 approaches.
 
 **Acceptance gate:** Every shared helper has tests. Coverage on `shared/` is ≥90%.
@@ -70,7 +70,10 @@
 **Deliverables:**
 
 1. `pre-check/quality-gate.ts`:
-   - Checks the three thresholds from `prompts/step1-story-architect.md` (creative vision <50, trigger <80, intention.because <30).
+   - Checks the two thresholds defined in v3.2 §4.1:
+     - `clinicalFoundation.trigger`: < 80 characters
+     - `clinicalFoundation.therapeuticIntention` combined (`feel` + `because`): < 60 characters
+   - Note: the creative vision threshold was removed in v3.2 §4.1 because brief v1.3 has no character-count nudge for Field 2.4. A thin vision surfaces through the few-shot quality gap and the inferred-intention flag, not through pre-check.
    - Returns `QualityGateResult`.
 2. `pre-check/vague-intention.ts`:
    - Pattern list (the corrected list from the v3.1 token-correction patch, removing the "they are safe / they are loved" entry).
@@ -129,7 +132,9 @@ This section has many sub-blocks. Implement them in this order:
    - Caregiver sub-block (with `leaves_and_returns` conditional plus separation-trigger fallback).
    - Narrative distance sub-block (with parallel sub-field handling).
    - Modeling fallback (the agent-side handling for missing model character).
-   - Supporting characters sub-block (with Tier 2/Tier 4 distinction for first/second functional role).
+   - Supporting characters sub-block. Per v3.2 §12:
+     - The first supporting character's functional role is Tier 3 (should appear if space permits; can reduce to a single beat).
+     - The second supporting character's functional role is Tier 4 (enrichment; omit if space is tight).
    - Character notes sub-block.
 7. Acknowledged warnings block (uses `CROSS_FIELD_VALIDATIONS`).
 8. Priority rules block (all 7 tiers, static).
@@ -153,7 +158,7 @@ This section has many sub-blocks. Implement them in this order:
 - `step1-architect/few-shot-retriever.ts`:
   - Loads JSON files from `examples/{ageRange}/blueprint-*.json` at process start.
   - Caches in memory.
-  - Returns up to 2 examples for a given `ageRange`. Returns empty array for `9-12` (no examples at launch — cold-start fallback).
+  - Returns up to 2 examples for a given `ageRange`. For `9-12` at launch: returns the closest-available-age examples (cross-bucket retrieval — typically `7-9`) and sets a `crossBucketFallback` flag that the prompt builder uses to inject an age-mismatch note into Section F. When native 9–12 examples become approved, the retriever prefers them. Per v3.2 §13, cross-bucket retrieval is a permanent launch strategy, not a temporary fallback — it is replaced per-example, not all-at-once.
 - `step1-architect/prompt-sections/section-f-few-shot.ts`:
   - Renders the examples as a prompt block, or the cold-start fallback if empty.
 - Tests: with examples present, with examples missing.
@@ -314,4 +319,4 @@ Pre-check can be built in parallel with Step 1 if you have two engineers, but St
 - A prompt versioning system. Git history is the v1.0 versioning system.
 - Analytics on flag dismissal rates. The data is logged; build the dashboard later.
 - Multi-language adaptation. English-only prompts at launch; design considerations exist but no code.
-- The few-shot example bank for ages 9–12. Cold-start fallback engages with a UI notice.
+- Native 9–12 few-shot examples. Cross-bucket retrieval from 7–9 engages at launch per v3.2 §13; native 9–12 examples are added post-launch as clinical approval completes.

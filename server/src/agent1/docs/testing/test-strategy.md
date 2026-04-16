@@ -306,7 +306,7 @@ The clinical team is the ultimate judge, but here are the patterns to watch for:
 - The fear vanishes too quickly or too completely.
 - The prose has the rhythm of a "lesson" — short declarative sentences, abstract emotional vocabulary, neat morals.
 - The protagonist's body is generic ("scared," "nervous") instead of specific.
-- A `partial_resolution` story ends with "and they were never afraid again."
+- A `partial` resolution story ends with "and they were never afraid again."
 - The story contradicts something in the must-never list.
 - Personalized stories contain actual names instead of `[CHILD_NAME]` placeholders.
 

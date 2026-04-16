@@ -119,7 +119,7 @@ Used by tests and tooling that walk the brief structure programmatically. Not us
 import { CHAR_LIMITS, MAX_SELECTIONS } from "@/models/storyBrief.model";
 ```
 
-Used by `pre-check/quality-gate.ts` for the "thin field" thresholds (which are *stricter* than the brief UI nudges — see `prompts/step1-story-architect.md` Section A and the pre-check docs).
+Used by `pre-check/quality-gate.ts` for the "thin field" thresholds (which are *stricter* than the brief UI nudges — see v3.2 §4.1 and the pre-check docs).
 
 ---
 
