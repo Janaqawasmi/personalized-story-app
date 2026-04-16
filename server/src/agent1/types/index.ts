@@ -1,0 +1,208 @@
+import type { CrossFieldValidation, StoryBrief } from "@/models/storyBrief.model";
+
+// Caller input
+export type ApprovedPart =
+  | "emotionalTruth"
+  | "blueprint"
+  | "approachInstruction"
+  | "story";
+
+export type RetryPolicy = {
+  step1IncoherentRetries: number;
+  step2WordCountRetries: 0;
+};
+
+export type RerunFeedback = {
+  rerunOf: string;
+  approvedParts: ApprovedPart[];
+  feedbackText: string;
+  previousOutput: Agent1Result;
+};
+
+export type GenerateOptions = {
+  retryPolicy?: RetryPolicy;
+  feedback?: RerunFeedback;
+};
+
+// Inter-step types
+export type PreCheckResult = {
+  qualityGate: QualityGateResult;
+  vagueIntention: VagueIntentionResult;
+  complexityBudget: ComplexityBudgetResult;
+  warnings: PreCheckWarning[];
+};
+
+export type QualityGateResult = {
+  triggerThin: boolean;
+  intentionThin: boolean;
+};
+
+export type VagueIntentionResult = {
+  isVague: boolean;
+  matchedPattern?: string;
+};
+
+export type ComplexityBudgetResult = {
+  totalPageCost: number;
+  availablePageRange: readonly [number, number];
+  state: "green" | "yellow" | "red";
+  contributions: Array<{ obligation: string; cost: number }>;
+  complexityStatusText?: string;
+};
+
+export type PreCheckWarning = {
+  code: string;
+  message: string;
+  severity: "info" | "warn";
+};
+
+export type BlueprintPoint = {
+  index: 1 | 2 | 3 | 4 | 5 | 6;
+  text: string;
+};
+
+export type InferredIntention = {
+  feel: string;
+  because: string;
+  reason: string;
+};
+
+export type CompressionMetadata = {
+  fullyIncluded: string[];
+  compressed: Array<{ obligation: string; how: string }>;
+  omitted: Array<{ obligation: string; why: string }>;
+};
+
+export type ContradictionFlag = {
+  contradictedField: string;
+  contradictingPhrase: string;
+  resolution: string;
+};
+
+export type Step1Output = {
+  emotionalTruth: string;
+  blueprint: BlueprintPoint[];
+  copingToolPlacement: string;
+  approachInstruction: string;
+  inferredIntention?: InferredIntention;
+  compressionMetadata?: CompressionMetadata;
+  characterNotesContradictions?: ContradictionFlag[];
+  rawResponse: string;
+  promptHash: string;
+  llmCallRecord: LLMCallRecord;
+};
+
+export type Step2Output = {
+  title: string;
+  story: string;
+  wordCount: number;
+  targetWordRange: readonly [number, number];
+  wordCountDrift: "within_range" | "under" | "over";
+  rawResponse: string;
+  promptHash: string;
+  llmCallRecord: LLMCallRecord;
+};
+
+export type PostValidationFlag = {
+  checkType:
+    | "must_never"
+    | "shame_handling"
+    | "coping_tool"
+    | "age_appropriateness";
+  constraintIdOrIndex: string | number;
+  passage: string;
+  reasoning: string;
+  severity: "likely_violation" | "borderline_specialist_review";
+};
+
+export type PostValidationResult = {
+  result: "PASS" | "FLAGS";
+  flags: PostValidationFlag[];
+  alignmentNote: string;
+  rawResponse: string;
+  promptHash: string;
+  llmCallRecord: LLMCallRecord;
+};
+
+// Public output
+export type Agent1Result = {
+  generationId: string;
+  // Step 1
+  emotionalTruth: string;
+  blueprint: BlueprintPoint[];
+  copingToolPlacement: string;
+  approachInstruction: string;
+  inferredIntention?: InferredIntention;
+  compressionMetadata?: CompressionMetadata;
+  characterNotesContradictions?: ContradictionFlag[];
+  // Step 2
+  title: string;
+  story: string;
+  wordCount: number;
+  targetWordRange: readonly [number, number];
+  wordCountDrift: "within_range" | "under" | "over";
+  // Step 3
+  alignmentNote: string;
+  postValidationFlags: PostValidationFlag[];
+  // Pre-check (passed through for the UI)
+  preCheckWarnings: PreCheckWarning[];
+  // Few-shot status per v3.2 §13
+  exampleBankStatus:
+    | "examples_used"
+    | "cross_bucket_retrieval"
+    | "cold_start_no_examples";
+  // Rerun context
+  rerunCount: number;
+  rerunOf?: string;
+  // Telemetry
+  totalLatencyMs: number;
+  llmCalls: LLMCallRecord[];
+  generatedAt: string;
+};
+
+// Shared types
+export type LLMCallRecord = {
+  step: "step1_architect" | "step2_author" | "step3_post_validation";
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  latencyMs: number;
+  attempt: number;
+  promptHash: string;
+};
+
+// Errors
+export class BriefNotReadyError extends Error {
+  constructor(public readonly status: string) {
+    super(`Brief is not ready for generation. Current status: ${status}`);
+    this.name = "BriefNotReadyError";
+  }
+}
+
+export class UnsupportedStoryTypeError extends Error {
+  constructor(public readonly storyType: string) {
+    super(
+      `Story type "${storyType}" is not supported in pilot v1.0. Only fear_anxiety is supported.`,
+    );
+    this.name = "UnsupportedStoryTypeError";
+  }
+}
+
+export class TypeMismatchError extends Error {
+  constructor(public readonly fieldType: string) {
+    super(
+      `Expected typeSpecificField.fieldType "somatic_expression", got "${fieldType}".`,
+    );
+    this.name = "TypeMismatchError";
+  }
+}
+
+export class Step1IncoherentError extends Error {
+  constructor(
+    public readonly attempts: number,
+    public readonly lastRawResponse: string,
+  ) {
+    super(`Step 1 produced incoherent output after ${attempts} attempts.`);
+    this.name = "Step1IncoherentError";
+  }
+}
