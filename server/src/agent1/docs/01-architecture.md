@@ -69,7 +69,7 @@ server/src/agent1/
 │   │   └── ... (same shape)
 │   ├── 7-9/
 │   │   └── ... (same shape)
-│   └── 9-12/                         ← empty at launch; cold-start fallback engages
+│   └── 9-12/                         ← empty at launch; cross-bucket retrieval from 7-9 engages per v3.2 §13
 │       └── README.md                 ← explains the gap
 │
 ├── docs/                             ← all the .md files referenced in the index
