@@ -77,9 +77,7 @@ export default function CategoryStrip() {
         {CATEGORIES.map((cat) => (
           <Box
             key={cat.key}
-            component="button"
-            type="button"
-            onClick={() => navigate(`/books?topic=${cat.topic}`)}
+            component="div"
             sx={{
               display: "flex",
               alignItems: "center",
@@ -92,13 +90,9 @@ export default function CategoryStrip() {
               color: cat.color,
               fontSize: "13px",
               fontWeight: 600,
-              cursor: "pointer",
+              cursor: "default",
               transition: "all 0.2s",
               fontFamily: "inherit",
-              "&:hover": {
-                transform: "translateY(-2px)",
-                boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
-              },
             }}
           >
             <Box

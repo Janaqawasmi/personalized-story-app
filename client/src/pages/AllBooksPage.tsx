@@ -1,6 +1,6 @@
 import { Box, Typography, Container, Button, Skeleton } from "@mui/material";
 import { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { fetchStoriesWithFilters } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
@@ -95,6 +95,7 @@ function CatalogHeader({
 
 export default function AllBooksPage() {
   const [searchParams] = useSearchParams();
+  const { hash } = useLocation();
   const [allBooks, setAllBooks] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +133,17 @@ export default function AllBooksPage() {
     loadStories();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once on mount; t() only used for error fallback
   }, []);
+
+  useEffect(() => {
+    if (!hash) return;
+    const id = hash.replace("#", "");
+    // Wait for the DOM to render the section
+    const t = setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
+    return () => clearTimeout(t);
+  }, [hash]);
 
   const availableCategories = useMemo(() => {
     const categories = new Set<string>();
@@ -327,6 +339,8 @@ export default function AllBooksPage() {
     <Container maxWidth="xl" sx={containerSx}>
       <CatalogHeader t={t} count={filteredBooks.length} showCountBadge />
 
+      <Box id="categories" sx={{ scrollMarginTop: 80 }} />
+      <Box id="ages" sx={{ scrollMarginTop: 80 }} />
       <FilterBar groups={filterGroups} onClearAll={handleClearAll} />
 
       {filteredBooks.length > 0 ? (
