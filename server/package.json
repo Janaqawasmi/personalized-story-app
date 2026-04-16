@@ -21,6 +21,7 @@
     "node": "20"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.90.0",
     "@dammah/story-brief-complexity": "file:../packages/story-brief-complexity",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
