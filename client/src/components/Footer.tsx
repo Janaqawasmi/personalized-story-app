@@ -95,7 +95,7 @@ export default function Footer() {
         onClick={isMobile ? () => toggleSection(sectionKey) : undefined}
         sx={{
           display: "flex",
-          alignItems: "center",
+          alignItems: { xs: "center", md: "flex-start" },
           justifyContent: "space-between",
           cursor: isMobile ? "pointer" : "default",
           py: { xs: 1.5, md: 0 },
@@ -114,6 +114,8 @@ export default function Footer() {
             fontSize: 15,
             fontWeight: 500,
             color: "inherit",
+            lineHeight: 1.2,
+            m: 0,
             mb: { xs: 0, md: 2 },
             letterSpacing: "0.3px",
           }}
@@ -168,7 +170,7 @@ export default function Footer() {
     );
 
     return (
-      <Box>
+      <Box sx={{ minWidth: 0 }}>
         {heading}
         {isMobile ? (
           <Collapse in={isOpen} timeout={250} unmountOnExit>
@@ -202,9 +204,10 @@ export default function Footer() {
         <Box
           sx={{
             display: "grid",
+            alignItems: "start",
             gridTemplateColumns: {
               xs: "1fr",
-              md: "1.6fr 1fr 1fr 1fr 1fr",
+              md: "1.8fr 60px 1fr 1fr 1fr 1fr",
             },
             gap: { xs: 0, md: 5 },
             mb: 5,
@@ -215,17 +218,19 @@ export default function Footer() {
             sx={{
               gridColumn: { xs: "1 / -1", md: "auto" },
               mb: { xs: 3, md: 0 },
+              minWidth: 0,
             }}
           >
             <Box
               onClick={() => navigate("/")}
               sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1.5,
-                mb: 1.5,
-                cursor: "pointer",
-                width: "fit-content",
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              mb: 1.5,
+              cursor: "pointer",
+              width: "fit-content",
+              mt: 0,
               }}
             >
               <Box
@@ -233,13 +238,15 @@ export default function Footer() {
                 src={dammahLogo}
                 alt="DAMMAH"
                 sx={{
-                  height: 90,
+                  height: 48,
                   width: "auto",
                   objectFit: "contain",
                   display: "block",
+                  flexShrink: 0,
                 }}
               />
               <Typography
+                component="span"
                 sx={{
                   fontFamily: "'Playfair Display', Georgia, serif",
                   fontSize: 26,
@@ -247,6 +254,7 @@ export default function Footer() {
                   color: COLORS.secondary,
                   letterSpacing: "0.5px",
                   lineHeight: 1,
+                  m: 0,
                 }}
               >
                 DAMMAH
@@ -367,6 +375,9 @@ export default function Footer() {
               ))}
             </Box>
           </Box>
+
+          {/* Spacer between brand and link columns — desktop only */}
+          <Box sx={{ display: { xs: "none", md: "block" } }} />
 
           {/* Link columns */}
           {renderColumn("explore", "footer.headings.explore", LINKS.explore)}
