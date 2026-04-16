@@ -175,7 +175,19 @@ interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+  code?: string;
   message?: string;
+}
+
+export class ApiError extends Error {
+  code?: string;
+  status?: number;
+  constructor(message: string, opts?: { code?: string; status?: number }) {
+    super(message);
+    this.name = "ApiError";
+    this.code = opts?.code;
+    this.status = opts?.status;
+  }
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -183,12 +195,15 @@ async function handleResponse<T>(res: Response): Promise<T> {
     const errorData = await res.json().catch(() => ({
       error: `Request failed with status ${res.status}`,
     }));
-    throw new Error(errorData.error || errorData.details || `Request failed (${res.status})`);
+    throw new ApiError(
+      errorData.error || errorData.details || `Request failed (${res.status})`,
+      { code: errorData.code, status: res.status }
+    );
   }
 
   const json = (await res.json()) as ApiResponse<T>;
   if (!json.success) {
-    throw new Error(json.error || "Request failed");
+    throw new ApiError(json.error || "Request failed", { code: json.code, status: res.status });
   }
 
   return json.data as T;

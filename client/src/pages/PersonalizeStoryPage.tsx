@@ -21,7 +21,7 @@ import {
   getExpectedNameScriptForStoryLanguage,
   shouldWarnNameScriptMismatch,
 } from "../utils/childNameValidation";
-import { generatePreview, type AgeGroup } from "../api/caregiverApi";
+import { generatePreview, type AgeGroup, ApiError } from "../api/caregiverApi";
 
 type VisualStyle =
   | "watercolor"
@@ -55,6 +55,9 @@ const VISUAL_STYLES = [
 ];
 
 const FORM_STEP_COUNT = 4;
+const ACCEPTED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPTED_EXTENSIONS = ".jpg,.jpeg,.png,.webp";
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB (must match server multer limit)
 
 function pickLang(val: string | Record<string, string> | undefined, lang: string): string {
   if (!val) return "";
@@ -581,6 +584,7 @@ export default function PersonalizeStoryPage() {
   const [childNameBlurred, setChildNameBlurred] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
 
   const styleDisplay = useMemo(
     () => [
@@ -764,8 +768,14 @@ export default function PersonalizeStoryPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert(t("personalize.imageTooLarge"));
+    setPhotoUploadError(null);
+    const mime = (file.type || "").toLowerCase();
+    if (!ACCEPTED_MIME.includes(mime)) {
+      setPhotoUploadError(t("personalize.errors.unsupportedImageFormat"));
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setPhotoUploadError(t("personalize.errors.imageTooLarge"));
       return;
     }
 
@@ -829,13 +839,26 @@ export default function PersonalizeStoryPage() {
         photoFile: completePersonalization.photoFile!,
       });
       console.log("[handleComplete] Firestore write succeeded ✅", result);
+      try {
+        localStorage.setItem(`dammah.preview.${storyId}`, result.previewId);
+      } catch {
+        // Non-critical: reader can still fall back to query param only.
+      }
+
+      navigate(`/stories/${storyId}/read?previewId=${encodeURIComponent(result.previewId)}`);
+      return;
     } catch (err) {
       console.error("[handleComplete] Firestore save failed ❌", err);
+      const e = err as unknown;
+      if (e instanceof ApiError && e.code === "FREE_PREVIEW_ALREADY_USED") {
+        setSaveError(e.message);
+        setIsSaving(false);
+        return;
+      }
       setSaveError("Cloud sync failed. Preview still works.");
     } finally {
       setIsSaving(false);
     }
-
     navigate(`/stories/${storyId}/read`);
   };
 
@@ -1753,10 +1776,20 @@ export default function PersonalizeStoryPage() {
                         </Typography>
                       )}
 
+                      {photoUploadError && (
+                        <Typography
+                          variant="caption"
+                          color="error"
+                          sx={{ display: "block", mt: 1, textAlign: "center" }}
+                        >
+                          {photoUploadError}
+                        </Typography>
+                      )}
+
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/*"
+                        accept={ACCEPTED_EXTENSIONS}
                         onChange={handlePhotoUpload}
                         style={{ display: "none" }}
                       />

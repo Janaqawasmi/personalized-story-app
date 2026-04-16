@@ -34,6 +34,10 @@ function loadServiceAccount(): Record<string, unknown> {
 }
 
 const serviceAccount = loadServiceAccount();
+const serviceAccountProjectId = (serviceAccount as { project_id?: string }).project_id;
+const serviceAccountStorageBucket = serviceAccountProjectId
+  ? `${serviceAccountProjectId}.appspot.com`
+  : undefined;
 
 try {
   if (!admin.apps.length) {
@@ -41,11 +45,13 @@ try {
       credential: admin.credential.cert(
         serviceAccount as admin.ServiceAccount
       ),
+      ...(serviceAccountProjectId ? { projectId: serviceAccountProjectId } : {}),
+      ...(serviceAccountStorageBucket ? { storageBucket: serviceAccountStorageBucket } : {}),
     });
 
     console.log(
       "Firebase initialized - Project:",
-      (serviceAccount as { project_id?: string }).project_id
+      serviceAccountProjectId
     );
   } else {
     console.log(
@@ -59,6 +65,7 @@ try {
 }
 
 console.log("🔥 Firebase project:", admin.app().options.projectId);
+console.log("🔥 Firestore project:", admin.app().options.projectId);
 
 const firestore = admin.firestore();
 const db = firestore;

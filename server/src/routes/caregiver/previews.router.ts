@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { admin, db } from "../../config/firebase";
-import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware";
+import { requireAuth } from "../../middleware/auth.middleware";
 import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
 import { generatePreview } from "../../services/preview.service";
 import multer from "multer";
@@ -12,12 +12,31 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp"];
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only JPEG, PNG, and WebP images are allowed"));
+    const allowed = [
+      "image/jpeg",
+      "image/jpg", // some browsers report this
+      "image/png",
+      "image/webp",
+    ];
+
+    // Log the actual MIME to confirm what's coming in
+    console.log("[upload] incoming file:", {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      // Note: size is not always present here (depends on multer internals)
+      size: (file as any).size,
+    });
+
+    const mimetype = (file.mimetype || "").toLowerCase();
+    if (!allowed.includes(mimetype)) {
+      return cb(
+        new Error(
+          `Unsupported image format: ${file.mimetype}. Please use JPEG, PNG, or WebP.`
+        )
+      );
     }
+
+    cb(null, true);
   },
 });
 
@@ -35,11 +54,25 @@ const VALID_GENDERS = ["male", "female"] as const;
  */
 router.post(
   "/generate",
-  requireCaregiverAuth,
-  upload.single("photo"),
+  requireAuth,
+  (req, res, next) => {
+    upload.single("photo")(req, res, (err) => {
+      if (err) {
+        const message = err instanceof Error ? err.message : "Invalid upload";
+        console.error("[upload] multer error:", message);
+        res.status(400).json({
+          success: false,
+          error: message,
+          code: "INVALID_UPLOAD",
+        });
+        return;
+      }
+      next();
+    });
+  },
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const caregiverUid = req.caregiverUser!.uid;
+      const caregiverUid = req.user!.uid;
       const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
         templateId?: string;
         childFirstName?: string;
@@ -101,6 +134,19 @@ router.post(
     } catch (error) {
       console.error("Preview generation error:", error);
       const message = error instanceof Error ? error.message : "Preview generation failed";
+      const code =
+        error && typeof error === "object" && "code" in error
+          ? String((error as any).code)
+          : undefined;
+
+      if (code === "FREE_PREVIEW_ALREADY_USED") {
+        res.status(403).json({
+          success: false,
+          error: message,
+          code,
+        });
+        return;
+      }
 
       const statusCode = message.includes("limit reached")
         ? 429
@@ -113,6 +159,7 @@ router.post(
       res.status(statusCode).json({
         success: false,
         error: message,
+        ...(code ? { code } : {}),
       });
     }
   }
@@ -125,11 +172,11 @@ router.post(
  */
 router.post(
   "/:previewId/reupload-photo",
-  requireCaregiverAuth,
+  requireAuth,
   upload.single("photo"),
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const caregiverUid = req.caregiverUser!.uid;
+      const caregiverUid = req.user!.uid;
       const { previewId } = req.params;
 
       if (!req.file) {
@@ -210,10 +257,10 @@ router.post(
  */
 router.get(
   "/:previewId",
-  requireCaregiverAuth,
+  requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const caregiverUid = req.caregiverUser!.uid;
+      const caregiverUid = req.user!.uid;
       const { previewId } = req.params;
 
       const previewDoc = await db

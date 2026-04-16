@@ -16,6 +16,55 @@ const MAX_ACTIVE_PREVIEWS = 5;
 const PHOTO_RETAIN_HOURS = 48;
 /** Max spreads (template pages) generated for storyPreviews — matches client reader preview gate. */
 const PREVIEW_SPREAD_LIMIT = 2;
+/** Enforce exactly one free preview per uid unless explicitly bypassed. */
+const FREE_PREVIEW_LIMIT_PER_USER = 1;
+
+async function assertAndConsumeFreePreviewQuota(
+  uid: string,
+  previewId: string
+): Promise<void> {
+  // Stored on caregivers/{uid} even if the user isn't a "caregiver" role.
+  // This is the single source of truth for quota consumption.
+  const userRef = db.collection(COLLECTIONS.CAREGIVERS).doc(uid);
+
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(userRef);
+    const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
+
+    // Explicit bypass (staff / admin / testing). Keeps audit trail clean.
+    if (data?.unlimitedPreviews === true) {
+      return;
+    }
+
+    const used = data?.freePreviewUsed === true;
+    if (used) {
+      const err: any = new Error(
+        "You have already used your free preview. Please purchase a story to continue."
+      );
+      err.code = "FREE_PREVIEW_ALREADY_USED";
+      throw err;
+    }
+
+    // Note: FREE_PREVIEW_LIMIT_PER_USER is currently fixed at 1.
+    // If you later add multiple quotas, store a counter instead.
+    if (FREE_PREVIEW_LIMIT_PER_USER <= 0) {
+      const err: any = new Error("Previews are currently disabled.");
+      err.code = "FREE_PREVIEW_DISABLED";
+      throw err;
+    }
+
+    tx.set(
+      userRef,
+      {
+        freePreviewUsed: true,
+        freePreviewUsedAt: admin.firestore.FieldValue.serverTimestamp(),
+        freePreviewPreviewId: previewId,
+        updatedAt: admin.firestore.Timestamp.now(),
+      },
+      { merge: true }
+    );
+  });
+}
 
 /**
  * Factory function to get the image generation provider.
@@ -93,7 +142,7 @@ export async function generatePreview(
     return existingPreview;
   }
 
-  // 2. Verify active preview limit
+  // 2. Verify active preview limit (anti-abuse / cost governance)
   const activeCount = await countActivePreviews(caregiverUid);
   if (activeCount >= MAX_ACTIVE_PREVIEWS) {
     throw new Error(
@@ -102,7 +151,13 @@ export async function generatePreview(
     );
   }
 
-  // 3. Load story template
+  // 3. Allocate previewId (used for quota auditing) and enforce free-preview quota.
+  // Do this before any expensive work (template load, uploads, AI calls).
+  const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
+  const previewId = previewRef.id;
+  await assertAndConsumeFreePreviewQuota(caregiverUid, previewId);
+
+  // 4. Load story template
   const templateDoc = await db
     .collection(COLLECTIONS.STORY_TEMPLATES)
     .withConverter(storyTemplateConverter)
@@ -118,10 +173,8 @@ export async function generatePreview(
     throw new Error(`Story template is not available: ${templateId}`);
   }
 
-  // 4. Create preview document (photo lifecycle is owned by this preview)
+  // 5. Create preview document (photo lifecycle is owned by this preview)
   const now = new Date().toISOString();
-  const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
-  const previewId = previewRef.id;
 
   const previewData: Omit<StoryPreview, "previewId"> & { previewId: string } = {
     previewId,
@@ -156,7 +209,7 @@ export async function generatePreview(
 
   await previewRef.set(previewData);
 
-  // 5. Upload photo and mark preview as generating
+  // 6. Upload photo and mark preview as generating
   const extMap: Record<string, string> = {
     "image/jpeg": "jpg",
     "image/png": "png",
@@ -182,7 +235,7 @@ export async function generatePreview(
     updatedAt: admin.firestore.Timestamp.now(),
   });
 
-  // 6. Generate preview pages asynchronously (fire-and-forget)
+  // 7. Generate preview pages asynchronously (fire-and-forget)
   const childData: ChildData = {
     firstName: normalizedChildFirstName,
     gender: childGender,
@@ -214,7 +267,18 @@ async function generatePreviewPages(
   const completedPages: PreviewPage[] = [];
 
   try {
-    const imageProvider = requireImageProvider();
+    // If image provider isn't wired yet, we still generate text-only previews
+    // (and set images to null). This prevents runtime hard-failures.
+    let imageProvider: ImageGenerationProvider | null = null;
+    try {
+      imageProvider = requireImageProvider();
+    } catch (e) {
+      console.warn(
+        `Image provider unavailable; generating text-only preview for ${previewId}.`,
+        e
+      );
+      imageProvider = null;
+    }
 
     for (let i = 0; i < previewPageCount && i < template.pages.length; i++) {
       const page = template.pages[i]!;
@@ -232,6 +296,9 @@ async function generatePreviewPages(
       let generatedImagePath: string | null = null;
 
       try {
+        if (!imageProvider) {
+          throw new Error("Image provider not configured");
+        }
         imageResult = await imageProvider.generateImage({
           textPrompt: imagePrompt,
           referenceImage: photoBuffer,
