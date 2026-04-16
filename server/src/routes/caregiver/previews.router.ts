@@ -43,6 +43,34 @@ const upload = multer({
 const VALID_AGE_GROUPS = ["0_3", "3_6", "6_9", "9_12"] as const;
 const VALID_GENDERS = ["male", "female"] as const;
 
+/** Dev-only: reset free-preview quota fields on caregivers/{uid} (non-production only). */
+if (process.env.NODE_ENV !== "production") {
+  router.post(
+    "/dev/reset-quota",
+    requireAuth,
+    async (req: Request, res: Response): Promise<void> => {
+      try {
+        const uid = req.user!.uid;
+        await db.collection(COLLECTIONS.CAREGIVERS).doc(uid).set(
+          {
+            freePreviewUsed: false,
+            freePreviewUsedAt: null,
+            freePreviewPreviewId: null,
+          },
+          { merge: true }
+        );
+        res.status(200).json({ success: true, data: { reset: true } });
+      } catch (error) {
+        console.error("[dev/reset-quota] error:", error);
+        res.status(500).json({
+          success: false,
+          error: error instanceof Error ? error.message : "Reset failed",
+        });
+      }
+    }
+  );
+}
+
 /**
  * POST /api/caregiver/previews/generate
  *

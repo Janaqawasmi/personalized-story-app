@@ -19,38 +19,59 @@ const PREVIEW_SPREAD_LIMIT = 2;
 /** Enforce exactly one free preview per uid unless explicitly bypassed. */
 const FREE_PREVIEW_LIMIT_PER_USER = 1;
 
-async function assertAndConsumeFreePreviewQuota(
-  uid: string,
-  previewId: string
-): Promise<void> {
-  // Stored on caregivers/{uid} even if the user isn't a "caregiver" role.
-  // This is the single source of truth for quota consumption.
+/**
+ * Read-only gate before creating a preview doc.
+ * Quota is consumed later in consumeFreePreviewQuota() when status becomes "ready".
+ */
+async function assertFreePreviewQuotaAvailable(uid: string): Promise<void> {
+  const userRef = db.collection(COLLECTIONS.CAREGIVERS).doc(uid);
+  const snap = await userRef.get();
+  const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
+
+  if (data?.unlimitedPreviews === true) {
+    return;
+  }
+
+  if (data?.freePreviewUsed === true) {
+    const err: any = new Error(
+      "You have already used your free preview. Please purchase a story to continue."
+    );
+    err.code = "FREE_PREVIEW_ALREADY_USED";
+    throw err;
+  }
+
+  if (FREE_PREVIEW_LIMIT_PER_USER <= 0) {
+    const err: any = new Error("Previews are currently disabled.");
+    err.code = "FREE_PREVIEW_DISABLED";
+    throw err;
+  }
+}
+
+/**
+ * Atomically records free-preview consumption when generation succeeds.
+ * Idempotent for the same previewId; does not overwrite audit if another preview already consumed quota.
+ */
+async function consumeFreePreviewQuota(uid: string, previewId: string): Promise<void> {
   const userRef = db.collection(COLLECTIONS.CAREGIVERS).doc(uid);
 
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(userRef);
     const data = snap.exists ? (snap.data() as Record<string, unknown>) : {};
 
-    // Explicit bypass (staff / admin / testing). Keeps audit trail clean.
     if (data?.unlimitedPreviews === true) {
       return;
     }
 
-    const used = data?.freePreviewUsed === true;
-    if (used) {
-      const err: any = new Error(
-        "You have already used your free preview. Please purchase a story to continue."
+    if (data?.freePreviewUsed === true) {
+      const existingId = data?.freePreviewPreviewId as string | undefined;
+      if (existingId === previewId) {
+        return;
+      }
+      // Another preview already consumed the one free slot — do not clobber audit fields.
+      console.warn(
+        `[consumeFreePreviewQuota] uid=${uid} preview=${previewId}: quota already used by preview ${existingId ?? "(unknown)"}`
       );
-      err.code = "FREE_PREVIEW_ALREADY_USED";
-      throw err;
-    }
-
-    // Note: FREE_PREVIEW_LIMIT_PER_USER is currently fixed at 1.
-    // If you later add multiple quotas, store a counter instead.
-    if (FREE_PREVIEW_LIMIT_PER_USER <= 0) {
-      const err: any = new Error("Previews are currently disabled.");
-      err.code = "FREE_PREVIEW_DISABLED";
-      throw err;
+      return;
     }
 
     tx.set(
@@ -142,7 +163,10 @@ export async function generatePreview(
     return existingPreview;
   }
 
-  // 2. Verify active preview limit (anti-abuse / cost governance)
+  // 2. Free-preview quota (read-only — consumed only when preview reaches "ready")
+  await assertFreePreviewQuotaAvailable(caregiverUid);
+
+  // 3. Verify active preview limit (anti-abuse / cost governance)
   const activeCount = await countActivePreviews(caregiverUid);
   if (activeCount >= MAX_ACTIVE_PREVIEWS) {
     throw new Error(
@@ -151,13 +175,11 @@ export async function generatePreview(
     );
   }
 
-  // 3. Allocate previewId (used for quota auditing) and enforce free-preview quota.
-  // Do this before any expensive work (template load, uploads, AI calls).
+  // 4. Allocate previewId before template load (no Firestore write until we know template exists)
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
   const previewId = previewRef.id;
-  await assertAndConsumeFreePreviewQuota(caregiverUid, previewId);
 
-  // 4. Load story template
+  // 5. Load story template
   const templateDoc = await db
     .collection(COLLECTIONS.STORY_TEMPLATES)
     .withConverter(storyTemplateConverter)
@@ -173,7 +195,7 @@ export async function generatePreview(
     throw new Error(`Story template is not available: ${templateId}`);
   }
 
-  // 5. Create preview document (photo lifecycle is owned by this preview)
+  // 6. Create preview document (photo lifecycle is owned by this preview)
   const now = new Date().toISOString();
 
   const previewData: Omit<StoryPreview, "previewId"> & { previewId: string } = {
@@ -209,13 +231,14 @@ export async function generatePreview(
 
   await previewRef.set(previewData);
 
-  // 6. Upload photo and mark preview as generating
+  // 7. Upload photo and mark preview as generating
   const extMap: Record<string, string> = {
     "image/jpeg": "jpg",
+    "image/jpg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
   };
-  const ext = extMap[photoMimeType] ?? "jpg";
+  const ext = extMap[photoMimeType.toLowerCase()] ?? "jpg";
   const filename = `${Date.now()}.${ext}`;
   const storagePath = STORAGE_PATHS.childPhoto(caregiverUid, previewId, filename);
 
@@ -235,7 +258,7 @@ export async function generatePreview(
     updatedAt: admin.firestore.Timestamp.now(),
   });
 
-  // 7. Generate preview pages asynchronously (fire-and-forget)
+  // 8. Generate preview pages asynchronously (fire-and-forget)
   const childData: ChildData = {
     firstName: normalizedChildFirstName,
     gender: childGender,
@@ -369,6 +392,15 @@ async function generatePreviewPages(
       expiresAt: retainUntil,
       updatedAt: admin.firestore.Timestamp.now(),
     });
+
+    try {
+      await consumeFreePreviewQuota(caregiverUid, previewId);
+    } catch (quotaErr) {
+      console.error(
+        `[consumeFreePreviewQuota] failed for preview ${previewId} (preview doc is still ready):`,
+        quotaErr
+      );
+    }
   } catch (error) {
     console.error(`Preview generation failed for ${previewId}:`, error);
     const message = error instanceof Error ? error.message : "Unknown error";
