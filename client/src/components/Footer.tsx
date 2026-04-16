@@ -340,7 +340,7 @@ export default function Footer() {
             </Box>
 
             {/* Socials */}
-            <Stack direction="row" spacing={1.25} sx={{ mt: 2.5 }}>
+            <Box sx={{ display: "flex", flexDirection: "row", gap: 1.25, mt: 2.5 }}>
               {[
                 { Icon: Instagram, label: "Instagram" },
                 { Icon: Facebook, label: "Facebook" },
@@ -365,7 +365,7 @@ export default function Footer() {
                   <Icon size={15} />
                 </IconButton>
               ))}
-            </Stack>
+            </Box>
           </Box>
 
           {/* Link columns */}
