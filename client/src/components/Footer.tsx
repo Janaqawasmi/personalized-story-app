@@ -373,6 +373,31 @@ export default function Footer() {
                   <Icon size={15} />
                 </IconButton>
               ))}
+              {/* TikTok — no lucide icon available, inline SVG */}
+              <IconButton
+                aria-label="TikTok"
+                sx={{
+                  width: 36,
+                  height: 36,
+                  border: `1px solid ${FOOTER_BORDER}`,
+                  color: FOOTER_LINK,
+                  transition: "all 0.2s",
+                  "&:hover": {
+                    bgcolor: COLORS.secondary,
+                    color: COLORS.surface,
+                    borderColor: COLORS.secondary,
+                  },
+                }}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M19.6 6.8c-1.5-.1-2.9-.9-3.7-2.1-.4-.5-.6-1.1-.7-1.7h-3.4v13.5c0 1.5-1.2 2.7-2.7 2.7s-2.7-1.2-2.7-2.7 1.2-2.7 2.7-2.7c.3 0 .6.1.9.1V9.8c-.3 0-.6-.1-.9-.1-3.4 0-6.1 2.7-6.1 6.1s2.7 6.1 6.1 6.1 6.1-2.7 6.1-6.1V9.3c1.3.9 2.9 1.5 4.6 1.5V7.4c-.1 0-.1-.6-.2-.6z" />
+                </svg>
+              </IconButton>
             </Box>
           </Box>
 
