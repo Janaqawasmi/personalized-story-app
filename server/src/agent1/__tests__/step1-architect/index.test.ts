@@ -179,7 +179,7 @@ describe('runStoryArchitect', () => {
       await runStoryArchitect(makeMinimalBrief(), makeCleanPreCheckResult());
       expect(mockCallLLM).toHaveBeenCalledTimes(1);
       const callArg = mockCallLLM.mock.calls[0]![0] as LLMCallInput;
-      expect(callArg.model).toBe('claude-opus-4-20250514');
+      expect(callArg.model).toBe('claude-sonnet-4-6');
       expect(callArg.maxTokens).toBe(4096);
       expect(callArg.step).toBe('step1_architect');
       expect(callArg.attempt).toBe(1);

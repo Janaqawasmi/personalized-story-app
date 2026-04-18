@@ -70,7 +70,7 @@ function makeStep2(): Step2Output {
     promptHash: 'f'.repeat(64),
     llmCallRecord: {
       step: 'step2_author',
-      model: 'claude-opus-4-20250514',
+      model: 'claude-sonnet-4-6',
       inputTokens: 1,
       outputTokens: 1,
       latencyMs: 1,

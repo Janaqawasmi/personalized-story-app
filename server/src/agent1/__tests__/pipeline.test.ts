@@ -125,7 +125,7 @@ function makeLLMCallRecord(
 ): LLMCallRecord {
   return {
     step,
-    model: "claude-opus-4-20250514",
+    model: "claude-sonnet-4-6",
     inputTokens: 100,
     outputTokens: 50,
     latencyMs,
@@ -413,7 +413,7 @@ describe("Error propagation", () => {
       promptHash: "",
       llmCallRecord: {
         step: "step3_post_validation",
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-4-6",
         inputTokens: 0,
         outputTokens: 0,
         latencyMs: 0,

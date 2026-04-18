@@ -8,7 +8,9 @@ import { buildStep2Prompt } from './prompt-builder';
 import { parseStep2Response } from './output-parser';
 
 // Model string is a constant. Do not duplicate elsewhere in this module.
-const STEP2_MODEL = 'claude-opus-4-20250514';
+// TODO: Switch to "claude-opus-4-6" (or newer) for production quality.
+// Using Sonnet during development to conserve API credits.
+const STEP2_MODEL = 'claude-sonnet-4-6';
 
 type ExampleBankStatus =
   | 'examples_used'

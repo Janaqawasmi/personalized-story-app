@@ -6,7 +6,7 @@ import type { LLMCallRecord } from '@/agent1/types';
 function makeLLMCallRecord(): LLMCallRecord {
   return {
     step: 'step2_author',
-    model: 'claude-opus-4-20250514',
+    model: 'claude-sonnet-4-6',
     inputTokens: 1200,
     outputTokens: 450,
     latencyMs: 1800,
