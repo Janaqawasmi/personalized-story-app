@@ -1,10 +1,12 @@
 import "dotenv/config";
 
+import { writeFileSync } from "fs";
+
 import { Timestamp } from "firebase-admin/firestore";
 
-import { generateStoryDraft, type Agent1Result } from "@/agent1";
-import { firestore } from "@/config/firebase";
-import type { StoryBrief } from "@/models/storyBrief.model";
+import { generateStoryDraft, type Agent1Result } from "../src/agent1";
+import { firestore } from "../src/config/firebase";
+import type { StoryBrief } from "../src/models/storyBrief.model";
 
 const SMOKE_BRIEF: StoryBrief = {
   storyType: "fear_anxiety",
@@ -89,6 +91,13 @@ async function main() {
       return;
     }
     const elapsed = Date.now() - startTime;
+
+    writeFileSync(
+      "scripts/smoke-test-output.json",
+      JSON.stringify(result, null, 2),
+      "utf8",
+    );
+    console.log("Full result written to scripts/smoke-test-output.json");
 
     console.log("=== RESULT ===\n");
     console.log(`Generation ID: ${result.generationId}`);
