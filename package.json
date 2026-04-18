@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "set-user-role": "cd server && npx ts-node scripts/setUserRole.ts"
+    "set-user-role": "cd server && npx ts-node scripts/setUserRole.ts",
+    "get-user-role": "cd server && npx ts-node scripts/getUserRole.ts"
   },
   "dependencies": {
     "openai": "^6.10.0"

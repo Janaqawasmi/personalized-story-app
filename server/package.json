@@ -8,6 +8,7 @@
     "start": "node dist/app.js",
     "seed:rag": "ts-node scripts/seedRag.ts",
     "seed:reference": "ts-node scripts/seedReferenceData.ts",
+    "get-user-role": "ts-node scripts/getUserRole.ts",
     "complexity:parity": "ts-node scripts/complexityWireParity.ts",
     "test": "jest",
     "test:watch": "jest --watch",
