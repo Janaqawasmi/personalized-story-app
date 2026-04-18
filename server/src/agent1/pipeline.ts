@@ -38,23 +38,10 @@ function resolveExampleBankStatus(
   return priority[Math.min(s1, s2)]!;
 }
 
-export async function executePipeline(
-  briefId: string,
+export async function executePipelineWithBrief(
+  brief: StoryBrief,
   options?: GenerateOptions,
 ): Promise<Agent1Result> {
-  // TODO: When rerun feedback is provided, the Step 1 prompt builder
-  // should inject a rerun block with previous output and feedback.
-  // For v1.0, reruns re-run the full pipeline with the same brief.
-
-  // Step 1: Load and assert the brief
-  const doc = await firestore.collection(BRIEF_COLLECTION).doc(briefId).get();
-
-  if (!doc.exists) {
-    throw new BriefNotReadyError("not_found");
-  }
-
-  const brief = doc.data() as StoryBrief;
-
   if (brief.status !== "submitted") {
     throw new BriefNotReadyError(brief.status);
   }
@@ -72,25 +59,20 @@ export async function executePipeline(
     );
   }
 
-  // Step 2: Run pre-check (never throws)
   const preCheckResult = runPreCheck(brief);
 
-  // Step 3: Run Step 1 — Story Architect
   const { step1Output, exampleBankStatus: step1ExampleStatus } =
     await runStoryArchitect(brief, preCheckResult);
 
-  // Step 4: Run Step 2 — Author
   const { step2Output, exampleBankStatus: step2ExampleStatus } =
     await runAuthor(brief, step1Output);
 
-  // Step 5: Run Step 3 — Post-Validation (soft-fails internally)
   const postValidationResult = await runPostValidation(
     step2Output,
     brief,
     step1Output.approachInstruction,
   );
 
-  // Step 6: Assemble Agent1Result
   const generationId = uuidv4();
 
   const llmCalls: LLMCallRecord[] = [
@@ -156,4 +138,18 @@ export async function executePipeline(
   };
 
   return result;
+}
+
+export async function executePipeline(
+  briefId: string,
+  options?: GenerateOptions,
+): Promise<Agent1Result> {
+  const doc = await firestore.collection(BRIEF_COLLECTION).doc(briefId).get();
+
+  if (!doc.exists) {
+    throw new BriefNotReadyError("not_found");
+  }
+
+  const brief = doc.data() as StoryBrief;
+  return executePipelineWithBrief(brief, options);
 }

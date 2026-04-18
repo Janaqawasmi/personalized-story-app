@@ -44,8 +44,8 @@ import {
   type GenerateOptions,
 } from "@/agent1/types";
 
-import { executePipeline } from "@/agent1/pipeline";
-import { generateStoryDraft } from "@/agent1/index";
+import { executePipeline, executePipelineWithBrief } from "@/agent1/pipeline";
+import { generateStoryDraft, generateStoryDraftFromBrief } from "@/agent1/index";
 
 const mockRunPreCheck = runPreCheck as jest.MockedFunction<typeof runPreCheck>;
 const mockRunStoryArchitect = runStoryArchitect as jest.MockedFunction<
@@ -434,6 +434,81 @@ describe("Public API", () => {
   it("test 22: generateStoryDraft delegates to executePipeline", async () => {
     setupHappyPath();
     const result = await generateStoryDraft("brief-123");
+    expect(result).toBeDefined();
+    expect(result.generationId).toBe("00000000-0000-4000-a000-000000000001");
+  });
+});
+
+// ─── Test group 7: executePipelineWithBrief ────────────────────────────────
+
+function makeBrief(overrides: Record<string, unknown> = {}) {
+  return makeBriefDoc(overrides).data();
+}
+
+describe("executePipelineWithBrief", () => {
+  it("test 23: resolves with an Agent1Result when given a valid brief", async () => {
+    setupHappyPath();
+    const brief = makeBrief();
+    const result = await executePipelineWithBrief(brief as any);
+    expect(result).toBeDefined();
+    expect(typeof result.generationId).toBe("string");
+    expect(result.title).toBe("The Brave Little Fox");
+    expect(result.story).toBe("Once upon a time...");
+  });
+
+  it("test 24: throws BriefNotReadyError when status !== 'submitted'", async () => {
+    const brief = makeBrief({ status: "draft" });
+    await expect(executePipelineWithBrief(brief as any)).rejects.toThrow(
+      BriefNotReadyError,
+    );
+  });
+
+  it("test 25: throws UnsupportedStoryTypeError when storyType !== 'fear_anxiety'", async () => {
+    const brief = makeBrief({ storyType: "big_emotions" });
+    await expect(executePipelineWithBrief(brief as any)).rejects.toThrow(
+      UnsupportedStoryTypeError,
+    );
+  });
+
+  it("test 26: throws TypeMismatchError when fieldType !== 'somatic_expression'", async () => {
+    const brief = makeBrief({
+      therapeuticArchitecture: {
+        primaryApproach: "graduated_exposure",
+        shameDimension: "not_significant",
+        typeSpecificField: {
+          fieldType: "emotion_appearance",
+          text: "Angry face",
+        },
+        copingTool: "counting",
+        resolutionCompleteness: "partial",
+        mustNeverList: ["x"],
+      },
+    });
+    await expect(executePipelineWithBrief(brief as any)).rejects.toThrow(
+      TypeMismatchError,
+    );
+  });
+});
+
+// ─── Test group 8: generateStoryDraftFromBrief public API ──────────────────
+
+describe("generateStoryDraftFromBrief", () => {
+  it("test 27: delegates to executePipelineWithBrief and returns Agent1Result", async () => {
+    setupHappyPath();
+    const brief = makeBrief();
+    const result = await generateStoryDraftFromBrief(brief as any);
+    expect(result).toBeDefined();
+    expect(result.generationId).toBe("00000000-0000-4000-a000-000000000001");
+    expect(result.title).toBe("The Brave Little Fox");
+  });
+});
+
+// ─── Test group 9: executePipeline backward compatibility ──────────────────
+
+describe("executePipeline backward compatibility", () => {
+  it("test 28: executePipeline still loads from Firestore and returns Agent1Result", async () => {
+    setupHappyPath();
+    const result = await executePipeline("brief-123");
     expect(result).toBeDefined();
     expect(result.generationId).toBe("00000000-0000-4000-a000-000000000001");
   });
