@@ -63,7 +63,7 @@ function makeMockStep2Output(): Step2Output {
     promptHash: 'a'.repeat(64),
     llmCallRecord: {
       step: 'step2_author',
-      model: 'claude-opus-4-20250514',
+      model: 'claude-sonnet-4-6',
       inputTokens: 100,
       outputTokens: 50,
       latencyMs: 1000,

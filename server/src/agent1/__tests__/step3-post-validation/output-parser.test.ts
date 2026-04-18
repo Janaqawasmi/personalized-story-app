@@ -4,7 +4,7 @@ import type { LLMCallRecord } from '@/agent1/types';
 function makeLLMCallRecord(): LLMCallRecord {
   return {
     step: 'step3_post_validation',
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-6',
     inputTokens: 500,
     outputTokens: 200,
     latencyMs: 900,

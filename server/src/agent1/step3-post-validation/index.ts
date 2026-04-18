@@ -7,7 +7,7 @@ import { callLLM } from '@/agent1/shared/llm-client';
 import { buildPostValidationPrompt } from './prompt-builder';
 import { parsePostValidationResponse } from './output-parser';
 
-const POST_VALIDATION_MODEL = 'claude-sonnet-4-20250514';
+const POST_VALIDATION_MODEL = 'claude-sonnet-4-6';
 
 export async function runPostValidation(
   step2Output: Step2Output,

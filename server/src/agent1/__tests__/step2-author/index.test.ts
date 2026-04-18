@@ -86,7 +86,7 @@ function makeMinimalStep1Output(): Step1Output {
     promptHash: 'a'.repeat(64),
     llmCallRecord: {
       step: 'step1_architect',
-      model: 'claude-opus-4-20250514',
+      model: 'claude-sonnet-4-6',
       inputTokens: 1200,
       outputTokens: 450,
       latencyMs: 1800,

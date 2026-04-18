@@ -14,7 +14,9 @@ import { parseStep1Response } from './output-parser';
 
 // Model string is hardcoded for v1.0. When the model changes, this
 // line changes. Do not duplicate elsewhere in this module.
-const STEP1_MODEL = 'claude-opus-4-20250514';
+// TODO: Switch to "claude-opus-4-6" (or newer) for production quality.
+// Using Sonnet during development to conserve API credits.
+const STEP1_MODEL = 'claude-sonnet-4-6';
 const STEP1_MAX_TOKENS = 4096;
 
 type ExampleBankStatus =

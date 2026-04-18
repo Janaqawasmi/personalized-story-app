@@ -74,17 +74,27 @@ function extractSection(text: string, header: HeaderName): string | null {
 
 function parseBlueprintPoints(text: string): BlueprintPoint[] {
   const extracted = new Map<number, string>();
-  const re = /(?:^|\n)[ \t]*(\d+)[.)][ \t]*/g;
+
+  // Line-start markers for blueprint points: "Point N — …", "Point N: …",
+  // "N." / "N)", optionally wrapped in ** (e.g. "**1.** …").
+  const pointWithDashOrHyphen =
+    /(?:^|\n)[ \t]*\*{0,2}Point\s+(\d+)\s*[—\-][^\n]*/g;
+  const pointWithColon =
+    /(?:^|\n)[ \t]*\*{0,2}Point\s+(\d+)\s*\*{0,2}\s*:\s*[^\n]*/g;
+  const numbered =
+    /(?:^|\n)[ \t]*\*{0,2}(\d+)[.)]\s*\*{0,2}[ \t]*/g;
+
   const markers: Array<{
     num: number;
     contentStart: number;
     matchStart: number;
   }> = [];
 
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) {
-    const num = parseInt(m[1]!, 10);
-    if (num >= 1 && num <= 6) {
+  function collectWith(re: RegExp): void {
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      const num = parseInt(m[1]!, 10);
+      if (num < 1 || num > 6) continue;
       const leadingNewline = m[0].startsWith('\n');
       markers.push({
         num,
@@ -93,6 +103,12 @@ function parseBlueprintPoints(text: string): BlueprintPoint[] {
       });
     }
   }
+
+  collectWith(pointWithDashOrHyphen);
+  collectWith(pointWithColon);
+  collectWith(numbered);
+
+  markers.sort((a, b) => a.matchStart - b.matchStart);
 
   for (let i = 0; i < markers.length; i++) {
     const cur = markers[i]!;
