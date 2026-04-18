@@ -31,6 +31,9 @@ import referenceDataRoutes from "./routes/referenceData.routes";
 // Auth routes (registration)
 import registerCaregiverRouter from "./routes/auth/registerCaregiver.router";
 
+// Specialist routes
+import specialistStoriesRouter from "./routes/specialist/stories.router";
+
 // Caregiver routes (cart/checkout/previews/account)
 import caregiverCartRouter from "./routes/caregiver/cart.router";
 import caregiverPreviewsRouter from "./routes/caregiver/previews.router";
@@ -68,6 +71,7 @@ app.use("/api/auth", registerCaregiverRouter);
 
 // Protected routes (auth enforced at router level)
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
+app.use("/api/specialist/stories", specialistStoriesRouter);
 
 // Caregiver endpoints (auth enforced in each router)
 app.use("/api/caregiver/cart", caregiverCartRouter);
