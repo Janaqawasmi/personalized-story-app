@@ -200,8 +200,17 @@ export class FreePreviewAlreadyUsedError extends Error {
 export interface PreviewQuota {
   hasUsedPreview: boolean;
   existingPreviewId: string | null;
+  existingTemplateId: string | null;
   status: "claimed" | "ready" | "failed" | null;
   unlimited: boolean;
+}
+
+export interface PreviewPersonalization {
+  templateId: string;
+  childFirstName: string;
+  childGender: Gender;
+  childAgeGroup: AgeGroup;
+  dedicationName: string | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -239,7 +248,10 @@ export async function getPreviewQuota(): Promise<PreviewQuota> {
   if (!json.success || json.data === undefined) {
     throw new ApiError(json.error || "Failed to fetch quota", { status: res.status });
   }
-  return json.data;
+  return {
+    ...json.data,
+    existingTemplateId: json.data.existingTemplateId ?? null,
+  };
 }
 
 /**
@@ -302,6 +314,93 @@ export async function generatePreview(input: {
     throw new ApiError("Request failed", { status: res.status });
   }
 
+  return json.data;
+}
+
+export async function getPreviewPersonalization(previewId: string): Promise<PreviewPersonalization> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${API_BASE}/api/caregiver/previews/${encodeURIComponent(previewId)}/personalization`,
+    { headers }
+  );
+  const json = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: PreviewPersonalization;
+    error?: string | { code?: string; message?: string };
+  };
+  if (!res.ok) {
+    const msg =
+      typeof json.error === "object" && json.error && "message" in json.error
+        ? String((json.error as { message?: string }).message)
+        : typeof json.error === "string"
+          ? json.error
+          : `Failed: ${res.status}`;
+    throw new ApiError(msg, {
+      code:
+        typeof json.error === "object" && json.error && "code" in json.error
+          ? String((json.error as { code?: string }).code)
+          : undefined,
+      status: res.status,
+    });
+  }
+  if (!json.success || !json.data) {
+    throw new ApiError("Request failed", { status: res.status });
+  }
+  return json.data;
+}
+
+/**
+ * Create a cart-ready preview without AI pages (after free preview already used).
+ */
+export async function createDirectPurchasePreview(input: {
+  templateId: string;
+  childFirstName: string;
+  childGender: Gender;
+  childAgeGroup: AgeGroup;
+  photoFile: File;
+  dedicationName?: string | null;
+}): Promise<{ previewId: string }> {
+  const headers = await getAuthHeadersForUpload();
+  const formData = new FormData();
+  formData.append("templateId", input.templateId);
+  formData.append("childFirstName", input.childFirstName);
+  formData.append("childGender", input.childGender);
+  formData.append("childAgeGroup", input.childAgeGroup);
+  if (input.dedicationName) {
+    formData.append("dedicationName", input.dedicationName);
+  }
+  formData.append("photo", input.photoFile);
+
+  const res = await fetch(`${API_BASE}/api/caregiver/previews/direct-purchase`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  const json = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: { previewId: string };
+    error?: string | { code?: string; message?: string };
+  };
+
+  if (!res.ok) {
+    const msg =
+      typeof json.error === "object" && json.error && "message" in json.error
+        ? String((json.error as { message?: string }).message)
+        : typeof json.error === "string"
+          ? json.error
+          : `Failed: ${res.status}`;
+    throw new ApiError(msg, {
+      code:
+        typeof json.error === "object" && json.error && "code" in json.error
+          ? String((json.error as { code?: string }).code)
+          : undefined,
+      status: res.status,
+    });
+  }
+  if (!json.success || !json.data) {
+    throw new ApiError("Request failed", { status: res.status });
+  }
   return json.data;
 }
 

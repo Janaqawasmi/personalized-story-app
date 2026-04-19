@@ -3,7 +3,11 @@ import { admin, db } from "../../config/firebase";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware";
 import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
-import { generatePreview, PreviewQuotaError } from "../../services/preview.service";
+import {
+  createDirectPurchasePreview,
+  generatePreview,
+  PreviewQuotaError,
+} from "../../services/preview.service";
 import multer from "multer";
 
 const router = Router();
@@ -79,11 +83,24 @@ router.get("/quota", requireAuth, async (req: Request, res: Response): Promise<v
     const uid = req.user!.uid;
     const snap = await db.collection(COLLECTIONS.CAREGIVERS).doc(uid).get();
     const c = snap.data() ?? {};
+
+    let existingTemplateId: string | null = null;
+    if (c.freePreviewId) {
+      const previewSnap = await db
+        .collection(COLLECTIONS.STORY_PREVIEWS)
+        .doc(String(c.freePreviewId))
+        .get();
+      if (previewSnap.exists) {
+        existingTemplateId = (previewSnap.data()?.templateId as string | undefined) ?? null;
+      }
+    }
+
     res.status(200).json({
       success: true,
       data: {
         hasUsedPreview: c.freePreviewUsed === true && c.unlimitedPreviews !== true,
         existingPreviewId: (c.freePreviewId as string | undefined) ?? null,
+        existingTemplateId,
         status: (c.freePreviewStatus as string | undefined) ?? null,
         unlimited: c.unlimitedPreviews === true,
       },
@@ -197,6 +214,153 @@ router.post(
       res.status(500).json({
         success: false,
         error: { code: "INTERNAL", message: "Failed to generate preview." },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/caregiver/previews/direct-purchase
+ *
+ * Creates a ready-only preview (no AI pages) for purchase after free preview quota is used.
+ */
+router.post(
+  "/direct-purchase",
+  requireAuth,
+  (req, res, next) => {
+    upload.single("photo")(req, res, (err) => {
+      if (err) {
+        const message = err instanceof Error ? err.message : "Invalid upload";
+        console.error("[upload] multer error:", message);
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_UPLOAD", message },
+        });
+        return;
+      }
+      next();
+    });
+  },
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const caregiverUid = req.user!.uid;
+      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
+        templateId?: string;
+        childFirstName?: string;
+        childGender?: string;
+        childAgeGroup?: string;
+        dedicationName?: string;
+      };
+
+      if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
+        res.status(400).json({
+          success: false,
+          error: { code: "MISSING_FIELDS", message: "Required fields are missing." },
+        });
+        return;
+      }
+
+      if (!VALID_GENDERS.includes(childGender as (typeof VALID_GENDERS)[number])) {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_GENDER", message: "Invalid gender." },
+        });
+        return;
+      }
+
+      if (!VALID_AGE_GROUPS.includes(childAgeGroup as (typeof VALID_AGE_GROUPS)[number])) {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_AGE_GROUP", message: "Invalid age group." },
+        });
+        return;
+      }
+
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          error: { code: "MISSING_PHOTO", message: "Child photo is required." },
+        });
+        return;
+      }
+
+      const result = await createDirectPurchasePreview({
+        caregiverUid,
+        templateId,
+        childFirstName,
+        childGender: childGender as "male" | "female",
+        childAgeGroup: childAgeGroup as "0_3" | "3_6" | "6_9" | "9_12",
+        ...(dedicationName ? { dedicationName: String(dedicationName) } : {}),
+        photoBuffer: req.file.buffer,
+        photoMimeType: req.file.mimetype,
+      });
+
+      res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      if (err instanceof PreviewQuotaError) {
+        if (err.code === "TEMPLATE_NOT_FOUND" || err.code === "TEMPLATE_INACTIVE") {
+          res.status(404).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+      }
+      console.error("[previews.direct-purchase] error", err);
+      res.status(500).json({
+        success: false,
+        error: { code: "INTERNAL", message: "Failed to create purchase preview." },
+      });
+    }
+  }
+);
+
+/**
+ * GET /api/caregiver/previews/:previewId/personalization
+ *
+ * Returns saved child fields for restoring local storage before opening the reader.
+ * Must be registered before GET /:previewId.
+ */
+router.get(
+  "/:previewId/personalization",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { previewId } = req.params;
+      const snap = await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId!).get();
+
+      if (!snap.exists) {
+        res.status(404).json({
+          success: false,
+          error: { code: "NOT_FOUND", message: "Preview not found." },
+        });
+        return;
+      }
+
+      const p = snap.data()!;
+      if (p.caregiverUid !== req.user!.uid) {
+        res.status(403).json({
+          success: false,
+          error: { code: "FORBIDDEN", message: "Not your preview." },
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: {
+          templateId: p.templateId,
+          childFirstName: p.childFirstName,
+          childGender: p.childGender,
+          childAgeGroup: p.childAgeGroup,
+          dedicationName: p.dedicationName ?? null,
+        },
+      });
+    } catch (err) {
+      console.error("[previews.personalization] error", err);
+      res.status(500).json({
+        success: false,
+        error: { code: "INTERNAL", message: "Failed to fetch personalization." },
       });
     }
   }

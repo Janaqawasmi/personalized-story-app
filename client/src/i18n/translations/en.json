@@ -500,6 +500,14 @@
       "browseStories": "Browse more stories",
       "footer": "You can still personalize and purchase any story — the full book is generated for you after checkout."
     },
+    "directPurchase": {
+      "title": "Ready to add to cart",
+      "subtitle": "We saved your personalization. Your full book will be generated after checkout.",
+      "personalizedFor": "Personalized for",
+      "addToCart": "Add to cart",
+      "back": "← Edit details",
+      "loadingPreview": "Loading..."
+    },
     "celebrateName": "{name}'s story is ready.",
     "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
     "celebrateTagPhoto": "Photo ready",

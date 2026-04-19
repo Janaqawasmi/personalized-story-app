@@ -500,6 +500,14 @@
       "browseStories": "עוד סיפורים",
       "footer": "אפשר עדיין לפרסן ולרכוש כל סיפור — הספר המלא נוצר אחרי הרכישה."
     },
+    "directPurchase": {
+      "title": "מוכן להוספה לעגלה",
+      "subtitle": "שמרנו את ההתאמה האישית. הספר המלא ייווצר אחרי התשלום.",
+      "personalizedFor": "מותאם עבור",
+      "addToCart": "הוספה לעגלה",
+      "back": "← עריכת פרטים",
+      "loadingPreview": "טוען..."
+    },
     "celebrateName": "הסיפור של {name} מוכן.",
     "celebrateSub": "כל מילה וכל איור — נעשו עבור {name}. למסע מיוחד באמת.",
     "celebrateTagPhoto": "תמונה מוכנה",

@@ -21,9 +21,16 @@ import {
   getExpectedNameScriptForStoryLanguage,
   shouldWarnNameScriptMismatch,
 } from "../utils/childNameValidation";
-import { generatePreview, type AgeGroup, FreePreviewAlreadyUsedError } from "../api/caregiverApi";
+import {
+  addToCart,
+  createDirectPurchasePreview,
+  generatePreview,
+  type AgeGroup,
+  FreePreviewAlreadyUsedError,
+} from "../api/caregiverApi";
 import { usePreviewQuota } from "../hooks/usePreviewQuota";
 import { PreviewAlreadyUsed } from "../components/preview/PreviewAlreadyUsed";
+import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
 
 type VisualStyle =
   | "watercolor"
@@ -590,6 +597,11 @@ export default function PersonalizeStoryPage() {
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const { quota, loading: quotaLoading, refetch: refetchQuota } = usePreviewQuota();
   const [skipPreviewMode, setSkipPreviewMode] = useState(false);
+  const [directPurchaseResult, setDirectPurchaseResult] = useState<{
+    previewId: string;
+    childName: string;
+    photoPreviewUrl: string | null;
+  } | null>(null);
 
   const styleDisplay = useMemo(
     () => [
@@ -836,8 +848,25 @@ export default function PersonalizeStoryPage() {
     console.log("[handleComplete] localStorage saved ✅", completePersonalization);
 
     if (skipPreviewMode || quota?.hasUsedPreview) {
-      setIsSaving(false);
-      navigate(`/stories/${storyId}/read`);
+      try {
+        const { previewId } = await createDirectPurchasePreview({
+          templateId: storyId,
+          childFirstName: completePersonalization.childName,
+          childGender: completePersonalization.gender,
+          childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
+          photoFile: completePersonalization.photoFile!,
+        });
+        setDirectPurchaseResult({
+          previewId,
+          childName: completePersonalization.childName,
+          photoPreviewUrl: completePersonalization.photoPreviewUrl ?? null,
+        });
+      } catch (err) {
+        console.error("Direct purchase preview failed", err);
+        setSaveError(t("personalize.previewGenerationFailed"));
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
 
@@ -858,20 +887,17 @@ export default function PersonalizeStoryPage() {
       }
 
       navigate(`/stories/${storyId}/read?previewId=${encodeURIComponent(result.previewId)}`);
-      return;
     } catch (err) {
       console.error("[handleComplete] Preview generation failed ❌", err);
       if (err instanceof FreePreviewAlreadyUsedError) {
         setSaveError(err.message);
         void refetchQuota();
-        setIsSaving(false);
         return;
       }
       setSaveError(t("personalize.previewGenerationFailed"));
     } finally {
       setIsSaving(false);
     }
-    navigate(`/stories/${storyId}/read`);
   };
 
   const handleResume = () => {
@@ -977,6 +1003,35 @@ export default function PersonalizeStoryPage() {
     return null;
   }
 
+  const storyTitleForUi = pickLang(story.title, language) || t("personalize.story");
+
+  if (directPurchaseResult) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: "#E5DFD9",
+          direction: direction,
+        }}
+      >
+        <DirectPurchaseSummary
+          result={directPurchaseResult}
+          storyTitle={storyTitleForUi}
+          onAddToCart={async () => {
+            try {
+              await addToCart(directPurchaseResult.previewId);
+            } catch (err) {
+              console.warn("Add to cart failed:", err);
+            } finally {
+              navigate("/cart");
+            }
+          }}
+          onBack={() => setDirectPurchaseResult(null)}
+        />
+      </Box>
+    );
+  }
+
   if (quota?.hasUsedPreview && !skipPreviewMode) {
     return (
       <Box
@@ -992,6 +1047,7 @@ export default function PersonalizeStoryPage() {
       >
         <PreviewAlreadyUsed
           existingPreviewId={quota.existingPreviewId}
+          existingTemplateId={quota.existingTemplateId}
           currentStoryId={storyId!}
           onContinueWithoutPreview={() => setSkipPreviewMode(true)}
         />

@@ -1,7 +1,14 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { AgeGroup, Gender, PhotoStatus } from "./common";
 
-export type PreviewGenerationStatus = "pending" | "in_progress" | "completed" | "failed";
+export type PreviewKind = "preview" | "direct_purchase";
+
+export type PreviewGenerationStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "failed"
+  | "skipped";
 export type PreviewStatus =
   | "created"
   | "generating"
@@ -29,6 +36,8 @@ export interface StoryPreview {
   previewId: string;
   caregiverUid: string;
   templateId: string;
+  /** Discriminator: AI preview (default) vs buy-without-preview flow */
+  kind?: PreviewKind;
 
   // --- Child data (inline, no separate collection) ---
   childFirstName: string;

@@ -1,26 +1,69 @@
+import { useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
+import { getPreviewPersonalization } from "../../api/caregiverApi";
+import { getStoryPersonalizationStorageKey } from "../../utils/storyPersonalization";
 
 interface PreviewAlreadyUsedProps {
   existingPreviewId: string | null;
+  existingTemplateId: string | null;
   currentStoryId: string;
   onContinueWithoutPreview: () => void;
 }
 
 export function PreviewAlreadyUsed({
   existingPreviewId,
+  existingTemplateId,
   currentStoryId,
   onContinueWithoutPreview,
 }: PreviewAlreadyUsedProps) {
   const navigate = useLangNavigate();
   const t = useTranslation();
+  const [loadingView, setLoadingView] = useState(false);
 
-  const handleViewExisting = () => {
-    if (existingPreviewId) {
-      navigate(`/stories/${currentStoryId}/read?previewId=${encodeURIComponent(existingPreviewId)}`);
+  const handleViewExisting = async () => {
+    if (!existingPreviewId || !existingTemplateId) return;
+
+    setLoadingView(true);
+    try {
+      const p = await getPreviewPersonalization(existingPreviewId);
+
+      const storageKey = getStoryPersonalizationStorageKey(existingTemplateId);
+      const session = {
+        status: "completed" as const,
+        data: {
+          childName: p.childFirstName,
+          gender: p.childGender,
+          childAgeGroup: p.childAgeGroup,
+          photoPreviewUrl: "",
+          visualStyle: "watercolor",
+        },
+        updatedAt: Date.now(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(session));
+
+      try {
+        localStorage.setItem(`dammah.preview.${existingTemplateId}`, existingPreviewId);
+      } catch {
+        // non-critical
+      }
+
+      navigate(
+        `/stories/${existingTemplateId}/read?previewId=${encodeURIComponent(existingPreviewId)}`
+      );
+    } catch (err) {
+      console.error("Failed to load preview personalization", err);
+      navigate(
+        `/stories/${existingTemplateId}/read?previewId=${encodeURIComponent(existingPreviewId)}`
+      );
+    } finally {
+      setLoadingView(false);
     }
   };
+
+  // If quota has no template id (legacy / missing doc), fall back to current story for navigation.
+  const templateForRead = existingTemplateId ?? currentStoryId;
 
   return (
     <Box
@@ -48,9 +91,10 @@ export function PreviewAlreadyUsed({
           fullWidth
           size="large"
           onClick={handleViewExisting}
+          disabled={loadingView || !templateForRead}
           sx={{ mb: 2, py: 1.5, textTransform: "none", fontWeight: 600 }}
         >
-          {t("personalize.previewAlreadyUsed.viewPreview")}
+          {loadingView ? t("personalize.directPurchase.loadingPreview") : t("personalize.previewAlreadyUsed.viewPreview")}
         </Button>
       ) : null}
 

@@ -2,7 +2,7 @@ import type { DocumentReference } from "firebase-admin/firestore";
 import { admin, db } from "../config/firebase";
 import { COLLECTIONS, STORAGE_PATHS } from "../shared/firestore/paths";
 import { storyTemplateConverter } from "../shared/firestore/converters";
-import { StoryPreview, PreviewPage, PreviewStatus } from "../shared/types/storyPreview";
+import { StoryPreview, PreviewPage, PreviewStatus, PreviewKind } from "../shared/types/storyPreview";
 import { StoryTemplate } from "../shared/types/storyTemplate";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
 import {
@@ -113,6 +113,107 @@ async function markPreviewFailed(
   await batch.commit();
 }
 
+export interface CreateDirectPurchasePreviewInput {
+  caregiverUid: string;
+  templateId: string;
+  childFirstName: string;
+  childGender: Gender;
+  childAgeGroup: AgeGroup;
+  dedicationName?: string | null;
+  photoBuffer: Buffer;
+  photoMimeType: string;
+}
+
+/**
+ * Creates a storyPreview for users who already used their free AI preview and want to purchase
+ * without generating another preview. Does not touch caregiver quota.
+ */
+export async function createDirectPurchasePreview(
+  input: CreateDirectPurchasePreviewInput
+): Promise<{ previewId: string }> {
+  const {
+    caregiverUid,
+    templateId,
+    childFirstName,
+    childGender,
+    childAgeGroup,
+    dedicationName,
+    photoBuffer,
+    photoMimeType,
+  } = input;
+
+  const templateDoc = await db
+    .collection(COLLECTIONS.STORY_TEMPLATES)
+    .withConverter(storyTemplateConverter)
+    .doc(templateId)
+    .get();
+
+  if (!templateDoc.exists) {
+    throw new PreviewQuotaError("TEMPLATE_NOT_FOUND", "Story template not found.");
+  }
+  const template = templateDoc.data()!;
+
+  if (!template.isActive || !template.isPublished) {
+    throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
+  }
+
+  const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
+  const now = admin.firestore.Timestamp.now();
+
+  const initialPreview: Omit<StoryPreview, "previewId"> & { previewId: string } = {
+    previewId: previewRef.id,
+    caregiverUid,
+    templateId,
+    childFirstName: childFirstName.trim(),
+    childGender,
+    childAgeGroup,
+    photoPath: null,
+    photoStatus: "pending",
+    photoUploadedAt: null,
+    photoRetainUntil: null,
+    templateTitle: template.title,
+    templateVersion: template.revisionCount ?? 1,
+    language: template.generationConfig.language,
+    dedicationName: dedicationName ?? null,
+    previewPageCount: 0,
+    pages: [],
+    coverImageUrl: template.coverImageUrl ?? null,
+    characterProfileSnapshot: null,
+    generationStatus: "skipped",
+    pagesCompleted: 0,
+    generationStartedAt: null,
+    generationCompletedAt: null,
+    failureReason: null,
+    status: "ready",
+    expiresAt: null,
+    purchaseId: null,
+    personalizedStoryId: null,
+    kind: "direct_purchase",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await previewRef.set(initialPreview);
+
+  const photoPath = await uploadChildPhoto({
+    caregiverUid,
+    previewId: previewRef.id,
+    buffer: photoBuffer,
+    mimeType: photoMimeType,
+  });
+
+  const retainUntil = new Date(Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000).toISOString();
+  await previewRef.update({
+    photoPath,
+    photoStatus: "uploaded",
+    photoUploadedAt: new Date().toISOString(),
+    photoRetainUntil: retainUntil,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+
+  return { previewId: previewRef.id };
+}
+
 /**
  * Atomically claims the one free preview slot and creates the preview document.
  * Async generation runs after the transaction commits.
@@ -194,6 +295,7 @@ export async function generatePreview(
       expiresAt: null,
       purchaseId: null,
       personalizedStoryId: null,
+      kind: "preview" satisfies PreviewKind,
       createdAt: now,
       updatedAt: now,
     };
