@@ -56,24 +56,30 @@ service cloud.firestore {
     // ────────────────────────────────────────────────────
 
     match /caregivers/{uid} {
-      allow read: if (isOwner(uid) && isCaregiver()) || isAdmin();
-      // Caregivers can write their profile, BUT cannot set/modify preview-quota fields
-      // (those are server-only via Admin SDK).
-      //
-      // Rules note:
-      // - For create: block if request includes restricted keys.
-      // - For update: block if request changes restricted keys.
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+
       function previewQuotaKeys() {
-        return ["freePreviewUsed", "freePreviewUsedAt", "freePreviewPreviewId", "unlimitedPreviews"];
+        return [
+          "freePreviewUsed",
+          "freePreviewUsedAt",
+          "freePreviewId",
+          "freePreviewPreviewId",
+          "freePreviewStatus",
+          "unlimitedPreviews"
+        ];
       }
 
-      allow create: if isOwner(uid) && isCaregiver()
+      allow create: if isAuthenticated()
+        && request.auth.uid == uid
+        && isCaregiver()
         && !request.resource.data.keys().hasAny(previewQuotaKeys());
 
-      allow update: if isOwner(uid) && isCaregiver()
+      allow update: if isAuthenticated()
+        && request.auth.uid == uid
+        && isCaregiver()
         && !request.resource.data.diff(resource.data).changedKeys().hasAny(previewQuotaKeys());
 
-      allow delete: if isOwner(uid) && isCaregiver();
+      allow delete: if false;
 
       // Favorites subcollection
       // Path: caregivers/{uid}/favorites/{storyId}

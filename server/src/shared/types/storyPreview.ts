@@ -6,6 +6,7 @@ export type PreviewStatus =
   | "created"
   | "generating"
   | "ready"
+  | "failed"
   | "added_to_cart"
   | "purchased"
   | "converted"
@@ -50,6 +51,8 @@ export interface StoryPreview {
   previewPageCount: number;
   pages: PreviewPage[];
   coverImageUrl: string | null;
+  /** Optional; migration and client types may include this field */
+  characterProfileSnapshot?: Record<string, unknown> | null;
 
   // --- Generation tracking ---
   generationStatus: PreviewGenerationStatus;

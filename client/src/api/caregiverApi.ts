@@ -94,7 +94,7 @@ export interface PreviewData {
     } | null;
   }>;
   coverImageUrl: string | null;
-  characterProfileSnapshot: CharacterProfile | null;
+  characterProfileSnapshot: unknown | null;
   generationStatus: string;
   pagesCompleted: number;
   generationStartedAt: string | null;
@@ -190,6 +190,20 @@ export class ApiError extends Error {
   }
 }
 
+export class FreePreviewAlreadyUsedError extends Error {
+  constructor(public existingPreviewId?: string) {
+    super("Free preview already used");
+    this.name = "FreePreviewAlreadyUsedError";
+  }
+}
+
+export interface PreviewQuota {
+  hasUsedPreview: boolean;
+  existingPreviewId: string | null;
+  status: "claimed" | "ready" | "failed" | null;
+  unlimited: boolean;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({
@@ -212,6 +226,21 @@ async function handleResponse<T>(res: Response): Promise<T> {
 // ============================================================================
 // Preview API
 // ============================================================================
+
+export async function getPreviewQuota(): Promise<PreviewQuota> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/caregiver/previews/quota`, {
+    headers,
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch quota: ${res.status}`);
+  }
+  const json = (await res.json()) as ApiResponse<PreviewQuota>;
+  if (!json.success || json.data === undefined) {
+    throw new ApiError(json.error || "Failed to fetch quota", { status: res.status });
+  }
+  return json.data;
+}
 
 /**
  * Initiate preview generation with photo upload.
@@ -245,7 +274,35 @@ export async function generatePreview(input: {
     headers,
     body: formData,
   });
-  return handleResponse<{ previewId: string; status: string }>(res);
+
+  const json = (await res.json().catch(() => ({}))) as {
+    success?: boolean;
+    data?: { previewId: string; status: string };
+    error?: string | { code?: string; message?: string; existingPreviewId?: string };
+  };
+
+  if (res.status === 403) {
+    const errObj = typeof json.error === "object" && json.error ? json.error : null;
+    if (errObj?.code === "FREE_PREVIEW_ALREADY_USED") {
+      throw new FreePreviewAlreadyUsedError(errObj.existingPreviewId);
+    }
+  }
+
+  if (!res.ok) {
+    const msg =
+      typeof json.error === "object" && json.error && "message" in json.error
+        ? String((json.error as { message?: string }).message)
+        : typeof json.error === "string"
+          ? json.error
+          : `Request failed (${res.status})`;
+    throw new ApiError(msg, { status: res.status });
+  }
+
+  if (!json.success || !json.data) {
+    throw new ApiError("Request failed", { status: res.status });
+  }
+
+  return json.data;
 }
 
 /**

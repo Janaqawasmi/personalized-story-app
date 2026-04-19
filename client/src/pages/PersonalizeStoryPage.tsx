@@ -21,7 +21,9 @@ import {
   getExpectedNameScriptForStoryLanguage,
   shouldWarnNameScriptMismatch,
 } from "../utils/childNameValidation";
-import { generatePreview, type AgeGroup, ApiError } from "../api/caregiverApi";
+import { generatePreview, type AgeGroup, FreePreviewAlreadyUsedError } from "../api/caregiverApi";
+import { usePreviewQuota } from "../hooks/usePreviewQuota";
+import { PreviewAlreadyUsed } from "../components/preview/PreviewAlreadyUsed";
 
 type VisualStyle =
   | "watercolor"
@@ -42,7 +44,7 @@ type StoryPersonalizationData = {
 
 type PersonalizationSession = {
   status: "draft" | "completed";
-  data: StoryPersonalizationData;
+  data: StoryPersonalizationData & { childAgeGroup?: AgeGroup };
   updatedAt: number;
 };
 
@@ -87,6 +89,7 @@ function savePersonalizationSession(
     data: {
       childName: data.childName,
       gender: data.gender,
+      childAgeGroup: data.childAgeGroup,
       photoPreviewUrl: data.photoPreviewUrl,
       visualStyle: data.visualStyle,
     },
@@ -585,6 +588,8 @@ export default function PersonalizeStoryPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const { quota, loading: quotaLoading, refetch: refetchQuota } = usePreviewQuota();
+  const [skipPreviewMode, setSkipPreviewMode] = useState(false);
 
   const styleDisplay = useMemo(
     () => [
@@ -794,6 +799,7 @@ export default function PersonalizeStoryPage() {
           {
             childName: updated.childName!,
             gender: updated.gender,
+            childAgeGroup: updated.childAgeGroup ?? "6_9",
             photoPreviewUrl: reader.result as string,
             visualStyle: updated.visualStyle,
           },
@@ -829,6 +835,12 @@ export default function PersonalizeStoryPage() {
     savePersonalizationSession(storyId, completePersonalization, "completed");
     console.log("[handleComplete] localStorage saved ✅", completePersonalization);
 
+    if (skipPreviewMode || quota?.hasUsedPreview) {
+      setIsSaving(false);
+      navigate(`/stories/${storyId}/read`);
+      return;
+    }
+
     try {
       console.log("[handleComplete] Calling generatePreview API...");
       const result = await generatePreview({
@@ -838,7 +850,7 @@ export default function PersonalizeStoryPage() {
         childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
         photoFile: completePersonalization.photoFile!,
       });
-      console.log("[handleComplete] Firestore write succeeded ✅", result);
+      console.log("[handleComplete] Preview API succeeded ✅", result);
       try {
         localStorage.setItem(`dammah.preview.${storyId}`, result.previewId);
       } catch {
@@ -848,14 +860,14 @@ export default function PersonalizeStoryPage() {
       navigate(`/stories/${storyId}/read?previewId=${encodeURIComponent(result.previewId)}`);
       return;
     } catch (err) {
-      console.error("[handleComplete] Firestore save failed ❌", err);
-      const e = err as unknown;
-      if (e instanceof ApiError && e.code === "FREE_PREVIEW_ALREADY_USED") {
-        setSaveError(e.message);
+      console.error("[handleComplete] Preview generation failed ❌", err);
+      if (err instanceof FreePreviewAlreadyUsedError) {
+        setSaveError(err.message);
+        void refetchQuota();
         setIsSaving(false);
         return;
       }
-      setSaveError("Cloud sync failed. Preview still works.");
+      setSaveError(t("personalize.previewGenerationFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -933,6 +945,7 @@ export default function PersonalizeStoryPage() {
         {
           childName: personalization.childName!,
           gender: g,
+          childAgeGroup: personalization.childAgeGroup ?? "6_9",
           photoPreviewUrl: personalization.photoPreviewUrl || "",
           visualStyle: personalization.visualStyle || "watercolor",
         },
@@ -945,7 +958,7 @@ export default function PersonalizeStoryPage() {
     setPersonalization({ ...personalization, visualStyle: id });
   };
 
-  if (loading) {
+  if (loading || quotaLoading) {
     return (
       <Box
         sx={{
@@ -962,6 +975,28 @@ export default function PersonalizeStoryPage() {
 
   if (!story) {
     return null;
+  }
+
+  if (quota?.hasUsedPreview && !skipPreviewMode) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#E5DFD9",
+          direction: direction,
+          px: 2,
+        }}
+      >
+        <PreviewAlreadyUsed
+          existingPreviewId={quota.existingPreviewId}
+          currentStoryId={storyId!}
+          onContinueWithoutPreview={() => setSkipPreviewMode(true)}
+        />
+      </Box>
+    );
   }
 
   if (showResumeScreen && session?.status === "draft") {
@@ -1299,6 +1334,7 @@ export default function PersonalizeStoryPage() {
                                 {
                                   childName: sanitized,
                                   gender: prev.gender,
+                                  childAgeGroup: prev.childAgeGroup ?? "6_9",
                                   photoPreviewUrl: prev.photoPreviewUrl || "",
                                   visualStyle: prev.visualStyle || "watercolor",
                                 },
@@ -1973,7 +2009,11 @@ export default function PersonalizeStoryPage() {
                       },
                     }}
                   >
-                    {isSaving ? t("personalize.saving") : t("personalize.startStory")}
+                    {isSaving
+                      ? t("personalize.saving")
+                      : skipPreviewMode || quota?.hasUsedPreview
+                        ? t("personalize.continueWithoutPreview")
+                        : t("personalize.startStory")}
                   </Button>
                   {saveError && (
                     <Typography color="error" variant="caption" sx={{ mt: 1, display: "block" }}>

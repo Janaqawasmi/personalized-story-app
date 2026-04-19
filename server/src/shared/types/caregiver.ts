@@ -1,5 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 
+export type FreePreviewStatus = "claimed" | "ready" | "failed";
+
 export interface Caregiver {
   uid: string;
   email: string;
@@ -11,4 +13,11 @@ export interface Caregiver {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   purchaseCount: number;
+
+  /** Preview quota — server-only writes, blocked by Firestore rules for clients */
+  freePreviewUsed?: boolean;
+  freePreviewUsedAt?: Timestamp | null;
+  freePreviewId?: string | null;
+  freePreviewStatus?: FreePreviewStatus | null;
+  unlimitedPreviews?: boolean;
 }

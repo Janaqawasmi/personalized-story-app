@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
 import { admin, db } from "../../config/firebase";
 import { requireAuth } from "../../middleware/auth.middleware";
+import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware";
 import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
-import { generatePreview } from "../../services/preview.service";
+import { generatePreview, PreviewQuotaError } from "../../services/preview.service";
 import multer from "multer";
 
 const router = Router();
@@ -19,11 +20,9 @@ const upload = multer({
       "image/webp",
     ];
 
-    // Log the actual MIME to confirm what's coming in
     console.log("[upload] incoming file:", {
       originalname: file.originalname,
       mimetype: file.mimetype,
-      // Note: size is not always present here (depends on multer internals)
       size: (file as any).size,
     });
 
@@ -47,15 +46,16 @@ const VALID_GENDERS = ["male", "female"] as const;
 if (process.env.NODE_ENV !== "production") {
   router.post(
     "/dev/reset-quota",
-    requireAuth,
+    requireCaregiverAuth,
     async (req: Request, res: Response): Promise<void> => {
       try {
-        const uid = req.user!.uid;
+        const uid = req.caregiverUser!.uid;
         await db.collection(COLLECTIONS.CAREGIVERS).doc(uid).set(
           {
             freePreviewUsed: false,
             freePreviewUsedAt: null,
-            freePreviewPreviewId: null,
+            freePreviewId: null,
+            freePreviewStatus: null,
           },
           { merge: true }
         );
@@ -72,13 +72,33 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 /**
+ * GET /api/caregiver/previews/quota
+ */
+router.get("/quota", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const uid = req.user!.uid;
+    const snap = await db.collection(COLLECTIONS.CAREGIVERS).doc(uid).get();
+    const c = snap.data() ?? {};
+    res.status(200).json({
+      success: true,
+      data: {
+        hasUsedPreview: c.freePreviewUsed === true && c.unlimitedPreviews !== true,
+        existingPreviewId: (c.freePreviewId as string | undefined) ?? null,
+        status: (c.freePreviewStatus as string | undefined) ?? null,
+        unlimited: c.unlimitedPreviews === true,
+      },
+    });
+  } catch (err) {
+    console.error("[previews.quota] error", err);
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL", message: "Failed to fetch quota." },
+    });
+  }
+});
+
+/**
  * POST /api/caregiver/previews/generate
- *
- * Initiates preview generation for a child + template combination.
- * Returns immediately with 202 — generation continues asynchronously.
- *
- * Idempotency: If a non-expired, non-converted preview already exists
- * for the same child + template, returns the existing previewId.
  */
 router.post(
   "/generate",
@@ -90,8 +110,7 @@ router.post(
         console.error("[upload] multer error:", message);
         res.status(400).json({
           success: false,
-          error: message,
-          code: "INVALID_UPLOAD",
+          error: { code: "INVALID_UPLOAD", message },
         });
         return;
       }
@@ -112,7 +131,7 @@ router.post(
       if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
         res.status(400).json({
           success: false,
-          error: "templateId, childFirstName, childGender, and childAgeGroup are required",
+          error: { code: "MISSING_FIELDS", message: "Required fields are missing." },
         });
         return;
       }
@@ -120,7 +139,7 @@ router.post(
       if (!VALID_GENDERS.includes(childGender as (typeof VALID_GENDERS)[number])) {
         res.status(400).json({
           success: false,
-          error: `Invalid childGender. Must be one of: ${VALID_GENDERS.join(", ")}`,
+          error: { code: "INVALID_GENDER", message: "Invalid gender." },
         });
         return;
       }
@@ -128,7 +147,7 @@ router.post(
       if (!VALID_AGE_GROUPS.includes(childAgeGroup as (typeof VALID_AGE_GROUPS)[number])) {
         res.status(400).json({
           success: false,
-          error: `Invalid childAgeGroup. Must be one of: ${VALID_AGE_GROUPS.join(", ")}`,
+          error: { code: "INVALID_AGE_GROUP", message: "Invalid age group." },
         });
         return;
       }
@@ -136,12 +155,12 @@ router.post(
       if (!req.file) {
         res.status(400).json({
           success: false,
-          error: "photo file is required",
+          error: { code: "MISSING_PHOTO", message: "Child photo is required." },
         });
         return;
       }
 
-      const previewId = await generatePreview({
+      const result = await generatePreview({
         caregiverUid,
         templateId,
         childFirstName,
@@ -152,42 +171,32 @@ router.post(
         photoMimeType: req.file.mimetype,
       });
 
-      res.status(202).json({
-        success: true,
-        data: {
-          previewId,
-          status: "generating",
-        },
-      });
-    } catch (error) {
-      console.error("Preview generation error:", error);
-      const message = error instanceof Error ? error.message : "Preview generation failed";
-      const code =
-        error && typeof error === "object" && "code" in error
-          ? String((error as any).code)
-          : undefined;
-
-      if (code === "FREE_PREVIEW_ALREADY_USED") {
-        res.status(403).json({
-          success: false,
-          error: message,
-          code,
-        });
-        return;
+      res.status(202).json({ success: true, data: result });
+    } catch (err) {
+      if (err instanceof PreviewQuotaError) {
+        if (err.code === "FREE_PREVIEW_ALREADY_USED") {
+          res.status(403).json({
+            success: false,
+            error: {
+              code: err.code,
+              message: err.message,
+              existingPreviewId: err.existingPreviewId,
+            },
+          });
+          return;
+        }
+        if (err.code === "TEMPLATE_NOT_FOUND" || err.code === "TEMPLATE_INACTIVE") {
+          res.status(404).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
       }
-
-      const statusCode = message.includes("limit reached")
-        ? 429
-        : message.includes("not found")
-          ? 404
-          : message.includes("required")
-            ? 400
-            : 500;
-
-      res.status(statusCode).json({
+      console.error("[previews.generate] unexpected error", err);
+      res.status(500).json({
         success: false,
-        error: message,
-        ...(code ? { code } : {}),
+        error: { code: "INTERNAL", message: "Failed to generate preview." },
       });
     }
   }
@@ -195,16 +204,23 @@ router.post(
 
 /**
  * POST /api/caregiver/previews/:previewId/reupload-photo
- *
- * Re-uploads photo when it has been deleted/expired, but keeps the preview/illustrations.
  */
 router.post(
   "/:previewId/reupload-photo",
-  requireAuth,
-  upload.single("photo"),
+  requireCaregiverAuth,
+  (req, res, next) => {
+    upload.single("photo")(req, res, (err) => {
+      if (err) {
+        const message = err instanceof Error ? err.message : "Invalid upload";
+        res.status(400).json({ success: false, error: message });
+        return;
+      }
+      next();
+    });
+  },
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const caregiverUid = req.user!.uid;
+      const caregiverUid = req.caregiverUser!.uid;
       const { previewId } = req.params;
 
       if (!req.file) {
@@ -218,14 +234,14 @@ router.post(
         return;
       }
 
-      const preview = previewDoc.data() as any;
+      const preview = previewDoc.data() as Record<string, unknown>;
       if (preview.caregiverUid !== caregiverUid) {
         res.status(403).json({ success: false, error: "Access denied" });
         return;
       }
 
       const allowedStatuses = ["ready", "added_to_cart"];
-      if (!allowedStatuses.includes(preview.status)) {
+      if (!allowedStatuses.includes(preview.status as string)) {
         res.status(400).json({
           success: false,
           error: `Preview is not in a re-uploadable state. Current status: ${preview.status}`,
@@ -234,7 +250,7 @@ router.post(
       }
 
       const allowedPhotoStatuses = ["deleted", "expired"];
-      if (!allowedPhotoStatuses.includes(preview.photoStatus)) {
+      if (!allowedPhotoStatuses.includes(preview.photoStatus as string)) {
         res.status(400).json({
           success: false,
           error: `Photo does not require re-upload. Current photoStatus: ${preview.photoStatus}`,
@@ -280,21 +296,16 @@ router.post(
 
 /**
  * GET /api/caregiver/previews/:previewId
- *
- * Returns a single preview document. Verifies ownership.
  */
 router.get(
   "/:previewId",
-  requireAuth,
+  requireCaregiverAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const caregiverUid = req.user!.uid;
+      const caregiverUid = req.caregiverUser!.uid;
       const { previewId } = req.params;
 
-      const previewDoc = await db
-        .collection(COLLECTIONS.STORY_PREVIEWS)
-        .doc(previewId!)
-        .get();
+      const previewDoc = await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId!).get();
 
       if (!previewDoc.exists) {
         res.status(404).json({
