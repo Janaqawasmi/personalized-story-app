@@ -35,9 +35,13 @@ function loadServiceAccount(): Record<string, unknown> {
 
 const serviceAccount = loadServiceAccount();
 const serviceAccountProjectId = (serviceAccount as { project_id?: string }).project_id;
-const serviceAccountStorageBucket = serviceAccountProjectId
-  ? `${serviceAccountProjectId}.appspot.com`
-  : undefined;
+/** Default bucket uses the current Firebase Storage hostname (not legacy *.appspot.com). */
+const storageBucketFromEnv = process.env.FIREBASE_STORAGE_BUCKET?.trim();
+const serviceAccountStorageBucket =
+  storageBucketFromEnv ||
+  (serviceAccountProjectId
+    ? `${serviceAccountProjectId}.firebasestorage.app`
+    : undefined);
 
 try {
   if (!admin.apps.length) {
