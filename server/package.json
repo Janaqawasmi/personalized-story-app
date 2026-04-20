@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "dist/functions/index.js",
   "scripts": {
-    "dev": "cross-env PORT=5000 ALLOW_UNAUTHENTICATED_REQUESTS=true ts-node src/app.ts",
+    "dev": "cross-env PORT=5001 ALLOW_UNAUTHENTICATED_REQUESTS=true ts-node -r tsconfig-paths/register src/app.ts",
     "build": "tsc",
     "start": "node dist/app.js",
     "seed:rag": "ts-node scripts/seedRag.ts",
