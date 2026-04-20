@@ -2,13 +2,15 @@
 //
 // Tab bar for the Story Workspace: Brief / Draft / History.
 // Implements the WAI-ARIA tabs pattern via MUI Tabs (role="tablist", aria-selected, etc.).
-// Draft tab is disabled with a tooltip when agent1Result === null.
+// Draft tab is disabled when agent1Result === null.
+//
+// Important: `Tab` must be a direct child of `Tabs`. Wrapping a Tab in Tooltip/Box
+// breaks MUI’s tab list (wrong child count / onChange), so clicks do nothing.
 
 import React from "react";
 import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
-import Tooltip from "@mui/material/Tooltip";
 
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
@@ -71,45 +73,21 @@ export default function WorkspaceTabs({
           aria-controls="tabpanel-brief"
         />
 
-        {/*
-          Wrap the disabled Draft tab in a <span> so the Tooltip can fire
-          on hover even when the Tab itself has pointer-events: none.
-          MUI Tabs uses CSS flexbox for layout so the span wrapper doesn't
-          break tab counting or active-tab tracking.
-        */}
-        <Tooltip
-          title={draftDisabled ? "Generate the story first" : ""}
-          placement="top"
-          disableHoverListener={!draftDisabled}
-          disableFocusListener={!draftDisabled}
-        >
-          <Box
-            component="span"
-            sx={{
-              display: "inline-flex",
-              // Tooltip requires its direct child to accept ref + event handlers;
-              // the inner Tab has pointer-events:none when disabled, so we keep
-              // pointer-events on the span so the tooltip can fire.
-              pointerEvents: "auto",
-            }}
-          >
-            <Tab
-              label="Draft"
-              value="draft"
-              id="tab-draft"
-              aria-controls="tabpanel-draft"
-              disabled={draftDisabled}
-              sx={
-                draftDisabled
-                  ? {
-                      pointerEvents: "none",
-                      opacity: 0.4,
-                    }
-                  : {}
-              }
-            />
-          </Box>
-        </Tooltip>
+        <Tab
+          label="Draft"
+          value="draft"
+          id="tab-draft"
+          aria-controls="tabpanel-draft"
+          disabled={draftDisabled}
+          title={draftDisabled ? "Generate the story first" : undefined}
+          sx={
+            draftDisabled
+              ? {
+                  opacity: 0.4,
+                }
+              : {}
+          }
+        />
 
         <Tab
           label="History"
