@@ -192,7 +192,7 @@ export interface BriefFormStorageAdapter {
    *  Returns the new draftId/storyId to navigate to.
    *  If not provided, the form uses the legacy
    *  createNewDraftIdWithEmptyBrief + navigate behavior. */
-  onCreateAnother?: () => string;
+  onCreateAnother?: () => string | Promise<string>;
 }
 
 // ============================================================================
@@ -542,7 +542,7 @@ function BriefFormInner(props: Props) {
   }, [briefScrollTopOffsetPx]);
 
   if (!draftId && !storageAdapter) {
-    return <Navigate to={`/${lang ?? "he"}/specialist/create-brief`} replace />;
+    return <Navigate to={`/${lang ?? "he"}/specialist/stories/new`} replace />;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -745,15 +745,15 @@ function BriefFormInner(props: Props) {
     }
   }
 
-  function handleCreateAnotherBrief() {
+  async function handleCreateAnotherBrief() {
     adapter.onSubmitted();
     resetComplexitySession();
     setSubmitSuccess(null);
     setSubmitError(null);
     const nid = adapter.onCreateAnother
-      ? adapter.onCreateAnother()
+      ? await adapter.onCreateAnother()
       : createNewDraftIdWithEmptyBrief();
-    navigate(`/${lang ?? "he"}/specialist/create-brief/${nid}`, { replace: true });
+    navigate(`/${lang ?? "he"}/specialist/stories/${nid}/brief`, { replace: true });
   }
 
   // ── Post-submit success ─

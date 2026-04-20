@@ -16,6 +16,7 @@ import {
 } from "@/models/story.model";
 import type { Story, StoryStatus } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
+import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 
 const router = Router();
 
@@ -38,6 +39,129 @@ async function readAndVerifyOwnership(
   const story = { id: storyId, ...doc.data() } as Story;
   if (story.ownerUid !== ownerUid) return null; // 404, not 403
   return story;
+}
+
+function normalizeIncomingBrief(raw: unknown, createdBy: string): StoryBrief | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const asRecord = raw as Record<string, unknown>;
+  if ("ageAndScope" in asRecord && "therapeuticArchitecture" in asRecord) {
+    return raw as StoryBrief;
+  }
+
+  if (!isClientWireBriefPayload(raw)) {
+    return null;
+  }
+
+  const wire = raw as Record<string, unknown>;
+  const s1 = (wire.section1 ?? {}) as Record<string, unknown>;
+  const s2 = (wire.section2 ?? {}) as Record<string, unknown>;
+  const s3 = (wire.section3 ?? {}) as Record<string, unknown>;
+  const s4 = (wire.section4 ?? {}) as Record<string, unknown>;
+  const s5 = (wire.section5 ?? {}) as Record<string, unknown>;
+
+  const supportingTypes = Array.isArray(s4.supportingCharacters)
+    ? s4.supportingCharacters.filter((v): v is string => typeof v === "string")
+    : [];
+  type SupportingCharacterType =
+    NonNullable<StoryBrief["storyWorld"]["supportingCharacters"]>[number]["type"];
+  const roleNotes =
+    s4.characterRoleNotes && typeof s4.characterRoleNotes === "object"
+      ? (s4.characterRoleNotes as Record<string, unknown>)
+      : {};
+
+  const now = new Date() as unknown as StoryBrief["createdAt"];
+
+  return {
+    createdAt: now,
+    updatedAt: now,
+    createdBy,
+    status: "submitted",
+    version: 1,
+    storyType: String(wire.storyType ?? "") as StoryBrief["storyType"],
+    ageAndScope: {
+      ageRange: String(s1.ageRange ?? "3-5") as StoryBrief["ageAndScope"]["ageRange"],
+      peakIntensity: String(s1.peakIntensity ?? "moderate") as StoryBrief["ageAndScope"]["peakIntensity"],
+      storyLength: String(s1.storyLength ?? "standard") as StoryBrief["ageAndScope"]["storyLength"],
+    },
+    clinicalFoundation: {
+      population: String(s2.population ?? ""),
+      trigger: String(s2.trigger ?? ""),
+      therapeuticIntention: {
+        feel: String(s2.intentionFeel ?? ""),
+        because: String(s2.intentionBecause ?? ""),
+      },
+      creativeVision: String(s2.creativeVision ?? ""),
+      ...(typeof s2.oneTrueThing === "string" && s2.oneTrueThing.trim()
+        ? { oneTrueThing: s2.oneTrueThing }
+        : {}),
+    },
+    therapeuticArchitecture: {
+      primaryApproach: String(s3.primaryApproach ?? "") as StoryBrief["therapeuticArchitecture"]["primaryApproach"],
+      ...(typeof s3.supportingApproach === "string" && s3.supportingApproach
+        ? {
+            supportingApproach:
+              s3.supportingApproach as StoryBrief["therapeuticArchitecture"]["supportingApproach"],
+          }
+        : {}),
+      shameDimension: String(s3.shameDimension ?? "not_significant") as StoryBrief["therapeuticArchitecture"]["shameDimension"],
+      typeSpecificField: {
+        fieldType: "somatic_expression",
+        selections: Array.isArray(s3.somaticExpressions)
+          ? s3.somaticExpressions.filter((v): v is string => typeof v === "string")
+          : [],
+        ...(typeof s3.somaticOther === "string" && s3.somaticOther.trim()
+          ? { freeText: s3.somaticOther }
+          : {}),
+      },
+      copingTool: String(s3.copingTool ?? "") as StoryBrief["therapeuticArchitecture"]["copingTool"],
+      resolutionCompleteness: String(
+        s3.resolutionCompleteness ?? "partial",
+      ) as StoryBrief["therapeuticArchitecture"]["resolutionCompleteness"],
+      mustNeverList: Array.isArray(s3.mustNeverList)
+        ? s3.mustNeverList.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+        : [],
+    },
+    storyWorld: {
+      personalization: s4.personalization !== "no",
+      ...(typeof s4.protagonistGender === "string"
+        ? { protagonistGender: s4.protagonistGender as StoryBrief["storyWorld"]["protagonistGender"] }
+        : {}),
+      protagonistType: String(s4.protagonistType ?? "child") as StoryBrief["storyWorld"]["protagonistType"],
+      protagonistAge: String(
+        s4.protagonistAgeRelative ?? "same_age",
+      ) as StoryBrief["storyWorld"]["protagonistAge"],
+      caregiverPresence: String(
+        s4.caregiverPresence ?? "present_and_comforting",
+      ) as StoryBrief["storyWorld"]["caregiverPresence"],
+      narrativeDistance: String(s4.narrativeDistance ?? "direct") as StoryBrief["storyWorld"]["narrativeDistance"],
+      ...(typeof s4.parallelChallenge === "string" && s4.parallelChallenge.trim()
+        ? { parallelChallenge: s4.parallelChallenge }
+        : {}),
+      supportingCharacters: supportingTypes.map((type) => {
+        const role = roleNotes[type];
+        return {
+          type: type as SupportingCharacterType,
+          ...(typeof role === "string" && role.trim() ? { functionalRole: role } : {}),
+        };
+      }),
+      ...(typeof s4.characterNotes === "string" && s4.characterNotes.trim()
+        ? { characterNotes: s4.characterNotes }
+        : {}),
+    },
+    personalizationConfig: {
+      ...(typeof s5.whyNot === "string" && s5.whyNot.trim()
+        ? { whyNot: s5.whyNot }
+        : {}),
+    },
+    ...(Array.isArray(wire.acknowledgedWarnings)
+      ? {
+          acknowledgedWarnings: wire.acknowledgedWarnings.filter(
+            (v): v is string => typeof v === "string",
+          ),
+        }
+      : {}),
+  } as StoryBrief;
 }
 
 // ============================================================================
@@ -358,27 +482,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const existingDoc = await firestore
-    .collection(STORIES_COLLECTION)
-    .doc(storyId)
-    .get();
-
-  if (existingDoc.exists) {
-    res.status(409).json({
-      error: "CONFLICT",
-      message: `A story with id '${storyId}' already exists. Cannot create a duplicate.`,
-    });
-    return;
-  }
-
-  const brief = clientStory.brief;
-
-  if (brief.status !== "submitted") {
-    brief.status = "submitted";
-  }
-
   const ownerUid = req.user?.uid ?? "";
-
   if (!ownerUid) {
     res.status(401).json({
       error: "UNAUTHENTICATED",
@@ -387,13 +491,102 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const story = createStoryForGeneration({
-    id: storyId,
-    ownerUid,
-    brief,
-    parentStoryId: clientStory.parentStoryId ?? undefined,
-    title: clientStory.title ?? undefined,
-  });
+  const existingDoc = await firestore
+    .collection(STORIES_COLLECTION)
+    .doc(storyId)
+    .get();
+
+  const brief = normalizeIncomingBrief(clientStory.brief, ownerUid);
+  if (!brief) {
+    res.status(400).json({
+      error: "INVALID_INPUT",
+      message: "Invalid brief payload. Expected canonical StoryBrief or client CompleteBrief wire format.",
+    });
+    return;
+  }
+
+  if (brief.status !== "submitted") {
+    brief.status = "submitted";
+  }
+
+  let story: Story;
+  if (existingDoc.exists) {
+    const existingStory = { id: storyId, ...existingDoc.data() } as Story;
+
+    if (existingStory.ownerUid !== ownerUid) {
+      res.status(409).json({
+        error: "CONFLICT",
+        message: `A story with id '${storyId}' already exists for a different owner.`,
+      });
+      return;
+    }
+
+    if (existingStory.status === "generating") {
+      res.status(409).json({
+        error: "CONFLICT",
+        message: "Story is already generating.",
+      });
+      return;
+    }
+
+    if (
+      existingStory.status !== "draft_brief" &&
+      existingStory.status !== "needs_revision"
+    ) {
+      res.status(409).json({
+        error: "CONFLICT",
+        message:
+          `Cannot generate from status '${existingStory.status}'. ` +
+          "Only draft_brief or needs_revision can be generated.",
+      });
+      return;
+    }
+
+    const now = Date.now();
+    const generateEvent =
+      existingStory.status === "needs_revision"
+        ? {
+            id: crypto.randomUUID(),
+            at: now,
+            byUid: ownerUid,
+            event: {
+              kind: "status_changed" as const,
+              from: "needs_revision" as const,
+              to: "generating" as const,
+            },
+          }
+        : {
+            id: crypto.randomUUID(),
+            at: now,
+            byUid: ownerUid,
+            event: {
+              kind: "status_changed" as const,
+              from: "draft_brief" as const,
+              to: "generating" as const,
+            },
+          };
+
+    story = {
+      ...existingStory,
+      brief,
+      status: "generating",
+      briefStatus: "submitted",
+      parentStoryId:
+        clientStory.parentStoryId ?? existingStory.parentStoryId ?? null,
+      title: clientStory.title ?? existingStory.title ?? "Untitled story",
+      updatedAt: now,
+      submittedAt: now,
+      editHistory: [...existingStory.editHistory, generateEvent],
+    };
+  } else {
+    story = createStoryForGeneration({
+      id: storyId,
+      ownerUid,
+      brief,
+      parentStoryId: clientStory.parentStoryId ?? undefined,
+      title: clientStory.title ?? undefined,
+    });
+  }
 
   await firestore.collection(STORIES_COLLECTION).doc(storyId).set(story);
 
@@ -413,7 +606,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     const updatedFields: Partial<Story> = {
       status: "awaiting_review",
       agent1Result,
-      agent1Versions: [agent1Result],
+      agent1Versions: [...story.agent1Versions, agent1Result],
       currentDraft: {
         title: agent1Result.title,
         body: agent1Result.story,

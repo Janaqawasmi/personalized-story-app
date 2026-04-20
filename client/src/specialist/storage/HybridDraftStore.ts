@@ -226,21 +226,23 @@ export class HybridDraftStore implements DraftStore {
     const registry = loadRegistry();
     const local = registry.stories[storyId];
 
-    if (!local) {
-      throw new Error(
-        "Cannot update brief on a server story. Server story briefs are immutable.",
-      );
+    if (local) {
+      if (local.briefStatus !== "draft") {
+        throw new Error(
+          "Cannot update a submitted brief. Create a revision instead.",
+        );
+      }
+
+      const updated: Story = { ...local, brief, updatedAt: Date.now() };
+      registry.stories[storyId] = updated;
+      saveRegistry(registry);
+      this.notifyStoryListeners(storyId, updated);
+      this.notifyListListeners();
+      return updated;
     }
 
-    if (local.briefStatus !== "draft") {
-      throw new Error(
-        "Cannot update a submitted brief. Create a revision instead.",
-      );
-    }
-
-    const updated: Story = { ...local, brief, updatedAt: Date.now() };
-    registry.stories[storyId] = updated;
-    saveRegistry(registry);
+    // Server draft story (e.g. generation failed and reverted to draft_brief)
+    const updated = await apiClient.updateBrief(storyId, brief);
     this.notifyStoryListeners(storyId, updated);
     this.notifyListListeners();
     return updated;
@@ -250,29 +252,42 @@ export class HybridDraftStore implements DraftStore {
     const registry = loadRegistry();
     const local = registry.stories[storyId];
 
-    if (!local) {
-      throw new Error("Story not found in local drafts.");
+    if (local) {
+      if (local.status !== "draft_brief") {
+        throw new Error("Story is not in draft_brief status.");
+      }
+
+      // On failure the local draft is preserved — generateStory throws before
+      // we reach the delete below.
+      const serverStory = await apiClient.generateStory(
+        storyId,
+        local.brief,
+        local.parentStoryId ?? undefined,
+      );
+
+      // Success — delete the localStorage draft
+      delete registry.stories[storyId];
+      saveRegistry(registry);
+
+      this.notifyStoryListeners(storyId, serverStory);
+      this.notifyListListeners();
+
+      return serverStory;
     }
 
-    if (local.status !== "draft_brief") {
+    // Story may already exist on server (e.g. prior failed generation)
+    const serverDraft = await apiClient.getStory(storyId);
+    if (serverDraft.status !== "draft_brief") {
       throw new Error("Story is not in draft_brief status.");
     }
 
-    // On failure the local draft is preserved — generateStory throws before
-    // we reach the delete below.
     const serverStory = await apiClient.generateStory(
       storyId,
-      local.brief,
-      local.parentStoryId ?? undefined,
+      serverDraft.brief,
+      serverDraft.parentStoryId ?? undefined,
     );
-
-    // Success — delete the localStorage draft
-    delete registry.stories[storyId];
-    saveRegistry(registry);
-
     this.notifyStoryListeners(storyId, serverStory);
     this.notifyListListeners();
-
     return serverStory;
   }
 

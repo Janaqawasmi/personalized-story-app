@@ -1,5 +1,5 @@
 // client/src/services/referenceData.service.ts
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:5000';
+import { API_BASE } from "../api/api";
 
 export interface ReferenceDataItem {
   key: string;
@@ -29,7 +29,7 @@ export async function loadReferenceItems(
     return data.data ?? [];
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+      throw new Error(`Unable to connect to server. Make sure the backend is running on ${API_BASE}`);
     }
     throw err;
   }
@@ -49,7 +49,7 @@ export async function loadSituationsByTopic(topicKey: string): Promise<Situation
     return data.data ?? [];
   } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+      throw new Error(`Unable to connect to server. Make sure the backend is running on ${API_BASE}`);
     }
     throw err;
   }

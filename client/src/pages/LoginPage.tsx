@@ -79,7 +79,7 @@ export default function LoginPage() {
       setLoading(true);
       setError(null);
 
-      const fallbackPath = lang ? `/${lang}/specialist/briefs` : "/he/specialist/briefs";
+      const fallbackPath = lang ? `/${lang}/specialist/stories` : "/he/specialist/stories";
       const redirectTo = resolveRedirectTarget(from, fallbackPath);
       console.log("[LoginPage] login redirect target resolved:", { from, redirectTo });
 
@@ -165,7 +165,7 @@ export default function LoginPage() {
       setError(null);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      const fallbackPath = lang ? `/${lang}/specialist/briefs` : "/he/specialist/briefs";
+      const fallbackPath = lang ? `/${lang}/specialist/stories` : "/he/specialist/stories";
       const redirectTo = resolveRedirectTarget(from, fallbackPath);
       console.log("[LoginPage] google redirect target resolved:", { from, redirectTo });
       

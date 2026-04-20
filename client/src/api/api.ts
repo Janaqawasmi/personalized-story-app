@@ -81,7 +81,7 @@ export async function searchStories(query: string): Promise<StorySearchResponse>
         throw new Error(
           "API returned HTML instead of JSON. " +
           "This usually means the backend route /api/stories/search doesn't exist " +
-          "or the proxy isn't working. Make sure the backend server is running on port 5000."
+          `or the proxy isn't working. Make sure the backend server is running at ${API_BASE}.`
         );
       }
       throw new Error(`API did not return JSON. Content-Type: ${contentType}`);

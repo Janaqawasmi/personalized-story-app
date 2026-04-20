@@ -50,13 +50,10 @@ export async function executePipelineWithBrief(
     throw new UnsupportedStoryTypeError(brief.storyType);
   }
 
-  if (
-    brief.therapeuticArchitecture.typeSpecificField.fieldType !==
-    "somatic_expression"
-  ) {
-    throw new TypeMismatchError(
-      brief.therapeuticArchitecture.typeSpecificField.fieldType,
-    );
+  const fieldType =
+    brief.therapeuticArchitecture?.typeSpecificField?.fieldType ?? "missing";
+  if (fieldType !== "somatic_expression") {
+    throw new TypeMismatchError(fieldType);
   }
 
   const preCheckResult = runPreCheck(brief);

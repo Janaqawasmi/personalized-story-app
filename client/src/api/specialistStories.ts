@@ -82,7 +82,7 @@ export async function generateStory(
     }
     return body.story;
   } catch (err) {
-    wrapNetworkError(err);
+    return wrapNetworkError(err);
   }
 }
 
@@ -99,7 +99,7 @@ export async function listStories(
     const res = await fetch(url.toString(), { headers });
     return handleResponse<Story[]>(res);
   } catch (err) {
-    wrapNetworkError(err);
+    return wrapNetworkError(err);
   }
 }
 
@@ -113,7 +113,7 @@ export async function getStory(storyId: string): Promise<Story> {
     );
     return handleResponse<Story>(res);
   } catch (err) {
-    wrapNetworkError(err);
+    return wrapNetworkError(err);
   }
 }
 
@@ -130,7 +130,7 @@ export async function updateStory(
     );
     return handleResponse<Story>(res);
   } catch (err) {
-    wrapNetworkError(err);
+    return wrapNetworkError(err);
   }
 }
 
@@ -147,7 +147,7 @@ export async function updateBrief(
     );
     return handleResponse<Story>(res);
   } catch (err) {
-    wrapNetworkError(err);
+    return wrapNetworkError(err);
   }
 }
 
@@ -165,6 +165,6 @@ export async function transitionStory(
     );
     return handleResponse<Story>(res);
   } catch (err) {
-    wrapNetworkError(err);
+    return wrapNetworkError(err);
   }
 }

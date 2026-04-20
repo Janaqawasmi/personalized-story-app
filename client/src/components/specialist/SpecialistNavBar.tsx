@@ -21,9 +21,9 @@ export default function SpecialistNavBar() {
 
   const [storyBriefLoading, setStoryBriefLoading] = useState(false);
 
-  const isBriefsArea = pathname.includes("/specialist/briefs");
+  const isBriefsArea = pathname.includes("/specialist/stories");
   const isEditor =
-    pathname.includes("/specialist/create-brief") ||
+    pathname.includes("/specialist/stories/new") ||
     pathname.includes("/brief");
 
   async function handleStoryBriefClick() {
@@ -109,7 +109,7 @@ export default function SpecialistNavBar() {
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
           <Button
             component={RouterLink}
-            to={`${base}/briefs`}
+            to={`${base}/stories`}
             startIcon={<ListAltOutlinedIcon />}
             sx={btn(isBriefsArea)}
           >

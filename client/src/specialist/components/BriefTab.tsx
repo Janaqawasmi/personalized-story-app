@@ -111,6 +111,10 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
       onSubmitted: () => {
         // No-op: draftStore.submitBrief (called via onSubmit) already handles cleanup.
       },
+      onCreateAnother: async () => {
+        const newStory = await draftStore.createStory();
+        return newStory.id;
+      },
     }),
     // Intentionally depends only on story.id so the adapter identity is stable
     // while the user edits. Parent updates story ref via onStoryUpdate.
