@@ -134,9 +134,10 @@ export interface StoriesTableProps {
 
 const COLUMN_HEADERS = [
   { label: "Title", width: "auto" },
-  { label: "Type / age", width: 220 },
+  { label: "Pipeline", width: 128 },
+  { label: "Type / age", width: 200 },
   { label: "Status", width: 150 },
-  { label: "Last event", width: 220 },
+  { label: "Last event", width: 200 },
   { label: "", width: 56 },
 ];
 
@@ -173,7 +174,7 @@ export default function StoriesTable({
         overflowX: "auto",
       }}
     >
-      <Table size="small" sx={{ minWidth: 640 }}>
+      <Table size="small" sx={{ minWidth: 780 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: "#F5F1EE" }}>
             {COLUMN_HEADERS.map((col) => (

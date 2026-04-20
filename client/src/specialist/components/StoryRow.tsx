@@ -9,13 +9,26 @@ import MenuItem from "@mui/material/MenuItem";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
 import type { AgeRange, StoryType } from "../../types/storyBrief";
 import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
+import { getPipelineListLabel, getPipelineListStepIndex } from "../utils/storyPipeline";
 import { STATUS_CHIP_COLORS } from "./statusColors";
+
+const PIPELINE_LIST_ICONS = [
+  EditNoteOutlinedIcon,
+  AutoFixHighOutlinedIcon,
+  RateReviewOutlinedIcon,
+  VerifiedOutlinedIcon,
+] as const;
 
 // ---------------------------------------------------------------------------
 // Display maps
@@ -136,6 +149,49 @@ export function formatRelativeTime(ms: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Pipeline column (icon + label aligned with StoryPipelineStepper)
+// ---------------------------------------------------------------------------
+
+function PipelineStageCell({ story }: { story: Story }) {
+  const label = getPipelineListLabel(story.status);
+  const step = getPipelineListStepIndex(story.status);
+  const Icon =
+    step === null ? ArchiveOutlinedIcon : PIPELINE_LIST_ICONS[step];
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.75,
+        minWidth: 0,
+      }}
+    >
+      <Icon
+        sx={{
+          fontSize: 18,
+          color: step === null ? COLORS.textSecondary : COLORS.primary,
+          opacity: step === null ? 0.65 : 0.9,
+          flexShrink: 0,
+        }}
+        aria-hidden
+      />
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: "0.8rem",
+          fontWeight: 600,
+          color: COLORS.textPrimary,
+          lineHeight: 1.3,
+        }}
+      >
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
@@ -234,6 +290,11 @@ export default function StoryRow({
         >
           {displayTitle ?? "Untitled story"}
         </Link>
+      </TableCell>
+
+      {/* ---- Pipeline (coarse stage — matches workspace stepper) ---- */}
+      <TableCell sx={{ py: 1.5, maxWidth: 140 }}>
+        <PipelineStageCell story={story} />
       </TableCell>
 
       {/* ---- Type / age ---- */}

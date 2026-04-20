@@ -20,6 +20,7 @@ import { draftStore } from "../storage";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import WorkspaceHeader from "../components/WorkspaceHeader";
+import StoryPipelineStepper from "../components/StoryPipelineStepper";
 import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTabs";
 import BriefTab from "../components/BriefTab";
 import DraftTab from "../components/DraftTab";
@@ -67,10 +68,13 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
       </Stack>
 
       {/* Type / age chips */}
-      <Stack direction="row" spacing={0.75} sx={{ mb: 2.5 }}>
+      <Stack direction="row" spacing={0.75} sx={{ mb: 2 }}>
         <Skeleton width={108} height={22} sx={{ borderRadius: 4 }} />
         <Skeleton width={70} height={22} sx={{ borderRadius: 4 }} />
       </Stack>
+
+      {/* Pipeline stepper */}
+      <Skeleton variant="rectangular" height={52} sx={{ borderRadius: 1, mb: 2.5 }} />
 
       {/* Tabs */}
       <Stack
@@ -349,6 +353,7 @@ export default function StoryWorkspacePage() {
           />
 
           <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pt: 0 }}>
+            <StoryPipelineStepper story={story} />
             <WorkspaceTabs
               story={story}
               activeTab={activeTab}
