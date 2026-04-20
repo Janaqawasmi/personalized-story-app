@@ -9,6 +9,7 @@ import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 import type { SpecialistUi } from "../../i18n/specialistUi.types";
 import { getSubmitGateTitleForDisplay } from "../../validation/briefSubmitGate";
 import {
+  createEmptyBrief,
   PERSONALIZATION_DEFAULT,
   STORY_TYPE_DESCRIPTIONS,
   type CompleteBrief,
@@ -65,21 +66,23 @@ export interface SubmittedBriefReadViewProps {
 
 export default function SubmittedBriefReadView({ brief, emptyLabel, specialistUi }: SubmittedBriefReadViewProps) {
   const ui = useStoryBriefUi();
-  const st = brief.storyType;
-  const s1 = brief.section1;
-  const s2 = brief.section2;
-  const s3 = brief.section3;
-  const s4 = brief.section4;
-  const s5 = brief.section5;
+  const fallback = createEmptyBrief();
+  const safeBrief = (brief && typeof brief === "object" ? brief : fallback) as CompleteBrief;
+  const st = safeBrief.storyType ?? null;
+  const s1 = safeBrief.section1 ?? {};
+  const s2 = safeBrief.section2 ?? {};
+  const s3 = safeBrief.section3 ?? {};
+  const s4 = safeBrief.section4 ?? {};
+  const s5 = safeBrief.section5 ?? {};
 
   const personalized = (s4.personalization ?? PERSONALIZATION_DEFAULT) === "yes";
 
   return (
     <Stack spacing={2.5} sx={{ mt: 0 }}>
-      {brief.acknowledgedWarnings && brief.acknowledgedWarnings.length > 0 && (
+      {safeBrief.acknowledgedWarnings && safeBrief.acknowledgedWarnings.length > 0 && (
         <AlertToneBox variant="note" title={specialistUi.reviewAcknowledgedTitle}>
           <Stack component="ul" sx={{ m: 0, pl: 2.5, mb: 0 }}>
-            {brief.acknowledgedWarnings.map((id) => (
+            {safeBrief.acknowledgedWarnings.map((id) => (
               <Typography key={id} component="li" variant="body2" sx={{ mb: 0.5 }}>
                 {getSubmitGateTitleForDisplay(id) ?? id}
               </Typography>

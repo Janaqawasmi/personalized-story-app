@@ -22,16 +22,33 @@ function errorMessage(
   return error || reason || fallback;
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
+async function handleResponse<T>(
+  res: Response,
+  fallbackKey?: "story" | "stories",
+): Promise<T> {
   const body = (await res.json().catch(() => ({}))) as {
     success?: boolean;
     data?: T;
+    story?: T;
+    stories?: T;
+    message?: string;
     error?: string;
     details?: string;
   };
 
   if (!res.ok) {
     throw new Error(errorMessage(body, `Request failed (${res.status})`));
+  }
+
+  // Primary envelope: { success, data }
+  if (body.data !== undefined && (body.success === undefined || body.success)) {
+    return body.data;
+  }
+
+  // Backward-compatible envelope used by specialist stories routes:
+  // { story } or { stories }
+  if (fallbackKey && body[fallbackKey] !== undefined) {
+    return body[fallbackKey] as T;
   }
 
   if (!body.success || body.data === undefined) {
@@ -97,7 +114,7 @@ export async function listStories(
     if (params?.sortBy !== undefined) url.searchParams.set("sortBy", params.sortBy);
     if (params?.limit !== undefined) url.searchParams.set("limit", String(params.limit));
     const res = await fetch(url.toString(), { headers });
-    return handleResponse<Story[]>(res);
+    return handleResponse<Story[]>(res, "stories");
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -111,7 +128,7 @@ export async function getStory(storyId: string): Promise<Story> {
       `${BASE}/${encodeURIComponent(storyId)}`,
       { headers },
     );
-    return handleResponse<Story>(res);
+    return handleResponse<Story>(res, "story");
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -128,7 +145,7 @@ export async function updateStory(
       `${BASE}/${encodeURIComponent(storyId)}`,
       { method: "PATCH", headers, body: JSON.stringify(patch) },
     );
-    return handleResponse<Story>(res);
+    return handleResponse<Story>(res, "story");
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -145,7 +162,7 @@ export async function updateBrief(
       `${BASE}/${encodeURIComponent(storyId)}/brief`,
       { method: "PUT", headers, body: JSON.stringify({ brief }) },
     );
-    return handleResponse<Story>(res);
+    return handleResponse<Story>(res, "story");
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -163,7 +180,7 @@ export async function transitionStory(
       `${BASE}/${encodeURIComponent(storyId)}/transitions`,
       { method: "POST", headers, body: JSON.stringify({ to, ...metadata }) },
     );
-    return handleResponse<Story>(res);
+    return handleResponse<Story>(res, "story");
   } catch (err) {
     return wrapNetworkError(err);
   }
