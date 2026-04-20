@@ -313,7 +313,11 @@ export default function StoryWorkspacePage() {
                 />
               )}
               {activeTab === "draft" && (
-                <DraftTab story={story} onStoryUpdate={setStory} />
+                <DraftTab
+                  story={story}
+                  onStoryUpdate={setStory}
+                  onNavigateToTab={handleTabChange}
+                />
               )}
               {activeTab === "history" && <HistoryTab story={story} />}
             </Box>
