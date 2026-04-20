@@ -199,7 +199,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
       <Box sx={{ mt: 2 }}>
         {generationFailed && (
           <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-            Generation failed. Your brief is back in draft mode — you can edit it and try again.
+            Generation failed. You can edit the brief and try submitting again.
           </Alert>
         )}
 

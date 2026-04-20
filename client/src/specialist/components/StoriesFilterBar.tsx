@@ -107,7 +107,7 @@ const CHIP_CONFIGS: ChipConfig[] = [
     color: STATUS_CHIP_COLORS.in_review,
   },
   {
-    label: "Draft",
+    label: "Brief in progress",
     status: "draft_brief",
     color: STATUS_CHIP_COLORS.draft_brief,
   },

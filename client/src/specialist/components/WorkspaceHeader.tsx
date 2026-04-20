@@ -51,7 +51,7 @@ const AGE_RANGE_LABELS: Record<AgeRange, string> = {
 };
 
 const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Draft",
+  draft_brief: "Brief in progress",
   generating: "Generating",
   awaiting_review: "Awaiting review",
   in_review: "In review",

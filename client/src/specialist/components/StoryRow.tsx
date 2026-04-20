@@ -50,7 +50,7 @@ const AGE_RANGE_LABELS: Record<AgeRange, string> = {
 };
 
 const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Draft",
+  draft_brief: "Brief in progress",
   generating: "Generating",
   awaiting_review: "Awaiting review",
   in_review: "In review",
@@ -69,7 +69,7 @@ function editEventVerb(event: EditHistoryEvent): string {
     case "draft_created":
       return "Created";
     case "draft_edited":
-      return "Edited";
+      return "Story edited";
     case "status_changed":
       return "Updated";
     case "brief_submitted":

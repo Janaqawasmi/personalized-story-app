@@ -4,7 +4,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Short past-tense label for status_changed → `to` (table cell). */
 const STATUS_TO_ACTIVITY_VERB: Record<StoryStatus, string> = {
-  draft_brief: "Moved to draft",
+  draft_brief: "Brief in progress",
   generating: "Started generating",
   awaiting_review: "Ready",
   in_review: "Review started",

@@ -31,9 +31,9 @@ function nextHintForStatus(status: StoryStatus): string {
     case "needs_revision":
       return "The story is regenerating from your feedback—check back shortly.";
     case "awaiting_review":
-      return "Open the Draft tab to read the story and complete your review.";
+      return "Open the Story tab to read the generated text and complete your review.";
     case "in_review":
-      return "Finish reviewing the draft, then approve, edit, or request changes.";
+      return "Finish reviewing the generated story, then approve, edit, or request changes.";
     case "approved":
       return "This story is approved. Publish when you are ready to share it.";
     case "published":

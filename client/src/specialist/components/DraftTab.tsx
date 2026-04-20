@@ -1,6 +1,6 @@
 // client/src/specialist/components/DraftTab.tsx
 //
-// Draft tab: two-zone layout — story editor (left) + evidence panel (right).
+// Story tab (DraftTab): two-zone layout — story editor (left) + evidence panel (right).
 // Evidence: safety (flags, must-never) first; AI reasoning in accordions;
 // placeholders + coping reminder below. Versions inline above the title.
 //

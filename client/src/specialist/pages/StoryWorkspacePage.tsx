@@ -81,7 +81,7 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
         direction="row"
         sx={{ borderBottom: `1px solid ${COLORS.border}`, mb: 2.5 }}
       >
-        {["Brief", "Draft", "History"].map((label) => (
+        {["Brief", "Story", "History"].map((label) => (
           <Skeleton
             key={label}
             width={68}
@@ -230,7 +230,7 @@ export default function StoryWorkspacePage() {
     });
   }, [story, tab, base, resolvedStoryId, navigate]);
 
-  // ---- Tab switching (guards Draft tab when there are unsaved edits) ----
+  // ---- Tab switching (guards Story tab when there are unsaved edits) ----
   function navigateToTab(newTab: WorkspaceTabValue) {
     navigate(`${base}/stories/${resolvedStoryId}/${newTab}`, { replace: true });
   }
@@ -395,7 +395,7 @@ export default function StoryWorkspacePage() {
         <DialogTitle>Unsaved changes</DialogTitle>
         <DialogContent>
           <Typography variant="body2">
-            You have unsaved changes to this story. Leave without saving?
+            You have unsaved edits on the Story tab. Leave without saving?
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
