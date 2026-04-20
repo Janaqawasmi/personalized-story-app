@@ -138,7 +138,7 @@ const COLUMN_HEADERS = [
   { label: "Type", width: 160 },
   { label: "Age", width: 90 },
   { label: "Status", width: 150 },
-  { label: "Last activity", width: 140 },
+  { label: "Last activity", width: 220 },
   { label: "", width: 56 },
 ];
 

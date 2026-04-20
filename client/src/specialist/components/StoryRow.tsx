@@ -12,6 +12,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import type { AgeRange, StoryType } from "../../types/storyBrief";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
+import { formatLastActivitySummary } from "../utils/lastActivitySummary";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
 // ---------------------------------------------------------------------------
@@ -100,7 +101,6 @@ export default function StoryRow({
   const displayTitle =
     story.title.trim() === "" ? null : story.title;
 
-  const lastActivity = story.lastOpenedAt || story.updatedAt;
   const col = STATUS_CHIP_COLORS[story.status];
 
   function handleRowClick() {
@@ -251,9 +251,14 @@ export default function StoryRow({
       </TableCell>
 
       {/* ---- Last activity ---- */}
-      <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>
-        <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-          {formatRelativeTime(lastActivity)}
+      <TableCell sx={{ py: 1.5, maxWidth: 240 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          fontSize="0.8rem"
+          sx={{ lineHeight: 1.35 }}
+        >
+          {formatLastActivitySummary(story)}
         </Typography>
       </TableCell>
 
