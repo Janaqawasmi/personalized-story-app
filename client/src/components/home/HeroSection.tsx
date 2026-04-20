@@ -108,6 +108,7 @@ export default function HeroSection() {
   const { isRTL } = useLanguage();
 
   const rot = (deg: number) => (isRTL ? -deg : deg);
+  const ctaArrow = isRTL ? "←" : "→";
 
   return (
     <Box
@@ -236,7 +237,7 @@ export default function HeroSection() {
               transition: "all 0.2s",
             }}
           >
-            {t("home.hero.cta_primary")} →
+            {t("home.hero.cta_primary")} {ctaArrow}
           </Button>
           <Button
             variant="outlined"
@@ -268,6 +269,12 @@ export default function HeroSection() {
               textTransform: "none",
               borderColor: "#D0C8C0",
               color: "text.primary",
+              // Ensure consistent icon/text spacing in both LTR and RTL.
+              columnGap: 1.25,
+              "& .MuiButton-startIcon": {
+                margin: 0,
+                marginInlineEnd: 0,
+              },
               "&:hover": {
                 borderColor: "#824D5C",
                 color: "#824D5C",

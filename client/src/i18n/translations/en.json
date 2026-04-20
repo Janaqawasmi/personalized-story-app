@@ -373,6 +373,10 @@
     "gotIt": "Got it, let's start"
   },
   "personalize": {
+    "errors": {
+      "unsupportedImageFormat": "Please upload a JPG, PNG, or WebP image.",
+      "imageTooLarge": "Image is too large. Please select an image smaller than 10MB."
+    },
     "steps": {
       "step1": "Let's start – what's our hero's name?",
       "step2": "How will the story speak to them?",
@@ -445,7 +449,7 @@
     "back": "Go back one step",
     "continueJourney": "Continue to journey",
     "createStory": "Create the story",
-    "imageTooLarge": "Image is too large. Please select an image smaller than 5MB",
+    "imageTooLarge": "Image is too large. Please select an image smaller than 10MB",
     "story": "Story",
     "step1Of4": "Step 1 of 4",
     "step2Of4": "Step 2 of 4",
@@ -486,6 +490,24 @@
     "openStory": "Open the Story",
     "saving": "Saving...",
     "startStory": "Start Story",
+    "continueWithoutPreview": "Continue to story",
+    "previewGenerationFailed": "Something went wrong while creating your preview. You can still open the story.",
+    "previewAlreadyUsed": {
+      "title": "You've already created your free preview",
+      "body": "Free previews are one per family so we can keep them free for everyone. Your personalized preview is saved whenever you want to revisit it.",
+      "viewPreview": "View my preview",
+      "personalizeAnyway": "Personalize this story anyway",
+      "browseStories": "Browse more stories",
+      "footer": "You can still personalize and purchase any story — the full book is generated for you after checkout."
+    },
+    "directPurchase": {
+      "title": "Ready to add to cart",
+      "subtitle": "We saved your personalization. Your full book will be generated after checkout.",
+      "personalizedFor": "Personalized for",
+      "addToCart": "Add to cart",
+      "back": "← Edit details",
+      "loadingPreview": "Loading..."
+    },
     "celebrateName": "{name}'s story is ready.",
     "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
     "celebrateTagPhoto": "Photo ready",

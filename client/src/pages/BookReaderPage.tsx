@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -30,6 +31,7 @@ import { Z_INDEX_BOOK_READER_TOP_CONTROLS } from "../constants/zIndex";
 import InstructionModal from "../components/InstructionModal";
 import { useTranslation } from "../i18n/useTranslation";
 import { useReader } from "../contexts/ReaderContext";
+import { addToCart, ApiError } from "../api/caregiverApi";
 import {
   ttsSpeak,
   ttsPause,
@@ -93,6 +95,7 @@ export default function BookReaderPage() {
   const theme = useTheme();
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useLangNavigate();
+  const [searchParams] = useSearchParams();
   const t = useTranslation();
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
@@ -118,6 +121,10 @@ export default function BookReaderPage() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
   const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
+
+  const previewId =
+    searchParams.get("previewId") ||
+    (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
 
   const CURRENT_LANGUAGE = getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
@@ -1020,9 +1027,25 @@ export default function BookReaderPage() {
                     subtitle={t("pages.bookReader.previewUnlockSubtitle")}
                     teaserLine={t("pages.bookReader.previewTeaserLine")}
                     addToCartLabel={t("pages.bookReader.addToCart")}
-                    onAddToCart={() => {
-                      setPreviewUnlockOverlayOpen(false);
-                      navigate("/cart");
+                    onAddToCart={async () => {
+                      if (!previewId) {
+                        setPreviewUnlockOverlayOpen(false);
+                        navigate("/cart");
+                        return;
+                      }
+                      try {
+                        await addToCart(previewId);
+                      } catch (e) {
+                        // Best-effort: still take user to cart (it may already contain the item)
+                        if (e instanceof ApiError) {
+                          console.warn("Add to cart failed:", e.message, e.code);
+                        } else {
+                          console.warn("Add to cart failed:", e);
+                        }
+                      } finally {
+                        setPreviewUnlockOverlayOpen(false);
+                        navigate("/cart");
+                      }
                     }}
                     onDismiss={() => setPreviewUnlockOverlayOpen(false)}
                     dismissLabel={t("pages.bookReader.previewEndModalClose")}

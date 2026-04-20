@@ -14,6 +14,8 @@ export type StoredPersonalizationSnapshot = {
   childName: string;
   /** Undefined until the user picks a step; see resolveGenderForPreview. */
   gender?: StoryGender;
+  /** Age band for API (`0_3` … `9_12`); optional for older saved sessions. */
+  childAgeGroup?: string;
   photoPreviewUrl?: string;
 };
 
@@ -31,6 +33,7 @@ export function readPersonalizationFromStorage(storyId: string | undefined): Sto
     return {
       childName: session.data.childName ?? "",
       gender: session.data.gender,
+      childAgeGroup: session.data.childAgeGroup,
       photoPreviewUrl: session.data.photoPreviewUrl?.trim() || undefined,
     };
   } catch {

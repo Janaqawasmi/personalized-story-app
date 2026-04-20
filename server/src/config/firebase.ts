@@ -34,6 +34,14 @@ function loadServiceAccount(): Record<string, unknown> {
 }
 
 const serviceAccount = loadServiceAccount();
+const serviceAccountProjectId = (serviceAccount as { project_id?: string }).project_id;
+/** Default bucket uses the current Firebase Storage hostname (not legacy *.appspot.com). */
+const storageBucketFromEnv = process.env.FIREBASE_STORAGE_BUCKET?.trim();
+const serviceAccountStorageBucket =
+  storageBucketFromEnv ||
+  (serviceAccountProjectId
+    ? `${serviceAccountProjectId}.firebasestorage.app`
+    : undefined);
 
 try {
   if (!admin.apps.length) {
@@ -41,11 +49,13 @@ try {
       credential: admin.credential.cert(
         serviceAccount as admin.ServiceAccount
       ),
+      ...(serviceAccountProjectId ? { projectId: serviceAccountProjectId } : {}),
+      ...(serviceAccountStorageBucket ? { storageBucket: serviceAccountStorageBucket } : {}),
     });
 
     console.log(
       "Firebase initialized - Project:",
-      (serviceAccount as { project_id?: string }).project_id
+      serviceAccountProjectId
     );
   } else {
     console.log(
@@ -59,6 +69,7 @@ try {
 }
 
 console.log("🔥 Firebase project:", admin.app().options.projectId);
+console.log("🔥 Firestore project:", admin.app().options.projectId);
 
 const firestore = admin.firestore();
 const db = firestore;

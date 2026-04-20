@@ -373,6 +373,10 @@
     "gotIt": "הבנתי, בואו נתחיל"
   },
   "personalize": {
+    "errors": {
+      "unsupportedImageFormat": "אנא העלו תמונת JPG, PNG או WebP.",
+      "imageTooLarge": "התמונה גדולה מדי. אנא בחרו תמונה קטנה מ-10MB."
+    },
     "steps": {
       "step1": "בואו נתחיל – איך קוראים לגיבור שלנו?",
       "step2": "איך הסיפור ידבר אליו?",
@@ -431,7 +435,7 @@
     "childPhoto": "תמונת הילד",
     "replacePhoto": "החלף תמונה",
     "selectPhoto": "בחר תמונה ברורה של הילד",
-    "maxSize": "עד 5MB",
+    "maxSize": "עד 10MB",
     "photoRequired": "יש להעלות תמונה כדי להמשיך",
     "affectsIllustrations": "זה ישפיע על איך האיורים ייראו לאורך הספר",
     "fillAllFields": "אנא מלא את כל השדות הנדרשים לפני שתסיים",
@@ -445,7 +449,7 @@
     "back": "חזור צעד אחורה",
     "continueJourney": "המשך למסע",
     "createStory": "צור את הסיפור",
-    "imageTooLarge": "התמונה גדולה מדי. אנא בחר תמונה קטנה מ-5MB",
+    "imageTooLarge": "התמונה גדולה מדי. אנא בחר תמונה קטנה מ-10MB",
     "story": "סיפור",
     "step1Of4": "שלב 1 מתוך 4",
     "step2Of4": "שלב 2 מתוך 4",
@@ -473,7 +477,7 @@
     "photoAdded": "התמונה נוספה ✓",
     "tapToReplace": "הקישו להחלפה",
     "uploadPhoto": "העלו תמונה",
-    "uploadHint": "JPG או PNG · עד 5 MB\nמשמש רק ליצירת איורים",
+    "uploadHint": "JPG, PNG או WebP · עד 10 MB\nמשמש רק ליצירת איורים",
     "trust1": "רק לאיורים",
     "trust2": "לא משותף",
     "trust3": "נמחק לאחר מכן",
@@ -486,6 +490,24 @@
     "openStory": "פתחו את הסיפור",
     "saving": "שומר...",
     "startStory": "התחל סיפור",
+    "continueWithoutPreview": "המשך לסיפור",
+    "previewGenerationFailed": "משהו השתבש ביצירת התצוגה המקדימה. עדיין אפשר לפתוח את הסיפור.",
+    "previewAlreadyUsed": {
+      "title": "כבר נוצרה לכם תצוגה מקדימה חינמית",
+      "body": "תצוגה מקדימה אחת למשפחה — כדי שנוכל להמשיך להציע אותה בחינם לכולם. התצוגה המקודמת שלכם נשמרה.",
+      "viewPreview": "לצפייה בתצוגה המקדימה",
+      "personalizeAnyway": "המשך לפרסונליזציה של הסיפור",
+      "browseStories": "עוד סיפורים",
+      "footer": "אפשר עדיין לפרסן ולרכוש כל סיפור — הספר המלא נוצר אחרי הרכישה."
+    },
+    "directPurchase": {
+      "title": "מוכן להוספה לעגלה",
+      "subtitle": "שמרנו את ההתאמה האישית. הספר המלא ייווצר אחרי התשלום.",
+      "personalizedFor": "מותאם עבור",
+      "addToCart": "הוספה לעגלה",
+      "back": "← עריכת פרטים",
+      "loadingPreview": "טוען..."
+    },
     "celebrateName": "הסיפור של {name} מוכן.",
     "celebrateSub": "כל מילה וכל איור — נעשו עבור {name}. למסע מיוחד באמת.",
     "celebrateTagPhoto": "תמונה מוכנה",

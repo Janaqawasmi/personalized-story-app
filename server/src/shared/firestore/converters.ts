@@ -88,6 +88,7 @@ export const storyPreviewConverter: FirestoreDataConverter<StoryPreview> = {
       expiresAt: data.expiresAt as string | null,
       purchaseId: data.purchaseId as string | null,
       personalizedStoryId: data.personalizedStoryId as string | null,
+      characterProfileSnapshot: (data.characterProfileSnapshot as StoryPreview["characterProfileSnapshot"]) ?? null,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
     };

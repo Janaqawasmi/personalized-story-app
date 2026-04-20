@@ -21,7 +21,16 @@ import {
   getExpectedNameScriptForStoryLanguage,
   shouldWarnNameScriptMismatch,
 } from "../utils/childNameValidation";
-import { generatePreview, type AgeGroup } from "../api/caregiverApi";
+import {
+  addToCart,
+  createDirectPurchasePreview,
+  generatePreview,
+  type AgeGroup,
+  FreePreviewAlreadyUsedError,
+} from "../api/caregiverApi";
+import { usePreviewQuota } from "../hooks/usePreviewQuota";
+import { PreviewAlreadyUsed } from "../components/preview/PreviewAlreadyUsed";
+import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
 
 type VisualStyle =
   | "watercolor"
@@ -42,7 +51,7 @@ type StoryPersonalizationData = {
 
 type PersonalizationSession = {
   status: "draft" | "completed";
-  data: StoryPersonalizationData;
+  data: StoryPersonalizationData & { childAgeGroup?: AgeGroup };
   updatedAt: number;
 };
 
@@ -55,6 +64,9 @@ const VISUAL_STYLES = [
 ];
 
 const FORM_STEP_COUNT = 4;
+const ACCEPTED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+const ACCEPTED_EXTENSIONS = ".jpg,.jpeg,.png,.webp";
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB (must match server multer limit)
 
 function pickLang(val: string | Record<string, string> | undefined, lang: string): string {
   if (!val) return "";
@@ -84,6 +96,7 @@ function savePersonalizationSession(
     data: {
       childName: data.childName,
       gender: data.gender,
+      childAgeGroup: data.childAgeGroup,
       photoPreviewUrl: data.photoPreviewUrl,
       visualStyle: data.visualStyle,
     },
@@ -581,6 +594,14 @@ export default function PersonalizeStoryPage() {
   const [childNameBlurred, setChildNameBlurred] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+  const { quota, loading: quotaLoading, refetch: refetchQuota } = usePreviewQuota();
+  const [skipPreviewMode, setSkipPreviewMode] = useState(false);
+  const [directPurchaseResult, setDirectPurchaseResult] = useState<{
+    previewId: string;
+    childName: string;
+    photoPreviewUrl: string | null;
+  } | null>(null);
 
   const styleDisplay = useMemo(
     () => [
@@ -764,8 +785,14 @@ export default function PersonalizeStoryPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      alert(t("personalize.imageTooLarge"));
+    setPhotoUploadError(null);
+    const mime = (file.type || "").toLowerCase();
+    if (!ACCEPTED_MIME.includes(mime)) {
+      setPhotoUploadError(t("personalize.errors.unsupportedImageFormat"));
+      return;
+    }
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setPhotoUploadError(t("personalize.errors.imageTooLarge"));
       return;
     }
 
@@ -784,6 +811,7 @@ export default function PersonalizeStoryPage() {
           {
             childName: updated.childName!,
             gender: updated.gender,
+            childAgeGroup: updated.childAgeGroup ?? "6_9",
             photoPreviewUrl: reader.result as string,
             visualStyle: updated.visualStyle,
           },
@@ -819,6 +847,29 @@ export default function PersonalizeStoryPage() {
     savePersonalizationSession(storyId, completePersonalization, "completed");
     console.log("[handleComplete] localStorage saved ✅", completePersonalization);
 
+    if (skipPreviewMode || quota?.hasUsedPreview) {
+      try {
+        const { previewId } = await createDirectPurchasePreview({
+          templateId: storyId,
+          childFirstName: completePersonalization.childName,
+          childGender: completePersonalization.gender,
+          childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
+          photoFile: completePersonalization.photoFile!,
+        });
+        setDirectPurchaseResult({
+          previewId,
+          childName: completePersonalization.childName,
+          photoPreviewUrl: completePersonalization.photoPreviewUrl ?? null,
+        });
+      } catch (err) {
+        console.error("Direct purchase preview failed", err);
+        setSaveError(t("personalize.previewGenerationFailed"));
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
     try {
       console.log("[handleComplete] Calling generatePreview API...");
       const result = await generatePreview({
@@ -828,15 +879,25 @@ export default function PersonalizeStoryPage() {
         childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
         photoFile: completePersonalization.photoFile!,
       });
-      console.log("[handleComplete] Firestore write succeeded ✅", result);
+      console.log("[handleComplete] Preview API succeeded ✅", result);
+      try {
+        localStorage.setItem(`dammah.preview.${storyId}`, result.previewId);
+      } catch {
+        // Non-critical: reader can still fall back to query param only.
+      }
+
+      navigate(`/stories/${storyId}/read?previewId=${encodeURIComponent(result.previewId)}`);
     } catch (err) {
-      console.error("[handleComplete] Firestore save failed ❌", err);
-      setSaveError("Cloud sync failed. Preview still works.");
+      console.error("[handleComplete] Preview generation failed ❌", err);
+      if (err instanceof FreePreviewAlreadyUsedError) {
+        setSaveError(err.message);
+        void refetchQuota();
+        return;
+      }
+      setSaveError(t("personalize.previewGenerationFailed"));
     } finally {
       setIsSaving(false);
     }
-
-    navigate(`/stories/${storyId}/read`);
   };
 
   const handleResume = () => {
@@ -910,6 +971,7 @@ export default function PersonalizeStoryPage() {
         {
           childName: personalization.childName!,
           gender: g,
+          childAgeGroup: personalization.childAgeGroup ?? "6_9",
           photoPreviewUrl: personalization.photoPreviewUrl || "",
           visualStyle: personalization.visualStyle || "watercolor",
         },
@@ -922,7 +984,7 @@ export default function PersonalizeStoryPage() {
     setPersonalization({ ...personalization, visualStyle: id });
   };
 
-  if (loading) {
+  if (loading || quotaLoading) {
     return (
       <Box
         sx={{
@@ -939,6 +1001,58 @@ export default function PersonalizeStoryPage() {
 
   if (!story) {
     return null;
+  }
+
+  const storyTitleForUi = pickLang(story.title, language) || t("personalize.story");
+
+  if (directPurchaseResult) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          backgroundColor: "#E5DFD9",
+          direction: direction,
+        }}
+      >
+        <DirectPurchaseSummary
+          result={directPurchaseResult}
+          storyTitle={storyTitleForUi}
+          onAddToCart={async () => {
+            try {
+              await addToCart(directPurchaseResult.previewId);
+            } catch (err) {
+              console.warn("Add to cart failed:", err);
+            } finally {
+              navigate("/cart");
+            }
+          }}
+          onBack={() => setDirectPurchaseResult(null)}
+        />
+      </Box>
+    );
+  }
+
+  if (quota?.hasUsedPreview && !skipPreviewMode) {
+    return (
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#E5DFD9",
+          direction: direction,
+          px: 2,
+        }}
+      >
+        <PreviewAlreadyUsed
+          existingPreviewId={quota.existingPreviewId}
+          existingTemplateId={quota.existingTemplateId}
+          currentStoryId={storyId!}
+          onContinueWithoutPreview={() => setSkipPreviewMode(true)}
+        />
+      </Box>
+    );
   }
 
   if (showResumeScreen && session?.status === "draft") {
@@ -1276,6 +1390,7 @@ export default function PersonalizeStoryPage() {
                                 {
                                   childName: sanitized,
                                   gender: prev.gender,
+                                  childAgeGroup: prev.childAgeGroup ?? "6_9",
                                   photoPreviewUrl: prev.photoPreviewUrl || "",
                                   visualStyle: prev.visualStyle || "watercolor",
                                 },
@@ -1753,10 +1868,20 @@ export default function PersonalizeStoryPage() {
                         </Typography>
                       )}
 
+                      {photoUploadError && (
+                        <Typography
+                          variant="caption"
+                          color="error"
+                          sx={{ display: "block", mt: 1, textAlign: "center" }}
+                        >
+                          {photoUploadError}
+                        </Typography>
+                      )}
+
                       <input
                         ref={fileInputRef}
                         type="file"
-                        accept="image/*"
+                        accept={ACCEPTED_EXTENSIONS}
                         onChange={handlePhotoUpload}
                         style={{ display: "none" }}
                       />
@@ -1940,7 +2065,11 @@ export default function PersonalizeStoryPage() {
                       },
                     }}
                   >
-                    {isSaving ? t("personalize.saving") : t("personalize.startStory")}
+                    {isSaving
+                      ? t("personalize.saving")
+                      : skipPreviewMode || quota?.hasUsedPreview
+                        ? t("personalize.continueWithoutPreview")
+                        : t("personalize.startStory")}
                   </Button>
                   {saveError && (
                     <Typography color="error" variant="caption" sx={{ mt: 1, display: "block" }}>

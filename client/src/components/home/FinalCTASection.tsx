@@ -1,10 +1,13 @@
 import { Box, Typography, Button, Stack } from "@mui/material";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLangNavigate } from "../../i18n/navigation";
+import { useLanguage } from "../../i18n/context/useLanguage";
 
 export default function FinalCTASection() {
   const t = useTranslation();
   const navigate = useLangNavigate();
+  const { isRTL } = useLanguage();
+  const ctaArrow = isRTL ? "←" : "→";
 
   return (
     <Box component="section" sx={{ py: 12, px: { xs: 4, md: 8 }, background: "#fff" }}>
@@ -61,7 +64,7 @@ export default function FinalCTASection() {
               transition: "all 0.2s",
             }}
           >
-            {t("home.cta_final.cta_primary")} →
+            {t("home.cta_final.cta_primary")} {ctaArrow}
           </Button>
           <Button
             variant="outlined"

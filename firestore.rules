@@ -56,8 +56,30 @@ service cloud.firestore {
     // ────────────────────────────────────────────────────
 
     match /caregivers/{uid} {
-      allow read: if (isOwner(uid) && isCaregiver()) || isAdmin();
-      allow write: if isOwner(uid) && isCaregiver();
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+
+      function previewQuotaKeys() {
+        return [
+          "freePreviewUsed",
+          "freePreviewUsedAt",
+          "freePreviewId",
+          "freePreviewPreviewId",
+          "freePreviewStatus",
+          "unlimitedPreviews"
+        ];
+      }
+
+      allow create: if isAuthenticated()
+        && request.auth.uid == uid
+        && isCaregiver()
+        && !request.resource.data.keys().hasAny(previewQuotaKeys());
+
+      allow update: if isAuthenticated()
+        && request.auth.uid == uid
+        && isCaregiver()
+        && !request.resource.data.diff(resource.data).changedKeys().hasAny(previewQuotaKeys());
+
+      allow delete: if false;
 
       // Favorites subcollection
       // Path: caregivers/{uid}/favorites/{storyId}
