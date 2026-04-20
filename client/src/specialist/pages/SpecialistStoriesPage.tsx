@@ -13,6 +13,7 @@ import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import StoriesFilterBar from "../components/StoriesFilterBar";
 import StoriesTable from "../components/StoriesTable";
+import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
 
 // ---------------------------------------------------------------------------
 // Header count summary helpers
@@ -59,16 +60,9 @@ function applyFilters(
     result = result.filter((s) => activeStatuses.includes(s.status));
   }
 
-  // Search filter
-  const q = searchQuery.trim().toLowerCase();
-  if (q) {
-    result = result.filter((s) => {
-      if (s.title.toLowerCase().includes(q)) return true;
-      if (s.tags.some((t) => t.toLowerCase().includes(q))) return true;
-      if (s.brief.section2?.population?.toLowerCase().includes(q)) return true;
-      if (s.brief.section2?.trigger?.toLowerCase().includes(q)) return true;
-      return false;
-    });
+  // Search filter (title, tags, population, trigger — see storySearchMatch)
+  if (searchQuery.trim()) {
+    result = result.filter((s) => storyMatchesSearchQuery(s, searchQuery));
   }
 
   // Sort

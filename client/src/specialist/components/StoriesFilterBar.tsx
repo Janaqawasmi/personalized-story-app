@@ -311,7 +311,7 @@ export default function StoriesFilterBar({
         {/* Search box */}
         <TextField
           size="small"
-          placeholder="Search stories…"
+          placeholder="Search by title, population, or trigger…"
           value={localSearch}
           onChange={handleSearchInput}
           sx={{

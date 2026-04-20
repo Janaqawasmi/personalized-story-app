@@ -16,7 +16,7 @@ import type { CompleteBrief } from "../../types/storyBrief";
 export interface ListStoriesFilter {
   /** Which statuses to include. Empty/undefined = all except 'archived'. */
   statuses?: StoryStatus[];
-  /** Matches title, tags, and brief free-text fields. */
+  /** Case-insensitive substring match on title, tags, section2 population, section2 trigger. */
   searchQuery?: string;
   sortBy?: "lastOpenedAt" | "createdAt" | "title";
   sortDir?: "asc" | "desc";
