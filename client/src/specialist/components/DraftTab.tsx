@@ -4,6 +4,11 @@
 // conditional cards (compression, inferred intention, post-validation flags),
 // alignment note, versions dropdown, story editor (two-column layout),
 // side panel, and action bar.
+//
+// Status-specific rendering modes:
+//   generating / needs_revision → GeneratingState (spinner + polling)
+//   approved                    → read-only editor, modified action bar
+//   archived                    → dimmed (0.5 opacity), restore banner, no action bar
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -13,6 +18,7 @@ import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -70,6 +76,128 @@ const PLACEHOLDERS = [
 ] as const;
 
 const MAX_VERSIONS = 3;
+
+// ---------------------------------------------------------------------------
+// GeneratingState — shown when status === 'generating' | 'needs_revision'
+// ---------------------------------------------------------------------------
+
+function GeneratingState({
+  story,
+  onStoryUpdate,
+}: {
+  story: Story;
+  onStoryUpdate: (s: Story) => void;
+}) {
+  const [prevDialogOpen, setPrevDialogOpen] = useState(false);
+
+  const hasPrevVersion = story.agent1Versions.length > 0;
+  const prevVersion = hasPrevVersion
+    ? story.agent1Versions[story.agent1Versions.length - 1]
+    : null;
+
+  // Stable ref to the callback so the interval closure never goes stale.
+  const onStoryUpdateRef = useRef(onStoryUpdate);
+  useEffect(() => {
+    onStoryUpdateRef.current = onStoryUpdate;
+  });
+
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const updated = await draftStore.getStory(story.id);
+        if (
+          updated &&
+          updated.status !== "generating" &&
+          updated.status !== "needs_revision"
+        ) {
+          onStoryUpdateRef.current(updated);
+        }
+      } catch {
+        // Ignore transient poll errors — next tick will retry.
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [story.id]);
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 3,
+        mt: 2,
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 2,
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          py: 6,
+          gap: 2,
+        }}
+      >
+        <CircularProgress />
+        <Typography variant="h6">Agent 1 is generating your story…</Typography>
+        <Typography variant="body2" color="text.secondary">
+          This usually takes 30–60 seconds.
+        </Typography>
+
+        {hasPrevVersion && (
+          <Button variant="text" onClick={() => setPrevDialogOpen(true)}>
+            View previous version while you wait
+          </Button>
+        )}
+      </Box>
+
+      {prevVersion && (
+        <Dialog
+          open={prevDialogOpen}
+          onClose={() => setPrevDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>Previous version (read-only)</DialogTitle>
+          <DialogContent>
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+              Emotional truth
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2.5 }}>
+              {prevVersion.emotionalTruth}
+            </Typography>
+
+            <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+              Narrative blueprint
+            </Typography>
+            <Box sx={{ mb: 2.5 }}>
+              {prevVersion.blueprint.map((point) => (
+                <Typography key={point.index} variant="body2" sx={{ mb: 0.25 }}>
+                  {point.index}. {point.text}
+                </Typography>
+              ))}
+            </Box>
+
+            {prevVersion.alignmentNote && (
+              <>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                  Alignment note
+                </Typography>
+                <Typography variant="body2">
+                  {prevVersion.alignmentNote}
+                </Typography>
+              </>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPrevDialogOpen(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      )}
+    </Paper>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Feedback Dialog (reused by multiple cards)
@@ -133,9 +261,11 @@ function FeedbackDialog({
 function EmotionalTruthCard({
   result,
   onFeedback,
+  hideButtons,
 }: {
   result: Agent1Result;
   onFeedback: (feedback: string) => void;
+  hideButtons?: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -147,33 +277,35 @@ function EmotionalTruthCard({
           <Typography variant="subtitle1" fontWeight={600}>
             Emotional truth
           </Typography>
-          <Stack direction="row" spacing={1}>
-            {confirmed ? (
-              <Chip
-                icon={<CheckCircleIcon />}
-                label="Confirmed"
-                color="success"
-                size="small"
-              />
-            ) : (
+          {!hideButtons && (
+            <Stack direction="row" spacing={1}>
+              {confirmed ? (
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label="Confirmed"
+                  color="success"
+                  size="small"
+                />
+              ) : (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  onClick={() => setConfirmed(true)}
+                >
+                  Captures my intention
+                </Button>
+              )}
               <Button
                 size="small"
                 variant="outlined"
-                color="success"
-                onClick={() => setConfirmed(true)}
+                color="warning"
+                onClick={() => setDialogOpen(true)}
               >
-                Captures my intention
+                Misses something
               </Button>
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              color="warning"
-              onClick={() => setDialogOpen(true)}
-            >
-              Misses something
-            </Button>
-          </Stack>
+            </Stack>
+          )}
         </Stack>
         <Typography variant="body2">{result.emotionalTruth}</Typography>
       </CardContent>
@@ -194,9 +326,11 @@ function EmotionalTruthCard({
 function BlueprintCard({
   result,
   onFeedback,
+  hideButtons,
 }: {
   result: Agent1Result;
   onFeedback: (feedback: string) => void;
+  hideButtons?: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -208,33 +342,35 @@ function BlueprintCard({
           <Typography variant="subtitle1" fontWeight={600}>
             Narrative blueprint
           </Typography>
-          <Stack direction="row" spacing={1}>
-            {confirmed ? (
-              <Chip
-                icon={<CheckCircleIcon />}
-                label="Confirmed"
-                color="success"
-                size="small"
-              />
-            ) : (
+          {!hideButtons && (
+            <Stack direction="row" spacing={1}>
+              {confirmed ? (
+                <Chip
+                  icon={<CheckCircleIcon />}
+                  label="Confirmed"
+                  color="success"
+                  size="small"
+                />
+              ) : (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="success"
+                  onClick={() => setConfirmed(true)}
+                >
+                  Right journey
+                </Button>
+              )}
               <Button
                 size="small"
                 variant="outlined"
-                color="success"
-                onClick={() => setConfirmed(true)}
+                color="warning"
+                onClick={() => setDialogOpen(true)}
               >
-                Right journey
+                Wrong direction
               </Button>
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              color="warning"
-              onClick={() => setDialogOpen(true)}
-            >
-              Wrong direction
-            </Button>
-          </Stack>
+            </Stack>
+          )}
         </Stack>
 
         <Box sx={{ mb: 1.5 }}>
@@ -346,9 +482,11 @@ function CompressionMetadataCard({ result }: { result: Agent1Result }) {
 function InferredIntentionCard({
   result,
   story,
+  hideButtons,
 }: {
   result: Agent1Result;
   story: Story;
+  hideButtons?: boolean;
 }) {
   const [accepted, setAccepted] = useState(false);
   const navigate = useNavigate();
@@ -392,33 +530,35 @@ function InferredIntentionCard({
           <strong>Reason:</strong> {intention.reason}
         </Typography>
 
-        <Stack direction="row" spacing={1}>
-          {accepted ? (
-            <Chip
-              icon={<CheckCircleIcon />}
-              label="Inferred intention accepted"
-              color="success"
-              size="small"
-            />
-          ) : (
+        {!hideButtons && (
+          <Stack direction="row" spacing={1}>
+            {accepted ? (
+              <Chip
+                icon={<CheckCircleIcon />}
+                label="Inferred intention accepted"
+                color="success"
+                size="small"
+              />
+            ) : (
+              <Button
+                size="small"
+                variant="outlined"
+                color="success"
+                onClick={() => setAccepted(true)}
+              >
+                Use inferred
+              </Button>
+            )}
             <Button
               size="small"
               variant="outlined"
-              color="success"
-              onClick={() => setAccepted(true)}
+              color="warning"
+              onClick={handleEditBrief}
             >
-              Use inferred
+              Edit brief instead
             </Button>
-          )}
-          <Button
-            size="small"
-            variant="outlined"
-            color="warning"
-            onClick={handleEditBrief}
-          >
-            Edit brief instead
-          </Button>
-        </Stack>
+          </Stack>
+        )}
       </CardContent>
     </Card>
   );
@@ -432,10 +572,12 @@ function PostValidationFlagsCard({
   result,
   dismissedFlags,
   onToggleFlag,
+  hideButtons,
 }: {
   result: Agent1Result;
   dismissedFlags: Set<number>;
   onToggleFlag: (index: number) => void;
+  hideButtons?: boolean;
 }) {
   const flags = result.postValidationFlags;
   if (!flags || flags.length === 0) return null;
@@ -494,14 +636,16 @@ function PostValidationFlagsCard({
                       {flag.reasoning}
                     </Typography>
                   </Box>
-                  <Button
-                    size="small"
-                    variant="text"
-                    onClick={() => onToggleFlag(index)}
-                    sx={{ ml: 1, whiteSpace: "nowrap" }}
-                  >
-                    {isDismissed ? "Restore" : "Dismiss"}
-                  </Button>
+                  {!hideButtons && (
+                    <Button
+                      size="small"
+                      variant="text"
+                      onClick={() => onToggleFlag(index)}
+                      sx={{ ml: 1, whiteSpace: "nowrap" }}
+                    >
+                      {isDismissed ? "Restore" : "Dismiss"}
+                    </Button>
+                  )}
                 </Stack>
               </Box>
             );
@@ -602,29 +746,34 @@ function ReviewSection({
   dismissedFlags,
   onToggleFlag,
   onFeedback,
+  hideButtons,
 }: {
   result: Agent1Result;
   story: Story;
   dismissedFlags: Set<number>;
   onToggleFlag: (index: number) => void;
   onFeedback: (card: string, feedback: string) => void;
+  hideButtons?: boolean;
 }) {
   return (
     <Box sx={{ mb: 3 }}>
       <EmotionalTruthCard
         result={result}
         onFeedback={(fb) => onFeedback("emotionalTruth", fb)}
+        hideButtons={hideButtons}
       />
       <BlueprintCard
         result={result}
         onFeedback={(fb) => onFeedback("blueprint", fb)}
+        hideButtons={hideButtons}
       />
       <CompressionMetadataCard result={result} />
-      <InferredIntentionCard result={result} story={story} />
+      <InferredIntentionCard result={result} story={story} hideButtons={hideButtons} />
       <PostValidationFlagsCard
         result={result}
         dismissedFlags={dismissedFlags}
         onToggleFlag={onToggleFlag}
+        hideButtons={hideButtons}
       />
       <AlignmentNote result={result} />
     </Box>
@@ -888,6 +1037,12 @@ export default function DraftTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVersionIndex]);
 
+  // ── Status-specific early returns (after all hooks) ───────────────────────
+
+  if (story.status === "generating" || story.status === "needs_revision") {
+    return <GeneratingState story={story} onStoryUpdate={onStoryUpdate} />;
+  }
+
   // ── Defensive guard (after all hooks) ─────────────────────────────────────
 
   if (!story.agent1Result) {
@@ -902,6 +1057,11 @@ export default function DraftTab({
 
   const displayedResult: Agent1Result =
     versions[selectedVersionIndex] ?? story.agent1Result;
+
+  // ── Read-only mode (approved or archived) ─────────────────────────────────
+
+  const isReadOnly =
+    story.status === "approved" || story.status === "archived";
 
   // ── Derived display values ─────────────────────────────────────────────────
 
@@ -994,6 +1154,30 @@ export default function DraftTab({
     }
   }
 
+  async function handleReopen() {
+    try {
+      const updatedStory = await draftStore.transitionStatus(story.id, "in_review");
+      onStoryUpdate(updatedStory);
+    } catch (err) {
+      setSnackbar(err instanceof Error ? err.message : "Failed to reopen story.");
+    }
+  }
+
+  async function handleRestore() {
+    try {
+      const updatedStory = await draftStore.transitionStatus(story.id, "draft_brief");
+      onStoryUpdate(updatedStory);
+    } catch (err) {
+      setSnackbar(err instanceof Error ? err.message : "Failed to restore story.");
+    }
+  }
+
+  // ── Shared read-only editor sx ─────────────────────────────────────────────
+
+  const readOnlyInputSx = isReadOnly
+    ? { "& .MuiInputBase-root": { backgroundColor: COLORS.background } }
+    : {};
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1004,14 +1188,32 @@ export default function DraftTab({
         mt: 2,
         border: `1px solid ${COLORS.border}`,
         borderRadius: 2,
+        // Archived: dim the entire tab
+        opacity: story.status === "archived" ? 0.5 : 1,
       }}
     >
+      {/* ── Archived banner ───────────────────────────────────────────────── */}
+      {story.status === "archived" && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" onClick={handleRestore}>
+              Restore
+            </Button>
+          }
+        >
+          This story is archived.
+        </Alert>
+      )}
+
       <ReviewSection
         result={displayedResult}
         story={story}
         dismissedFlags={dismissedFlags}
         onToggleFlag={handleToggleFlag}
         onFeedback={handleFeedback}
+        hideButtons={isReadOnly}
       />
 
       {versions.length > 0 && (
@@ -1048,10 +1250,13 @@ export default function DraftTab({
               label="Title"
               value={editorTitle}
               onChange={(e) => {
-                setEditorTitle(e.target.value);
-                setHasUnsavedChanges(true);
+                if (!isReadOnly) {
+                  setEditorTitle(e.target.value);
+                  setHasUnsavedChanges(true);
+                }
               }}
-              sx={{ mr: 2 }}
+              InputProps={{ readOnly: isReadOnly }}
+              sx={{ mr: 2, ...readOnlyInputSx }}
             />
             <Typography
               variant="caption"
@@ -1085,13 +1290,17 @@ export default function DraftTab({
             fullWidth
             value={editorBody}
             onChange={(e) => {
-              setEditorBody(e.target.value);
-              setHasUnsavedChanges(true);
+              if (!isReadOnly) {
+                setEditorBody(e.target.value);
+                setHasUnsavedChanges(true);
+              }
             }}
             inputRef={textareaRef}
             placeholder="Story content…"
+            InputProps={{ readOnly: isReadOnly }}
             sx={{
               mb: 2,
+              ...readOnlyInputSx,
               "& .MuiInputBase-inputMultiline": {
                 minHeight: 400,
                 resize: "vertical",
@@ -1100,70 +1309,101 @@ export default function DraftTab({
             }}
           />
 
-          {/* Action Bar */}
-          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-            {/* Save edits */}
-            <Button
-              variant="contained"
-              disabled={!hasUnsavedChanges}
-              onClick={handleSave}
-            >
-              Save edits
-            </Button>
+          {/* ── Action Bar — varies by status ───────────────────────────── */}
 
-            {/* Regenerate with feedback */}
-            <Tooltip
-              title={
-                maxRegenReached
-                  ? "Maximum regenerations reached. Consider opening a new revision."
-                  : ""
-              }
-            >
-              <span>
-                <Button
-                  variant="outlined"
-                  disabled={maxRegenReached}
-                  onClick={openRegenDialog}
-                >
-                  Regenerate with feedback
-                </Button>
-              </span>
-            </Tooltip>
+          {/* archived: no action bar */}
+          {story.status !== "archived" && (
+            <>
+              {story.status === "approved" ? (
+                /* approved action bar */
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={handleReopen}
+                  >
+                    Reopen for editing
+                  </Button>
+                  <Chip
+                    icon={<CheckCircleIcon />}
+                    label={
+                      story.approvedAt
+                        ? `Approved ${new Date(story.approvedAt).toLocaleDateString()}`
+                        : "Approved"
+                    }
+                    color="success"
+                    sx={{ fontWeight: 600 }}
+                  />
+                </Stack>
+              ) : (
+                /* default interactive action bar (in_review / awaiting_review) */
+                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                  {/* Save edits */}
+                  <Button
+                    variant="contained"
+                    disabled={!hasUnsavedChanges}
+                    onClick={handleSave}
+                  >
+                    Save edits
+                  </Button>
 
-            {/* Mark approved */}
-            <Tooltip
-              title={
-                hasUnsavedChanges
-                  ? "Save your edits first"
-                  : hasUndismissedFlags
-                    ? "Review all safety flags before approving"
-                    : ""
-              }
-            >
-              <span>
-                <Button
-                  variant="contained"
-                  disabled={hasUnsavedChanges || hasUndismissedFlags}
-                  onClick={handleApprove}
-                  sx={{
-                    bgcolor: COLORS.success,
-                    "&:hover": { bgcolor: "#388E3C" },
-                  }}
-                >
-                  Mark approved
-                </Button>
-              </span>
-            </Tooltip>
-          </Stack>
+                  {/* Regenerate with feedback */}
+                  <Tooltip
+                    title={
+                      maxRegenReached
+                        ? "Maximum regenerations reached. Consider opening a new revision."
+                        : ""
+                    }
+                  >
+                    <span>
+                      <Button
+                        variant="outlined"
+                        disabled={maxRegenReached}
+                        onClick={openRegenDialog}
+                      >
+                        Regenerate with feedback
+                      </Button>
+                    </span>
+                  </Tooltip>
 
-          {/* Regeneration count */}
-          <Typography variant="caption" color="text.secondary">
-            This story has been regenerated {regenCount} time
-            {regenCount !== 1 ? "s" : ""}.{" "}
-            {regenRemaining > 0
-              ? `${regenRemaining} regeneration${regenRemaining !== 1 ? "s" : ""} remaining.`
-              : "No regenerations remaining."}
-          </Typography>
+                  {/* Mark approved */}
+                  <Tooltip
+                    title={
+                      hasUnsavedChanges
+                        ? "Save your edits first"
+                        : hasUndismissedFlags
+                          ? "Review all safety flags before approving"
+                          : ""
+                    }
+                  >
+                    <span>
+                      <Button
+                        variant="contained"
+                        disabled={hasUnsavedChanges || hasUndismissedFlags}
+                        onClick={handleApprove}
+                        sx={{
+                          bgcolor: COLORS.success,
+                          "&:hover": { bgcolor: "#388E3C" },
+                        }}
+                      >
+                        Mark approved
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Stack>
+              )}
+
+              {/* Regeneration count — shown for interactive mode only */}
+              {story.status !== "approved" && (
+                <Typography variant="caption" color="text.secondary">
+                  This story has been regenerated {regenCount} time
+                  {regenCount !== 1 ? "s" : ""}.{" "}
+                  {regenRemaining > 0
+                    ? `${regenRemaining} regeneration${regenRemaining !== 1 ? "s" : ""} remaining.`
+                    : "No regenerations remaining."}
+                </Typography>
+              )}
+            </>
+          )}
         </Box>
 
         {/* ── Right column: side panel ─────────────────────────────────────── */}
