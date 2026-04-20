@@ -207,6 +207,11 @@ interface Props {
    */
   onSubmit?: (brief: CompleteBrief) => Promise<{ briefId: string }>;
   storageAdapter?: BriefFormStorageAdapter;
+  /**
+   * Fired when the specialist edits the brief (any section), selects a story type, or advances —
+   * not on initial load from storage.
+   */
+  onUserInteraction?: () => void;
 }
 
 // ============================================================================
@@ -391,7 +396,11 @@ function legacyAdapter(draftId: string): BriefFormStorageAdapter {
 // ============================================================================
 
 function BriefFormInner(props: Props) {
-  const { onSubmit, storageAdapter } = props;
+  const { onSubmit, storageAdapter, onUserInteraction } = props;
+
+  const touchUserInteraction = useCallback(() => {
+    onUserInteraction?.();
+  }, [onUserInteraction]);
   const [searchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
   const { draftId, lang } = useParams<{ draftId: string; lang: string }>();
@@ -548,6 +557,7 @@ function BriefFormInner(props: Props) {
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function saveAndAdvance(nextStep: number) {
+    touchUserInteraction();
     setDraft((d) => {
       const next = normalizeBriefDefaults({ ...d, savedAt: Date.now() }, briefLocaleOpts);
       adapter.save(next);
@@ -566,6 +576,7 @@ function BriefFormInner(props: Props) {
   // ── Section-level onChange mergers ────────────────────────────────────────
 
   function updateSection1(updates: Partial<AgeAndScope>) {
+    touchUserInteraction();
     setDraft((d) =>
       normalizeBriefDefaults(
         {
@@ -578,18 +589,22 @@ function BriefFormInner(props: Props) {
   }
 
   function updateSection2(updates: Partial<ClinicalFoundation>) {
+    touchUserInteraction();
     setDraft((d) => ({ ...d, section2: { ...d.section2, ...updates } }));
   }
 
   function updateSection3(updates: Partial<TherapeuticArchitecture>) {
+    touchUserInteraction();
     setDraft((d) => ({ ...d, section3: { ...d.section3, ...updates } }));
   }
 
   function updateSection4(updates: Partial<StoryWorld>) {
+    touchUserInteraction();
     setDraft((d) => ({ ...d, section4: { ...d.section4, ...updates } }));
   }
 
   function updateSection5(updates: Partial<PersonalizationConfig>) {
+    touchUserInteraction();
     setDraft((d) => ({ ...d, section5: { ...d.section5, ...updates } }));
   }
 
@@ -638,6 +653,7 @@ function BriefFormInner(props: Props) {
   }
 
   function continueFromStoryWorld() {
+    touchUserInteraction();
     const next = normalizeBriefDefaults({ ...draft, savedAt: Date.now() }, briefLocaleOpts);
     setDraft(next);
     adapter.save(next);
@@ -785,7 +801,10 @@ function BriefFormInner(props: Props) {
       >
         <StoryTypeSelector
           selected={draft.storyType}
-          onSelect={(type: StoryType) => setDraft((d) => ({ ...d, storyType: type }))}
+          onSelect={(type: StoryType) => {
+            touchUserInteraction();
+            setDraft((d) => ({ ...d, storyType: type }));
+          }}
           onBegin={() => {
             if (draft.storyType) saveAndAdvance(1);
           }}

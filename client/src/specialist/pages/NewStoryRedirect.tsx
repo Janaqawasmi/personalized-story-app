@@ -1,12 +1,15 @@
 // client/src/specialist/pages/NewStoryRedirect.tsx
 //
-// Redirect-only component — no visible page content in the success path.
+// Redirect-only component — shows a short "Creating story…" bridge, then navigates to the new story's Brief tab.
 // On mount: creates a new Story via draftStore, then navigates to its brief tab.
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import { draftStore } from '../storage';
 import { COLORS } from '../../theme';
+
+/** Minimum time to show the loading UI so the redirect never feels like an instant, disorienting context switch. */
+const CREATE_STORY_MIN_UI_MS = 300;
 
 export default function NewStoryRedirect() {
   const navigate = useNavigate();
@@ -15,8 +18,16 @@ export default function NewStoryRedirect() {
 
   function createAndRedirect() {
     setError(null);
+    const startedAt = Date.now();
     draftStore
       .createStory()
+      .then((story) => {
+        const elapsed = Date.now() - startedAt;
+        const remaining = Math.max(0, CREATE_STORY_MIN_UI_MS - elapsed);
+        return new Promise<typeof story>((resolve) => {
+          setTimeout(() => resolve(story), remaining);
+        });
+      })
       .then((story) => {
         navigate(`/${lang ?? 'he'}/specialist/stories/${story.id}/brief`, {
           replace: true,
@@ -69,11 +80,16 @@ export default function NewStoryRedirect() {
   return (
     <Box
       display="flex"
+      flexDirection="column"
       alignItems="center"
       justifyContent="center"
+      gap={2}
       minHeight="40vh"
     >
       <CircularProgress />
+      <Typography variant="body2" color="text.secondary" fontWeight={600}>
+        Creating story…
+      </Typography>
     </Box>
   );
 }
