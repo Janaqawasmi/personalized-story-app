@@ -1,14 +1,8 @@
 import { Outlet } from "react-router-dom";
-import SpecialistNavBar from "./SpecialistNavBar";
 
 /**
- * Wraps all authenticated specialist routes with a shared sub-navigation bar.
+ * Wraps authenticated specialist routes (outlet only; secondary nav removed).
  */
 export default function SpecialistLayout() {
-  return (
-    <>
-      <SpecialistNavBar />
-      <Outlet />
-    </>
-  );
+  return <Outlet />;
 }

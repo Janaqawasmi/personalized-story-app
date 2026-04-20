@@ -448,8 +448,8 @@ function BriefFormInner(props: Props) {
 
   const theme = useTheme();
   const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
-  /** Fixed AppBar (Navbar.tsx height) + sticky SpecialistNavBar + small gap — keeps type/saved + progress bar clear of both. */
-  const briefScrollTopOffsetPx = isMdDown ? 188 : 172;
+  /** Fixed AppBar (Navbar.tsx height) + small gap — keeps section scroll targets clear of the main header. */
+  const briefScrollTopOffsetPx = isMdDown ? 124 : 108;
 
   const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 

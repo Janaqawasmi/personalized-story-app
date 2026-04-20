@@ -21,12 +21,6 @@ export const Z_INDEX_SEARCH_OVERLAY_BACKDROP = 1200;
 export const Z_INDEX_SEARCH_OVERLAY_PANEL = 1201;
 
 /**
- * Specialist secondary nav (sticky, below the main navbar).
- * Kept at the historical value to avoid visual changes.
- */
-export const Z_INDEX_SPECIALIST_NAVBAR = 1100;
-
-/**
  * Complexity meter (fixed bottom). Kept at the historical effective value
  * (previously `theme.zIndex.appBar` = 1100) to avoid any visual changes.
  * Must remain below snackbars/toasts.
