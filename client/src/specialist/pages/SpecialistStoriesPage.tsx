@@ -62,7 +62,12 @@ function applyFilters(
 
   // Search filter (title, tags, population, trigger — see storySearchMatch)
   if (searchQuery.trim()) {
-    result = result.filter((s) => storyMatchesSearchQuery(s, searchQuery));
+    const q = searchQuery.trim().toLowerCase();
+    result = result.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        storyMatchesSearchQuery(s, searchQuery)
+    );
   }
 
   // Sort
@@ -136,10 +141,6 @@ export default function SpecialistStoriesPage() {
   }
 
   // ---- action handlers ----
-  function handleOpen(storyId: string) {
-    navigate(`${base}/stories/${storyId}`);
-  }
-
   async function handleArchive(storyId: string) {
     try {
       await draftStore.transitionStatus(storyId, "archived");
@@ -163,6 +164,10 @@ export default function SpecialistStoriesPage() {
 
   // ---- header ----
   const countSummary = useMemo(() => buildCountSummary(allStories), [allStories]);
+  const awaitingReviewCount = useMemo(
+    () => allStories.filter((s) => s.status === "awaiting_review").length,
+    [allStories]
+  );
 
   // ---- render ----
   return (
@@ -257,6 +262,24 @@ export default function SpecialistStoriesPage() {
         </Alert>
       )}
 
+      {/* Awaiting review attention */}
+      {!error && awaitingReviewCount > 0 && (
+        <Alert
+          severity="info"
+          onClick={() => setActiveStatuses(["awaiting_review"])}
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            cursor: "pointer",
+            "& .MuiAlert-message": { width: "100%" },
+          }}
+        >
+          {awaitingReviewCount === 1
+            ? "1 story is awaiting your review — click to filter."
+            : `${awaitingReviewCount} stories are awaiting your review — click to filter.`}
+        </Alert>
+      )}
+
       {/* Filter bar */}
       {!error && (
         <Box sx={{ mb: 2.5 }}>
@@ -279,7 +302,6 @@ export default function SpecialistStoriesPage() {
           stories={filteredStories}
           loading={loading}
           hasAnyStories={allStories.length > 0}
-          onOpen={handleOpen}
           onArchive={handleArchive}
           onRestore={handleRestore}
           onClearFilters={handleClearFilters}

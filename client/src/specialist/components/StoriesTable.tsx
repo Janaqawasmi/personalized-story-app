@@ -107,7 +107,7 @@ function EmptyFiltered({ onClearFilters }: EmptyFilteredProps) {
             "&:hover": { bgcolor: "transparent", opacity: 0.75 },
           }}
         >
-          Clear filters
+          Clear all filters
         </Button>
       )}
     </Box>
@@ -123,7 +123,6 @@ export interface StoriesTableProps {
   loading: boolean;
   /** True when there are stories in the store (before filters are applied). */
   hasAnyStories: boolean;
-  onOpen: (storyId: string) => void;
   onArchive: (storyId: string) => void;
   onRestore: (storyId: string) => void;
   onClearFilters?: () => void;
@@ -135,10 +134,9 @@ export interface StoriesTableProps {
 
 const COLUMN_HEADERS = [
   { label: "Title", width: "auto" },
-  { label: "Type", width: 160 },
-  { label: "Age", width: 90 },
+  { label: "Type / age", width: 220 },
   { label: "Status", width: 150 },
-  { label: "Last activity", width: 220 },
+  { label: "Last event", width: 220 },
   { label: "", width: 56 },
 ];
 
@@ -146,7 +144,6 @@ export default function StoriesTable({
   stories,
   loading,
   hasAnyStories,
-  onOpen,
   onArchive,
   onRestore,
   onClearFilters,
@@ -204,7 +201,6 @@ export default function StoriesTable({
             <StoryRow
               key={story.id}
               story={story}
-              onOpen={onOpen}
               onArchive={onArchive}
               onRestore={onRestore}
             />

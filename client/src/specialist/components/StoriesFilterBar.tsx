@@ -248,14 +248,36 @@ export default function StoriesFilterBar({
         {CHIP_CONFIGS.map((cfg) => {
           const active = isChipActive(cfg.status);
           const count = chipCount(cfg.status);
-          const awaitingQueueHighlight =
+          /** Filled blue when there is a queue and this chip is not the active filter. */
+          const awaitingReviewBlueHighlight =
             cfg.status === "awaiting_review" && count > 0 && !active;
-          const useFilledAppearance = active || awaitingQueueHighlight;
+          const useFilledAppearance = active || awaitingReviewBlueHighlight;
           const dimmed = count === 0 && cfg.status !== null;
           const col = cfg.color;
           const label = showCountBadge(cfg.status)
             ? `${cfg.label} (${count})`
             : cfg.label;
+
+          const filledSx = awaitingReviewBlueHighlight
+            ? {
+                bgcolor: "#1976d2",
+                color: "#fff",
+                border: "none",
+                "&:hover": {
+                  bgcolor: "#1565c0",
+                },
+                "& .MuiChip-label": { color: "#fff" },
+              }
+            : {
+                bgcolor: col.filledBg.trim(),
+                color: col.filledText.trim(),
+                border: "none",
+                "&:hover": {
+                  bgcolor: col.filledBg.trim(),
+                  opacity: 0.88,
+                },
+                "& .MuiChip-label": { color: col.filledText.trim() },
+              };
 
           return (
             <Chip
@@ -273,16 +295,7 @@ export default function StoriesFilterBar({
                 borderRadius: "16px",
                 transition: "all 0.15s ease",
                 ...(useFilledAppearance
-                  ? {
-                      bgcolor: col.filledBg,
-                      color: col.filledText,
-                      border: "none",
-                      "&:hover": {
-                        bgcolor: col.filledBg,
-                        opacity: 0.88,
-                      },
-                      "& .MuiChip-label": { color: col.filledText },
-                    }
+                  ? filledSx
                   : {
                       bgcolor: "transparent",
                       borderColor: col.outlinedBorder,
@@ -311,7 +324,7 @@ export default function StoriesFilterBar({
         {/* Search box */}
         <TextField
           size="small"
-          placeholder="Search by title, population, or trigger…"
+          placeholder="Search by title, population, or trigger..."
           value={localSearch}
           onChange={handleSearchInput}
           sx={{

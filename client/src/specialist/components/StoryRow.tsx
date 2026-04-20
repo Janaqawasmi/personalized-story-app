@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -9,12 +10,11 @@ import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
 import type { AgeRange, StoryType } from "../../types/storyBrief";
-import type { Story, StoryStatus } from "../../types/story";
+import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
-import { formatLastActivitySummary } from "../utils/lastActivitySummary";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
 // ---------------------------------------------------------------------------
@@ -48,7 +48,66 @@ const STATUS_LABELS: Record<StoryStatus, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Relative time helper
+// Last edit column (editHistory + compact time)
+// ---------------------------------------------------------------------------
+
+function editEventVerb(event: EditHistoryEvent): string {
+  switch (event.kind) {
+    case "draft_created":
+      return "Created";
+    case "draft_edited":
+      return "Edited";
+    case "status_changed":
+      return "Updated";
+    case "brief_submitted":
+      return "Submitted";
+    case "agent1_generated":
+      return event.succeeded ? "Generated" : "Generation failed";
+    case "regeneration_requested":
+      return "Regeneration requested";
+    case "archived":
+      return "Archived";
+    case "restored":
+      return "Restored";
+    default:
+      return "Updated";
+  }
+}
+
+/** Relative for events within the last 7 days ("2h ago", "1d ago"); month + day (and year if needed) for older. */
+function formatListEventTime(at: number): string {
+  const now = Date.now();
+  const diffMs = Math.max(0, now - at);
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (diffMs >= 7 * dayMs) {
+    const d = new Date(at);
+    const yNow = new Date(now).getFullYear();
+    const month = d.toLocaleString("en-US", { month: "short" });
+    const day = d.getDate();
+    if (d.getFullYear() !== yNow) return `${month} ${day}, ${d.getFullYear()}`;
+    return `${month} ${day}`;
+  }
+  const diffMin = Math.floor(diffMs / (60 * 1000));
+  const diffHr = Math.floor(diffMs / (60 * 60 * 1000));
+  const diffDay = Math.floor(diffMs / dayMs);
+  if (diffDay >= 1) return `${diffDay}d ago`;
+  if (diffHr >= 1) return `${diffHr}h ago`;
+  if (diffMin >= 1) return `${diffMin}m ago`;
+  return "Just now";
+}
+
+function formatLastEditSummary(story: Story): string {
+  const hist = story.editHistory;
+  const last =
+    hist && hist.length > 0 ? hist[hist.length - 1] : undefined;
+  if (!last) {
+    return `Created · ${formatListEventTime(story.createdAt)}`;
+  }
+  return `${editEventVerb(last.event)} · ${formatListEventTime(last.at)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Relative time helper (shared with BriefTab / DraftTab)
 // ---------------------------------------------------------------------------
 
 export function formatRelativeTime(ms: number): string {
@@ -82,7 +141,6 @@ export function formatRelativeTime(ms: number): string {
 
 export interface StoryRowProps {
   story: Story;
-  onOpen: (storyId: string) => void;
   onArchive: (storyId: string) => void;
   onRestore: (storyId: string) => void;
 }
@@ -93,11 +151,11 @@ export interface StoryRowProps {
 
 export default function StoryRow({
   story,
-  onOpen,
   onArchive,
   onRestore,
 }: StoryRowProps) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
   const storyPath = `/${lang ?? "he"}/specialist/stories/${story.id}`;
 
@@ -108,7 +166,7 @@ export default function StoryRow({
   const col = STATUS_CHIP_COLORS[story.status];
 
   function handleRowClick() {
-    onOpen(story.id);
+    navigate(storyPath);
   }
 
   function handleMenuOpen(e: React.MouseEvent<HTMLButtonElement>) {
@@ -178,46 +236,48 @@ export default function StoryRow({
         </Link>
       </TableCell>
 
-      {/* ---- Story type ---- */}
+      {/* ---- Type / age ---- */}
       <TableCell sx={{ py: 1.5 }}>
-        {story.storyType ? (
-          <Chip
-            label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
-            size="small"
-            variant="outlined"
-            sx={{
-              fontSize: "0.72rem",
-              borderColor: COLORS.border,
-              color: COLORS.textSecondary,
-              height: 22,
-            }}
-          />
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            —
-          </Typography>
-        )}
-      </TableCell>
-
-      {/* ---- Age ---- */}
-      <TableCell sx={{ py: 1.5 }}>
-        {story.ageRange ? (
-          <Chip
-            label={AGE_RANGE_LABELS[story.ageRange]}
-            size="small"
-            variant="outlined"
-            sx={{
-              fontSize: "0.72rem",
-              borderColor: COLORS.border,
-              color: COLORS.textSecondary,
-              height: 22,
-            }}
-          />
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            —
-          </Typography>
-        )}
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 0.75,
+          }}
+        >
+          {story.storyType ? (
+            <Chip
+              label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: "0.72rem",
+                borderColor: COLORS.border,
+                color: COLORS.textSecondary,
+                height: 22,
+              }}
+            />
+          ) : null}
+          {story.ageRange ? (
+            <Chip
+              label={AGE_RANGE_LABELS[story.ageRange]}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: "0.72rem",
+                borderColor: COLORS.border,
+                color: COLORS.textSecondary,
+                height: 22,
+              }}
+            />
+          ) : null}
+          {!story.storyType && !story.ageRange && (
+            <Typography variant="body2" color="text.secondary">
+              —
+            </Typography>
+          )}
+        </Box>
       </TableCell>
 
       {/* ---- Status ---- */}
@@ -252,7 +312,7 @@ export default function StoryRow({
         />
       </TableCell>
 
-      {/* ---- Last activity ---- */}
+      {/* ---- Last event (from edit history) ---- */}
       <TableCell sx={{ py: 1.5, maxWidth: 240 }}>
         <Typography
           variant="body2"
@@ -260,7 +320,7 @@ export default function StoryRow({
           fontSize="0.8rem"
           sx={{ lineHeight: 1.35 }}
         >
-          {formatLastActivitySummary(story)}
+          {formatLastEditSummary(story)}
         </Typography>
       </TableCell>
 
