@@ -145,7 +145,7 @@ export async function updateStory(
     const headers = await getAuthHeaders();
     const res = await fetch(
       `${BASE}/${encodeURIComponent(storyId)}`,
-      { method: "PATCH", headers, body: JSON.stringify(patch) },
+      { method: "PATCH", headers, body: JSON.stringify({ patch }) },
     );
     return normalizeStoryFromApi(await handleResponse<Story>(res, "story"));
   } catch (err) {

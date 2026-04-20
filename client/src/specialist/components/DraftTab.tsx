@@ -34,6 +34,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { alpha } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
@@ -646,10 +647,25 @@ function InferredIntentionCard({
 }
 
 // ---------------------------------------------------------------------------
-// Post-Validation Flags Card (dismissedFlags lifted to DraftTab)
+// Safety Review (post-validation findings — cannot be collapsed; always first in evidence)
 // ---------------------------------------------------------------------------
 
-function PostValidationFlagsCard({
+function NoSafetyConcernsLine() {
+  return (
+    <Typography
+      variant="body2"
+      sx={{
+        mb: 2,
+        color: COLORS.success,
+        fontWeight: 600,
+      }}
+    >
+      ✓ No safety concerns detected
+    </Typography>
+  );
+}
+
+function SafetyReviewCard({
   result,
   dismissedFlags,
   onToggleFlag,
@@ -665,17 +681,31 @@ function PostValidationFlagsCard({
 
   return (
     <Card
-      variant="outlined"
+      elevation={0}
       sx={{
         mb: 2,
-        border: `2px solid ${COLORS.error}`,
-        boxShadow: `0 0 0 1px ${COLORS.error}22`,
+        border: `1px solid ${alpha(COLORS.error, 0.35)}`,
+        borderLeft: `4px solid ${COLORS.error}`,
+        bgcolor: alpha(COLORS.error, 0.09),
+        boxShadow: "none",
       }}
     >
-      <CardContent>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-          Post-validation safety flags ({flags.length})
-        </Typography>
+      <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+        <Stack direction="row" alignItems="flex-start" spacing={1.25} sx={{ mb: 2 }}>
+          <WarningAmberIcon
+            sx={{
+              fontSize: 32,
+              color: COLORS.error,
+              flexShrink: 0,
+              mt: -0.25,
+            }}
+          />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" fontWeight={700} color="error.dark" sx={{ lineHeight: 1.3 }}>
+              Safety Review Required
+            </Typography>
+          </Box>
+        </Stack>
 
         <Stack spacing={1.5}>
           {flags.map((flag, index) => {
@@ -684,15 +714,16 @@ function PostValidationFlagsCard({
               <Box
                 key={index}
                 sx={{
-                  opacity: isDismissed ? 0.5 : 1,
+                  opacity: isDismissed ? 0.55 : 1,
                   p: 1.5,
                   borderRadius: 1,
-                  bgcolor: isDismissed ? "action.disabledBackground" : "grey.50",
+                  border: `1px solid ${alpha(COLORS.error, 0.2)}`,
+                  bgcolor: isDismissed ? "action.disabledBackground" : alpha("#ffffff", 0.82),
                 }}
               >
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
                   <Box sx={{ flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }} flexWrap="wrap">
                       <Typography variant="body2" fontWeight={600}>
                         {CHECK_TYPE_LABELS[flag.checkType]}
                       </Typography>
@@ -905,28 +936,26 @@ function EvidencePanel({
         maxHeight: { xs: "none", md: "min(82vh, 900px)" },
       }}
     >
-      <Typography
-        variant="overline"
-        color="text.secondary"
-        sx={{ mb: 1, display: "block", letterSpacing: 0.08 }}
-      >
-        Evidence
-      </Typography>
-
       <Box sx={{ flex: 1, overflow: "auto", minHeight: 0, pr: 0.5 }}>
-        {/* —— Section 1: Safety —— */}
-        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 1, display: "block" }}>
-          Safety
-        </Typography>
-
-        {flags.length > 0 && (
-          <PostValidationFlagsCard
+        {/* Safety review: always first — prominent card if findings, else explicit all-clear */}
+        {flags.length > 0 ? (
+          <SafetyReviewCard
             result={displayedResult}
             dismissedFlags={dismissedFlags}
             onToggleFlag={onToggleFlag}
             hideButtons={hideButtons}
           />
+        ) : (
+          <NoSafetyConcernsLine />
         )}
+
+        <Typography
+          variant="overline"
+          color="text.secondary"
+          sx={{ mb: 1, display: "block", letterSpacing: 0.08 }}
+        >
+          Evidence
+        </Typography>
 
         <MustNeverChecklist story={story} flags={flags} />
 
@@ -1507,7 +1536,7 @@ export default function DraftTab({
                         hasUnsavedChanges
                           ? "Save your edits first"
                           : hasUndismissedFlags
-                            ? "Review all safety flags before approving"
+                            ? "Finish Safety Review for each finding before approving"
                             : ""
                       }
                     >
