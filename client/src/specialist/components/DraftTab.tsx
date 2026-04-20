@@ -57,6 +57,8 @@ export interface DraftTabProps {
   story: Story;
   onStoryUpdate: (story: Story) => void;
   onNavigateToTab?: (tab: "brief" | "history") => void;
+  /** Lets the workspace intercept tab/back navigation when the draft has unsaved edits. */
+  onUnsavedDraftChange?: (hasUnsaved: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -1102,6 +1104,7 @@ export default function DraftTab({
   story,
   onStoryUpdate,
   onNavigateToTab,
+  onUnsavedDraftChange,
 }: DraftTabProps) {
   const versions = story.agent1Versions;
 
@@ -1123,6 +1126,7 @@ export default function DraftTab({
     story.currentDraft?.body ?? story.agent1Result?.story ?? "",
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [pendingVersionIndex, setPendingVersionIndex] = useState<number | null>(null);
 
@@ -1148,6 +1152,7 @@ export default function DraftTab({
       wordCount: currentWordCount,
       updatedAt: Date.now(),
     };
+    setIsSaving(true);
     try {
       const updatedStory = await draftStore.updateStory(story.id, {
         currentDraft: draft,
@@ -1156,20 +1161,39 @@ export default function DraftTab({
       onStoryUpdate(updatedStory);
     } catch (err) {
       setSnackbar(err instanceof Error ? err.message : "Failed to save.");
+    } finally {
+      setIsSaving(false);
     }
   }, [story.id, editorTitle, editorBody, currentWordCount, onStoryUpdate]);
+
+  useEffect(() => {
+    onUnsavedDraftChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedDraftChange]);
+
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Cmd/Ctrl+S shortcut
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        handleSave();
+        if (!isSaving) {
+          void handleSave();
+        }
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
+  }, [handleSave, isSaving]);
 
   // Reset editor content when version is switched
   // TODO D2.5e-2: warn if unsaved edits — implemented via pendingVersionIndex dialog
@@ -1214,12 +1238,6 @@ export default function DraftTab({
   const [targetMin, targetMax] = displayedResult.targetWordRange;
   const wordCountOutOfRange =
     currentWordCount < targetMin || currentWordCount > targetMax;
-
-  const saveIndicator = hasUnsavedChanges
-    ? "Unsaved changes"
-    : story.currentDraft
-      ? `Last saved ${formatRelativeTime(story.currentDraft.updatedAt)}`
-      : "No saved edits yet";
 
   const flags = displayedResult.postValidationFlags ?? [];
   const hasUndismissedFlags = flags.some((_, i) => !dismissedFlags.has(i));
@@ -1384,38 +1402,21 @@ export default function DraftTab({
             />
           )}
 
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ mb: 1 }}
-          >
-            <TextField
-              variant="outlined"
-              size="small"
-              fullWidth
-              label="Title"
-              value={editorTitle}
-              onChange={(e) => {
-                if (!isReadOnly) {
-                  setEditorTitle(e.target.value);
-                  setHasUnsavedChanges(true);
-                }
-              }}
-              InputProps={{ readOnly: isReadOnly }}
-              sx={{ mr: 2, ...readOnlyInputSx }}
-            />
-            <Typography
-              variant="caption"
-              sx={{
-                whiteSpace: "nowrap",
-                color: hasUnsavedChanges ? COLORS.warning : "text.secondary",
-                fontWeight: hasUnsavedChanges ? 600 : 400,
-              }}
-            >
-              {saveIndicator}
-            </Typography>
-          </Stack>
+          <TextField
+            variant="outlined"
+            size="small"
+            fullWidth
+            label="Title"
+            value={editorTitle}
+            onChange={(e) => {
+              if (!isReadOnly) {
+                setEditorTitle(e.target.value);
+                setHasUnsavedChanges(true);
+              }
+            }}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{ mb: 1, ...readOnlyInputSx }}
+          />
 
           <Stack direction="row" justifyContent="flex-end" sx={{ mb: 0.5 }}>
             <Typography
@@ -1503,14 +1504,69 @@ export default function DraftTab({
                     spacing={1.5}
                     alignItems="center"
                     flexWrap="wrap"
-                    sx={{ mb: 1 }}
+                    sx={{ mb: 1, gap: 1.5 }}
                   >
+                    <Box sx={{ minWidth: 168, flexShrink: 0 }}>
+                      {isSaving ? (
+                        <Stack direction="row" alignItems="center" spacing={0.75}>
+                          <CircularProgress size={14} thickness={5} />
+                          <Typography variant="body2" color="text.secondary">
+                            Saving...
+                          </Typography>
+                        </Stack>
+                      ) : hasUnsavedChanges ? (
+                        <Typography
+                          variant="body2"
+                          sx={{ color: COLORS.warning, fontWeight: 600 }}
+                        >
+                          Unsaved changes
+                        </Typography>
+                      ) : (
+                        <Stack direction="row" alignItems="center" spacing={0.5}>
+                          <CheckCircleIcon
+                            sx={{ fontSize: 18, color: "text.secondary" }}
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            All changes saved
+                          </Typography>
+                        </Stack>
+                      )}
+                    </Box>
+
                     <Button
-                      variant="contained"
-                      disabled={!hasUnsavedChanges}
-                      onClick={handleSave}
+                      variant={hasUnsavedChanges ? "contained" : "outlined"}
+                      color="primary"
+                      disabled={!hasUnsavedChanges || isSaving}
+                      onClick={() => void handleSave()}
+                      sx={
+                        hasUnsavedChanges && !isSaving
+                          ? {
+                              animation: "draftSavePulse 2s ease-in-out infinite",
+                              "@keyframes draftSavePulse": {
+                                "0%, 100%": {
+                                  boxShadow: `0 0 0 0 ${alpha(COLORS.primary, 0.42)}`,
+                                },
+                                "50%": {
+                                  boxShadow: `0 0 0 8px ${alpha(COLORS.primary, 0)}`,
+                                },
+                              },
+                            }
+                          : undefined
+                      }
                     >
-                      Save edits
+                      {isSaving ? (
+                        <>
+                          <CircularProgress
+                            size={16}
+                            thickness={5}
+                            color="inherit"
+                            sx={{ mr: 1 }}
+                          />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save edits"
+                      )}
                     </Button>
 
                     <Tooltip

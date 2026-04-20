@@ -8,6 +8,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -39,6 +43,11 @@ const DEFAULT_TAB: Record<StoryStatus, WorkspaceTabValue> = {
 function isValidTab(tab: string | undefined): tab is WorkspaceTabValue {
   return tab === "brief" || tab === "draft" || tab === "history";
 }
+
+type PendingLeaveNavigation =
+  | null
+  | { kind: "tab"; tab: WorkspaceTabValue }
+  | { kind: "stories" };
 
 // ---------------------------------------------------------------------------
 // Loading skeleton
@@ -146,8 +155,18 @@ export default function StoryWorkspacePage() {
   const [error, setError] = useState<string | null>(null);
   const [slowLoading, setSlowLoading] = useState(false);
 
+  const [draftHasUnsaved, setDraftHasUnsaved] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<PendingLeaveNavigation>(null);
+
   // ---- Active tab (for rendering; URL is the source of truth) ----
   const activeTab: WorkspaceTabValue = isValidTab(tab) ? tab : "brief";
+
+  useEffect(() => {
+    if (activeTab !== "draft") {
+      setDraftHasUnsaved(false);
+    }
+  }, [activeTab]);
 
   // ---- Fetch ----
   const fetchStory = useCallback(async () => {
@@ -207,9 +226,44 @@ export default function StoryWorkspacePage() {
     });
   }, [story, tab, base, resolvedStoryId, navigate]);
 
-  // ---- Tab switching ----
-  function handleTabChange(newTab: WorkspaceTabValue) {
+  // ---- Tab switching (guards Draft tab when there are unsaved edits) ----
+  function navigateToTab(newTab: WorkspaceTabValue) {
     navigate(`${base}/stories/${resolvedStoryId}/${newTab}`, { replace: true });
+  }
+
+  function handleTabChange(newTab: WorkspaceTabValue) {
+    if (activeTab === "draft" && draftHasUnsaved && newTab !== activeTab) {
+      setPendingLeave({ kind: "tab", tab: newTab });
+      setLeaveDialogOpen(true);
+      return;
+    }
+    navigateToTab(newTab);
+  }
+
+  function handleStoriesClick() {
+    if (activeTab === "draft" && draftHasUnsaved) {
+      setPendingLeave({ kind: "stories" });
+      setLeaveDialogOpen(true);
+      return;
+    }
+    navigate(`${base}/stories`);
+  }
+
+  function handleLeaveConfirm() {
+    if (!pendingLeave) return;
+    if (pendingLeave.kind === "stories") {
+      navigate(`${base}/stories`);
+    } else {
+      navigateToTab(pendingLeave.tab);
+    }
+    setDraftHasUnsaved(false);
+    setPendingLeave(null);
+    setLeaveDialogOpen(false);
+  }
+
+  function handleLeaveCancel() {
+    setPendingLeave(null);
+    setLeaveDialogOpen(false);
   }
 
   // ---- Action handlers ----
@@ -291,6 +345,7 @@ export default function StoryWorkspacePage() {
             onArchive={handleArchive}
             onRestore={handleRestore}
             onNewRevision={handleNewRevision}
+            onStoriesClick={handleStoriesClick}
           />
 
           <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pt: 0 }}>
@@ -317,6 +372,7 @@ export default function StoryWorkspacePage() {
                   story={story}
                   onStoryUpdate={setStory}
                   onNavigateToTab={handleTabChange}
+                  onUnsavedDraftChange={setDraftHasUnsaved}
                 />
               )}
               {activeTab === "history" && <HistoryTab story={story} />}
@@ -324,6 +380,28 @@ export default function StoryWorkspacePage() {
           </Box>
         </>
       )}
+
+      <Dialog
+        open={leaveDialogOpen}
+        onClose={handleLeaveCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Unsaved changes</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            You have unsaved changes to this story. Leave without saving?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={handleLeaveConfirm}>
+            Leave
+          </Button>
+          <Button variant="contained" onClick={handleLeaveCancel}>
+            Stay
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
