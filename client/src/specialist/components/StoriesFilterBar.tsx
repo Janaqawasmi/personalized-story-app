@@ -11,6 +11,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 
 import { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
+import { STATUS_CHIP_COLORS } from "./statusColors";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,66 +80,6 @@ interface ChipConfig {
     outlinedText: string;
   };
 }
-
-const STATUS_CHIP_COLORS: Record<
-  StoryStatus | "all",
-  ChipConfig["color"]
-> = {
-  all: {
-    filledBg: COLORS.primary,
-    filledText: "#fff",
-    outlinedBorder: COLORS.border,
-    outlinedText: COLORS.textSecondary,
-  },
-  draft_brief: {
-    filledBg: "#9E9E9E",
-    filledText: "#fff",
-    outlinedBorder: "#BDBDBD",
-    outlinedText: "#757575",
-  },
-  generating: {
-    filledBg: "#42A5F5",
-    filledText: "#fff",
-    outlinedBorder: "#90CAF9",
-    outlinedText: "#1565C0",
-  },
-  awaiting_review: {
-    filledBg: "#ED9B40",
-    filledText: "#fff",
-    outlinedBorder: "#FFCC80",
-    outlinedText: "#E65100",
-  },
-  in_review: {
-    filledBg: "#5C8FC4",
-    filledText: "#fff",
-    outlinedBorder: "#90CAF9",
-    outlinedText: "#1565C0",
-  },
-  approved: {
-    filledBg: "#66BB6A",
-    filledText: "#fff",
-    outlinedBorder: "#A5D6A7",
-    outlinedText: "#2E7D32",
-  },
-  archived: {
-    filledBg: "#BDBDBD",
-    filledText: "#fff",
-    outlinedBorder: "#E0E0E0",
-    outlinedText: "#9E9E9E",
-  },
-  needs_revision: {
-    filledBg: "#EF9A9A",
-    filledText: "#fff",
-    outlinedBorder: "#FFCDD2",
-    outlinedText: "#C62828",
-  },
-  published: {
-    filledBg: "#26A69A",
-    filledText: "#fff",
-    outlinedBorder: "#80CBC4",
-    outlinedText: "#00695C",
-  },
-};
 
 const CHIP_CONFIGS: ChipConfig[] = [
   { label: "All", status: null, color: STATUS_CHIP_COLORS.all },
