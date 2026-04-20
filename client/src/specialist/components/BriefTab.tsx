@@ -1,0 +1,316 @@
+// client/src/specialist/components/BriefTab.tsx
+//
+// Renders the Brief tab inside StoryWorkspacePage.
+// Three modes driven by story.status / story.briefStatus:
+//   Case 1: status === 'generating'   → read-only + polling banner
+//   Case 2: briefStatus === 'submitted' (not generating) → read-only + locked banner
+//   Case 3: briefStatus === 'draft'   → editable BriefForm
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import Alert from "@mui/material/Alert";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Link from "@mui/material/Link";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+
+import type { Story } from "../../types/story";
+import type { CompleteBrief } from "../../types/storyBrief";
+import BriefForm, { type BriefFormStorageAdapter } from "../../components/brief/BriefForm";
+import SubmittedBriefReadView from "../../components/specialist/SubmittedBriefReadView";
+import { draftStore } from "../storage";
+import { useSpecialistUi } from "../../i18n/specialistUi";
+import { formatRelativeTime } from "./StoryRow";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const POLL_INTERVAL_MS = 5000;
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
+export interface BriefTabProps {
+  story: Story;
+  onStoryUpdate: (story: Story) => void;
+  onNavigateToTab: (tab: "draft") => void;
+}
+
+// ---------------------------------------------------------------------------
+// BriefTab
+// ---------------------------------------------------------------------------
+
+export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: BriefTabProps) {
+  const sp = useSpecialistUi();
+  const navigate = useNavigate();
+  const { lang } = useParams<{ lang?: string }>();
+  const base = `/${lang ?? "he"}/specialist`;
+
+  // ---- "View as JSON" dialog ----
+  const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
+  const [copyHint, setCopyHint] = useState<string | null>(null);
+
+  // ---- generation failure: switch to editable ----
+  const [generationFailed, setGenerationFailed] = useState(false);
+
+  // ---- polling ----
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (story.status !== "generating" || generationFailed) {
+      stopPolling();
+      return;
+    }
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const updated = await draftStore.getStory(story.id);
+        if (!updated) return;
+        if (updated.status !== "generating") {
+          stopPolling();
+          onStoryUpdate(updated);
+          if (updated.status === "awaiting_review") {
+            onNavigateToTab("draft");
+          } else if (updated.status === "draft_brief") {
+            setGenerationFailed(true);
+          }
+        }
+      } catch {
+        // Transient fetch errors are silently ignored; polling continues.
+      }
+    }, POLL_INTERVAL_MS);
+
+    return stopPolling;
+  }, [story.id, story.status, generationFailed, onStoryUpdate, onNavigateToTab, stopPolling]);
+
+  // ---- storage adapter (editable mode) ----
+  const storageAdapter = useMemo<BriefFormStorageAdapter>(
+    () => ({
+      load: () => story.brief,
+      save: (brief: CompleteBrief) => {
+        draftStore
+          .updateBrief(story.id, brief)
+          .then((updated) => onStoryUpdate(updated))
+          .catch((err) => console.error("Brief save failed:", err));
+      },
+      onSubmitted: () => {
+        // No-op: draftStore.submitBrief (called via onSubmit) already handles cleanup.
+      },
+    }),
+    // Intentionally depends only on story.id so the adapter identity is stable
+    // while the user edits. Parent updates story ref via onStoryUpdate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [story.id],
+  );
+
+  const handleSubmit = useCallback(
+    async (_brief: CompleteBrief): Promise<{ briefId: string }> => {
+      const updated = await draftStore.submitBrief(story.id);
+      onStoryUpdate(updated);
+      return { briefId: story.id };
+    },
+    [story.id, onStoryUpdate],
+  );
+
+  // ---- "Open new revision" ----
+  const handleNewRevision = useCallback(async () => {
+    try {
+      const newStory = await draftStore.createStory({
+        title: `${story.title} (revision)`,
+      });
+      await draftStore.updateBrief(newStory.id, story.brief);
+      await draftStore.updateStory(newStory.id, { parentStoryId: story.id });
+      navigate(`${base}/stories/${newStory.id}/brief`);
+    } catch (err) {
+      console.error("Failed to create revision:", err);
+    }
+  }, [story, base, navigate]);
+
+  // ---- "Copy JSON" ----
+  const handleCopyJson = useCallback(async () => {
+    const text = JSON.stringify(story.brief, null, 2);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyHint("Copied!");
+      setTimeout(() => setCopyHint(null), 2400);
+    } catch {
+      setCopyHint("Could not copy — select the text below.");
+      setTimeout(() => setCopyHint(null), 3200);
+    }
+  }, [story.brief]);
+
+  // ── Case 1: generating ────────────────────────────────────────────────────
+
+  if (story.status === "generating" && !generationFailed) {
+    return (
+      <Box sx={{ mt: 2 }}>
+        <Alert
+          severity="info"
+          icon={<CircularProgress size={18} color="inherit" />}
+          sx={{ mb: 2, borderRadius: 2 }}
+        >
+          Agent 1 is generating your story. This usually takes 30–60 seconds.
+        </Alert>
+        <SubmittedBriefReadView
+          brief={story.brief}
+          emptyLabel={sp.reviewFieldEmpty}
+          specialistUi={sp}
+        />
+      </Box>
+    );
+  }
+
+  // ── Case 3: draft (editable) — also shown on generation failure ───────────
+
+  if (story.briefStatus === "draft" || generationFailed) {
+    return (
+      <Box sx={{ mt: 2 }}>
+        {generationFailed && (
+          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+            Generation failed. Your brief is back in draft mode — you can edit it and try again.
+          </Alert>
+        )}
+
+        {story.updatedAt && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1.5, fontWeight: 500 }}
+          >
+            Saved {formatRelativeTime(story.updatedAt)}
+          </Typography>
+        )}
+
+        <BriefForm storageAdapter={storageAdapter} onSubmit={handleSubmit} />
+      </Box>
+    );
+  }
+
+  // ── Case 2: submitted (read-only) ─────────────────────────────────────────
+
+  const submittedDate = story.submittedAt
+    ? new Date(story.submittedAt).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <Box sx={{ mt: 2 }}>
+      {/* Locked banner */}
+      <Alert
+        severity="warning"
+        sx={{ mb: 2, borderRadius: 2 }}
+        action={
+          <Button color="inherit" size="small" onClick={() => void handleNewRevision()}>
+            Open new revision
+          </Button>
+        }
+      >
+        {submittedDate
+          ? `This brief was submitted on ${submittedDate}. Briefs cannot be edited after submission.`
+          : "This brief has been submitted. Briefs cannot be edited after submission."}
+        {" "}
+        To make changes,{" "}
+        <Link
+          component="button"
+          variant="body2"
+          onClick={() => void handleNewRevision()}
+          sx={{ fontWeight: 700 }}
+        >
+          Open new revision
+        </Link>
+        .
+      </Alert>
+
+      {/* View as JSON */}
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+        <Link
+          component="button"
+          variant="body2"
+          onClick={() => setJsonDialogOpen(true)}
+          sx={{ fontWeight: 600 }}
+        >
+          View as JSON
+        </Link>
+      </Stack>
+
+      <SubmittedBriefReadView
+        brief={story.brief}
+        emptyLabel={sp.reviewFieldEmpty}
+        specialistUi={sp}
+      />
+
+      {/* JSON dialog */}
+      <Dialog
+        open={jsonDialogOpen}
+        onClose={() => setJsonDialogOpen(false)}
+        fullWidth
+        maxWidth="md"
+        aria-labelledby="brief-json-dialog-title"
+      >
+        <DialogTitle id="brief-json-dialog-title" sx={{ fontWeight: 800 }}>
+          Brief JSON
+        </DialogTitle>
+        <DialogContent dividers>
+          {copyHint && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              {copyHint}
+            </Typography>
+          )}
+          <Box
+            component="pre"
+            sx={{
+              p: 2,
+              borderRadius: 1.5,
+              bgcolor: "rgba(97, 120, 145, 0.06)",
+              border: "1px solid rgba(208, 200, 192, 0.55)",
+              overflow: "auto",
+              maxHeight: 480,
+              fontSize: "0.75rem",
+              lineHeight: 1.55,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              m: 0,
+            }}
+          >
+            {JSON.stringify(story.brief, null, 2)}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => void handleCopyJson()}
+            sx={{ textTransform: "none", fontWeight: 700 }}
+          >
+            Copy
+          </Button>
+          <Button
+            onClick={() => setJsonDialogOpen(false)}
+            sx={{ textTransform: "none" }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}

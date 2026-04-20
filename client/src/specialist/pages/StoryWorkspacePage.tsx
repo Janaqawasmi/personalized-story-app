@@ -18,6 +18,7 @@ import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import WorkspaceHeader from "../components/WorkspaceHeader";
 import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTabs";
+import BriefTab from "../components/BriefTab";
 
 // ---------------------------------------------------------------------------
 // Default tab lookup
@@ -339,7 +340,11 @@ export default function StoryWorkspacePage() {
               aria-labelledby={`tab-${activeTab}`}
             >
               {activeTab === "brief" && (
-                <PlaceholderTab label="Brief" storyId={resolvedStoryId} />
+                <BriefTab
+                  story={story}
+                  onStoryUpdate={setStory}
+                  onNavigateToTab={handleTabChange}
+                />
               )}
               {activeTab === "draft" && (
                 <PlaceholderTab label="Draft" storyId={resolvedStoryId} />
