@@ -86,6 +86,7 @@ const STATUSES_WITH_COUNT_BADGE: ReadonlySet<StoryStatus> = new Set<StoryStatus>
   "awaiting_review",
   "in_review",
   "draft_brief",
+  "needs_revision",
 ]);
 
 function showCountBadge(status: StoryStatus | null): boolean {
@@ -114,6 +115,11 @@ const CHIP_CONFIGS: ChipConfig[] = [
     label: "Generating",
     status: "generating",
     color: STATUS_CHIP_COLORS.generating,
+  },
+  {
+    label: "Needs revision",
+    status: "needs_revision",
+    color: STATUS_CHIP_COLORS.needs_revision,
   },
   {
     label: "Approved",
@@ -251,14 +257,18 @@ export default function StoriesFilterBar({
           /** Filled blue when there is a queue and this chip is not the active filter. */
           const awaitingReviewBlueHighlight =
             cfg.status === "awaiting_review" && count > 0 && !active;
-          const useFilledAppearance = active || awaitingReviewBlueHighlight;
+          const needsRevisionBlueHighlight =
+            cfg.status === "needs_revision" && count > 0 && !active;
+          const attentionBlueHighlight =
+            awaitingReviewBlueHighlight || needsRevisionBlueHighlight;
+          const useFilledAppearance = active || attentionBlueHighlight;
           const dimmed = count === 0 && cfg.status !== null;
           const col = cfg.color;
           const label = showCountBadge(cfg.status)
             ? `${cfg.label} (${count})`
             : cfg.label;
 
-          const filledSx = awaitingReviewBlueHighlight
+          const filledSx = attentionBlueHighlight
             ? {
                 bgcolor: "#1976d2",
                 color: "#fff",

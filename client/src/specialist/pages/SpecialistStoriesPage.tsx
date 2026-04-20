@@ -168,6 +168,10 @@ export default function SpecialistStoriesPage() {
     () => allStories.filter((s) => s.status === "awaiting_review").length,
     [allStories]
   );
+  const needsRevisionCount = useMemo(
+    () => allStories.filter((s) => s.status === "needs_revision").length,
+    [allStories]
+  );
 
   // ---- render ----
   return (
@@ -277,6 +281,24 @@ export default function SpecialistStoriesPage() {
           {awaitingReviewCount === 1
             ? "1 story is awaiting your review — click to filter."
             : `${awaitingReviewCount} stories are awaiting your review — click to filter.`}
+        </Alert>
+      )}
+
+      {/* Regeneration in progress — same triage priority as awaiting review */}
+      {!error && needsRevisionCount > 0 && (
+        <Alert
+          severity="info"
+          onClick={() => setActiveStatuses(["needs_revision"])}
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            cursor: "pointer",
+            "& .MuiAlert-message": { width: "100%" },
+          }}
+        >
+          {needsRevisionCount === 1
+            ? "1 story is regenerating from your feedback — click to filter."
+            : `${needsRevisionCount} stories are regenerating from your feedback — click to filter.`}
         </Alert>
       )}
 
