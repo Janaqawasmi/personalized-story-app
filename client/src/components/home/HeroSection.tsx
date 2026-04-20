@@ -268,6 +268,12 @@ export default function HeroSection() {
               textTransform: "none",
               borderColor: "#D0C8C0",
               color: "text.primary",
+              // Ensure consistent icon/text spacing in both LTR and RTL.
+              columnGap: 1.25,
+              "& .MuiButton-startIcon": {
+                margin: 0,
+                marginInlineEnd: 0,
+              },
               "&:hover": {
                 borderColor: "#824D5C",
                 color: "#824D5C",
