@@ -11,6 +11,7 @@ import { isTransitionAllowed } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import { createEmptyBrief } from "../../types/storyBrief";
 import * as apiClient from "../../api/specialistStories";
+import { buildSpecialistSnapshotFields } from "../utils/specialistVersionSnapshot";
 
 // ============================================================================
 // localStorage registry
@@ -313,9 +314,17 @@ export class HybridDraftStore implements DraftStore {
         );
       }
 
+      let base: Story = local;
+      if (to === "needs_revision" && metadata?.feedback) {
+        const snap = buildSpecialistSnapshotFields(local);
+        if (snap) {
+          base = { ...local, ...snap };
+        }
+      }
+
       const now = Date.now();
       const newHistory: EditHistoryEntry[] = [
-        ...local.editHistory,
+        ...base.editHistory,
         {
           id: crypto.randomUUID(),
           at: now,
@@ -324,7 +333,6 @@ export class HybridDraftStore implements DraftStore {
         },
       ];
 
-      // Append regeneration_requested event when feedback is provided
       if (to === "needs_revision" && metadata?.feedback) {
         newHistory.push({
           id: crypto.randomUUID(),
@@ -332,13 +340,13 @@ export class HybridDraftStore implements DraftStore {
           byUid: local.ownerUid,
           event: {
             kind: "regeneration_requested",
-            feedback: String(metadata.feedback),
+            feedback: String(metadata.feedback).trim(),
           },
         });
       }
 
       const updated: Story = {
-        ...local,
+        ...base,
         status: to,
         updatedAt: now,
         editHistory: newHistory,

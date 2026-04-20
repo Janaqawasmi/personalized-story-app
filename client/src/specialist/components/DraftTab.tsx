@@ -162,7 +162,7 @@ function GeneratingState({
         }}
       >
         <CircularProgress />
-        <Typography variant="h6">Agent 1 is generating your story…</Typography>
+        <Typography variant="h6">AI is generating your story…</Typography>
         <Typography variant="body2" color="text.secondary">
           This usually takes 30–60 seconds.
         </Typography>
@@ -1132,6 +1132,7 @@ export default function DraftTab({
 
   const [regenDialogOpen, setRegenDialogOpen] = useState(false);
   const [regenFeedback, setRegenFeedback] = useState("");
+  const [regenSubmitting, setRegenSubmitting] = useState(false);
 
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
@@ -1246,6 +1247,16 @@ export default function DraftTab({
   const regenRemaining = MAX_VERSIONS - versions.length;
   const maxRegenReached = versions.length >= MAX_VERSIONS;
 
+  const latestAgentOutput: Agent1Result | null =
+    versions.length > 0 ? versions[versions.length - 1] : story.agent1Result;
+  const willSnapshotEditsAsNewVersion =
+    latestAgentOutput !== null &&
+    (editorTitle.trim() !== latestAgentOutput.title.trim() ||
+      editorBody.trim() !== latestAgentOutput.story.trim());
+  const snapshotVersionNumber = willSnapshotEditsAsNewVersion
+    ? versions.length + 1
+    : Math.max(1, versions.length);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   function handleFeedback(card: string, text: string) {
@@ -1292,19 +1303,32 @@ export default function DraftTab({
     setRegenDialogOpen(true);
   }
 
+  function handleRegenDialogClose() {
+    setRegenDialogOpen(false);
+    setRegenFeedback("");
+  }
+
   async function handleRegenerate() {
+    const trimmed = regenFeedback.trim();
+    if (!trimmed) return;
+    setRegenSubmitting(true);
     try {
+      if (hasUnsavedChanges) {
+        await handleSave();
+      }
       const updatedStory = await draftStore.transitionStatus(
         story.id,
         "needs_revision",
-        { feedback: regenFeedback },
+        { feedback: trimmed },
       );
       onStoryUpdate(updatedStory);
-      setRegenDialogOpen(false);
+      handleRegenDialogClose();
     } catch (err) {
       setSnackbar(
         err instanceof Error ? err.message : "Failed to request regeneration.",
       );
+    } finally {
+      setRegenSubmitting(false);
     }
   }
 
@@ -1501,115 +1525,130 @@ export default function DraftTab({
                 ) : (
                   <Stack
                     direction="row"
-                    spacing={1.5}
+                    justifyContent="space-between"
                     alignItems="center"
                     flexWrap="wrap"
-                    sx={{ mb: 1, gap: 1.5 }}
+                    sx={{ mb: 1, gap: 2, width: "100%" }}
                   >
-                    <Box sx={{ minWidth: 168, flexShrink: 0 }}>
-                      {isSaving ? (
-                        <Stack direction="row" alignItems="center" spacing={0.75}>
-                          <CircularProgress size={14} thickness={5} />
-                          <Typography variant="body2" color="text.secondary">
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.5}
+                      flexWrap="wrap"
+                    >
+                      <Box sx={{ minWidth: 168, flexShrink: 0 }}>
+                        {isSaving ? (
+                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                            <CircularProgress size={14} thickness={5} />
+                            <Typography variant="body2" color="text.secondary">
+                              Saving...
+                            </Typography>
+                          </Stack>
+                        ) : hasUnsavedChanges ? (
+                          <Typography
+                            variant="body2"
+                            sx={{ color: COLORS.warning, fontWeight: 600 }}
+                          >
+                            Unsaved changes
+                          </Typography>
+                        ) : (
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <CheckCircleIcon
+                              sx={{ fontSize: 18, color: "text.secondary" }}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                              All changes saved
+                            </Typography>
+                          </Stack>
+                        )}
+                      </Box>
+
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        disabled={!hasUnsavedChanges || isSaving}
+                        onClick={() => void handleSave()}
+                        sx={
+                          hasUnsavedChanges && !isSaving
+                            ? {
+                                animation: "draftSavePulse 2s ease-in-out infinite",
+                                "@keyframes draftSavePulse": {
+                                  "0%, 100%": {
+                                    boxShadow: `0 0 0 0 ${alpha(COLORS.primary, 0.42)}`,
+                                  },
+                                  "50%": {
+                                    boxShadow: `0 0 0 8px ${alpha(COLORS.primary, 0)}`,
+                                  },
+                                },
+                              }
+                            : undefined
+                        }
+                      >
+                        {isSaving ? (
+                          <>
+                            <CircularProgress
+                              size={16}
+                              thickness={5}
+                              color="inherit"
+                              sx={{ mr: 1 }}
+                            />
                             Saving...
-                          </Typography>
-                        </Stack>
-                      ) : hasUnsavedChanges ? (
-                        <Typography
-                          variant="body2"
-                          sx={{ color: COLORS.warning, fontWeight: 600 }}
-                        >
-                          Unsaved changes
-                        </Typography>
-                      ) : (
-                        <Stack direction="row" alignItems="center" spacing={0.5}>
-                          <CheckCircleIcon
-                            sx={{ fontSize: 18, color: "text.secondary" }}
-                          />
-                          <Typography variant="body2" color="text.secondary">
-                            All changes saved
-                          </Typography>
-                        </Stack>
-                      )}
-                    </Box>
+                          </>
+                        ) : (
+                          "Save edits"
+                        )}
+                      </Button>
+                    </Stack>
 
-                    <Button
-                      variant={hasUnsavedChanges ? "contained" : "outlined"}
-                      color="primary"
-                      disabled={!hasUnsavedChanges || isSaving}
-                      onClick={() => void handleSave()}
-                      sx={
-                        hasUnsavedChanges && !isSaving
-                          ? {
-                              animation: "draftSavePulse 2s ease-in-out infinite",
-                              "@keyframes draftSavePulse": {
-                                "0%, 100%": {
-                                  boxShadow: `0 0 0 0 ${alpha(COLORS.primary, 0.42)}`,
-                                },
-                                "50%": {
-                                  boxShadow: `0 0 0 8px ${alpha(COLORS.primary, 0)}`,
-                                },
-                              },
-                            }
-                          : undefined
-                      }
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.5}
+                      flexWrap="wrap"
                     >
-                      {isSaving ? (
-                        <>
-                          <CircularProgress
-                            size={16}
-                            thickness={5}
-                            color="inherit"
-                            sx={{ mr: 1 }}
-                          />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save edits"
-                      )}
-                    </Button>
-
-                    <Tooltip
-                      title={
-                        maxRegenReached
-                          ? "Maximum regenerations reached. Consider opening a new revision."
-                          : ""
-                      }
-                    >
-                      <span>
-                        <Button
-                          variant="outlined"
-                          disabled={maxRegenReached}
-                          onClick={openRegenDialog}
-                        >
-                          Regenerate with feedback
-                        </Button>
-                      </span>
-                    </Tooltip>
-
-                    <Tooltip
-                      title={
-                        hasUnsavedChanges
-                          ? "Save your edits first"
-                          : hasUndismissedFlags
-                            ? "Finish Safety Review for each finding before approving"
+                      <Tooltip
+                        title={
+                          maxRegenReached
+                            ? "Maximum regenerations reached. Consider opening a new revision."
                             : ""
-                      }
-                    >
-                      <span>
-                        <Button
-                          variant="contained"
-                          disabled={hasUnsavedChanges || hasUndismissedFlags}
-                          onClick={handleApprove}
-                          sx={{
-                            bgcolor: COLORS.success,
-                            "&:hover": { bgcolor: "#388E3C" },
-                          }}
-                        >
-                          Mark approved
-                        </Button>
-                      </span>
-                    </Tooltip>
+                        }
+                      >
+                        <span>
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            disabled={maxRegenReached}
+                            onClick={openRegenDialog}
+                          >
+                            Regenerate
+                          </Button>
+                        </span>
+                      </Tooltip>
+
+                      <Tooltip
+                        title={
+                          hasUnsavedChanges
+                            ? "Save your edits first"
+                            : hasUndismissedFlags
+                              ? "Finish Safety Review for each finding before approving"
+                              : ""
+                        }
+                      >
+                        <span>
+                          <Button
+                            variant="contained"
+                            disabled={hasUnsavedChanges || hasUndismissedFlags}
+                            onClick={() => void handleApprove()}
+                            sx={{
+                              bgcolor: COLORS.success,
+                              "&:hover": { bgcolor: "#388E3C" },
+                            }}
+                          >
+                            Mark approved
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    </Stack>
                   </Stack>
                 )}
 
@@ -1679,30 +1718,66 @@ export default function DraftTab({
         </DialogActions>
       </Dialog>
 
-      {/* ── Regenerate with feedback dialog ───────────────────────────────── */}
+      {/* ── Request regeneration (confirmation + feedback) ───────────────── */}
       <Dialog
         open={regenDialogOpen}
-        onClose={() => setRegenDialogOpen(false)}
+        onClose={handleRegenDialogClose}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Regenerate with feedback</DialogTitle>
+        <DialogTitle>Request a new version</DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            AI will generate a new draft based on your feedback.
+            {willSnapshotEditsAsNewVersion ? (
+              <>
+                {" "}
+                Your current edits will be saved as Version {snapshotVersionNumber}{" "}
+                before regeneration.
+              </>
+            ) : (
+              <>
+                {" "}
+                Your draft matches the latest generated output, so there is no
+                separate edited snapshot to store; the new AI run will replace
+                the story on screen when it finishes.
+              </>
+            )}
+          </Typography>
           <TextField
             autoFocus
+            required
             multiline
             minRows={4}
             fullWidth
-            label="What should be different?"
+            label="What should be different in the next version?"
             value={regenFeedback}
             onChange={(e) => setRegenFeedback(e.target.value)}
-            sx={{ mt: 1 }}
+            placeholder="Required — describe what the AI should change."
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRegenDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleRegenerate}>
-            Regenerate
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={handleRegenDialogClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!regenFeedback.trim() || regenSubmitting}
+            onClick={() => void handleRegenerate()}
+          >
+            {regenSubmitting ? (
+              <>
+                <CircularProgress
+                  size={16}
+                  thickness={5}
+                  color="inherit"
+                  sx={{ mr: 1 }}
+                />
+                Working…
+              </>
+            ) : (
+              "Regenerate"
+            )}
           </Button>
         </DialogActions>
       </Dialog>
