@@ -8,7 +8,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import Paper from "@mui/material/Paper";
 import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -19,6 +18,7 @@ import { COLORS } from "../../theme";
 import WorkspaceHeader from "../components/WorkspaceHeader";
 import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTabs";
 import BriefTab from "../components/BriefTab";
+import DraftTab from "../components/DraftTab";
 import HistoryTab from "../components/HistoryTab";
 
 // ---------------------------------------------------------------------------
@@ -121,41 +121,6 @@ function NotFoundState({ onBack }: { onBack: () => void }) {
         Back to stories
       </Button>
     </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Placeholder tab content (replaced in D2.5b–e)
-// ---------------------------------------------------------------------------
-
-function PlaceholderTab({
-  label,
-  storyId,
-}: {
-  label: string;
-  storyId: string;
-}) {
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 4,
-        mt: 2,
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 2,
-        bgcolor: COLORS.surface,
-      }}
-    >
-      <Typography
-        variant="h6"
-        sx={{ fontWeight: 700, color: COLORS.textPrimary, mb: 0.5 }}
-      >
-        {label}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Story: {storyId}
-      </Typography>
-    </Paper>
   );
 }
 
@@ -348,7 +313,7 @@ export default function StoryWorkspacePage() {
                 />
               )}
               {activeTab === "draft" && (
-                <PlaceholderTab label="Draft" storyId={resolvedStoryId} />
+                <DraftTab story={story} onStoryUpdate={setStory} />
               )}
               {activeTab === "history" && <HistoryTab story={story} />}
             </Box>
