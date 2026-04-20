@@ -167,6 +167,14 @@
         { "fieldPath": "generationStatus", "order": "ASCENDING" },
         { "fieldPath": "generationStartedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "storyIdeas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "submittedByUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

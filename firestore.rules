@@ -192,6 +192,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /storyIdeas/{ideaId} {
+      // Clients cannot write directly — all writes go through the Express backend using the Admin SDK, which bypasses rules
+      allow create, update, delete: if false;
+
+      // Read access: the submitter can read their own ideas, and admins can read all ideas
+      allow read: if request.auth != null && (
+        resource.data.submittedByUid == request.auth.uid ||
+        request.auth.token.role == 'admin'
+      );
+    }
+
     // ────────────────────────────────────────────────────
     // Default: deny everything else
     // ────────────────────────────────────────────────────

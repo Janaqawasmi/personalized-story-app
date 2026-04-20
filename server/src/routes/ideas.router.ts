@@ -1,0 +1,175 @@
+import { Router, Request, Response } from "express";
+import { admin, db } from "../config/firebase";
+import { COLLECTIONS } from "../shared/firestore/paths";
+import { validateIdeaInput } from "../validators/ideaValidator";
+
+const router = Router();
+
+router.post("/", async (req: Request, res: Response) => {
+  console.log("ideas endpoint hit");
+
+  // ── 1. Extract & verify token (mirror registerCaregiver) ────────────────
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({
+      success: false,
+      error: "Authentication required",
+      details: "Missing or malformed Authorization header. Expected: Bearer <token>",
+    });
+    return;
+  }
+
+  const idToken = authHeader.split("Bearer ")[1];
+
+  if (!idToken) {
+    res.status(401).json({
+      success: false,
+      error: "Authentication required",
+      details: "Token is empty",
+    });
+    return;
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch (error: any) {
+    console.error("[ideas] Token verification failed:", error.message);
+    res.status(401).json({
+      success: false,
+      error: "Invalid authentication token",
+    });
+    return;
+  }
+
+  const uid = decodedToken.uid;
+  const role = (decodedToken as any)?.role;
+  if (typeof role !== "string" || role !== "caregiver") {
+    res.status(403).json({
+      success: false,
+      errorCode: "forbidden",
+      message: "Only caregivers can submit story ideas",
+    });
+    return;
+  }
+
+  try {
+    // ── 2. Validate and sanitize input ─────────────────────────────────────
+    const validated = validateIdeaInput(req.body);
+    if (!validated.ok) {
+      res.status(400).json({
+        success: false,
+        errorCode: validated.errorCode,
+        field: validated.field,
+        message: validated.message,
+      });
+      return;
+    }
+
+    const { title, topicId, ageRange, description, motivation, contactConsent, language } =
+      validated.value;
+
+    // ── 3. Verify topic exists ─────────────────────────────────────────────
+    const topicSnap = await db.collection("topics").doc(topicId).get();
+    if (!topicSnap.exists) {
+      res.status(400).json({
+        success: false,
+        errorCode: "topic_not_found",
+        field: "topicId",
+        message: "Invalid topic",
+      });
+      return;
+    }
+
+    // ── 4. Rate limit: 3 submissions / rolling 30 days ─────────────────────
+    const thirtyDaysAgo = admin.firestore.Timestamp.fromMillis(
+      Date.now() - 30 * 24 * 60 * 60 * 1000
+    );
+
+    const recentIdeasSnap = await db
+      .collection("storyIdeas")
+      .where("submittedByUid", "==", uid)
+      .where("createdAt", ">", thirtyDaysAgo)
+      .orderBy("createdAt", "desc")
+      .limit(3)
+      .get();
+
+    if (recentIdeasSnap.size >= 3) {
+      res.status(429).json({
+        success: false,
+        errorCode: "rate_limit",
+        message: "You have shared 3 ideas in the last 30 days",
+      });
+      return;
+    }
+
+    // ── 5. Load caregiver profile (fresh) ──────────────────────────────────
+    const caregiverSnap = await db
+      .collection(COLLECTIONS.CAREGIVERS)
+      .doc(uid)
+      .get();
+
+    if (!caregiverSnap.exists) {
+      res.status(400).json({
+        success: false,
+        errorCode: "caregiver_not_found",
+        message: "Caregiver profile missing",
+      });
+      return;
+    }
+
+    const caregiverData = caregiverSnap.data() as
+      | { fullName?: unknown; email?: unknown }
+      | undefined;
+    const submittedByNameRaw =
+      typeof caregiverData?.fullName === "string" ? caregiverData.fullName.trim() : "";
+    const submittedByEmailRaw =
+      typeof caregiverData?.email === "string" ? caregiverData.email.trim() : "";
+    if (!submittedByNameRaw || !submittedByEmailRaw) {
+      res.status(400).json({
+        success: false,
+        errorCode: "caregiver_profile_incomplete",
+        message: "Caregiver profile is missing required fields",
+      });
+      return;
+    }
+    const submittedByName = submittedByNameRaw;
+    const submittedByEmail = submittedByEmailRaw;
+
+    // ── 6. Write idea document ─────────────────────────────────────────────
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    const doc = {
+      submittedByUid: uid,
+      submittedByName,
+      submittedByEmail,
+      title,
+      topicId,
+      ageRange,
+      description,
+      motivation,
+      contactConsent,
+      language,
+      status: "new",
+      adminNote: null,
+      linkedTemplateId: null,
+      createdAt: now,
+      updatedAt: now,
+    } as const;
+
+    const docRef = await db.collection("storyIdeas").add(doc);
+
+    res.status(200).json({ success: true, ideaId: docRef.id });
+  } catch (error: any) {
+    console.error("[ideas] Error:", error);
+    res.status(500).json({
+      success: false,
+      errorCode: "server_error",
+      message: "Something went wrong",
+    });
+  }
+});
+
+export default router;
+

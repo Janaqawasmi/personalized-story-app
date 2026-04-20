@@ -31,6 +31,9 @@ import referenceDataRoutes from "./routes/referenceData.routes";
 // Auth routes (registration)
 import registerCaregiverRouter from "./routes/auth/registerCaregiver.router";
 
+// Ideas routes
+import ideasRouter from "./routes/ideas.router";
+
 // Specialist routes
 import specialistStoriesRouter from "./routes/specialist/stories.router";
 
@@ -68,6 +71,11 @@ app.use("/api/reference-data", referenceDataRoutes);
 // Final endpoint:
 //   POST /api/auth/register-caregiver
 app.use("/api/auth", registerCaregiverRouter);
+
+// Ideas (auth enforced at router level)
+// Final endpoint:
+//   POST /api/ideas
+app.use("/api/ideas", ideasRouter);
 
 // Protected routes (auth enforced at router level)
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
