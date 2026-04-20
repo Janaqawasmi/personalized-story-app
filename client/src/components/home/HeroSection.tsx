@@ -108,6 +108,7 @@ export default function HeroSection() {
   const { isRTL } = useLanguage();
 
   const rot = (deg: number) => (isRTL ? -deg : deg);
+  const ctaArrow = isRTL ? "←" : "→";
 
   return (
     <Box
@@ -236,7 +237,7 @@ export default function HeroSection() {
               transition: "all 0.2s",
             }}
           >
-            {t("home.hero.cta_primary")} →
+            {t("home.hero.cta_primary")} {ctaArrow}
           </Button>
           <Button
             variant="outlined"
