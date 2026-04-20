@@ -1130,11 +1130,10 @@ export default function DraftTab({
 
   async function handleRegenerate() {
     try {
-      // Note: DraftStore.transitionStatus interface does not accept metadata.
-      // Feedback is captured locally; future upgrade can wire it to the API.
       const updatedStory = await draftStore.transitionStatus(
         story.id,
         "needs_revision",
+        { feedback: regenFeedback },
       );
       onStoryUpdate(updatedStory);
       setRegenDialogOpen(false);

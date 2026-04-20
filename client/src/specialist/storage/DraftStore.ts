@@ -75,8 +75,17 @@ export interface DraftStore {
   /**
    * Request a status transition. Throws if the transition is not allowed per
    * `isTransitionAllowed` (see `../../types/story`).
+   *
+   * @param metadata - Optional payload forwarded to the server (e.g. `{ feedback }` for
+   *   `needs_revision` transitions). Ignored for localStorage stories except when
+   *   `to === 'needs_revision'` and `metadata.feedback` is present, in which case a
+   *   `regeneration_requested` event is appended to `editHistory`.
    */
-  transitionStatus(storyId: string, to: StoryStatus): Promise<Story>;
+  transitionStatus(
+    storyId: string,
+    to: StoryStatus,
+    metadata?: Record<string, unknown>,
+  ): Promise<Story>;
 
   // ─── Subscriptions ────────────────────────────────────────────────────────
 

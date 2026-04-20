@@ -278,7 +278,11 @@ export class HybridDraftStore implements DraftStore {
 
   // ─── Status transitions ─────────────────────────────────────────────────────
 
-  async transitionStatus(storyId: string, to: StoryStatus): Promise<Story> {
+  async transitionStatus(
+    storyId: string,
+    to: StoryStatus,
+    metadata?: Record<string, unknown>,
+  ): Promise<Story> {
     const registry = loadRegistry();
     const local = registry.stories[storyId];
 
@@ -290,18 +294,34 @@ export class HybridDraftStore implements DraftStore {
       }
 
       const now = Date.now();
-      const historyEntry: EditHistoryEntry = {
-        id: crypto.randomUUID(),
-        at: now,
-        byUid: local.ownerUid,
-        event: { kind: "status_changed", from: local.status, to },
-      };
+      const newHistory: EditHistoryEntry[] = [
+        ...local.editHistory,
+        {
+          id: crypto.randomUUID(),
+          at: now,
+          byUid: local.ownerUid,
+          event: { kind: "status_changed", from: local.status, to },
+        },
+      ];
+
+      // Append regeneration_requested event when feedback is provided
+      if (to === "needs_revision" && metadata?.feedback) {
+        newHistory.push({
+          id: crypto.randomUUID(),
+          at: now,
+          byUid: local.ownerUid,
+          event: {
+            kind: "regeneration_requested",
+            feedback: String(metadata.feedback),
+          },
+        });
+      }
 
       const updated: Story = {
         ...local,
         status: to,
         updatedAt: now,
-        editHistory: [...local.editHistory, historyEntry],
+        editHistory: newHistory,
       };
 
       registry.stories[storyId] = updated;
@@ -325,7 +345,7 @@ export class HybridDraftStore implements DraftStore {
       );
     }
 
-    return apiClient.transitionStory(storyId, to);
+    return apiClient.transitionStory(storyId, to, metadata);
   }
 
   // ─── Subscriptions ──────────────────────────────────────────────────────────
