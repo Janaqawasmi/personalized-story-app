@@ -19,6 +19,7 @@ import { COLORS } from "../../theme";
 import WorkspaceHeader from "../components/WorkspaceHeader";
 import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTabs";
 import BriefTab from "../components/BriefTab";
+import HistoryTab from "../components/HistoryTab";
 
 // ---------------------------------------------------------------------------
 // Default tab lookup
@@ -349,9 +350,7 @@ export default function StoryWorkspacePage() {
               {activeTab === "draft" && (
                 <PlaceholderTab label="Draft" storyId={resolvedStoryId} />
               )}
-              {activeTab === "history" && (
-                <PlaceholderTab label="History" storyId={resolvedStoryId} />
-              )}
+              {activeTab === "history" && <HistoryTab story={story} />}
             </Box>
           </Box>
         </>
