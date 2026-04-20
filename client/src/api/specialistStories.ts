@@ -13,12 +13,13 @@ const NETWORK_ERROR =
   "Unable to reach the server. Check your connection and that the API is running.";
 
 function errorMessage(
-  data: { error?: string; details?: string },
+  data: { error?: string; details?: string; message?: string },
   fallback: string,
 ): string {
-  const { error, details } = data;
-  if (error && details) return `${error}: ${details}`;
-  return error || details || fallback;
+  const { error, details, message } = data;
+  const reason = details || message;
+  if (error && reason) return `${error}: ${reason}`;
+  return error || reason || fallback;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -59,15 +60,27 @@ export async function generateStory(
 ): Promise<Story> {
   try {
     const headers = await getAuthHeaders();
-    const payload: { brief: CompleteBrief; parentStoryId?: string } = { brief };
+    const storyPayload: { brief: CompleteBrief; parentStoryId?: string } = { brief };
     if (parentStoryId !== undefined) {
-      payload.parentStoryId = parentStoryId;
+      storyPayload.parentStoryId = parentStoryId;
     }
     const res = await fetch(
       `${BASE}/${encodeURIComponent(storyId)}/generate`,
-      { method: "POST", headers, body: JSON.stringify(payload) },
+      { method: "POST", headers, body: JSON.stringify({ story: storyPayload }) },
     );
-    return handleResponse<Story>(res);
+    const body = (await res.json().catch(() => ({}))) as {
+      story?: Story;
+      error?: string;
+      details?: string;
+      message?: string;
+    };
+    if (!res.ok) {
+      throw new Error(errorMessage(body, `Request failed (${res.status})`));
+    }
+    if (!body.story) {
+      throw new Error(errorMessage(body, "Invalid server response"));
+    }
+    return body.story;
   } catch (err) {
     wrapNetworkError(err);
   }

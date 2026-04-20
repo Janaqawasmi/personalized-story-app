@@ -543,6 +543,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     res.status(500).json({
       error: "INTERNAL_ERROR",
       message: "An unexpected error occurred during generation.",
+      details: error instanceof Error ? error.message : "Unknown error",
     });
   }
 }

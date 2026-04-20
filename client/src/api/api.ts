@@ -5,7 +5,7 @@ import { getAuth } from "firebase/auth";
 // Configuration
 // ============================================================================
 
-export const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+export const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5001";
 
 // ============================================================================
 // Auth Helper
@@ -95,7 +95,7 @@ export async function searchStories(query: string): Promise<StorySearchResponse>
     return res.json();
       } catch (err) {
     if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Unable to connect to server. Make sure the backend is running on http://localhost:5000');
+      throw new Error(`Unable to connect to server. Make sure the backend is running on ${API_BASE}`);
     }
     throw err;
   }
