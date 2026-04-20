@@ -16,8 +16,7 @@ import {
   type User,
 } from "firebase/auth";
 import { auth } from "../firebase";
-
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5000";
+import { API_BASE } from "../api/api";
 
 type AuthContextValue = {
   currentUser: User | null;

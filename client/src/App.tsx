@@ -15,11 +15,10 @@ import AgeResultsPage from "./pages/AgeResultsPage";
 import CategoryResultsPage from "./pages/CategoryResultsPage";
 import TopicResultsPage from "./pages/TopicResultsPage";
 
-import BriefForm from "./components/brief/BriefForm";
-import BriefFormDraftRedirect from "./components/brief/BriefFormDraftRedirect";
-import SpecialistBriefsPage from "./pages/SpecialistBriefsPage";
-import SpecialistBriefReviewPage from "./pages/SpecialistBriefReviewPage";
 import SpecialistLayout from "./components/specialist/SpecialistLayout";
+import SpecialistStoriesPage from "./specialist/pages/SpecialistStoriesPage";
+import NewStoryRedirect from "./specialist/pages/NewStoryRedirect";
+import StoryWorkspacePage from "./specialist/pages/StoryWorkspacePage";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -128,11 +127,11 @@ function AppContent() {
           {/* ───────────── SPECIALIST ───────────── */}
           <Route path="specialist" element={<RequireAuth />}>
             <Route element={<SpecialistLayout />}>
-              <Route index element={<Navigate to="briefs" replace />} />
-              <Route path="briefs" element={<SpecialistBriefsPage />} />
-              <Route path="briefs/:briefId" element={<SpecialistBriefReviewPage />} />
-              <Route path="create-brief" element={<BriefFormDraftRedirect />} />
-              <Route path="create-brief/:draftId" element={<BriefForm />} />
+              <Route index element={<Navigate to="stories" replace />} />
+              <Route path="stories" element={<SpecialistStoriesPage />} />
+              <Route path="stories/new" element={<NewStoryRedirect />} />
+              <Route path="stories/:storyId" element={<StoryWorkspacePage />} />
+              <Route path="stories/:storyId/:tab" element={<StoryWorkspacePage />} />
             </Route>
           </Route>
 

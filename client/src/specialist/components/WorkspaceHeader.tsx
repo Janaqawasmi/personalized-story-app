@@ -1,0 +1,420 @@
+// client/src/specialist/components/WorkspaceHeader.tsx
+//
+// Header bar for the Story Workspace page.
+// Rows: back link / editable title + status chip + actions / story-type · age chips.
+
+import React, { useState } from "react";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Menu,
+  MenuItem,
+  Snackbar,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { useNavigate, useParams } from "react-router-dom";
+
+import type { Story, StoryStatus } from "../../types/story";
+import type { AgeRange, StoryType } from "../../types/storyBrief";
+import { COLORS } from "../../theme";
+import { STATUS_CHIP_COLORS } from "./statusColors";
+
+// ---------------------------------------------------------------------------
+// Display maps (same source of truth as StoryRow)
+// ---------------------------------------------------------------------------
+
+const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
+  fear_anxiety: "Fear & Anxiety",
+  big_emotions: "Big Emotions",
+  loss_grief: "Loss & Grief",
+  identity_self_worth: "Identity & Self-Worth",
+  life_transitions: "Life Transitions",
+};
+
+const AGE_RANGE_LABELS: Record<AgeRange, string> = {
+  "3-5": "3–5",
+  "5-7": "5–7",
+  "7-9": "7–9",
+  "9-12": "9–12",
+};
+
+const STATUS_LABELS: Record<StoryStatus, string> = {
+  draft_brief: "Draft",
+  generating: "Generating",
+  awaiting_review: "Awaiting review",
+  in_review: "In review",
+  needs_revision: "Needs revision",
+  approved: "Approved",
+  published: "Published",
+  archived: "Archived",
+};
+
+const NEW_REVISION_ENABLED_STATUSES = new Set<StoryStatus>([
+  "awaiting_review",
+  "in_review",
+  "needs_revision",
+  "approved",
+  "published",
+]);
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
+
+export interface WorkspaceHeaderProps {
+  story: Story;
+  onTitleChange: (title: string) => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onNewRevision: () => void;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export default function WorkspaceHeader({
+  story,
+  onTitleChange,
+  onArchive,
+  onRestore,
+  onNewRevision,
+}: WorkspaceHeaderProps) {
+  const navigate = useNavigate();
+  const { lang } = useParams<{ lang: string }>();
+  const base = `/${lang ?? "he"}/specialist`;
+
+  // ---- Title editing ----
+  const [editing, setEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(story.title);
+
+  // ---- Actions menu ----
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+
+  // ---- Archive confirmation dialog ----
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+
+  // ---- Snackbars ----
+  const [copiedSnackbar, setCopiedSnackbar] = useState(false);
+
+  // ---- Derived ----
+  const statusColors = STATUS_CHIP_COLORS[story.status];
+  const showSpinner =
+    story.status === "generating" || story.status === "needs_revision";
+  const isArchived = story.status === "archived";
+  const canNewRevision =
+    story.briefStatus === "submitted" &&
+    NEW_REVISION_ENABLED_STATUSES.has(story.status);
+
+  // ---- Title handlers ----
+  function handleTitleClick() {
+    setTitleDraft(story.title);
+    setEditing(true);
+  }
+
+  function commitTitle() {
+    const trimmed = titleDraft.trim() || "Untitled story";
+    setEditing(false);
+    if (trimmed !== story.title) {
+      onTitleChange(trimmed);
+    }
+  }
+
+  function handleTitleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitTitle();
+    } else if (e.key === "Escape") {
+      setEditing(false);
+      setTitleDraft(story.title);
+    }
+  }
+
+  // ---- Actions handlers ----
+  function closeMenu() {
+    setMenuAnchor(null);
+  }
+
+  function handleCopyId() {
+    closeMenu();
+    navigator.clipboard.writeText(story.id).then(
+      () => setCopiedSnackbar(true),
+      () => {/* silently ignore clipboard failures */}
+    );
+  }
+
+  function handleArchiveClick() {
+    closeMenu();
+    setArchiveDialogOpen(true);
+  }
+
+  function handleArchiveConfirm() {
+    setArchiveDialogOpen(false);
+    onArchive();
+  }
+
+  function handleRestoreClick() {
+    closeMenu();
+    onRestore();
+  }
+
+  function handleNewRevisionClick() {
+    closeMenu();
+    onNewRevision();
+  }
+
+  // ---- Render ----
+  return (
+    <Box
+      sx={{
+        px: { xs: 2, sm: 3, md: 4 },
+        pt: 2.5,
+        pb: 2,
+        borderBottom: `1px solid ${COLORS.border}`,
+      }}
+    >
+      {/* Row 1: Back link */}
+      <Button
+        startIcon={<ArrowBackIcon sx={{ fontSize: "1rem !important" }} />}
+        size="small"
+        onClick={() => navigate(`${base}/stories`)}
+        sx={{
+          mb: 1.5,
+          px: 0,
+          minWidth: 0,
+          color: COLORS.textSecondary,
+          textTransform: "none",
+          fontWeight: 500,
+          fontSize: "0.8125rem",
+          "&:hover": {
+            bgcolor: "transparent",
+            color: COLORS.textPrimary,
+          },
+        }}
+      >
+        Stories
+      </Button>
+
+      {/* Row 2: Title + status chip + actions */}
+      <Stack
+        direction="row"
+        alignItems="flex-start"
+        spacing={1.5}
+        sx={{ mb: 1 }}
+      >
+        {/* Editable title */}
+        {editing ? (
+          <TextField
+            autoFocus
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value.slice(0, 120))}
+            onBlur={commitTitle}
+            onKeyDown={handleTitleKeyDown}
+            variant="standard"
+            inputProps={{
+              maxLength: 120,
+              "aria-label": "Story title",
+            }}
+            sx={{
+              flex: 1,
+              "& .MuiInput-input": {
+                fontSize: "1.35rem",
+                fontWeight: 800,
+                letterSpacing: "-0.02em",
+                color: COLORS.textPrimary,
+                py: 0.25,
+              },
+            }}
+          />
+        ) : (
+          <Typography
+            variant="h5"
+            component="h1"
+            onClick={handleTitleClick}
+            title="Click to edit title"
+            sx={{
+              flex: 1,
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              color: COLORS.textPrimary,
+              cursor: "text",
+              lineHeight: 1.25,
+              "&:hover": {
+                textDecoration: "underline",
+                textDecorationStyle: "dotted",
+                textUnderlineOffset: "3px",
+              },
+            }}
+          >
+            {story.title}
+          </Typography>
+        )}
+
+        {/* Status chip + actions — right-aligned, don't shrink */}
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={0.75}
+          sx={{ flexShrink: 0, pt: 0.375 }}
+        >
+          <Chip
+            label={
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={0.625}
+                component="span"
+              >
+                {showSpinner && (
+                  <CircularProgress
+                    size={11}
+                    sx={{ color: "inherit", flexShrink: 0 }}
+                  />
+                )}
+                <span>{STATUS_LABELS[story.status]}</span>
+              </Stack>
+            }
+            size="small"
+            aria-label={`Status: ${STATUS_LABELS[story.status]}`}
+            sx={{
+              bgcolor: statusColors.filledBg.trim(),
+              color: statusColors.filledText.trim(),
+              fontWeight: 600,
+              fontSize: "0.7rem",
+              height: 24,
+              "& .MuiChip-label": { px: 1 },
+            }}
+          />
+
+          <IconButton
+            size="small"
+            onClick={(e) => setMenuAnchor(e.currentTarget)}
+            aria-label="Story actions"
+            aria-haspopup="true"
+            aria-expanded={Boolean(menuAnchor)}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={closeMenu}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            transformOrigin={{ vertical: "top", horizontal: "right" }}
+          >
+            {/* Archive — hidden when already archived */}
+            {!isArchived && (
+              <MenuItem onClick={handleArchiveClick}>Archive</MenuItem>
+            )}
+
+            {/* Restore — only visible when archived */}
+            {isArchived && (
+              <MenuItem onClick={handleRestoreClick}>Restore</MenuItem>
+            )}
+
+            {/* Open new revision — conditionally enabled */}
+            <Tooltip
+              title={
+                !canNewRevision
+                  ? "Only available after the brief is submitted and the story is awaiting review or later"
+                  : ""
+              }
+              placement="left"
+            >
+              {/* span needed so Tooltip fires on disabled MenuItem */}
+              <span>
+                <MenuItem
+                  onClick={handleNewRevisionClick}
+                  disabled={!canNewRevision}
+                >
+                  Open new revision
+                </MenuItem>
+              </span>
+            </Tooltip>
+
+            <MenuItem onClick={handleCopyId}>Copy story ID</MenuItem>
+          </Menu>
+        </Stack>
+      </Stack>
+
+      {/* Row 3: Story type · age range chips */}
+      <Stack direction="row" alignItems="center" spacing={0.75}>
+        {story.storyType && (
+          <Chip
+            label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: COLORS.border,
+              color: COLORS.textSecondary,
+              fontSize: "0.7rem",
+              height: 22,
+              "& .MuiChip-label": { px: 0.875 },
+            }}
+          />
+        )}
+        {story.ageRange ? (
+          <Chip
+            label={`Ages ${AGE_RANGE_LABELS[story.ageRange]}`}
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: COLORS.border,
+              color: COLORS.textSecondary,
+              fontSize: "0.7rem",
+              height: 22,
+              "& .MuiChip-label": { px: 0.875 },
+            }}
+          />
+        ) : (
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.8rem" }}>
+            —
+          </Typography>
+        )}
+      </Stack>
+
+      {/* Archive confirmation dialog */}
+      <Dialog
+        open={archiveDialogOpen}
+        onClose={() => setArchiveDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Archive this story?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            You can restore it later from the story workspace.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setArchiveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleArchiveConfirm} color="error" variant="contained">
+            Archive
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* "Copied!" snackbar */}
+      <Snackbar
+        open={copiedSnackbar}
+        autoHideDuration={2500}
+        onClose={() => setCopiedSnackbar(false)}
+        message="Copied!"
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      />
+    </Box>
+  );
+}

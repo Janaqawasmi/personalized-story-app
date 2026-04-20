@@ -168,6 +168,34 @@ function BriefPageWithSidebar({
 }
 
 // ============================================================================
+// Storage adapter
+// ============================================================================
+
+/**
+ * Allows BriefForm to be mounted with an external storage backend.
+ * When omitted, the form uses briefDraftStorage (the legacy default).
+ */
+export interface BriefFormStorageAdapter {
+  /** Load the initial brief. Called once on mount. */
+  load: () => CompleteBrief | null;
+
+  /** Save the brief. Called on section advance, submission prep,
+   *  and any other persistence point. */
+  save: (brief: CompleteBrief) => void;
+
+  /** Called after successful submission. The adapter handles any
+   *  cleanup (e.g., deleting a localStorage draft, or doing nothing
+   *  if the store already handled it). */
+  onSubmitted: () => void;
+
+  /** Called when the specialist clicks "Create another brief."
+   *  Returns the new draftId/storyId to navigate to.
+   *  If not provided, the form uses the legacy
+   *  createNewDraftIdWithEmptyBrief + navigate behavior. */
+  onCreateAnother?: () => string | Promise<string>;
+}
+
+// ============================================================================
 // Props
 // ============================================================================
 
@@ -178,6 +206,7 @@ interface Props {
    * If omitted, the form POSTs to `/api/admin/damma-story-briefs`.
    */
   onSubmit?: (brief: CompleteBrief) => Promise<{ briefId: string }>;
+  storageAdapter?: BriefFormStorageAdapter;
 }
 
 // ============================================================================
@@ -345,10 +374,24 @@ function firstIncompleteSection(
 }
 
 // ============================================================================
+// Legacy storage adapter (wraps briefDraftStorage for backward compat)
+// ============================================================================
+
+function legacyAdapter(draftId: string): BriefFormStorageAdapter {
+  return {
+    load: () => loadDraftForDraftId(draftId),
+    save: (brief) => saveDraftForDraftId(draftId, brief),
+    onSubmitted: () => deleteDraftForDraftId(draftId),
+    onCreateAnother: () => createNewDraftIdWithEmptyBrief(),
+  };
+}
+
+// ============================================================================
 // BriefForm — main orchestrator
 // ============================================================================
 
-function BriefFormInner({ onSubmit }: Props) {
+function BriefFormInner(props: Props) {
+  const { onSubmit, storageAdapter } = props;
   const [searchParams] = useSearchParams();
   const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
   const { draftId, lang } = useParams<{ draftId: string; lang: string }>();
@@ -415,14 +458,22 @@ function BriefFormInner({ onSubmit }: Props) {
     null,
   );
 
+  // ── Resolve storage adapter ────────────────────────────────────────────────
+
+  const adapter = useMemo<BriefFormStorageAdapter>(
+    () => storageAdapter ?? legacyAdapter(draftId ?? ""),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [storageAdapter, draftId],
+  );
+
   // ── Load draft for this URL id; remount when draftId changes ───────────────
 
   useEffect(() => {
-    if (!draftId) return;
-    const existing = loadDraftForDraftId(draftId) ?? createEmptyBrief();
+    if (!draftId && !storageAdapter) return;
+    const existing = adapter.load() ?? createEmptyBrief();
     const normalized = normalizeBriefDefaults(existing, briefLocaleOpts);
     setDraft(normalized);
-    saveDraftForDraftId(draftId, normalized);
+    adapter.save(normalized);
     if (normalized.storyType) {
       setActiveStep(firstIncompleteSection(normalized, briefLocaleOpts));
     } else {
@@ -439,7 +490,7 @@ function BriefFormInner({ onSubmit }: Props) {
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
   // Also record highest section opened for progress (1–5).
   useEffect(() => {
-    if (!draftId || !draft.storyType || activeStep === 0) return;
+    if ((!draftId && !storageAdapter) || !draft.storyType || activeStep === 0) return;
     setDraft((d) => {
       let base = d;
       if (activeStep >= 1 && activeStep <= 5) {
@@ -450,9 +501,11 @@ function BriefFormInner({ onSubmit }: Props) {
       }
       const n = normalizeBriefDefaults(base, briefLocaleOpts);
       if (n === d && base === d) return d;
-      saveDraftForDraftId(draftId, n);
+      adapter.save(n);
       return n;
     });
+    // adapter is memoized on [storageAdapter, draftId]; draftId is already a dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftId, activeStep, draft.storyType, briefLocaleOpts]);
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -488,18 +541,16 @@ function BriefFormInner({ onSubmit }: Props) {
     requestAnimationFrame(run);
   }, [briefScrollTopOffsetPx]);
 
-  if (!draftId) {
-    return <Navigate to={`/${lang ?? "he"}/specialist/create-brief`} replace />;
+  if (!draftId && !storageAdapter) {
+    return <Navigate to={`/${lang ?? "he"}/specialist/stories/new`} replace />;
   }
-
-  const draftKey = draftId;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   function saveAndAdvance(nextStep: number) {
     setDraft((d) => {
       const next = normalizeBriefDefaults({ ...d, savedAt: Date.now() }, briefLocaleOpts);
-      saveDraftForDraftId(draftKey, next);
+      adapter.save(next);
       return next;
     });
     setSavedSnackbar(true);
@@ -550,7 +601,7 @@ function BriefFormInner({ onSubmit }: Props) {
     let normalized = normalizeBriefDefaults(source, briefLocaleOpts);
     if (normalized !== source) {
       setDraft(normalized);
-      saveDraftForDraftId(draftKey, normalized);
+      adapter.save(normalized);
     }
 
     const gate = evaluateBriefSubmitGate(normalized);
@@ -589,7 +640,7 @@ function BriefFormInner({ onSubmit }: Props) {
   function continueFromStoryWorld() {
     const next = normalizeBriefDefaults({ ...draft, savedAt: Date.now() }, briefLocaleOpts);
     setDraft(next);
-    saveDraftForDraftId(draftKey, next);
+    adapter.save(next);
     setSavedSnackbar(true);
     setActiveStep(5);
     setTimeout(scrollToTop, 50);
@@ -616,7 +667,7 @@ function BriefFormInner({ onSubmit }: Props) {
     };
     const finalDraft = normalizeBriefDefaults(merged, briefLocaleOpts);
     setDraft(finalDraft);
-    saveDraftForDraftId(draftKey, finalDraft);
+    adapter.save(finalDraft);
     setHardWarningOpen(false);
     setGateHardWarnings([]);
     setHardWarningAck(false);
@@ -669,7 +720,7 @@ function BriefFormInner({ onSubmit }: Props) {
       const finalDraft = normalizeBriefDefaults(brief, briefLocaleOpts);
       if (finalDraft !== brief) {
         setDraft(finalDraft);
-        saveDraftForDraftId(draftKey, finalDraft);
+        adapter.save(finalDraft);
       }
       const forSubmit = omitUiOnlyBriefFields(finalDraft);
       const jsonText = JSON.stringify(forSubmit, null, 2);
@@ -681,7 +732,7 @@ function BriefFormInner({ onSubmit }: Props) {
         const result = await submitDammaStoryBriefForm(forSubmit);
         briefId = result.briefId;
       }
-      deleteDraftForDraftId(draftKey);
+      adapter.onSubmitted();
       resetComplexitySession();
       setSubmitSuccess({ briefId, jsonText });
     } catch (err) {
@@ -694,13 +745,15 @@ function BriefFormInner({ onSubmit }: Props) {
     }
   }
 
-  function handleCreateAnotherBrief() {
-    deleteDraftForDraftId(draftKey);
+  async function handleCreateAnotherBrief() {
+    adapter.onSubmitted();
     resetComplexitySession();
     setSubmitSuccess(null);
     setSubmitError(null);
-    const nid = createNewDraftIdWithEmptyBrief();
-    navigate(`/${lang ?? "he"}/specialist/create-brief/${nid}`, { replace: true });
+    const nid = adapter.onCreateAnother
+      ? await adapter.onCreateAnother()
+      : createNewDraftIdWithEmptyBrief();
+    navigate(`/${lang ?? "he"}/specialist/stories/${nid}/brief`, { replace: true });
   }
 
   // ── Post-submit success ─

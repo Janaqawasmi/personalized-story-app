@@ -1,4 +1,5 @@
-import { Link as RouterLink, useLocation, useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link as RouterLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import ArticleOutlinedIcon from "@mui/icons-material/ArticleOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
@@ -6,6 +7,7 @@ import ListAltOutlinedIcon from "@mui/icons-material/ListAltOutlined";
 import { COLORS } from "../../theme";
 import { useSpecialistUi } from "../../i18n/specialistUi";
 import { Z_INDEX_SPECIALIST_NAVBAR } from "../../constants/zIndex";
+import { draftStore } from "../../specialist/storage";
 
 /**
  * Secondary navigation for specialist routes (below the main app Navbar).
@@ -13,11 +15,37 @@ import { Z_INDEX_SPECIALIST_NAVBAR } from "../../constants/zIndex";
 export default function SpecialistNavBar() {
   const { lang } = useParams<{ lang: string }>();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const base = `/${lang ?? "he"}/specialist`;
   const sp = useSpecialistUi();
 
-  const isBriefsArea = pathname.includes("/specialist/briefs");
-  const isEditor = pathname.includes("/specialist/create-brief");
+  const [storyBriefLoading, setStoryBriefLoading] = useState(false);
+
+  const isBriefsArea = pathname.includes("/specialist/stories");
+  const isEditor =
+    pathname.includes("/specialist/stories/new") ||
+    pathname.includes("/brief");
+
+  async function handleStoryBriefClick() {
+    setStoryBriefLoading(true);
+    try {
+      const results = await draftStore.listStories({
+        statuses: ["draft_brief"],
+        sortBy: "lastOpenedAt",
+        sortDir: "desc",
+        limit: 1,
+      });
+      if (results.length > 0) {
+        navigate(`${base}/stories/${results[0].id}/brief`);
+      } else {
+        navigate(`${base}/stories/new`);
+      }
+    } catch {
+      navigate(`${base}/stories/new`);
+    } finally {
+      setStoryBriefLoading(false);
+    }
+  }
 
   const btn = (active: boolean) => ({
     borderRadius: 2,
@@ -81,16 +109,16 @@ export default function SpecialistNavBar() {
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: "flex-start", sm: "flex-end" }}>
           <Button
             component={RouterLink}
-            to={`${base}/briefs`}
+            to={`${base}/stories`}
             startIcon={<ListAltOutlinedIcon />}
             sx={btn(isBriefsArea)}
           >
             {sp.navBriefs}
           </Button>
           <Button
-            component={RouterLink}
-            to={`${base}/create-brief`}
             startIcon={<EditNoteOutlinedIcon />}
+            disabled={storyBriefLoading}
+            onClick={handleStoryBriefClick}
             sx={btn(isEditor)}
           >
             {sp.navStoryBrief}

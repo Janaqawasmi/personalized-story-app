@@ -139,12 +139,12 @@ describe("calculateComplexityLoad", () => {
     });
 
     const ages = ["3-5", "5-7", "7-9", "9-12"] as const;
-    const rawBase =
-      5 +
-      2 * 0.5 +
-      1 +
-      1 +
-      2 * 1;
+
+    // The engine rounds each line item to the nearest 0.5 individually,
+    // then sums the already-rounded values (see engine.js line 123-127).
+    // Using a single Math.round(rawSum * m) produces a different result
+    // whenever a per-item scaled cost is not an exact multiple of 0.5.
+    const r2 = (n: number) => Math.round(n * 2) / 2;
 
     ages.forEach((ageRange) => {
       const brief = {
@@ -154,7 +154,14 @@ describe("calculateComplexityLoad", () => {
       const r = calculateComplexityLoad(brief);
       const m = AGE_RANGE_MULTIPLIERS[ageRange];
       expect(r.ageRangeMultiplier).toBe(m);
-      expect(r.totalPageCost).toBe(Math.round(rawBase * m * 2) / 2);
+      const expected = r2(
+        r2(5 * m) +       // core arc
+        r2(2 * 0.5 * m) + // 2 somatic expressions × 0.5
+        r2(1 * m) +       // supporting approach
+        r2(1 * m) +       // shame: central
+        r2(2 * 1 * m),    // 2 supporting characters × 1
+      );
+      expect(r.totalPageCost).toBe(expected);
     });
   });
 
