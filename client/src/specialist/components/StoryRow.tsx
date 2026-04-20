@@ -2,12 +2,14 @@ import React, { useState } from "react";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { Link as RouterLink, useParams } from "react-router-dom";
 
 import type { AgeRange, StoryType } from "../../types/storyBrief";
 import type { Story, StoryStatus } from "../../types/story";
@@ -96,6 +98,8 @@ export default function StoryRow({
   onRestore,
 }: StoryRowProps) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const { lang } = useParams<{ lang: string }>();
+  const storyPath = `/${lang ?? "he"}/specialist/stories/${story.id}`;
 
   const isArchived = story.status === "archived";
   const displayTitle =
@@ -120,11 +124,6 @@ export default function StoryRow({
     e.stopPropagation();
   }
 
-  function handleOpen() {
-    handleMenuClose();
-    onOpen(story.id);
-  }
-
   function handleArchive() {
     handleMenuClose();
     onArchive(story.id);
@@ -142,38 +141,41 @@ export default function StoryRow({
       sx={{
         cursor: "pointer",
         opacity: isArchived ? 0.6 : 1,
-        transition: "opacity 0.15s ease",
+        transition: "background-color 0.15s ease, opacity 0.15s ease",
         "&:last-child td": { borderBottom: 0 },
+        "&:hover": {
+          bgcolor: (theme) => theme.palette.action.hover,
+        },
+        "&:hover .story-row-title-link": {
+          color: COLORS.primary,
+          textDecoration: "underline",
+          textUnderlineOffset: 3,
+        },
       }}
     >
-      {/* ---- Title ---- */}
+      {/* ---- Title (real URL for new tab / copy link; click does not double-fire row) ---- */}
       <TableCell sx={{ maxWidth: 280, py: 1.5 }}>
-        {displayTitle ? (
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 600,
-              color: COLORS.textPrimary,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              maxWidth: 260,
-            }}
-          >
-            {displayTitle}
-          </Typography>
-        ) : (
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 600,
-              color: COLORS.textSecondary,
-              fontStyle: "italic",
-            }}
-          >
-            Untitled story
-          </Typography>
-        )}
+        <Link
+          component={RouterLink}
+          to={storyPath}
+          className="story-row-title-link"
+          underline="none"
+          onClick={(e) => e.stopPropagation()}
+          sx={{
+            fontWeight: 600,
+            fontSize: "0.875rem",
+            lineHeight: 1.43,
+            color: displayTitle ? COLORS.textPrimary : COLORS.textSecondary,
+            fontStyle: displayTitle ? "normal" : "italic",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: 260,
+            display: "block",
+          }}
+        >
+          {displayTitle ?? "Untitled story"}
+        </Link>
       </TableCell>
 
       {/* ---- Story type ---- */}
@@ -285,9 +287,6 @@ export default function StoryRow({
             },
           }}
         >
-          <MenuItem onClick={handleOpen} sx={{ fontSize: "0.875rem" }}>
-            Open
-          </MenuItem>
           {!isArchived && (
             <MenuItem
               onClick={handleArchive}
