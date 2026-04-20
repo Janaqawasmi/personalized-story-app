@@ -83,15 +83,20 @@ export class HybridDraftStore implements DraftStore {
   }
 
   async getStory(storyId: string): Promise<Story | null> {
-    const registry = loadRegistry();
-    const local = registry.stories[storyId];
-    if (local) return local;
-
     try {
-      return await apiClient.getStory(storyId);
+      const server = await apiClient.getStory(storyId);
+      const registry = loadRegistry();
+      if (registry.stories[storyId]) {
+        delete registry.stories[storyId];
+        saveRegistry(registry);
+      }
+      return server;
     } catch {
-      return null;
+      // Offline, 404, or API error — use local draft if present
     }
+
+    const registry = loadRegistry();
+    return registry.stories[storyId] ?? null;
   }
 
   async listStories(filter?: ListStoriesFilter): Promise<Story[]> {

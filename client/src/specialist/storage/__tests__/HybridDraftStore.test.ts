@@ -162,7 +162,7 @@ describe("HybridDraftStore", () => {
       const fetched = await store.getStory(created.id);
 
       expect(fetched).toEqual(created);
-      expect(mockApi.getStory).not.toHaveBeenCalled();
+      expect(mockApi.getStory).toHaveBeenCalledWith(created.id);
     });
   });
 
@@ -174,7 +174,7 @@ describe("HybridDraftStore", () => {
       const fetched = await store.getStory(local.id);
 
       expect(fetched).toEqual(local);
-      expect(mockApi.getStory).not.toHaveBeenCalled();
+      expect(mockApi.getStory).toHaveBeenCalledWith("local-1");
     });
 
     it("falls back to API when not found locally", async () => {
@@ -415,7 +415,7 @@ describe("HybridDraftStore", () => {
 
       expect(readRegistry().stories[local.id]).toEqual(local);
       await expect(store.getStory(local.id)).resolves.toEqual(local);
-      expect(mockApi.getStory).not.toHaveBeenCalled();
+      expect(mockApi.getStory).toHaveBeenCalledWith(local.id);
     });
   });
 

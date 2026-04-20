@@ -5,6 +5,7 @@
 
 import type { CompleteBrief } from "../types/storyBrief";
 import type { Story, StoryStatus } from "../types/story";
+import { normalizeStoryFromApi } from "../utils/storyBriefFromApi";
 import { API_BASE, getAuthHeaders } from "./api";
 
 const BASE = `${API_BASE}/api/specialist/stories`;
@@ -97,7 +98,7 @@ export async function generateStory(
     if (!body.story) {
       throw new Error(errorMessage(body, "Invalid server response"));
     }
-    return body.story;
+    return normalizeStoryFromApi(body.story);
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -114,7 +115,8 @@ export async function listStories(
     if (params?.sortBy !== undefined) url.searchParams.set("sortBy", params.sortBy);
     if (params?.limit !== undefined) url.searchParams.set("limit", String(params.limit));
     const res = await fetch(url.toString(), { headers });
-    return handleResponse<Story[]>(res, "stories");
+    const stories = await handleResponse<Story[]>(res, "stories");
+    return stories.map(normalizeStoryFromApi);
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -128,7 +130,7 @@ export async function getStory(storyId: string): Promise<Story> {
       `${BASE}/${encodeURIComponent(storyId)}`,
       { headers },
     );
-    return handleResponse<Story>(res, "story");
+    return normalizeStoryFromApi(await handleResponse<Story>(res, "story"));
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -145,7 +147,7 @@ export async function updateStory(
       `${BASE}/${encodeURIComponent(storyId)}`,
       { method: "PATCH", headers, body: JSON.stringify(patch) },
     );
-    return handleResponse<Story>(res, "story");
+    return normalizeStoryFromApi(await handleResponse<Story>(res, "story"));
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -162,7 +164,7 @@ export async function updateBrief(
       `${BASE}/${encodeURIComponent(storyId)}/brief`,
       { method: "PUT", headers, body: JSON.stringify({ brief }) },
     );
-    return handleResponse<Story>(res, "story");
+    return normalizeStoryFromApi(await handleResponse<Story>(res, "story"));
   } catch (err) {
     return wrapNetworkError(err);
   }
@@ -180,7 +182,7 @@ export async function transitionStory(
       `${BASE}/${encodeURIComponent(storyId)}/transitions`,
       { method: "POST", headers, body: JSON.stringify({ to, ...metadata }) },
     );
-    return handleResponse<Story>(res, "story");
+    return normalizeStoryFromApi(await handleResponse<Story>(res, "story"));
   } catch (err) {
     return wrapNetworkError(err);
   }
