@@ -23,7 +23,7 @@ import WorkspaceHeader from "../components/WorkspaceHeader";
 import StoryPipelineStepper from "../components/StoryPipelineStepper";
 import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTabs";
 import BriefTab from "../components/BriefTab";
-import DraftTab from "../components/DraftTab";
+import DraftTabB from "../components/draftB/DraftTabB";
 import HistoryTab from "../components/HistoryTab";
 
 // ---------------------------------------------------------------------------
@@ -413,7 +413,7 @@ export default function StoryWorkspacePage() {
                 />
               )}
               {activeTab === "draft" && (
-                <DraftTab
+                <DraftTabB
                   story={story}
                   onStoryUpdate={setStory}
                   onNavigateToTab={handleTabChange}
