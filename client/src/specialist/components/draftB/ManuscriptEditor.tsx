@@ -116,7 +116,7 @@ export default function ManuscriptEditor({
             outline: "none",
             background: "transparent",
             fontFamily: storyFont === "serif" ? FONTS.serif : FONTS.sans,
-            fontStyle: "italic",
+            fontStyle: storyFont === "serif" ? "italic" : "normal",
             fontSize: "34px",
             fontWeight: 500,
             letterSpacing: "-0.6px",

@@ -24,8 +24,6 @@ export interface ApproveBarProps {
   regenRemaining: number;
   onRegenerate: () => void;
   onApprove: () => void;
-  onReopen: () => void;
-  approvedAt?: number | null;
 }
 
 const R = 17;
@@ -39,8 +37,6 @@ export default function ApproveBar({
   regenRemaining,
   onRegenerate,
   onApprove,
-  onReopen,
-  approvedAt,
 }: ApproveBarProps) {
   const okCount = checks.filter((c) => c.ok).length;
   const total = checks.length;
@@ -56,46 +52,17 @@ export default function ApproveBar({
 
   if (status === "archived") return null;
 
-  if (status === "approved") {
-    return (
-      <Box
-        sx={{
-          position: "sticky",
-          bottom: "16px",
-          mx: "40px",
-          mt: "24px",
-          background: "rgba(255,255,255,0.95)",
-          backdropFilter: "blur(8px)",
-          border: `1px solid ${DRAFT_B.border}`,
-          borderRadius: "12px",
-          px: 2.5,
-          py: 1.5,
-          boxShadow: "0 4px 24px rgba(60,50,40,0.10)",
-          display: "flex",
-          alignItems: "center",
-          gap: 2,
-          flexWrap: "wrap",
-        }}
-      >
-        <Chip icon={<CheckCircleIcon />} label="✓ Approved" color="success" sx={{ fontWeight: 700 }} />
-        <Typography variant="caption" color="text.secondary">
-          {approvedAt ? new Date(approvedAt).toLocaleString() : ""}
-        </Typography>
-        <Box sx={{ ml: "auto" }}>
-          <Button variant="outlined" size="small" onClick={onReopen}>
-            Reopen for editing
-          </Button>
-        </Box>
-      </Box>
-    );
-  }
+  /** Approved state is shown as a manuscript stamp in DraftTabB (Direction B mock). */
+  if (status === "approved") return null;
 
   return (
     <Box
       sx={{
         position: "sticky",
         bottom: "16px",
-        mx: "40px",
+        alignSelf: "stretch",
+        width: "100%",
+        maxWidth: "100%",
         mt: "24px",
         background: "rgba(255,255,255,0.95)",
         backdropFilter: "blur(8px)",

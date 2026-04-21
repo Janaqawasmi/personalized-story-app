@@ -365,7 +365,7 @@ export default function StoryWorkspacePage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1100, mx: "auto", pb: 6 }}>
+    <Box sx={{ maxWidth: 1100, mx: "auto", pb: 6, bgcolor: COLORS.background, minHeight: "100vh" }}>
       {/* Error banner — shown above header so it's always visible */}
       {error && (
         <Alert
@@ -392,7 +392,7 @@ export default function StoryWorkspacePage() {
             onStoriesClick={handleStoriesClick}
           />
 
-          <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pt: 0 }}>
+          <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 0 }}>
             <StoryPipelineStepper story={story} />
             <WorkspaceTabs
               story={story}

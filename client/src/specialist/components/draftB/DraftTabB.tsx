@@ -11,6 +11,7 @@ import Paper from "@mui/material/Paper";
 import Snackbar from "@mui/material/Snackbar";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
+import CheckIcon from "@mui/icons-material/Check";
 
 import type { StoryDraft } from "../../../types/story";
 import type { Agent1Result } from "../../../types/agent1Result";
@@ -31,7 +32,7 @@ import {
   countUndismissedFlags,
   mustNeverFlaggedForIndex,
 } from "./shared";
-import { DRAFT_B, RAIL_WIDTH_DEFAULT } from "./tokens";
+import { DRAFT_B, FONTS, RAIL_WIDTH_DEFAULT } from "./tokens";
 
 const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
   fear_anxiety: "Fear & Anxiety",
@@ -422,7 +423,7 @@ export default function DraftTabB({
     STORY_TYPE_LABELS[story.storyType] ?? "";
 
   return (
-    <Box sx={{ background: DRAFT_B.paper, minHeight: "100vh", px: { xs: 2, md: 4 }, py: 3 }}>
+    <Box sx={{ background: DRAFT_B.paper, minHeight: "100%", px: { xs: 2, md: 5 }, py: 3 }}>
       {story.status === "archived" && (
         <Alert
           severity="warning"
@@ -446,100 +447,134 @@ export default function DraftTabB({
         regenRemaining={regenRemaining}
       />
 
-      <Box
-        sx={{
-          display: "flex",
-          gap: 0,
-          alignItems: "flex-start",
-          opacity: story.status === "archived" ? 0.58 : 1,
-        }}
-      >
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <ManuscriptEditor
-            title={editorTitle}
-            body={editorBody}
-            onTitleChange={(t) => {
-              if (!isReadOnly) {
-                setEditorTitle(t);
-                setHasUnsavedChanges(true);
-              }
-            }}
-            onBodyChange={(b) => {
-              if (!isReadOnly) {
-                setEditorBody(b);
-                setHasUnsavedChanges(true);
-              }
-            }}
-            textareaRef={textareaRef}
-            readOnly={isReadOnly}
-            storyFont={storyFont}
-            meta={{
-              ageRange: ageRangeLabel,
-              storyTypeLabel: storyTypeLabelText || null,
-              copingToolLabel:
-                story.brief.section3?.copingTool != null
-                  ? COPING_TOOL_LABELS[story.brief.section3.copingTool]
-                  : null,
-            }}
-            versionNumber={selectedVersionIndex + 1}
-            flags={flags}
-            dismissedFlags={dismissedFlags}
-            hoveredFlagIndex={hoveredFlagIndex}
-            onFlagMarkerClick={handleFlagMarkerClick}
-            onParagraphHover={setHoveredFlagIndex}
-            mode={isReadOnly ? "read" : editorMode}
-          />
-
-          {!isReadOnly && (
-            <SaveStatusBar
-              unsaved={hasUnsavedChanges}
-              isSaving={isSaving}
-              lastSavedAt={lastSavedAt}
-              onSave={() => void handleSave()}
-              mode={editorMode}
-              onModeToggle={handleModeToggle}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 0,
+            alignItems: "flex-start",
+            opacity: story.status === "archived" ? 0.58 : 1,
+          }}
+        >
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <ManuscriptEditor
+              title={editorTitle}
+              body={editorBody}
+              onTitleChange={(t) => {
+                if (!isReadOnly) {
+                  setEditorTitle(t);
+                  setHasUnsavedChanges(true);
+                }
+              }}
+              onBodyChange={(b) => {
+                if (!isReadOnly) {
+                  setEditorBody(b);
+                  setHasUnsavedChanges(true);
+                }
+              }}
+              textareaRef={textareaRef}
               readOnly={isReadOnly}
+              storyFont={storyFont}
+              meta={{
+                ageRange: ageRangeLabel,
+                storyTypeLabel: storyTypeLabelText || null,
+                copingToolLabel:
+                  story.brief.section3?.copingTool != null
+                    ? COPING_TOOL_LABELS[story.brief.section3.copingTool]
+                    : null,
+              }}
+              versionNumber={selectedVersionIndex + 1}
+              flags={flags}
+              dismissedFlags={dismissedFlags}
+              hoveredFlagIndex={hoveredFlagIndex}
+              onFlagMarkerClick={handleFlagMarkerClick}
+              onParagraphHover={setHoveredFlagIndex}
+              mode={isReadOnly ? "read" : editorMode}
             />
-          )}
 
-          {story.status !== "archived" && (
-            <ApproveBar
-              checks={checks}
-              canApprove={canApprove}
-              status={story.status}
-              regenCount={regenCount}
-              regenRemaining={regenRemaining}
-              onRegenerate={openRegenDialog}
-              onApprove={() => void handleApprove()}
-              onReopen={() => void handleReopen()}
-              approvedAt={story.approvedAt ?? null}
-            />
-          )}
+            {!isReadOnly && (
+              <SaveStatusBar
+                unsaved={hasUnsavedChanges}
+                isSaving={isSaving}
+                lastSavedAt={lastSavedAt}
+                onSave={() => void handleSave()}
+                mode={editorMode}
+                onModeToggle={handleModeToggle}
+                readOnly={isReadOnly}
+              />
+            )}
+
+            {story.status === "approved" && (
+              <Box sx={{ mt: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+                <Box
+                  sx={{
+                    padding: "10px 22px",
+                    border: `2px solid ${DRAFT_B.success}`,
+                    color: DRAFT_B.success,
+                    background: "rgba(95, 122, 84, 0.05)",
+                    borderRadius: "4px",
+                    transform: "rotate(-3deg)",
+                    fontFamily: FONTS.serif,
+                    fontSize: 18,
+                    fontWeight: 700,
+                    letterSpacing: 2,
+                    textTransform: "uppercase",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.25,
+                  }}
+                >
+                  <CheckIcon sx={{ fontSize: 22 }} />
+                  Approved
+                </Box>
+                {story.approvedAt != null ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(story.approvedAt).toLocaleString()}
+                  </Typography>
+                ) : null}
+                <Button variant="text" size="small" onClick={() => void handleReopen()}>
+                  Reopen for editing
+                </Button>
+              </Box>
+            )}
+          </Box>
+
+          <EvidenceRail
+            story={story}
+            result={displayedResult}
+            dismissedFlags={dismissedFlags}
+            onToggleFlag={handleToggleFlag}
+            onFlagHover={setHoveredFlagIndex}
+            onGoToPassage={handleGoToPassage}
+            activeTab={activeRailTab}
+            onTabChange={(t) => {
+              setHoveredFlagIndex(null);
+              setActiveRailTab(t);
+            }}
+            onFeedback={handleFeedback}
+            onInsertPlaceholder={insertPlaceholder}
+            onNavigateToBrief={() => onNavigateToTab?.("brief")}
+            onEditBrief={handleEditBrief}
+            readOnly={isReadOnly}
+            scrollRef={railScrollRef}
+            width={RAIL_WIDTH_DEFAULT}
+            selectedVersionIndex={selectedVersionIndex}
+            ageRangeLabel={ageRangeLabel}
+            storyTypeLabel={storyTypeLabelText}
+          />
         </Box>
 
-        <EvidenceRail
-          story={story}
-          result={displayedResult}
-          dismissedFlags={dismissedFlags}
-          onToggleFlag={handleToggleFlag}
-          onFlagHover={setHoveredFlagIndex}
-          onGoToPassage={handleGoToPassage}
-          activeTab={activeRailTab}
-          onTabChange={(t) => {
-            setHoveredFlagIndex(null);
-            setActiveRailTab(t);
-          }}
-          onFeedback={handleFeedback}
-          onInsertPlaceholder={insertPlaceholder}
-          onNavigateToBrief={() => onNavigateToTab?.("brief")}
-          onEditBrief={handleEditBrief}
-          readOnly={isReadOnly}
-          scrollRef={railScrollRef}
-          width={RAIL_WIDTH_DEFAULT}
-          selectedVersionIndex={selectedVersionIndex}
-          ageRangeLabel={ageRangeLabel}
-          storyTypeLabel={storyTypeLabelText}
-        />
+        {story.status !== "archived" && story.status !== "approved" && (
+          <ApproveBar
+            checks={checks}
+            canApprove={canApprove}
+            status={story.status}
+            regenCount={regenCount}
+            regenRemaining={regenRemaining}
+            onRegenerate={openRegenDialog}
+            onApprove={() => void handleApprove()}
+          />
+        )}
       </Box>
 
       <Dialog open={pendingVersionIndex !== null} onClose={handleCancelVersionSwitch} maxWidth="xs">

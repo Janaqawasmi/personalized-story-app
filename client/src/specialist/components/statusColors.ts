@@ -1,6 +1,6 @@
 /**
  * Shared status → color mapping used by StoriesFilterBar chips and StoryRow
- * status chips. Centralised here to prevent color drift between the two.
+ * status chips. Aligned with Direction B workspace STATUS_META / BRAND tokens.
  */
 import type { StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
@@ -10,61 +10,72 @@ export interface StatusColor {
   filledText: string;
   outlinedBorder: string;
   outlinedText: string;
+  /** Leading dot color for workspace status pill (optional). */
+  dot?: string;
 }
 
 export const STATUS_CHIP_COLORS: Record<StoryStatus | "all", StatusColor> = {
   all: {
     filledBg: COLORS.primary,
-    filledText: " #fff",
+    filledText: "#fff",
     outlinedBorder: COLORS.border,
     outlinedText: COLORS.textSecondary,
+    dot: COLORS.primary,
   },
   draft_brief: {
-    filledBg: " #9E9E9E",
-    filledText: " #fff",
-    outlinedBorder: "#BDBDBD",
-    outlinedText: "#757575",
+    filledBg: "#ebe6de",
+    filledText: "#5c534a",
+    outlinedBorder: COLORS.border,
+    outlinedText: COLORS.textSecondary,
+    dot: "#8a7f72",
   },
   generating: {
-    filledBg: " #42A5F5",
-    filledText: "#fff",
-    outlinedBorder: "#90CAF9",
-    outlinedText: "#1565C0",
+    filledBg: "#ebe6de",
+    filledText: "#5c534a",
+    outlinedBorder: COLORS.border,
+    outlinedText: COLORS.textSecondary,
+    dot: "#8a7f72",
   },
   awaiting_review: {
-    filledBg: " #ED9B40",
-    filledText: "#fff",
-    outlinedBorder: "#FFCC80",
-    outlinedText: "#E65100",
+    filledBg: "#f5ecd7",
+    filledText: "#7a5a1e",
+    outlinedBorder: COLORS.warning,
+    outlinedText: "#7a5a1e",
+    dot: "#c79536",
   },
   in_review: {
-    filledBg: "# 5C8FC4",
-    filledText: "#fff",
-    outlinedBorder: "#90CAF9",
-    outlinedText: "#1565C0",
+    filledBg: "#e7ecf1",
+    filledText: "#3d526a",
+    outlinedBorder: COLORS.primary,
+    outlinedText: "#3d526a",
+    dot: COLORS.primary,
   },
   needs_revision: {
-    filledBg: " #EF9A9A",
-    filledText: "#fff",
-    outlinedBorder: "#FFCDD2",
-    outlinedText: "#C62828",
+    filledBg: "#f0e4e8",
+    filledText: COLORS.secondary,
+    outlinedBorder: COLORS.secondary,
+    outlinedText: COLORS.secondary,
+    dot: COLORS.secondary,
   },
   approved: {
-    filledBg: " #66BB6A",
-    filledText: "#fff",
-    outlinedBorder: "#A5D6A7",
-    outlinedText: "#2E7D32",
+    filledBg: "#eaf0e4",
+    filledText: "#4a5f3f",
+    outlinedBorder: COLORS.success,
+    outlinedText: "#4a5f3f",
+    dot: COLORS.success,
   },
   published: {
-    filledBg: " #26A69A",
-    filledText: "#fff",
-    outlinedBorder: "#80CBC4",
-    outlinedText: "#00695C",
+    filledBg: "#eaf0e4",
+    filledText: "#4a5f3f",
+    outlinedBorder: COLORS.success,
+    outlinedText: "#4a5f3f",
+    dot: COLORS.success,
   },
   archived: {
-    filledBg: " #BDBDBD",
-    filledText: "#fff",
-    outlinedBorder: "#E0E0E0",
-    outlinedText: "#9E9E9E",
+    filledBg: "#e0dbd3",
+    filledText: "#6c655e",
+    outlinedBorder: COLORS.border,
+    outlinedText: "#6c655e",
+    dot: "#8a8178",
   },
 };
