@@ -1,18 +1,34 @@
 import React, { useState } from "react";
+import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
+import Link from "@mui/material/Link";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
+import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
+import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
+import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
+import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
 import type { AgeRange, StoryType } from "../../types/storyBrief";
-import type { Story, StoryStatus } from "../../types/story";
+import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
+import { getPipelineListLabel, getPipelineListStepIndex } from "../utils/storyPipeline";
 import { STATUS_CHIP_COLORS } from "./statusColors";
+
+const PIPELINE_LIST_ICONS = [
+  EditNoteOutlinedIcon,
+  AutoFixHighOutlinedIcon,
+  RateReviewOutlinedIcon,
+  VerifiedOutlinedIcon,
+] as const;
 
 // ---------------------------------------------------------------------------
 // Display maps
@@ -34,7 +50,7 @@ const AGE_RANGE_LABELS: Record<AgeRange, string> = {
 };
 
 const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Draft",
+  draft_brief: "Brief in progress",
   generating: "Generating",
   awaiting_review: "Awaiting review",
   in_review: "In review",
@@ -45,7 +61,66 @@ const STATUS_LABELS: Record<StoryStatus, string> = {
 };
 
 // ---------------------------------------------------------------------------
-// Relative time helper
+// Last edit column (editHistory + compact time)
+// ---------------------------------------------------------------------------
+
+function editEventVerb(event: EditHistoryEvent): string {
+  switch (event.kind) {
+    case "draft_created":
+      return "Created";
+    case "draft_edited":
+      return "Story edited";
+    case "status_changed":
+      return "Updated";
+    case "brief_submitted":
+      return "Submitted";
+    case "agent1_generated":
+      return event.succeeded ? "Generated" : "Generation failed";
+    case "regeneration_requested":
+      return "Regeneration requested";
+    case "archived":
+      return "Archived";
+    case "restored":
+      return "Restored";
+    default:
+      return "Updated";
+  }
+}
+
+/** Relative for events within the last 7 days ("2h ago", "1d ago"); month + day (and year if needed) for older. */
+function formatListEventTime(at: number): string {
+  const now = Date.now();
+  const diffMs = Math.max(0, now - at);
+  const dayMs = 24 * 60 * 60 * 1000;
+  if (diffMs >= 7 * dayMs) {
+    const d = new Date(at);
+    const yNow = new Date(now).getFullYear();
+    const month = d.toLocaleString("en-US", { month: "short" });
+    const day = d.getDate();
+    if (d.getFullYear() !== yNow) return `${month} ${day}, ${d.getFullYear()}`;
+    return `${month} ${day}`;
+  }
+  const diffMin = Math.floor(diffMs / (60 * 1000));
+  const diffHr = Math.floor(diffMs / (60 * 60 * 1000));
+  const diffDay = Math.floor(diffMs / dayMs);
+  if (diffDay >= 1) return `${diffDay}d ago`;
+  if (diffHr >= 1) return `${diffHr}h ago`;
+  if (diffMin >= 1) return `${diffMin}m ago`;
+  return "Just now";
+}
+
+function formatLastEditSummary(story: Story): string {
+  const hist = story.editHistory;
+  const last =
+    hist && hist.length > 0 ? hist[hist.length - 1] : undefined;
+  if (!last) {
+    return `Created · ${formatListEventTime(story.createdAt)}`;
+  }
+  return `${editEventVerb(last.event)} · ${formatListEventTime(last.at)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Relative time helper (shared with BriefTab / DraftTab)
 // ---------------------------------------------------------------------------
 
 export function formatRelativeTime(ms: number): string {
@@ -74,12 +149,54 @@ export function formatRelativeTime(ms: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Pipeline column (icon + label aligned with StoryPipelineStepper)
+// ---------------------------------------------------------------------------
+
+function PipelineStageCell({ story }: { story: Story }) {
+  const label = getPipelineListLabel(story.status);
+  const step = getPipelineListStepIndex(story.status);
+  const Icon =
+    step === null ? ArchiveOutlinedIcon : PIPELINE_LIST_ICONS[step];
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.75,
+        minWidth: 0,
+      }}
+    >
+      <Icon
+        sx={{
+          fontSize: 18,
+          color: step === null ? COLORS.textSecondary : COLORS.primary,
+          opacity: step === null ? 0.65 : 0.9,
+          flexShrink: 0,
+        }}
+        aria-hidden
+      />
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: "0.8rem",
+          fontWeight: 600,
+          color: COLORS.textPrimary,
+          lineHeight: 1.3,
+        }}
+      >
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 export interface StoryRowProps {
   story: Story;
-  onOpen: (storyId: string) => void;
   onArchive: (storyId: string) => void;
   onRestore: (storyId: string) => void;
 }
@@ -90,21 +207,22 @@ export interface StoryRowProps {
 
 export default function StoryRow({
   story,
-  onOpen,
   onArchive,
   onRestore,
 }: StoryRowProps) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const navigate = useNavigate();
+  const { lang } = useParams<{ lang: string }>();
+  const storyPath = `/${lang ?? "he"}/specialist/stories/${story.id}`;
 
   const isArchived = story.status === "archived";
   const displayTitle =
     story.title.trim() === "" ? null : story.title;
 
-  const lastActivity = story.lastOpenedAt || story.updatedAt;
   const col = STATUS_CHIP_COLORS[story.status];
 
   function handleRowClick() {
-    onOpen(story.id);
+    navigate(storyPath);
   }
 
   function handleMenuOpen(e: React.MouseEvent<HTMLButtonElement>) {
@@ -118,11 +236,6 @@ export default function StoryRow({
 
   function handleMenuOpen_e(e: React.MouseEvent) {
     e.stopPropagation();
-  }
-
-  function handleOpen() {
-    handleMenuClose();
-    onOpen(story.id);
   }
 
   function handleArchive() {
@@ -142,80 +255,90 @@ export default function StoryRow({
       sx={{
         cursor: "pointer",
         opacity: isArchived ? 0.6 : 1,
-        transition: "opacity 0.15s ease",
+        transition: "background-color 0.15s ease, opacity 0.15s ease",
         "&:last-child td": { borderBottom: 0 },
+        "&:hover": {
+          bgcolor: (theme) => theme.palette.action.hover,
+        },
+        "&:hover .story-row-title-link": {
+          color: COLORS.primary,
+          textDecoration: "underline",
+          textUnderlineOffset: 3,
+        },
       }}
     >
-      {/* ---- Title ---- */}
+      {/* ---- Title (real URL for new tab / copy link; click does not double-fire row) ---- */}
       <TableCell sx={{ maxWidth: 280, py: 1.5 }}>
-        {displayTitle ? (
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 600,
-              color: COLORS.textPrimary,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              maxWidth: 260,
-            }}
-          >
-            {displayTitle}
-          </Typography>
-        ) : (
-          <Typography
-            variant="body2"
-            sx={{
-              fontWeight: 600,
-              color: COLORS.textSecondary,
-              fontStyle: "italic",
-            }}
-          >
-            Untitled story
-          </Typography>
-        )}
+        <Link
+          component={RouterLink}
+          to={storyPath}
+          className="story-row-title-link"
+          underline="none"
+          onClick={(e) => e.stopPropagation()}
+          sx={{
+            fontWeight: 600,
+            fontSize: "0.875rem",
+            lineHeight: 1.43,
+            color: displayTitle ? COLORS.textPrimary : COLORS.textSecondary,
+            fontStyle: displayTitle ? "normal" : "italic",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            maxWidth: 260,
+            display: "block",
+          }}
+        >
+          {displayTitle ?? "Untitled story"}
+        </Link>
       </TableCell>
 
-      {/* ---- Story type ---- */}
-      <TableCell sx={{ py: 1.5 }}>
-        {story.storyType ? (
-          <Chip
-            label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
-            size="small"
-            variant="outlined"
-            sx={{
-              fontSize: "0.72rem",
-              borderColor: COLORS.border,
-              color: COLORS.textSecondary,
-              height: 22,
-            }}
-          />
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            —
-          </Typography>
-        )}
+      {/* ---- Pipeline (coarse stage — matches workspace stepper) ---- */}
+      <TableCell sx={{ py: 1.5, maxWidth: 140 }}>
+        <PipelineStageCell story={story} />
       </TableCell>
 
-      {/* ---- Age ---- */}
+      {/* ---- Type / age ---- */}
       <TableCell sx={{ py: 1.5 }}>
-        {story.ageRange ? (
-          <Chip
-            label={AGE_RANGE_LABELS[story.ageRange]}
-            size="small"
-            variant="outlined"
-            sx={{
-              fontSize: "0.72rem",
-              borderColor: COLORS.border,
-              color: COLORS.textSecondary,
-              height: 22,
-            }}
-          />
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            —
-          </Typography>
-        )}
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            gap: 0.75,
+          }}
+        >
+          {story.storyType ? (
+            <Chip
+              label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: "0.72rem",
+                borderColor: COLORS.border,
+                color: COLORS.textSecondary,
+                height: 22,
+              }}
+            />
+          ) : null}
+          {story.ageRange ? (
+            <Chip
+              label={AGE_RANGE_LABELS[story.ageRange]}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: "0.72rem",
+                borderColor: COLORS.border,
+                color: COLORS.textSecondary,
+                height: 22,
+              }}
+            />
+          ) : null}
+          {!story.storyType && !story.ageRange && (
+            <Typography variant="body2" color="text.secondary">
+              —
+            </Typography>
+          )}
+        </Box>
       </TableCell>
 
       {/* ---- Status ---- */}
@@ -250,10 +373,15 @@ export default function StoryRow({
         />
       </TableCell>
 
-      {/* ---- Last activity ---- */}
-      <TableCell sx={{ py: 1.5, whiteSpace: "nowrap" }}>
-        <Typography variant="body2" color="text.secondary" fontSize="0.8rem">
-          {formatRelativeTime(lastActivity)}
+      {/* ---- Last event (from edit history) ---- */}
+      <TableCell sx={{ py: 1.5, maxWidth: 240 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          fontSize="0.8rem"
+          sx={{ lineHeight: 1.35 }}
+        >
+          {formatLastEditSummary(story)}
         </Typography>
       </TableCell>
 
@@ -280,9 +408,6 @@ export default function StoryRow({
             },
           }}
         >
-          <MenuItem onClick={handleOpen} sx={{ fontSize: "0.875rem" }}>
-            Open
-          </MenuItem>
           {!isArchived && (
             <MenuItem
               onClick={handleArchive}

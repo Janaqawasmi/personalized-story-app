@@ -13,6 +13,7 @@ import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import StoriesFilterBar from "../components/StoriesFilterBar";
 import StoriesTable from "../components/StoriesTable";
+import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
 
 // ---------------------------------------------------------------------------
 // Header count summary helpers
@@ -59,16 +60,14 @@ function applyFilters(
     result = result.filter((s) => activeStatuses.includes(s.status));
   }
 
-  // Search filter
-  const q = searchQuery.trim().toLowerCase();
-  if (q) {
-    result = result.filter((s) => {
-      if (s.title.toLowerCase().includes(q)) return true;
-      if (s.tags.some((t) => t.toLowerCase().includes(q))) return true;
-      if (s.brief.section2?.population?.toLowerCase().includes(q)) return true;
-      if (s.brief.section2?.trigger?.toLowerCase().includes(q)) return true;
-      return false;
-    });
+  // Search filter (title, tags, population, trigger — see storySearchMatch)
+  if (searchQuery.trim()) {
+    const q = searchQuery.trim().toLowerCase();
+    result = result.filter(
+      (s) =>
+        s.title.toLowerCase().includes(q) ||
+        storyMatchesSearchQuery(s, searchQuery)
+    );
   }
 
   // Sort
@@ -142,10 +141,6 @@ export default function SpecialistStoriesPage() {
   }
 
   // ---- action handlers ----
-  function handleOpen(storyId: string) {
-    navigate(`${base}/stories/${storyId}`);
-  }
-
   async function handleArchive(storyId: string) {
     try {
       await draftStore.transitionStatus(storyId, "archived");
@@ -169,6 +164,14 @@ export default function SpecialistStoriesPage() {
 
   // ---- header ----
   const countSummary = useMemo(() => buildCountSummary(allStories), [allStories]);
+  const awaitingReviewCount = useMemo(
+    () => allStories.filter((s) => s.status === "awaiting_review").length,
+    [allStories]
+  );
+  const needsRevisionCount = useMemo(
+    () => allStories.filter((s) => s.status === "needs_revision").length,
+    [allStories]
+  );
 
   // ---- render ----
   return (
@@ -263,6 +266,42 @@ export default function SpecialistStoriesPage() {
         </Alert>
       )}
 
+      {/* Awaiting review attention */}
+      {!error && awaitingReviewCount > 0 && (
+        <Alert
+          severity="info"
+          onClick={() => setActiveStatuses(["awaiting_review"])}
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            cursor: "pointer",
+            "& .MuiAlert-message": { width: "100%" },
+          }}
+        >
+          {awaitingReviewCount === 1
+            ? "1 story is awaiting your review — click to filter."
+            : `${awaitingReviewCount} stories are awaiting your review — click to filter.`}
+        </Alert>
+      )}
+
+      {/* Regeneration in progress — same triage priority as awaiting review */}
+      {!error && needsRevisionCount > 0 && (
+        <Alert
+          severity="info"
+          onClick={() => setActiveStatuses(["needs_revision"])}
+          sx={{
+            mb: 2,
+            borderRadius: 2,
+            cursor: "pointer",
+            "& .MuiAlert-message": { width: "100%" },
+          }}
+        >
+          {needsRevisionCount === 1
+            ? "1 story is regenerating from your feedback — click to filter."
+            : `${needsRevisionCount} stories are regenerating from your feedback — click to filter.`}
+        </Alert>
+      )}
+
       {/* Filter bar */}
       {!error && (
         <Box sx={{ mb: 2.5 }}>
@@ -285,7 +324,6 @@ export default function SpecialistStoriesPage() {
           stories={filteredStories}
           loading={loading}
           hasAnyStories={allStories.length > 0}
-          onOpen={handleOpen}
           onArchive={handleArchive}
           onRestore={handleRestore}
           onClearFilters={handleClearFilters}

@@ -8,6 +8,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import CloseIcon from "@mui/icons-material/Close";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -16,7 +17,9 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
@@ -48,6 +51,12 @@ export interface BriefTabProps {
 // BriefTab
 // ---------------------------------------------------------------------------
 
+function shouldOfferNewStoryWelcome(story: Story): boolean {
+  if (story.status !== "draft_brief" || story.briefStatus !== "draft") return false;
+  const untitled = !story.title.trim() || story.title === "Untitled story";
+  return untitled && story.brief.storyType == null;
+}
+
 export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: BriefTabProps) {
   const sp = useSpecialistUi();
   const navigate = useNavigate();
@@ -60,6 +69,10 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
 
   // ---- generation failure: switch to editable ----
   const [generationFailed, setGenerationFailed] = useState(false);
+
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const showNewStoryWelcome =
+    !welcomeDismissed && !generationFailed && shouldOfferNewStoryWelcome(story);
 
   // ---- polling ----
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -168,7 +181,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           icon={<CircularProgress size={18} color="inherit" />}
           sx={{ mb: 2, borderRadius: 2 }}
         >
-          Agent 1 is generating your story. This usually takes 30–60 seconds.
+          AI is drafting your therapeutic story. This usually takes 30–60 seconds.
         </Alert>
         <SubmittedBriefReadView
           brief={story.brief}
@@ -186,8 +199,42 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
       <Box sx={{ mt: 2 }}>
         {generationFailed && (
           <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
-            Generation failed. Your brief is back in draft mode — you can edit it and try again.
+            Generation failed. You can edit the brief and try submitting again.
           </Alert>
+        )}
+
+        {showNewStoryWelcome && (
+          <Paper
+            elevation={0}
+            sx={{
+              position: "relative",
+              pr: 5,
+              pt: 2,
+              pb: 2,
+              px: 2,
+              mb: 2,
+              borderRadius: 2,
+              border: "1px solid rgba(208, 200, 192, 0.55)",
+              bgcolor: "rgba(97, 120, 145, 0.06)",
+            }}
+          >
+            <IconButton
+              size="small"
+              aria-label="Dismiss"
+              onClick={() => setWelcomeDismissed(true)}
+              sx={{ position: "absolute", top: 8, right: 8 }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
+            <Typography variant="subtitle1" fontWeight={700} sx={{ pr: 1 }}>
+              Start by filling out the clinical brief
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
+              This 5-section brief captures the child context, safety boundaries,
+              and therapeutic goals needed for a high-quality story draft.
+              You can save your progress and come back anytime.
+            </Typography>
+          </Paper>
         )}
 
         {story.updatedAt && (
@@ -200,7 +247,11 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           </Typography>
         )}
 
-        <BriefForm storageAdapter={storageAdapter} onSubmit={handleSubmit} />
+        <BriefForm
+          storageAdapter={storageAdapter}
+          onSubmit={handleSubmit}
+          onUserInteraction={() => setWelcomeDismissed(true)}
+        />
       </Box>
     );
   }

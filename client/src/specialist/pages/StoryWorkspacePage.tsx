@@ -8,6 +8,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -16,6 +20,7 @@ import { draftStore } from "../storage";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import WorkspaceHeader from "../components/WorkspaceHeader";
+import StoryPipelineStepper from "../components/StoryPipelineStepper";
 import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTabs";
 import BriefTab from "../components/BriefTab";
 import DraftTab from "../components/DraftTab";
@@ -40,6 +45,11 @@ function isValidTab(tab: string | undefined): tab is WorkspaceTabValue {
   return tab === "brief" || tab === "draft" || tab === "history";
 }
 
+type PendingLeaveNavigation =
+  | null
+  | { kind: "tab"; tab: WorkspaceTabValue }
+  | { kind: "stories" };
+
 // ---------------------------------------------------------------------------
 // Loading skeleton
 // ---------------------------------------------------------------------------
@@ -58,17 +68,20 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
       </Stack>
 
       {/* Type / age chips */}
-      <Stack direction="row" spacing={0.75} sx={{ mb: 2.5 }}>
+      <Stack direction="row" spacing={0.75} sx={{ mb: 2 }}>
         <Skeleton width={108} height={22} sx={{ borderRadius: 4 }} />
         <Skeleton width={70} height={22} sx={{ borderRadius: 4 }} />
       </Stack>
+
+      {/* Pipeline stepper */}
+      <Skeleton variant="rectangular" height={52} sx={{ borderRadius: 1, mb: 2.5 }} />
 
       {/* Tabs */}
       <Stack
         direction="row"
         sx={{ borderBottom: `1px solid ${COLORS.border}`, mb: 2.5 }}
       >
-        {["Brief", "Draft", "History"].map((label) => (
+        {["Brief", "Story", "History"].map((label) => (
           <Skeleton
             key={label}
             width={68}
@@ -146,8 +159,18 @@ export default function StoryWorkspacePage() {
   const [error, setError] = useState<string | null>(null);
   const [slowLoading, setSlowLoading] = useState(false);
 
+  const [draftHasUnsaved, setDraftHasUnsaved] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [pendingLeave, setPendingLeave] = useState<PendingLeaveNavigation>(null);
+
   // ---- Active tab (for rendering; URL is the source of truth) ----
   const activeTab: WorkspaceTabValue = isValidTab(tab) ? tab : "brief";
+
+  useEffect(() => {
+    if (activeTab !== "draft") {
+      setDraftHasUnsaved(false);
+    }
+  }, [activeTab]);
 
   // ---- Fetch ----
   const fetchStory = useCallback(async () => {
@@ -176,6 +199,46 @@ export default function StoryWorkspacePage() {
     });
     return unsub;
   }, [resolvedStoryId, fetchStory]);
+
+  // Opening the workspace while Agent 1 output is unread moves the story to `in_review`
+  // (sets lastOpenedAt server-side). Approve/regenerate require `in_review`, not `awaiting_review`.
+  useEffect(() => {
+    if (!story || story.status !== "awaiting_review") return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const updated = await draftStore.transitionStatus(resolvedStoryId, "in_review");
+        if (!cancelled) {
+          setError(null);
+          setStory(updated);
+        }
+      } catch (e: unknown) {
+        try {
+          const recovered = await draftStore.getStory(resolvedStoryId);
+          if (!cancelled && recovered?.status === "in_review") {
+            setError(null);
+            setStory(recovered);
+          } else if (!cancelled) {
+            setError(
+              e instanceof Error ? e.message : "Could not open story for review.",
+            );
+          }
+        } catch {
+          if (!cancelled) {
+            setError(
+              e instanceof Error ? e.message : "Could not open story for review.",
+            );
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [story?.status, resolvedStoryId]);
 
   // Slow-loading indicator (fires after 3 s if still loading)
   useEffect(() => {
@@ -207,9 +270,44 @@ export default function StoryWorkspacePage() {
     });
   }, [story, tab, base, resolvedStoryId, navigate]);
 
-  // ---- Tab switching ----
-  function handleTabChange(newTab: WorkspaceTabValue) {
+  // ---- Tab switching (guards Story tab when there are unsaved edits) ----
+  function navigateToTab(newTab: WorkspaceTabValue) {
     navigate(`${base}/stories/${resolvedStoryId}/${newTab}`, { replace: true });
+  }
+
+  function handleTabChange(newTab: WorkspaceTabValue) {
+    if (activeTab === "draft" && draftHasUnsaved && newTab !== activeTab) {
+      setPendingLeave({ kind: "tab", tab: newTab });
+      setLeaveDialogOpen(true);
+      return;
+    }
+    navigateToTab(newTab);
+  }
+
+  function handleStoriesClick() {
+    if (activeTab === "draft" && draftHasUnsaved) {
+      setPendingLeave({ kind: "stories" });
+      setLeaveDialogOpen(true);
+      return;
+    }
+    navigate(`${base}/stories`);
+  }
+
+  function handleLeaveConfirm() {
+    if (!pendingLeave) return;
+    if (pendingLeave.kind === "stories") {
+      navigate(`${base}/stories`);
+    } else {
+      navigateToTab(pendingLeave.tab);
+    }
+    setDraftHasUnsaved(false);
+    setPendingLeave(null);
+    setLeaveDialogOpen(false);
+  }
+
+  function handleLeaveCancel() {
+    setPendingLeave(null);
+    setLeaveDialogOpen(false);
   }
 
   // ---- Action handlers ----
@@ -291,9 +389,11 @@ export default function StoryWorkspacePage() {
             onArchive={handleArchive}
             onRestore={handleRestore}
             onNewRevision={handleNewRevision}
+            onStoriesClick={handleStoriesClick}
           />
 
           <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pt: 0 }}>
+            <StoryPipelineStepper story={story} />
             <WorkspaceTabs
               story={story}
               activeTab={activeTab}
@@ -317,6 +417,7 @@ export default function StoryWorkspacePage() {
                   story={story}
                   onStoryUpdate={setStory}
                   onNavigateToTab={handleTabChange}
+                  onUnsavedDraftChange={setDraftHasUnsaved}
                 />
               )}
               {activeTab === "history" && <HistoryTab story={story} />}
@@ -324,6 +425,28 @@ export default function StoryWorkspacePage() {
           </Box>
         </>
       )}
+
+      <Dialog
+        open={leaveDialogOpen}
+        onClose={handleLeaveCancel}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Unsaved changes</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            You have unsaved edits on the Story tab. Leave without saving?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={handleLeaveConfirm}>
+            Leave
+          </Button>
+          <Button variant="contained" onClick={handleLeaveCancel}>
+            Stay
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -51,7 +51,7 @@ const AGE_RANGE_LABELS: Record<AgeRange, string> = {
 };
 
 const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Draft",
+  draft_brief: "Brief in progress",
   generating: "Generating",
   awaiting_review: "Awaiting review",
   in_review: "In review",
@@ -79,6 +79,8 @@ export interface WorkspaceHeaderProps {
   onArchive: () => void;
   onRestore: () => void;
   onNewRevision: () => void;
+  /** When set, called instead of navigating to the stories list (e.g. unsaved-draft guard). */
+  onStoriesClick?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -91,6 +93,7 @@ export default function WorkspaceHeader({
   onArchive,
   onRestore,
   onNewRevision,
+  onStoriesClick,
 }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
@@ -189,7 +192,9 @@ export default function WorkspaceHeader({
       <Button
         startIcon={<ArrowBackIcon sx={{ fontSize: "1rem !important" }} />}
         size="small"
-        onClick={() => navigate(`${base}/stories`)}
+        onClick={() =>
+          onStoriesClick ? onStoriesClick() : navigate(`${base}/stories`)
+        }
         sx={{
           mb: 1.5,
           px: 0,

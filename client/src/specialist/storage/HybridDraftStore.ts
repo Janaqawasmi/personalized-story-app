@@ -11,6 +11,8 @@ import { isTransitionAllowed } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import { createEmptyBrief } from "../../types/storyBrief";
 import * as apiClient from "../../api/specialistStories";
+import { buildSpecialistSnapshotFields } from "../utils/specialistVersionSnapshot";
+import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
 
 // ============================================================================
 // localStorage registry
@@ -140,16 +142,8 @@ export class HybridDraftStore implements DraftStore {
     }
 
     // Search query — client-side since the API doesn't support it
-    if (filter?.searchQuery) {
-      const q = filter.searchQuery.toLowerCase();
-      merged = merged.filter((s) => {
-        if (s.title.toLowerCase().includes(q)) return true;
-        if (s.tags.some((t) => t.toLowerCase().includes(q))) return true;
-        if (s.brief.section2?.population?.toLowerCase().includes(q))
-          return true;
-        if (s.brief.section2?.trigger?.toLowerCase().includes(q)) return true;
-        return false;
-      });
+    if (filter?.searchQuery?.trim()) {
+      merged = merged.filter((s) => storyMatchesSearchQuery(s, filter.searchQuery!));
     }
 
     // Sort
@@ -313,9 +307,17 @@ export class HybridDraftStore implements DraftStore {
         );
       }
 
+      let base: Story = local;
+      if (to === "needs_revision" && metadata?.feedback) {
+        const snap = buildSpecialistSnapshotFields(local);
+        if (snap) {
+          base = { ...local, ...snap };
+        }
+      }
+
       const now = Date.now();
       const newHistory: EditHistoryEntry[] = [
-        ...local.editHistory,
+        ...base.editHistory,
         {
           id: crypto.randomUUID(),
           at: now,
@@ -324,7 +326,6 @@ export class HybridDraftStore implements DraftStore {
         },
       ];
 
-      // Append regeneration_requested event when feedback is provided
       if (to === "needs_revision" && metadata?.feedback) {
         newHistory.push({
           id: crypto.randomUUID(),
@@ -332,13 +333,13 @@ export class HybridDraftStore implements DraftStore {
           byUid: local.ownerUid,
           event: {
             kind: "regeneration_requested",
-            feedback: String(metadata.feedback),
+            feedback: String(metadata.feedback).trim(),
           },
         });
       }
 
       const updated: Story = {
-        ...local,
+        ...base,
         status: to,
         updatedAt: now,
         editHistory: newHistory,

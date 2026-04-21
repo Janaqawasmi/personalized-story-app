@@ -24,7 +24,7 @@ interface HistoryTabProps {
 // ---------------------------------------------------------------------------
 
 const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Draft",
+  draft_brief: "Brief in progress",
   generating: "Generating",
   awaiting_review: "Awaiting review",
   in_review: "In review",
@@ -83,7 +83,7 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       break;
 
     case "agent1_generated":
-      mainLabel = `Agent 1 generated story (v${event.version})${event.succeeded ? "" : " — failed"}`;
+      mainLabel = `AI drafted story (v${event.version})${event.succeeded ? "" : " — failed"}`;
       break;
 
     case "regeneration_requested":
@@ -96,7 +96,7 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       break;
 
     case "draft_edited":
-      mainLabel = `Draft edited (${event.snapshot.wordCount} words)`;
+      mainLabel = `Story edited (${event.snapshot.wordCount} words)`;
       break;
 
     case "archived":

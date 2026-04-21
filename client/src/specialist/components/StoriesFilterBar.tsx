@@ -81,18 +81,21 @@ interface ChipConfig {
   };
 }
 
+/** Actionable statuses where a count badge helps prioritization (not Generating / Approved / Archived). */
+const STATUSES_WITH_COUNT_BADGE: ReadonlySet<StoryStatus> = new Set<StoryStatus>([
+  "awaiting_review",
+  "in_review",
+  "draft_brief",
+  "needs_revision",
+]);
+
+function showCountBadge(status: StoryStatus | null): boolean {
+  return status !== null && STATUSES_WITH_COUNT_BADGE.has(status);
+}
+
+/** Specialist-priority order: needs you now → soon → in progress → system → done → archive. */
 const CHIP_CONFIGS: ChipConfig[] = [
   { label: "All", status: null, color: STATUS_CHIP_COLORS.all },
-  {
-    label: "Draft",
-    status: "draft_brief",
-    color: STATUS_CHIP_COLORS.draft_brief,
-  },
-  {
-    label: "Generating",
-    status: "generating",
-    color: STATUS_CHIP_COLORS.generating,
-  },
   {
     label: "Awaiting review",
     status: "awaiting_review",
@@ -102,6 +105,21 @@ const CHIP_CONFIGS: ChipConfig[] = [
     label: "In review",
     status: "in_review",
     color: STATUS_CHIP_COLORS.in_review,
+  },
+  {
+    label: "Brief in progress",
+    status: "draft_brief",
+    color: STATUS_CHIP_COLORS.draft_brief,
+  },
+  {
+    label: "Generating",
+    status: "generating",
+    color: STATUS_CHIP_COLORS.generating,
+  },
+  {
+    label: "Needs revision",
+    status: "needs_revision",
+    color: STATUS_CHIP_COLORS.needs_revision,
   },
   {
     label: "Approved",
@@ -236,14 +254,46 @@ export default function StoriesFilterBar({
         {CHIP_CONFIGS.map((cfg) => {
           const active = isChipActive(cfg.status);
           const count = chipCount(cfg.status);
+          /** Filled blue when there is a queue and this chip is not the active filter. */
+          const awaitingReviewBlueHighlight =
+            cfg.status === "awaiting_review" && count > 0 && !active;
+          const needsRevisionBlueHighlight =
+            cfg.status === "needs_revision" && count > 0 && !active;
+          const attentionBlueHighlight =
+            awaitingReviewBlueHighlight || needsRevisionBlueHighlight;
+          const useFilledAppearance = active || attentionBlueHighlight;
           const dimmed = count === 0 && cfg.status !== null;
           const col = cfg.color;
+          const label = showCountBadge(cfg.status)
+            ? `${cfg.label} (${count})`
+            : cfg.label;
+
+          const filledSx = attentionBlueHighlight
+            ? {
+                bgcolor: "#1976d2",
+                color: "#fff",
+                border: "none",
+                "&:hover": {
+                  bgcolor: "#1565c0",
+                },
+                "& .MuiChip-label": { color: "#fff" },
+              }
+            : {
+                bgcolor: col.filledBg.trim(),
+                color: col.filledText.trim(),
+                border: "none",
+                "&:hover": {
+                  bgcolor: col.filledBg.trim(),
+                  opacity: 0.88,
+                },
+                "& .MuiChip-label": { color: col.filledText.trim() },
+              };
 
           return (
             <Chip
               key={cfg.label}
-              label={`${cfg.label} (${count})`}
-              variant={active ? "filled" : "outlined"}
+              label={label}
+              variant={useFilledAppearance ? "filled" : "outlined"}
               onClick={() => handleChipClick(cfg.status)}
               size="small"
               sx={{
@@ -254,17 +304,8 @@ export default function StoriesFilterBar({
                 cursor: "pointer",
                 borderRadius: "16px",
                 transition: "all 0.15s ease",
-                ...(active
-                  ? {
-                      bgcolor: col.filledBg,
-                      color: col.filledText,
-                      border: "none",
-                      "&:hover": {
-                        bgcolor: col.filledBg,
-                        opacity: 0.88,
-                      },
-                      "& .MuiChip-label": { color: col.filledText },
-                    }
+                ...(useFilledAppearance
+                  ? filledSx
                   : {
                       bgcolor: "transparent",
                       borderColor: col.outlinedBorder,
@@ -293,7 +334,7 @@ export default function StoriesFilterBar({
         {/* Search box */}
         <TextField
           size="small"
-          placeholder="Search stories…"
+          placeholder="Search by title, population, or trigger..."
           value={localSearch}
           onChange={handleSearchInput}
           sx={{

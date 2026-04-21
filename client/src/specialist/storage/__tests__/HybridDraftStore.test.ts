@@ -307,6 +307,37 @@ describe("HybridDraftStore", () => {
       expect(stories).toHaveLength(1);
       expect(stories[0].id).toBe("search-1");
     });
+
+    it("filters by searchQuery against tags, population, and trigger", async () => {
+      const withTag = makeStory({ id: "t1", title: "A", tags: ["separation"] });
+      const withPop = makeStory({
+        id: "t2",
+        title: "B",
+        brief: {
+          ...createEmptyBrief(),
+          section2: { population: "School refusal cohort" },
+        },
+      });
+      const withTrig = makeStory({
+        id: "t3",
+        title: "C",
+        brief: {
+          ...createEmptyBrief(),
+          section2: { trigger: "Loud thunder at night" },
+        },
+      });
+      const other = makeStory({ id: "t4", title: "Unrelated" });
+      seedLocalStories([withTag, withPop, withTrig, other]);
+
+      const byTag = await store.listStories({ searchQuery: "separation" });
+      expect(byTag.map((s) => s.id)).toEqual(["t1"]);
+
+      const byPop = await store.listStories({ searchQuery: "refusal" });
+      expect(byPop.map((s) => s.id)).toEqual(["t2"]);
+
+      const byTrig = await store.listStories({ searchQuery: "thunder" });
+      expect(byTrig.map((s) => s.id)).toEqual(["t3"]);
+    });
   });
 
   describe("Group 4: updateStory - status guard", () => {

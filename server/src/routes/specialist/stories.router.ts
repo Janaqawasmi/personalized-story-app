@@ -20,6 +20,46 @@ import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 
 const router = Router();
 
+/** Specialist prose edits are snapshotted as an extra agent1Versions entry before regeneration. */
+function buildSpecialistSnapshotFields(
+  story: Story,
+): Pick<Story, "agent1Versions" | "agent1Result"> | null {
+  const draft = story.currentDraft;
+  const base: Agent1Result | null =
+    story.agent1Versions.length > 0
+      ? story.agent1Versions[story.agent1Versions.length - 1]!
+      : story.agent1Result ?? null;
+  if (!draft || !base) return null;
+
+  if (
+    draft.body.trim() === base.story.trim() &&
+    draft.title.trim() === base.title.trim()
+  ) {
+    return null;
+  }
+
+  const wc = draft.wordCount;
+  const [minW, maxW] = base.targetWordRange;
+  const wordCountDrift: Agent1Result["wordCountDrift"] =
+    wc < minW ? "under" : wc > maxW ? "over" : "within_range";
+
+  const snapshot: Agent1Result = {
+    ...base,
+    generationId: crypto.randomUUID(),
+    title: draft.title,
+    story: draft.body,
+    wordCount: wc,
+    wordCountDrift,
+    generatedAt: new Date().toISOString(),
+    rerunOf: base.generationId,
+  };
+
+  return {
+    agent1Versions: [...story.agent1Versions, snapshot],
+    agent1Result: snapshot,
+  };
+}
+
 router.use(requireAuth);
 router.use(requireRole("specialist", "admin"));
 
@@ -319,7 +359,11 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const { to, feedback } = req.body;
+  const { to } = req.body;
+  const feedbackRaw = req.body.feedback;
+  const feedback =
+    typeof feedbackRaw === "string" ? feedbackRaw.trim() : "";
+
   if (!to || typeof to !== "string") {
     res.status(400).json({ error: "INVALID_INPUT", message: "Request body must include a 'to' status string." });
     return;
@@ -344,6 +388,13 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
   const now = Date.now();
   const extraFields: Partial<Story> = {};
 
+  if (to === "needs_revision") {
+    const snap = buildSpecialistSnapshotFields(story);
+    if (snap) {
+      Object.assign(extraFields, snap);
+    }
+  }
+
   if (to === "approved") {
     extraFields.approvedAt = now;
   } else if (to === "in_review") {
@@ -364,7 +415,7 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
 
   const updatedHistory = [...story.editHistory, statusEvent];
 
-  if (to === "needs_revision" && feedback) {
+  if (to === "needs_revision") {
     const feedbackEvent = {
       id: crypto.randomUUID(),
       at: now,

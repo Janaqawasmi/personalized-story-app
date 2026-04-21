@@ -1,9 +1,8 @@
 // client/src/specialist/components/DraftTab.tsx
 //
-// Agent 1 review section: emotional truth card, blueprint card,
-// conditional cards (compression, inferred intention, post-validation flags),
-// alignment note, versions dropdown, story editor (two-column layout),
-// side panel, and action bar.
+// Story tab (DraftTab): two-zone layout — story editor (left) + evidence panel (right).
+// Evidence: safety (flags, must-never) first; AI reasoning in accordions;
+// placeholders + coping reminder below. Versions inline above the title.
 //
 // Status-specific rendering modes:
 //   generating / needs_revision → GeneratingState (spinner + polling)
@@ -12,6 +11,9 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -24,7 +26,6 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControl from "@mui/material/FormControl";
-import IconButton from "@mui/material/IconButton";
 import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Select from "@mui/material/Select";
@@ -33,9 +34,12 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
+import { alpha } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 
 import type { Story, StoryDraft } from "../../types/story";
 import type {
@@ -55,6 +59,8 @@ export interface DraftTabProps {
   story: Story;
   onStoryUpdate: (story: Story) => void;
   onNavigateToTab?: (tab: "brief" | "history") => void;
+  /** Lets the workspace intercept tab/back navigation when the draft has unsaved edits. */
+  onUnsavedDraftChange?: (hasUnsaved: boolean) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +74,39 @@ const CHECK_TYPE_LABELS: Record<PostValidationFlag["checkType"], string> = {
   age_appropriateness: "Age appropriateness",
 };
 
+/** Lower = higher priority for the sticky blocker strip (must-never → shame → age → coping). */
+const FLAG_BLOCKER_PRIORITY: Record<PostValidationFlag["checkType"], number> = {
+  must_never: 0,
+  shame_handling: 1,
+  age_appropriateness: 2,
+  coping_tool: 3,
+};
+
+const REVIEW_MODE_STORAGE_KEY = "specialist-draft-review-mode";
+
+function getTopUndismissedBlockers(
+  flags: PostValidationFlag[],
+  dismissedFlags: Set<number>,
+  limit = 3,
+): Array<{ index: number; flag: PostValidationFlag }> {
+  const items = flags
+    .map((flag, index) => ({ flag, index }))
+    .filter(({ index }) => !dismissedFlags.has(index));
+  items.sort(
+    (a, b) =>
+      FLAG_BLOCKER_PRIORITY[a.flag.checkType] -
+      FLAG_BLOCKER_PRIORITY[b.flag.checkType],
+  );
+  return items.slice(0, limit);
+}
+
+function countUndismissedFlags(
+  flags: PostValidationFlag[],
+  dismissedFlags: Set<number>,
+): number {
+  return flags.reduce((n, _, i) => n + (dismissedFlags.has(i) ? 0 : 1), 0);
+}
+
 const PLACEHOLDERS = [
   "[CHILD_NAME]",
   "[HE/SHE/THEY]",
@@ -76,6 +115,24 @@ const PLACEHOLDERS = [
 ] as const;
 
 const MAX_VERSIONS = 3;
+
+/** Whether a post-validation flag targets this must-never line (by index or text). */
+function mustNeverFlaggedForIndex(
+  index: number,
+  item: string,
+  flags: PostValidationFlag[],
+): boolean {
+  return flags.some((f) => {
+    if (f.checkType !== "must_never") return false;
+    const c = f.constraintIdOrIndex;
+    if (typeof c === "number") return c === index;
+    if (typeof c === "string") {
+      const t = c.trim();
+      return t === String(index) || t === item.trim();
+    }
+    return false;
+  });
+}
 
 // ---------------------------------------------------------------------------
 // GeneratingState — shown when status === 'generating' | 'needs_revision'
@@ -140,7 +197,7 @@ function GeneratingState({
         }}
       >
         <CircularProgress />
-        <Typography variant="h6">Agent 1 is generating your story…</Typography>
+        <Typography variant="h6">AI is generating your story…</Typography>
         <Typography variant="body2" color="text.secondary">
           This usually takes 30–60 seconds.
         </Typography>
@@ -262,60 +319,79 @@ function EmotionalTruthCard({
   result,
   onFeedback,
   hideButtons,
+  noOuterCard,
 }: {
   result: Agent1Result;
   onFeedback: (feedback: string) => void;
   hideButtons?: boolean;
+  noOuterCard?: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  return (
-    <Card variant="outlined" sx={{ mb: 2 }}>
-      <CardContent>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+  const body = (
+    <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent={noOuterCard ? "flex-end" : "space-between"}
+        sx={{ mb: 1 }}
+      >
+        {!noOuterCard && (
           <Typography variant="subtitle1" fontWeight={600}>
             Emotional truth
           </Typography>
-          {!hideButtons && (
-            <Stack direction="row" spacing={1}>
-              {confirmed ? (
-                <Chip
-                  icon={<CheckCircleIcon />}
-                  label="Confirmed"
-                  color="success"
-                  size="small"
-                />
-              ) : (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="success"
-                  onClick={() => setConfirmed(true)}
-                >
-                  Captures my intention
-                </Button>
-              )}
+        )}
+        {!hideButtons && (
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {confirmed ? (
+              <Chip
+                icon={<CheckCircleIcon />}
+                label="Confirmed"
+                color="success"
+                size="small"
+              />
+            ) : (
               <Button
                 size="small"
                 variant="outlined"
-                color="warning"
-                onClick={() => setDialogOpen(true)}
+                color="success"
+                onClick={() => setConfirmed(true)}
               >
-                Misses something
+                Captures my intention
               </Button>
-            </Stack>
-          )}
-        </Stack>
-        <Typography variant="body2">{result.emotionalTruth}</Typography>
-      </CardContent>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              onClick={() => setDialogOpen(true)}
+            >
+              Misses something
+            </Button>
+          </Stack>
+        )}
+      </Stack>
+      <Typography variant="body2">{result.emotionalTruth}</Typography>
+    </CardContent>
+  );
+
+  return (
+    <>
+      {noOuterCard ? (
+        <Box>{body}</Box>
+      ) : (
+        <Card variant="outlined" sx={{ mb: 2 }}>
+          {body}
+        </Card>
+      )}
       <FeedbackDialog
         open={dialogOpen}
         title="What did the emotional truth miss?"
         onClose={() => setDialogOpen(false)}
         onSubmit={onFeedback}
       />
-    </Card>
+    </>
   );
 }
 
@@ -327,74 +403,93 @@ function BlueprintCard({
   result,
   onFeedback,
   hideButtons,
+  noOuterCard,
 }: {
   result: Agent1Result;
   onFeedback: (feedback: string) => void;
   hideButtons?: boolean;
+  noOuterCard?: boolean;
 }) {
   const [confirmed, setConfirmed] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  return (
-    <Card variant="outlined" sx={{ mb: 2 }}>
-      <CardContent>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+  const body = (
+    <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent={noOuterCard ? "flex-end" : "space-between"}
+        sx={{ mb: 1 }}
+      >
+        {!noOuterCard && (
           <Typography variant="subtitle1" fontWeight={600}>
             Narrative blueprint
           </Typography>
-          {!hideButtons && (
-            <Stack direction="row" spacing={1}>
-              {confirmed ? (
-                <Chip
-                  icon={<CheckCircleIcon />}
-                  label="Confirmed"
-                  color="success"
-                  size="small"
-                />
-              ) : (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  color="success"
-                  onClick={() => setConfirmed(true)}
-                >
-                  Right journey
-                </Button>
-              )}
+        )}
+        {!hideButtons && (
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {confirmed ? (
+              <Chip
+                icon={<CheckCircleIcon />}
+                label="Confirmed"
+                color="success"
+                size="small"
+              />
+            ) : (
               <Button
                 size="small"
                 variant="outlined"
-                color="warning"
-                onClick={() => setDialogOpen(true)}
+                color="success"
+                onClick={() => setConfirmed(true)}
               >
-                Wrong direction
+                Right journey
               </Button>
-            </Stack>
-          )}
-        </Stack>
+            )}
+            <Button
+              size="small"
+              variant="outlined"
+              color="warning"
+              onClick={() => setDialogOpen(true)}
+            >
+              Wrong direction
+            </Button>
+          </Stack>
+        )}
+      </Stack>
 
-        <Box sx={{ mb: 1.5 }}>
-          {result.blueprint.map((point) => (
-            <Typography key={point.index} variant="body2" sx={{ mb: 0.25 }}>
-              {point.index}. {point.text}
-            </Typography>
-          ))}
-        </Box>
+      <Box sx={{ mb: 1.5 }}>
+        {result.blueprint.map((point) => (
+          <Typography key={point.index} variant="body2" sx={{ mb: 0.25 }}>
+            {point.index}. {point.text}
+          </Typography>
+        ))}
+      </Box>
 
-        <Typography variant="body2" sx={{ mb: 0.5 }}>
-          <strong>Coping tool placement:</strong> {result.copingToolPlacement}
-        </Typography>
-        <Typography variant="body2">
-          <strong>Approach:</strong> {result.approachInstruction}
-        </Typography>
-      </CardContent>
+      <Typography variant="body2" sx={{ mb: 0.5 }}>
+        <strong>Coping tool placement:</strong> {result.copingToolPlacement}
+      </Typography>
+      <Typography variant="body2">
+        <strong>Approach:</strong> {result.approachInstruction}
+      </Typography>
+    </CardContent>
+  );
+
+  return (
+    <>
+      {noOuterCard ? (
+        <Box>{body}</Box>
+      ) : (
+        <Card variant="outlined" sx={{ mb: 2 }}>
+          {body}
+        </Card>
+      )}
       <FeedbackDialog
         open={dialogOpen}
         title="What's wrong with the blueprint direction?"
         onClose={() => setDialogOpen(false)}
         onSubmit={onFeedback}
       />
-    </Card>
+    </>
   );
 }
 
@@ -402,16 +497,19 @@ function BlueprintCard({
 // Compression Metadata Card (conditional)
 // ---------------------------------------------------------------------------
 
-function CompressionMetadataCard({ result }: { result: Agent1Result }) {
+function CompressionMetadataCard({
+  result,
+  noOuterCard,
+}: {
+  result: Agent1Result;
+  noOuterCard?: boolean;
+}) {
   const meta = result.compressionMetadata;
   if (!meta) return null;
 
-  return (
-    <Card
-      variant="outlined"
-      sx={{ mb: 2, borderLeft: `4px solid ${COLORS.warning}` }}
-    >
-      <CardContent>
+  const body = (
+    <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+      {!noOuterCard && (
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
           <Typography variant="subtitle1" fontWeight={600}>
             ⚠ Compression metadata
@@ -425,52 +523,63 @@ function CompressionMetadataCard({ result }: { result: Agent1Result }) {
             </Typography>
           </Tooltip>
         </Stack>
+      )}
 
-        {meta.fullyIncluded.length > 0 && (
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
-              Fully included:
-            </Typography>
-            <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-              {meta.fullyIncluded.map((item, i) => (
-                <Typography key={i} component="li" variant="body2">
-                  {item}
-                </Typography>
-              ))}
-            </Box>
+      {meta.fullyIncluded.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
+            Fully included:
+          </Typography>
+          <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            {meta.fullyIncluded.map((item, i) => (
+              <Typography key={i} component="li" variant="body2">
+                {item}
+              </Typography>
+            ))}
           </Box>
-        )}
+        </Box>
+      )}
 
-        {meta.compressed.length > 0 && (
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
-              Compressed:
-            </Typography>
-            <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-              {meta.compressed.map((item, i) => (
-                <Typography key={i} component="li" variant="body2">
-                  {item.obligation} — {item.how}
-                </Typography>
-              ))}
-            </Box>
+      {meta.compressed.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
+            Compressed:
+          </Typography>
+          <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            {meta.compressed.map((item, i) => (
+              <Typography key={i} component="li" variant="body2">
+                {item.obligation} — {item.how}
+              </Typography>
+            ))}
           </Box>
-        )}
+        </Box>
+      )}
 
-        {meta.omitted.length > 0 && (
-          <Box sx={{ mb: 1 }}>
-            <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
-              Omitted:
-            </Typography>
-            <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-              {meta.omitted.map((item, i) => (
-                <Typography key={i} component="li" variant="body2">
-                  {item.obligation} — {item.why}
-                </Typography>
-              ))}
-            </Box>
+      {meta.omitted.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
+            Omitted:
+          </Typography>
+          <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+            {meta.omitted.map((item, i) => (
+              <Typography key={i} component="li" variant="body2">
+                {item.obligation} — {item.why}
+              </Typography>
+            ))}
           </Box>
-        )}
-      </CardContent>
+        </Box>
+      )}
+    </CardContent>
+  );
+
+  return noOuterCard ? (
+    <Box>{body}</Box>
+  ) : (
+    <Card
+      variant="outlined"
+      sx={{ mb: 2, borderLeft: `4px solid ${COLORS.warning}` }}
+    >
+      {body}
     </Card>
   );
 }
@@ -483,10 +592,12 @@ function InferredIntentionCard({
   result,
   story,
   hideButtons,
+  noOuterCard,
 }: {
   result: Agent1Result;
   story: Story;
   hideButtons?: boolean;
+  noOuterCard?: boolean;
 }) {
   const [accepted, setAccepted] = useState(false);
   const navigate = useNavigate();
@@ -510,65 +621,184 @@ function InferredIntentionCard({
 
   if (!intention) return null;
 
-  return (
+  const body = (
+    <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+      {!noOuterCard && (
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+          ⚠ Inferred intention
+        </Typography>
+      )}
+
+      <Typography variant="body2" sx={{ mb: 0.25 }}>
+        <strong>Feel:</strong> {intention.feel}
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 0.25 }}>
+        <strong>Because:</strong> {intention.because}
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 1.5 }}>
+        <strong>Reason:</strong> {intention.reason}
+      </Typography>
+
+      {!hideButtons && (
+        <Stack direction="row" spacing={1} flexWrap="wrap">
+          {accepted ? (
+            <Chip
+              icon={<CheckCircleIcon />}
+              label="Inferred intention accepted"
+              color="success"
+              size="small"
+            />
+          ) : (
+            <Button
+              size="small"
+              variant="outlined"
+              color="success"
+              onClick={() => setAccepted(true)}
+            >
+              Use inferred
+            </Button>
+          )}
+          <Button
+            size="small"
+            variant="outlined"
+            color="warning"
+            onClick={handleEditBrief}
+          >
+            Edit brief instead
+          </Button>
+        </Stack>
+      )}
+    </CardContent>
+  );
+
+  return noOuterCard ? (
+    <Box>{body}</Box>
+  ) : (
     <Card
       variant="outlined"
       sx={{ mb: 2, borderLeft: "4px solid #FFA000" }}
     >
-      <CardContent>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
-          ⚠ Inferred intention
-        </Typography>
-
-        <Typography variant="body2" sx={{ mb: 0.25 }}>
-          <strong>Feel:</strong> {intention.feel}
-        </Typography>
-        <Typography variant="body2" sx={{ mb: 0.25 }}>
-          <strong>Because:</strong> {intention.because}
-        </Typography>
-        <Typography variant="body2" sx={{ mb: 1.5 }}>
-          <strong>Reason:</strong> {intention.reason}
-        </Typography>
-
-        {!hideButtons && (
-          <Stack direction="row" spacing={1}>
-            {accepted ? (
-              <Chip
-                icon={<CheckCircleIcon />}
-                label="Inferred intention accepted"
-                color="success"
-                size="small"
-              />
-            ) : (
-              <Button
-                size="small"
-                variant="outlined"
-                color="success"
-                onClick={() => setAccepted(true)}
-              >
-                Use inferred
-              </Button>
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              color="warning"
-              onClick={handleEditBrief}
-            >
-              Edit brief instead
-            </Button>
-          </Stack>
-        )}
-      </CardContent>
+      {body}
     </Card>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Post-Validation Flags Card (dismissedFlags lifted to DraftTab)
+// Sticky validation summary (top blockers — must-never / shame / age first)
 // ---------------------------------------------------------------------------
 
-function PostValidationFlagsCard({
+function truncatePassage(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars)}…`;
+}
+
+function ValidationBlockerStrip({
+  flags,
+  dismissedFlags,
+  onToggleFlag,
+  hideButtons,
+  reviewMode,
+}: {
+  flags: PostValidationFlag[];
+  dismissedFlags: Set<number>;
+  onToggleFlag: (index: number) => void;
+  hideButtons?: boolean;
+  reviewMode?: boolean;
+}) {
+  const undismissedCount = countUndismissedFlags(flags, dismissedFlags);
+  const blockers = getTopUndismissedBlockers(flags, dismissedFlags, 3);
+  if (undismissedCount === 0 || blockers.length === 0) return null;
+
+  const remaining = Math.max(0, undismissedCount - blockers.length);
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        mb: 2,
+        px: 2,
+        py: 1.5,
+        borderRadius: 2,
+        border: `1px solid ${alpha(COLORS.warning, 0.45)}`,
+        bgcolor: alpha(COLORS.warning, 0.06),
+        position: "sticky",
+        top: 8,
+        zIndex: 4,
+      }}
+    >
+      <Stack direction="row" alignItems="flex-start" spacing={1}>
+        <WarningAmberIcon
+          sx={{ color: COLORS.warning, flexShrink: 0, mt: 0.15, fontSize: 22 }}
+        />
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>
+            Safety review needed ({undismissedCount}{" "}
+            {undismissedCount === 1 ? "finding" : "findings"})
+          </Typography>
+          <Stack spacing={0.75}>
+            {blockers.map(({ index, flag }) => (
+              <Stack
+                key={index}
+                direction="row"
+                alignItems="flex-start"
+                justifyContent="space-between"
+                spacing={1}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" fontWeight={700} component="span" sx={{ mr: 0.75 }}>
+                    {CHECK_TYPE_LABELS[flag.checkType]}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    {truncatePassage(flag.passage, 140)}
+                  </Typography>
+                </Box>
+                {!hideButtons && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => onToggleFlag(index)}
+                    sx={{ flexShrink: 0, minWidth: 0, px: 0.5, fontSize: "0.75rem" }}
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </Stack>
+            ))}
+          </Stack>
+          {remaining > 0 ? (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+              {reviewMode
+                ? `+${remaining} more — turn off Review mode to open the evidence sidebar.`
+                : `+${remaining} more below in Safety Review.`}
+            </Typography>
+          ) : null}
+        </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Safety Review (post-validation findings — cannot be collapsed; always first in evidence)
+// ---------------------------------------------------------------------------
+
+function NoSafetyConcernsLine() {
+  return (
+    <Typography
+      variant="body2"
+      sx={{
+        mb: 2,
+        color: COLORS.success,
+        fontWeight: 600,
+      }}
+    >
+      ✓ No safety concerns detected
+    </Typography>
+  );
+}
+
+function SafetyReviewCard({
   result,
   dismissedFlags,
   onToggleFlag,
@@ -584,13 +814,31 @@ function PostValidationFlagsCard({
 
   return (
     <Card
-      variant="outlined"
-      sx={{ mb: 2, borderLeft: `4px solid ${COLORS.error}` }}
+      elevation={0}
+      sx={{
+        mb: 2,
+        border: `1px solid ${alpha(COLORS.error, 0.35)}`,
+        borderLeft: `4px solid ${COLORS.error}`,
+        bgcolor: alpha(COLORS.error, 0.09),
+        boxShadow: "none",
+      }}
     >
-      <CardContent>
-        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1.5 }}>
-          ⚠ Safety flags ({flags.length})
-        </Typography>
+      <CardContent sx={{ "&:last-child": { pb: 2 } }}>
+        <Stack direction="row" alignItems="flex-start" spacing={1.25} sx={{ mb: 2 }}>
+          <WarningAmberIcon
+            sx={{
+              fontSize: 32,
+              color: COLORS.error,
+              flexShrink: 0,
+              mt: -0.25,
+            }}
+          />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" fontWeight={700} color="error.dark" sx={{ lineHeight: 1.3 }}>
+              Safety Review Required
+            </Typography>
+          </Box>
+        </Stack>
 
         <Stack spacing={1.5}>
           {flags.map((flag, index) => {
@@ -599,15 +847,16 @@ function PostValidationFlagsCard({
               <Box
                 key={index}
                 sx={{
-                  opacity: isDismissed ? 0.5 : 1,
+                  opacity: isDismissed ? 0.55 : 1,
                   p: 1.5,
                   borderRadius: 1,
-                  bgcolor: isDismissed ? "action.disabledBackground" : "grey.50",
+                  border: `1px solid ${alpha(COLORS.error, 0.2)}`,
+                  bgcolor: isDismissed ? "action.disabledBackground" : alpha("#ffffff", 0.82),
                 }}
               >
                 <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
                   <Box sx={{ flex: 1 }}>
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                    <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }} flexWrap="wrap">
                       <Typography variant="body2" fontWeight={600}>
                         {CHECK_TYPE_LABELS[flag.checkType]}
                       </Typography>
@@ -657,27 +906,10 @@ function PostValidationFlagsCard({
 }
 
 // ---------------------------------------------------------------------------
-// Alignment Note
+// Version selector (compact, above story title)
 // ---------------------------------------------------------------------------
 
-function AlignmentNote({ result }: { result: Agent1Result }) {
-  if (!result.alignmentNote) return null;
-
-  return (
-    <Box sx={{ mb: 3 }}>
-      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 0.5, display: "block" }}>
-        Alignment note
-      </Typography>
-      <Typography variant="body2">{result.alignmentNote}</Typography>
-    </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Versions Bar
-// ---------------------------------------------------------------------------
-
-function VersionsBar({
+function VersionSelectorRow({
   story,
   selectedVersionIndex,
   onVersionChange,
@@ -699,23 +931,18 @@ function VersionsBar({
       direction="row"
       alignItems="center"
       justifyContent="space-between"
-      sx={{
-        py: 1.5,
-        px: 2,
-        mb: 2,
-        bgcolor: "grey.50",
-        borderRadius: 1,
-        border: `1px solid ${COLORS.border}`,
-      }}
+      flexWrap="wrap"
+      gap={1}
+      sx={{ mb: 1.5 }}
     >
-      <FormControl size="small" sx={{ minWidth: 240 }}>
+      <FormControl size="small" sx={{ minWidth: 200, maxWidth: "100%" }}>
         <Select
           value={selectedVersionIndex}
           onChange={(e) => onVersionChange(e.target.value as number)}
         >
           {versions.map((version, i) => {
             const relTime = formatRelativeTime(new Date(version.generatedAt).getTime());
-            const label = `v${i + 1} — generated ${relTime}${i === versions.length - 1 ? " (current)" : ""}`;
+            const label = `v${i + 1} — ${relTime}${i === versions.length - 1 ? " (current)" : ""}`;
             return (
               <MenuItem key={version.generationId ?? i} value={i}>
                 {label}
@@ -725,85 +952,82 @@ function VersionsBar({
         </Select>
       </FormControl>
 
-      <Typography variant="body2" sx={{ color: wordCountColor, fontWeight: 500 }}>
-        {displayedResult.wordCount} words / target {displayedResult.targetWordRange[0]}–
-        {displayedResult.targetWordRange[1]}
-        {!isLatest && (
-          <Chip label="Viewing older version" size="small" sx={{ ml: 1 }} />
-        )}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+        <Typography variant="caption" sx={{ color: wordCountColor, fontWeight: 500 }}>
+          Agent output: {displayedResult.wordCount} words / target{" "}
+          {displayedResult.targetWordRange[0]}–{displayedResult.targetWordRange[1]}
+        </Typography>
+        {!isLatest && <Chip label="Older version" size="small" />}
+      </Stack>
     </Stack>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Review Section (combines all cards)
+// Evidence panel (safety + accordions + placeholders)
 // ---------------------------------------------------------------------------
 
-function ReviewSection({
-  result,
+function MustNeverChecklist({ story, flags }: { story: Story; flags: PostValidationFlag[] }) {
+  const mustNeverList = story.brief.section3?.mustNeverList ?? [];
+
+  return (
+    <Card variant="outlined" sx={{ mb: 2 }}>
+      <CardContent sx={{ pb: "12px !important" }}>
+        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+          Must-never list
+        </Typography>
+        {mustNeverList.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            No must-never items defined.
+          </Typography>
+        ) : (
+          <Stack spacing={1.25}>
+            {mustNeverList.map((item, i) => {
+              const flagged = mustNeverFlaggedForIndex(i, item, flags);
+              return (
+                <Stack key={i} direction="row" alignItems="flex-start" spacing={1}>
+                  {flagged ? (
+                    <WarningAmberIcon color="warning" sx={{ fontSize: 20, mt: 0.15, flexShrink: 0 }} />
+                  ) : (
+                    <CheckCircleIcon color="success" sx={{ fontSize: 20, mt: 0.15, flexShrink: 0 }} />
+                  )}
+                  <Typography variant="body2" sx={{ flex: 1 }}>
+                    {item}
+                  </Typography>
+                </Stack>
+              );
+            })}
+          </Stack>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EvidencePanel({
   story,
+  displayedResult,
   dismissedFlags,
   onToggleFlag,
   onFeedback,
   hideButtons,
-}: {
-  result: Agent1Result;
-  story: Story;
-  dismissedFlags: Set<number>;
-  onToggleFlag: (index: number) => void;
-  onFeedback: (card: string, feedback: string) => void;
-  hideButtons?: boolean;
-}) {
-  return (
-    <Box sx={{ mb: 3 }}>
-      <EmotionalTruthCard
-        result={result}
-        onFeedback={(fb) => onFeedback("emotionalTruth", fb)}
-        hideButtons={hideButtons}
-      />
-      <BlueprintCard
-        result={result}
-        onFeedback={(fb) => onFeedback("blueprint", fb)}
-        hideButtons={hideButtons}
-      />
-      <CompressionMetadataCard result={result} />
-      <InferredIntentionCard result={result} story={story} hideButtons={hideButtons} />
-      <PostValidationFlagsCard
-        result={result}
-        dismissedFlags={dismissedFlags}
-        onToggleFlag={onToggleFlag}
-        hideButtons={hideButtons}
-      />
-      <AlignmentNote result={result} />
-    </Box>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Side Panel
-// ---------------------------------------------------------------------------
-
-function SidePanel({
-  story,
-  displayedResult,
   textareaRef,
-  collapsed,
-  onToggleCollapse,
   editorBody,
   onEditorBodyChange,
   onNavigateToTab,
 }: {
   story: Story;
   displayedResult: Agent1Result;
+  dismissedFlags: Set<number>;
+  onToggleFlag: (index: number) => void;
+  onFeedback: (card: string, feedback: string) => void;
+  hideButtons?: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
   editorBody: string;
   onEditorBodyChange: (body: string) => void;
   onNavigateToTab?: (tab: "brief" | "history") => void;
 }) {
-  const mustNeverList = story.brief.section3?.mustNeverList ?? [];
+  const flags = displayedResult.postValidationFlags ?? [];
   const copingTool = story.brief.section3?.copingTool;
   const copingToolLabel = copingTool != null ? COPING_TOOL_LABELS[copingTool] : null;
 
@@ -818,7 +1042,6 @@ function SidePanel({
     const newBody =
       editorBody.slice(0, start) + placeholder + editorBody.slice(end);
     onEditorBodyChange(newBody);
-    // Restore cursor after React re-renders with new value
     requestAnimationFrame(() => {
       ta.setSelectionRange(
         start + placeholder.length,
@@ -828,59 +1051,120 @@ function SidePanel({
     });
   }
 
+  const accordionSx = {
+    mb: 1,
+    "&:before": { display: "none" },
+    boxShadow: "none",
+    border: `1px solid ${COLORS.border}`,
+    borderRadius: 1,
+  };
+
   return (
     <Box
       sx={{
-        width: collapsed ? 40 : 280,
-        minWidth: collapsed ? 40 : 240,
-        flexShrink: 0,
-        transition: "width 0.2s ease, min-width 0.2s ease",
+        display: "flex",
+        flexDirection: "column",
+        minWidth: 0,
+        minHeight: { xs: 0, md: "min(82vh, 900px)" },
+        maxHeight: { xs: "none", md: "min(82vh, 900px)" },
       }}
     >
-      {/* Spec suggests localStorage for collapse state; using useState
-          for pilot simplicity. Can upgrade later. */}
-      <Stack direction="row" alignItems="center" justifyContent="flex-end" sx={{ mb: 1 }}>
-        <Tooltip title={collapsed ? "Expand side panel" : "Collapse side panel"}>
-          <IconButton size="small" onClick={onToggleCollapse}>
-            {collapsed ? (
-              <ChevronLeftIcon fontSize="small" />
-            ) : (
-              <ChevronRightIcon fontSize="small" />
-            )}
-          </IconButton>
-        </Tooltip>
-      </Stack>
+      <Box sx={{ flex: 1, overflow: "auto", minHeight: 0, pr: 0.5 }}>
+        {/* Safety review: always first — prominent card if findings, else explicit all-clear */}
+        {flags.length > 0 ? (
+          <SafetyReviewCard
+            result={displayedResult}
+            dismissedFlags={dismissedFlags}
+            onToggleFlag={onToggleFlag}
+            hideButtons={hideButtons}
+          />
+        ) : (
+          <NoSafetyConcernsLine />
+        )}
 
-      {!collapsed && (
-        <Stack spacing={2}>
-          {/* Must-never list — shows story.brief.section3.mustNeverList ONLY */}
-          <Card variant="outlined">
-            <CardContent sx={{ pb: "12px !important" }}>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                Must-never list
-              </Typography>
-              {mustNeverList.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No must-never items defined.
-                </Typography>
-              ) : (
-                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-                  {mustNeverList.map((item, i) => (
-                    <Typography
-                      key={i}
-                      component="li"
-                      variant="body2"
-                      sx={{ mb: 0.5 }}
-                    >
-                      {item}
-                    </Typography>
-                  ))}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
+        <Typography
+          variant="overline"
+          color="text.secondary"
+          sx={{ mb: 1, display: "block", letterSpacing: 0.08 }}
+        >
+          Evidence
+        </Typography>
 
-          {/* Personalization placeholders */}
+        <MustNeverChecklist story={story} flags={flags} />
+
+        {/* —— Section 2: AI reasoning (collapsed by default) —— */}
+        <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ mb: 1, mt: 2, display: "block" }}>
+          AI reasoning
+        </Typography>
+
+        <Accordion defaultExpanded={false} sx={accordionSx}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography fontWeight={600}>Emotional truth</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+            <EmotionalTruthCard
+              result={displayedResult}
+              onFeedback={(fb) => onFeedback("emotionalTruth", fb)}
+              hideButtons={hideButtons}
+              noOuterCard
+            />
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion defaultExpanded={false} sx={accordionSx}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography fontWeight={600}>Narrative blueprint</Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ pt: 0 }}>
+            <BlueprintCard
+              result={displayedResult}
+              onFeedback={(fb) => onFeedback("blueprint", fb)}
+              hideButtons={hideButtons}
+              noOuterCard
+            />
+          </AccordionDetails>
+        </Accordion>
+
+        {displayedResult.compressionMetadata && (
+          <Accordion defaultExpanded={false} sx={accordionSx}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography fontWeight={600}>Compression metadata</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <CompressionMetadataCard result={displayedResult} noOuterCard />
+            </AccordionDetails>
+          </Accordion>
+        )}
+
+        {displayedResult.inferredIntention && (
+          <Accordion defaultExpanded={false} sx={accordionSx}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography fontWeight={600}>Inferred intention</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ pt: 0 }}>
+              <InferredIntentionCard
+                result={displayedResult}
+                story={story}
+                hideButtons={hideButtons}
+                noOuterCard
+              />
+            </AccordionDetails>
+          </Accordion>
+        )}
+
+        {displayedResult.alignmentNote ? (
+          <Accordion defaultExpanded={false} sx={accordionSx}>
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography fontWeight={600}>Alignment note</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Typography variant="body2">{displayedResult.alignmentNote}</Typography>
+            </AccordionDetails>
+          </Accordion>
+        ) : null}
+
+        {/* —— Placeholders & coping (always visible) —— */}
+        <Stack spacing={2} sx={{ mt: 2, pb: 1 }}>
           <Card variant="outlined">
             <CardContent sx={{ pb: "12px !important" }}>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
@@ -906,7 +1190,6 @@ function SidePanel({
             </CardContent>
           </Card>
 
-          {/* Coping tool reminder */}
           <Card variant="outlined">
             <CardContent sx={{ pb: "12px !important" }}>
               <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
@@ -939,7 +1222,7 @@ function SidePanel({
             </CardContent>
           </Card>
         </Stack>
-      )}
+      </Box>
     </Box>
   );
 }
@@ -952,6 +1235,7 @@ export default function DraftTab({
   story,
   onStoryUpdate,
   onNavigateToTab,
+  onUnsavedDraftChange,
 }: DraftTabProps) {
   const versions = story.agent1Versions;
 
@@ -973,17 +1257,31 @@ export default function DraftTab({
     story.currentDraft?.body ?? story.agent1Result?.story ?? "",
   );
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  // Spec suggests localStorage for collapse state; using useState
-  // for pilot simplicity. Can upgrade later.
-  const [sidePanelCollapsed, setSidePanelCollapsed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [pendingVersionIndex, setPendingVersionIndex] = useState<number | null>(null);
 
   const [regenDialogOpen, setRegenDialogOpen] = useState(false);
   const [regenFeedback, setRegenFeedback] = useState("");
+  const [regenSubmitting, setRegenSubmitting] = useState(false);
 
   const [snackbar, setSnackbar] = useState<string | null>(null);
+
+  const [reviewMode, setReviewMode] = useState(() => {
+    try {
+      return sessionStorage.getItem(REVIEW_MODE_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(REVIEW_MODE_STORAGE_KEY, reviewMode ? "1" : "0");
+    } catch {
+      // ignore private mode / quota
+    }
+  }, [reviewMode]);
 
   // Ref to the textarea DOM element (used for placeholder cursor insertion)
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1002,6 +1300,7 @@ export default function DraftTab({
       wordCount: currentWordCount,
       updatedAt: Date.now(),
     };
+    setIsSaving(true);
     try {
       const updatedStory = await draftStore.updateStory(story.id, {
         currentDraft: draft,
@@ -1010,20 +1309,39 @@ export default function DraftTab({
       onStoryUpdate(updatedStory);
     } catch (err) {
       setSnackbar(err instanceof Error ? err.message : "Failed to save.");
+    } finally {
+      setIsSaving(false);
     }
   }, [story.id, editorTitle, editorBody, currentWordCount, onStoryUpdate]);
+
+  useEffect(() => {
+    onUnsavedDraftChange?.(hasUnsavedChanges);
+  }, [hasUnsavedChanges, onUnsavedDraftChange]);
+
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   // Cmd/Ctrl+S shortcut
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
-        handleSave();
+        if (!isSaving) {
+          void handleSave();
+        }
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleSave]);
+  }, [handleSave, isSaving]);
 
   // Reset editor content when version is switched
   // TODO D2.5e-2: warn if unsaved edits — implemented via pendingVersionIndex dialog
@@ -1069,18 +1387,22 @@ export default function DraftTab({
   const wordCountOutOfRange =
     currentWordCount < targetMin || currentWordCount > targetMax;
 
-  const saveIndicator = hasUnsavedChanges
-    ? "Unsaved changes"
-    : story.currentDraft
-      ? `Last saved ${formatRelativeTime(story.currentDraft.updatedAt)}`
-      : "No saved edits yet";
-
   const flags = displayedResult.postValidationFlags ?? [];
   const hasUndismissedFlags = flags.some((_, i) => !dismissedFlags.has(i));
 
   const regenCount = versions.length - 1;
   const regenRemaining = MAX_VERSIONS - versions.length;
   const maxRegenReached = versions.length >= MAX_VERSIONS;
+
+  const latestAgentOutput: Agent1Result | null =
+    versions.length > 0 ? versions[versions.length - 1] : story.agent1Result;
+  const willSnapshotEditsAsNewVersion =
+    latestAgentOutput !== null &&
+    (editorTitle.trim() !== latestAgentOutput.title.trim() ||
+      editorBody.trim() !== latestAgentOutput.story.trim());
+  const snapshotVersionNumber = willSnapshotEditsAsNewVersion
+    ? versions.length + 1
+    : Math.max(1, versions.length);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -1128,24 +1450,45 @@ export default function DraftTab({
     setRegenDialogOpen(true);
   }
 
+  function handleRegenDialogClose() {
+    setRegenDialogOpen(false);
+    setRegenFeedback("");
+  }
+
   async function handleRegenerate() {
+    const trimmed = regenFeedback.trim();
+    if (!trimmed) return;
+    setRegenSubmitting(true);
     try {
+      if (hasUnsavedChanges) {
+        await handleSave();
+      }
+      if (story.status === "awaiting_review") {
+        const opened = await draftStore.transitionStatus(story.id, "in_review");
+        onStoryUpdate(opened);
+      }
       const updatedStory = await draftStore.transitionStatus(
         story.id,
         "needs_revision",
-        { feedback: regenFeedback },
+        { feedback: trimmed },
       );
       onStoryUpdate(updatedStory);
-      setRegenDialogOpen(false);
+      handleRegenDialogClose();
     } catch (err) {
       setSnackbar(
         err instanceof Error ? err.message : "Failed to request regeneration.",
       );
+    } finally {
+      setRegenSubmitting(false);
     }
   }
 
   async function handleApprove() {
     try {
+      if (story.status === "awaiting_review") {
+        const opened = await draftStore.transitionStatus(story.id, "in_review");
+        onStoryUpdate(opened);
+      }
       const updatedStory = await draftStore.transitionStatus(story.id, "approved");
       onStoryUpdate(updatedStory);
     } catch (err) {
@@ -1206,70 +1549,99 @@ export default function DraftTab({
         </Alert>
       )}
 
-      <ReviewSection
-        result={displayedResult}
-        story={story}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        alignItems={{ sm: "center" }}
+        justifyContent="space-between"
+        spacing={1.5}
+        sx={{ mb: 2 }}
+      >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={reviewMode}
+              onChange={(_, v) => setReviewMode(v)}
+              inputProps={{
+                "aria-label":
+                  "Review mode: larger story text and hide evidence sidebar",
+              }}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body2" fontWeight={600}>
+                Review mode
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Larger story text · hides evidence sidebar (placeholders & coping)
+              </Typography>
+            </Box>
+          }
+        />
+      </Stack>
+
+      <ValidationBlockerStrip
+        flags={flags}
         dismissedFlags={dismissedFlags}
         onToggleFlag={handleToggleFlag}
-        onFeedback={handleFeedback}
         hideButtons={isReadOnly}
+        reviewMode={reviewMode}
       />
 
-      {versions.length > 0 && (
-        <VersionsBar
-          story={story}
-          selectedVersionIndex={selectedVersionIndex}
-          onVersionChange={handleVersionChange}
-          displayedResult={displayedResult}
-        />
-      )}
-
-      {/* Two-column layout: editor (left) + side panel (right) */}
+      {/* Two-zone layout: story editor (left) + evidence panel (right) */}
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
+          flexDirection: { xs: "column", md: reviewMode ? "column" : "row" },
           gap: 2,
-          alignItems: "flex-start",
+          alignItems: "stretch",
         }}
       >
-        {/* ── Left column: editor ─────────────────────────────────────────── */}
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          {/* Title + save indicator row */}
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ mb: 1 }}
-          >
-            <TextField
-              variant="outlined"
-              size="small"
-              fullWidth
-              label="Title"
-              value={editorTitle}
-              onChange={(e) => {
-                if (!isReadOnly) {
-                  setEditorTitle(e.target.value);
-                  setHasUnsavedChanges(true);
-                }
-              }}
-              InputProps={{ readOnly: isReadOnly }}
-              sx={{ mr: 2, ...readOnlyInputSx }}
+        {/* ── Left: story (primary) ───────────────────────────────────────── */}
+        <Box
+          sx={{
+            flex: { xs: "1 1 auto", md: reviewMode ? "1 1 auto" : "0 0 60%" },
+            width: { xs: "100%", md: reviewMode ? "100%" : "60%" },
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            // Bounded height so flex children (story editor) get real space; xs needs this too or flex:1 collapses.
+            minHeight: { xs: "min(70vh, 720px)", md: "min(82vh, 900px)" },
+            maxHeight: { md: "min(82vh, 900px)" },
+            overflow: "hidden",
+          }}
+        >
+          {versions.length > 0 && (
+            <VersionSelectorRow
+              story={story}
+              selectedVersionIndex={selectedVersionIndex}
+              onVersionChange={handleVersionChange}
+              displayedResult={displayedResult}
             />
-            <Typography
-              variant="caption"
-              sx={{
-                whiteSpace: "nowrap",
-                color: hasUnsavedChanges ? COLORS.warning : "text.secondary",
-                fontWeight: hasUnsavedChanges ? 600 : 400,
-              }}
-            >
-              {saveIndicator}
-            </Typography>
-          </Stack>
+          )}
 
-          {/* Word count (live, colored red when out of range) */}
+          <TextField
+            variant="outlined"
+            size="small"
+            fullWidth
+            label="Title"
+            value={editorTitle}
+            onChange={(e) => {
+              if (!isReadOnly) {
+                setEditorTitle(e.target.value);
+                setHasUnsavedChanges(true);
+              }
+            }}
+            InputProps={{ readOnly: isReadOnly }}
+            sx={{
+              mb: 1,
+              ...readOnlyInputSx,
+              ...(reviewMode
+                ? { "& .MuiInputBase-input": { fontSize: "1.05rem" } }
+                : {}),
+            }}
+          />
+
           <Stack direction="row" justifyContent="flex-end" sx={{ mb: 0.5 }}>
             <Typography
               variant="caption"
@@ -1278,147 +1650,259 @@ export default function DraftTab({
                 fontWeight: wordCountOutOfRange ? 600 : 400,
               }}
             >
-              {currentWordCount} words / target {targetMin}–{targetMax}
+              Your draft: {currentWordCount} words / target {targetMin}–{targetMax}
             </Typography>
           </Stack>
 
-          {/* Story body — plain textarea via MUI TextField multiline */}
-          <TextField
-            multiline
-            minRows={16}
-            fullWidth
-            value={editorBody}
-            onChange={(e) => {
-              if (!isReadOnly) {
-                setEditorBody(e.target.value);
-                setHasUnsavedChanges(true);
-              }
-            }}
-            inputRef={textareaRef}
-            placeholder="Story content…"
-            InputProps={{ readOnly: isReadOnly }}
+          {/* MUI multiline TextField does not reliably stretch with flex; use a fill box + 100% height chain. */}
+          <Box
             sx={{
-              mb: 2,
-              ...readOnlyInputSx,
-              "& .MuiInputBase-inputMultiline": {
-                minHeight: 400,
-                resize: "vertical",
-                overflow: "auto",
-              },
+              flex: 1,
+              minHeight: 0,
+              position: "relative",
+              width: "100%",
             }}
-          />
+          >
+            <TextField
+              multiline
+              fullWidth
+              value={editorBody}
+              onChange={(e) => {
+                if (!isReadOnly) {
+                  setEditorBody(e.target.value);
+                  setHasUnsavedChanges(true);
+                }
+              }}
+              inputRef={textareaRef}
+              placeholder="Story content…"
+              InputProps={{ readOnly: isReadOnly }}
+              sx={{
+                position: "absolute",
+                inset: 0,
+                ...readOnlyInputSx,
+                "& .MuiOutlinedInput-root": {
+                  height: "100%",
+                  alignItems: "stretch",
+                  boxSizing: "border-box",
+                },
+                "& .MuiInputBase-inputMultiline": {
+                  height: "100% !important",
+                  overflow: "auto !important",
+                  resize: "none",
+                  boxSizing: "border-box",
+                  ...(reviewMode
+                    ? { fontSize: "1.125rem", lineHeight: 1.7 }
+                    : {}),
+                },
+              }}
+            />
+          </Box>
 
-          {/* ── Action Bar — varies by status ───────────────────────────── */}
+          {/* Pinned action bar (bottom of story zone) */}
+          <Box
+            sx={{
+              flexShrink: 0,
+              pt: 2,
+              mt: "auto",
+              borderTop: `1px solid ${COLORS.border}`,
+            }}
+          >
+            {story.status !== "archived" && (
+              <>
+                {story.status === "approved" ? (
+                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
+                    <Button variant="outlined" onClick={handleReopen}>
+                      Reopen for editing
+                    </Button>
+                    <Chip
+                      icon={<CheckCircleIcon />}
+                      label={
+                        story.approvedAt
+                          ? `Approved ${new Date(story.approvedAt).toLocaleDateString()}`
+                          : "Approved"
+                      }
+                      color="success"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Stack>
+                ) : (
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    flexWrap="wrap"
+                    sx={{ mb: 1, gap: 2, width: "100%" }}
+                  >
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.5}
+                      flexWrap="wrap"
+                    >
+                      <Box sx={{ minWidth: 168, flexShrink: 0 }}>
+                        {isSaving ? (
+                          <Stack direction="row" alignItems="center" spacing={0.75}>
+                            <CircularProgress size={14} thickness={5} />
+                            <Typography variant="body2" color="text.secondary">
+                              Saving...
+                            </Typography>
+                          </Stack>
+                        ) : hasUnsavedChanges ? (
+                          <Typography
+                            variant="body2"
+                            sx={{ color: COLORS.warning, fontWeight: 600 }}
+                          >
+                            Unsaved changes
+                          </Typography>
+                        ) : (
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <CheckCircleIcon
+                              sx={{ fontSize: 18, color: "text.secondary" }}
+                            />
+                            <Typography variant="body2" color="text.secondary">
+                              All changes saved
+                            </Typography>
+                          </Stack>
+                        )}
+                      </Box>
 
-          {/* archived: no action bar */}
-          {story.status !== "archived" && (
-            <>
-              {story.status === "approved" ? (
-                /* approved action bar */
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-                  <Button
-                    variant="outlined"
-                    onClick={handleReopen}
-                  >
-                    Reopen for editing
-                  </Button>
-                  <Chip
-                    icon={<CheckCircleIcon />}
-                    label={
-                      story.approvedAt
-                        ? `Approved ${new Date(story.approvedAt).toLocaleDateString()}`
-                        : "Approved"
-                    }
-                    color="success"
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Stack>
-              ) : (
-                /* default interactive action bar (in_review / awaiting_review) */
-                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-                  {/* Save edits */}
-                  <Button
-                    variant="contained"
-                    disabled={!hasUnsavedChanges}
-                    onClick={handleSave}
-                  >
-                    Save edits
-                  </Button>
-
-                  {/* Regenerate with feedback */}
-                  <Tooltip
-                    title={
-                      maxRegenReached
-                        ? "Maximum regenerations reached. Consider opening a new revision."
-                        : ""
-                    }
-                  >
-                    <span>
-                      <Button
-                        variant="outlined"
-                        disabled={maxRegenReached}
-                        onClick={openRegenDialog}
-                      >
-                        Regenerate with feedback
-                      </Button>
-                    </span>
-                  </Tooltip>
-
-                  {/* Mark approved */}
-                  <Tooltip
-                    title={
-                      hasUnsavedChanges
-                        ? "Save your edits first"
-                        : hasUndismissedFlags
-                          ? "Review all safety flags before approving"
-                          : ""
-                    }
-                  >
-                    <span>
                       <Button
                         variant="contained"
-                        disabled={hasUnsavedChanges || hasUndismissedFlags}
-                        onClick={handleApprove}
-                        sx={{
-                          bgcolor: COLORS.success,
-                          "&:hover": { bgcolor: "#388E3C" },
-                        }}
+                        color="primary"
+                        disabled={!hasUnsavedChanges || isSaving}
+                        onClick={() => void handleSave()}
+                        sx={
+                          hasUnsavedChanges && !isSaving
+                            ? {
+                                animation: "draftSavePulse 2s ease-in-out infinite",
+                                "@keyframes draftSavePulse": {
+                                  "0%, 100%": {
+                                    boxShadow: `0 0 0 0 ${alpha(COLORS.primary, 0.42)}`,
+                                  },
+                                  "50%": {
+                                    boxShadow: `0 0 0 8px ${alpha(COLORS.primary, 0)}`,
+                                  },
+                                },
+                              }
+                            : undefined
+                        }
                       >
-                        Mark approved
+                        {isSaving ? (
+                          <>
+                            <CircularProgress
+                              size={16}
+                              thickness={5}
+                              color="inherit"
+                              sx={{ mr: 1 }}
+                            />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save edits"
+                        )}
                       </Button>
-                    </span>
-                  </Tooltip>
-                </Stack>
-              )}
+                    </Stack>
 
-              {/* Regeneration count — shown for interactive mode only */}
-              {story.status !== "approved" && (
-                <Typography variant="caption" color="text.secondary">
-                  This story has been regenerated {regenCount} time
-                  {regenCount !== 1 ? "s" : ""}.{" "}
-                  {regenRemaining > 0
-                    ? `${regenRemaining} regeneration${regenRemaining !== 1 ? "s" : ""} remaining.`
-                    : "No regenerations remaining."}
-                </Typography>
-              )}
-            </>
-          )}
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      spacing={1.5}
+                      flexWrap="wrap"
+                    >
+                      <Tooltip
+                        title={
+                          maxRegenReached
+                            ? "Maximum regenerations reached. Consider opening a new revision."
+                            : ""
+                        }
+                      >
+                        <span>
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            disabled={maxRegenReached || story.status === "awaiting_review"}
+                            onClick={openRegenDialog}
+                          >
+                            Regenerate
+                          </Button>
+                        </span>
+                      </Tooltip>
+
+                      <Tooltip
+                        title={
+                          hasUnsavedChanges
+                            ? "Save your edits first"
+                            : hasUndismissedFlags
+                              ? "Finish Safety Review for each finding before approving"
+                              : story.status === "awaiting_review"
+                                ? "Opening workspace for review… try again in a moment"
+                                : ""
+                        }
+                      >
+                        <span>
+                          <Button
+                            variant="contained"
+                            disabled={
+                              hasUnsavedChanges ||
+                              hasUndismissedFlags ||
+                              story.status === "awaiting_review"
+                            }
+                            onClick={() => void handleApprove()}
+                            sx={{
+                              bgcolor: COLORS.success,
+                              "&:hover": { bgcolor: "#388E3C" },
+                            }}
+                          >
+                            Mark approved
+                          </Button>
+                        </span>
+                      </Tooltip>
+                    </Stack>
+                  </Stack>
+                )}
+
+                {story.status !== "approved" && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    This story has been regenerated {regenCount} time
+                    {regenCount !== 1 ? "s" : ""}.{" "}
+                    {regenRemaining > 0
+                      ? `${regenRemaining} regeneration${regenRemaining !== 1 ? "s" : ""} remaining.`
+                      : "No regenerations remaining."}
+                  </Typography>
+                )}
+              </>
+            )}
+          </Box>
         </Box>
 
-        {/* ── Right column: side panel ─────────────────────────────────────── */}
-        <SidePanel
-          story={story}
-          displayedResult={displayedResult}
-          textareaRef={textareaRef}
-          collapsed={sidePanelCollapsed}
-          onToggleCollapse={() => setSidePanelCollapsed((c) => !c)}
-          editorBody={editorBody}
-          onEditorBodyChange={(body) => {
-            setEditorBody(body);
-            setHasUnsavedChanges(true);
-          }}
-          onNavigateToTab={onNavigateToTab}
-        />
+        {/* ── Right: evidence panel ─────────────────────────────────────────── */}
+        {!reviewMode && (
+          <Box
+            sx={{
+              flex: { xs: "1 1 auto", md: "0 0 40%" },
+              width: { xs: "100%", md: "40%" },
+              minWidth: 0,
+              borderLeft: { md: `1px solid ${COLORS.border}` },
+              pl: { md: 2 },
+            }}
+          >
+            <EvidencePanel
+              story={story}
+              displayedResult={displayedResult}
+              dismissedFlags={dismissedFlags}
+              onToggleFlag={handleToggleFlag}
+              onFeedback={handleFeedback}
+              hideButtons={isReadOnly}
+              textareaRef={textareaRef}
+              editorBody={editorBody}
+              onEditorBodyChange={(body) => {
+                setEditorBody(body);
+                setHasUnsavedChanges(true);
+              }}
+              onNavigateToTab={onNavigateToTab}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* ── Version switch confirmation dialog ─────────────────────────────── */}
@@ -1445,30 +1929,66 @@ export default function DraftTab({
         </DialogActions>
       </Dialog>
 
-      {/* ── Regenerate with feedback dialog ───────────────────────────────── */}
+      {/* ── Request regeneration (confirmation + feedback) ───────────────── */}
       <Dialog
         open={regenDialogOpen}
-        onClose={() => setRegenDialogOpen(false)}
+        onClose={handleRegenDialogClose}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Regenerate with feedback</DialogTitle>
+        <DialogTitle>Request a new version</DialogTitle>
         <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            AI will generate a new draft based on your feedback.
+            {willSnapshotEditsAsNewVersion ? (
+              <>
+                {" "}
+                Your current edits will be saved as Version {snapshotVersionNumber}{" "}
+                before regeneration.
+              </>
+            ) : (
+              <>
+                {" "}
+                Your draft matches the latest generated output, so there is no
+                separate edited snapshot to store; the new AI run will replace
+                the story on screen when it finishes.
+              </>
+            )}
+          </Typography>
           <TextField
             autoFocus
+            required
             multiline
             minRows={4}
             fullWidth
-            label="What should be different?"
+            label="What should be different in the next version?"
             value={regenFeedback}
             onChange={(e) => setRegenFeedback(e.target.value)}
-            sx={{ mt: 1 }}
+            placeholder="Required — describe what the AI should change."
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRegenDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleRegenerate}>
-            Regenerate
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={handleRegenDialogClose}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!regenFeedback.trim() || regenSubmitting}
+            onClick={() => void handleRegenerate()}
+          >
+            {regenSubmitting ? (
+              <>
+                <CircularProgress
+                  size={16}
+                  thickness={5}
+                  color="inherit"
+                  sx={{ mr: 1 }}
+                />
+                Working…
+              </>
+            ) : (
+              "Regenerate"
+            )}
           </Button>
         </DialogActions>
       </Dialog>

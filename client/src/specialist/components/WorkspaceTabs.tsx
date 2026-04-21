@@ -1,8 +1,8 @@
 // client/src/specialist/components/WorkspaceTabs.tsx
 //
-// Tab bar for the Story Workspace: Brief / Draft / History.
+// Tab bar for the Story Workspace: Brief / Story (generated text) / History.
 // Implements the WAI-ARIA tabs pattern via MUI Tabs (role="tablist", aria-selected, etc.).
-// Draft tab is disabled when agent1Result === null.
+// Story tab is disabled when agent1Result === null.
 //
 // Important: `Tab` must be a direct child of `Tabs`. Wrapping a Tab in Tooltip/Box
 // breaks MUI’s tab list (wrong child count / onChange), so clicks do nothing.
@@ -74,12 +74,12 @@ export default function WorkspaceTabs({
         />
 
         <Tab
-          label="Draft"
+          label="Story"
           value="draft"
           id="tab-draft"
           aria-controls="tabpanel-draft"
           disabled={draftDisabled}
-          title={draftDisabled ? "Generate the story first" : undefined}
+          title={draftDisabled ? "Open after the story is generated" : undefined}
           sx={
             draftDisabled
               ? {
