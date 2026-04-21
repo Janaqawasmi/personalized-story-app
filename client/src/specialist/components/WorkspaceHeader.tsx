@@ -32,6 +32,14 @@ import { COLORS } from "../../theme";
 import { DRAFT_B, FONTS } from "./draftB/tokens";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
+/** Vertical rhythm tuned to Direction B editorial header mock */
+const HEADER_PAD_TOP = "10px";
+const HEADER_PAD_BOTTOM = "10px";
+/** ~1.75× back-link line (~13px) → clear separation before title */
+const SPACE_BACK_TO_TITLE = "0px";
+/** Tighter band between title and meta chips (~½ title cap-height) */
+const SPACE_TITLE_TO_META = "5px";
+
 // ---------------------------------------------------------------------------
 // Display maps (same source of truth as StoryRow)
 // ---------------------------------------------------------------------------
@@ -184,8 +192,8 @@ export default function WorkspaceHeader({
     <Box
       sx={{
         px: { xs: 2, sm: 3, md: 5 },
-        pt: 2.5,
-        pb: 2.25,
+        pt: HEADER_PAD_TOP,
+        pb: HEADER_PAD_BOTTOM,
         borderBottom: `1px solid ${DRAFT_B.border}`,
         bgcolor: DRAFT_B.cream,
         fontFamily: FONTS.sans,
@@ -199,7 +207,7 @@ export default function WorkspaceHeader({
           onStoriesClick ? onStoriesClick() : navigate(`${base}/stories`)
         }
         sx={{
-          mb: 1.5,
+          mb: SPACE_BACK_TO_TITLE,
           px: 0,
           minWidth: 0,
           color: DRAFT_B.inkMuted,
@@ -220,7 +228,7 @@ export default function WorkspaceHeader({
         direction="row"
         alignItems="flex-start"
         spacing={1.5}
-        sx={{ mb: 1 }}
+        sx={{ mb: SPACE_TITLE_TO_META }}
       >
         {/* Editable title */}
         {editing ? (
@@ -276,7 +284,7 @@ export default function WorkspaceHeader({
           direction="row"
           alignItems="center"
           spacing={0.75}
-          sx={{ flexShrink: 0, pt: 0.375 }}
+          sx={{ flexShrink: 0 }}
         >
           <Chip
             label={
