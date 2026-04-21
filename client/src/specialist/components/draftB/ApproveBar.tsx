@@ -126,10 +126,8 @@ export default function ApproveBar({
   return (
     <Box
       sx={{
-        position: "sticky",
-        bottom: "16px",
         mx: "40px",
-        mb: 2,
+        mb: 3,
         mt: "24px",
         fontFamily: FONTS.sans,
         background: "#fff",
