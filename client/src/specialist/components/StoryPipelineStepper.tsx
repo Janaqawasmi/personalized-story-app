@@ -2,11 +2,7 @@
 
 import React from "react";
 import Box from "@mui/material/Box";
-import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import RadioButtonCheckedIcon from "@mui/icons-material/RadioButtonChecked";
-import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
@@ -15,6 +11,7 @@ import {
   getStoryPipelineUiState,
   type PipelineStepIndex,
 } from "../utils/storyPipeline";
+import { DRAFT_B, FONTS } from "./draftB/tokens";
 
 function Connector({
   complete,
@@ -29,15 +26,11 @@ function Connector({
         flex: 1,
         height: 2,
         minWidth: 12,
-        mx: 0.5,
-        mt: "9px",
+        mx: 0.75,
+        mt: "11px",
         borderRadius: 1,
-        bgcolor: archived
-          ? "action.disabledBackground"
-          : complete
-            ? COLORS.primary
-            : COLORS.border,
-        opacity: archived ? 0.35 : complete ? 0.55 : 0.45,
+        bgcolor: archived ? DRAFT_B.border : complete ? COLORS.primary : DRAFT_B.border,
+        opacity: archived ? 0.35 : 1,
       }}
     />
   );
@@ -62,17 +55,22 @@ export default function StoryPipelineStepper({ story }: StoryPipelineStepperProp
       component="nav"
       aria-label="Story pipeline progress"
       sx={{
-        mb: 2,
+        px: { xs: 2, sm: 3, md: 5 },
+        pt: 1.75,
         pb: 2,
-        borderBottom: `1px solid ${COLORS.border}`,
+        mb: 0,
+        borderBottom: `1px solid ${DRAFT_B.border}`,
+        bgcolor: DRAFT_B.cream,
+        fontFamily: FONTS.sans,
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="flex-start"
+      <Box
         sx={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 0.5,
           overflowX: "auto",
-          pb: 0.5,
+          pb: 0.25,
         }}
       >
         {PIPELINE_STEP_LABELS.map((label, index) => {
@@ -98,49 +96,81 @@ export default function StoryPipelineStepper({ story }: StoryPipelineStepperProp
               {index > 0 && (
                 <Connector complete={connectorComplete} archived={archived} />
               )}
-              <Stack
-                alignItems="center"
-                spacing={0.5}
+              <Box
                 sx={{
-                  width: { xs: 72, sm: 88 },
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 0.5,
+                  minWidth: 78,
                   flexShrink: 0,
                 }}
               >
-                {archived ? (
-                  <RadioButtonUncheckedIcon
-                    sx={{ fontSize: 20, color: COLORS.textSecondary, opacity: 0.45 }}
-                  />
-                ) : stepDone ? (
-                  <CheckCircleIcon sx={{ fontSize: 20, color: COLORS.primary }} />
-                ) : isCurrent ? (
-                  <RadioButtonCheckedIcon sx={{ fontSize: 20, color: COLORS.primary }} />
-                ) : (
-                  <RadioButtonUncheckedIcon
-                    sx={{ fontSize: 20, color: COLORS.border, opacity: 0.9 }}
-                  />
-                )}
+                <Box
+                  sx={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: "50%",
+                    bgcolor:
+                      archived || (!stepDone && !isCurrent)
+                        ? "transparent"
+                        : stepDone
+                          ? COLORS.primary
+                          : DRAFT_B.cream,
+                    border:
+                      stepDone && !archived
+                        ? "none"
+                        : `2px solid ${isCurrent && !archived ? COLORS.primary : DRAFT_B.border}`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                  }}
+                >
+                  {archived ? null : stepDone ? (
+                    <svg width={13} height={13} viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        d="M20 6L9 17l-5-5"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  ) : isCurrent ? (
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        bgcolor: COLORS.primary,
+                      }}
+                    />
+                  ) : null}
+                </Box>
                 <Typography
                   variant="caption"
                   component="span"
                   sx={{
                     fontWeight: isCurrent ? 700 : stepDone ? 600 : 500,
                     color: archived
-                      ? "text.disabled"
+                      ? DRAFT_B.inkMuted
                       : isCurrent || stepDone
-                        ? COLORS.textPrimary
-                        : COLORS.textSecondary,
-                    fontSize: { xs: "0.65rem", sm: "0.7rem" },
+                        ? DRAFT_B.ink
+                        : DRAFT_B.inkMuted,
+                    fontSize: "11px",
                     textAlign: "center",
                     lineHeight: 1.2,
+                    letterSpacing: "0.01em",
                   }}
                 >
                   {label}
                 </Typography>
-              </Stack>
+              </Box>
             </React.Fragment>
           );
         })}
-      </Stack>
+      </Box>
 
       {hint ? (
         <Typography

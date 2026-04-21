@@ -25,26 +25,23 @@ export const DESIGN_TOKENS = {
   easeStd: "cubic-bezier(0.4, 0, 0.2, 1)",
 };
 
+/** Specialist workspace / Direction B palette (warm editorial UI). */
 export const COLORS = {
-  // Brand colors
-  primary: "#617891",     // Blue (main brand color)
-  secondary: "#824D5C",   // Rose accent
+  primary: "#617891",
+  primaryDark: "#4a5f74",
+  secondary: "#824D5C",
 
-  // Backgrounds
-  background: "#E5DFD9",  // Frost / page background
-  surface: "#FFFFFF",    // Cards, panels
+  background: "#E5DFD9",
+  surface: "#FFFFFF",
 
-  // Text
-  textPrimary: "#000000",
-  textSecondary: "#4A4A4A",
+  textPrimary: "#2a2421",
+  textSecondary: "#4c4440",
 
-  // UI
-  border: "#D0C8C0",
+  border: "#d7cfc4",
 
-  // States
-  success: "#4CAF50",
-  warning: "#ED9B40",
-  error: "#E53935",
+  success: "#5f7a54",
+  warning: "#b08433",
+  error: "#a14a4a",
 };
 
 export function createAppTheme(direction: Direction = "rtl"): Theme {

@@ -29,7 +29,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { Story, StoryStatus } from "../../types/story";
 import type { AgeRange, StoryType } from "../../types/storyBrief";
 import { COLORS } from "../../theme";
+import { DRAFT_B, FONTS } from "./draftB/tokens";
 import { STATUS_CHIP_COLORS } from "./statusColors";
+
+/** Vertical rhythm tuned to Direction B editorial header mock */
+const HEADER_PAD_TOP = "10px";
+const HEADER_PAD_BOTTOM = "10px";
+/** ~1.75× back-link line (~13px) → clear separation before title */
+const SPACE_BACK_TO_TITLE = "0px";
+/** Tighter band between title and meta chips (~½ title cap-height) */
+const SPACE_TITLE_TO_META = "5px";
 
 // ---------------------------------------------------------------------------
 // Display maps (same source of truth as StoryRow)
@@ -182,10 +191,12 @@ export default function WorkspaceHeader({
   return (
     <Box
       sx={{
-        px: { xs: 2, sm: 3, md: 4 },
-        pt: 2.5,
-        pb: 2,
-        borderBottom: `1px solid ${COLORS.border}`,
+        px: { xs: 2, sm: 3, md: 5 },
+        pt: HEADER_PAD_TOP,
+        pb: HEADER_PAD_BOTTOM,
+        borderBottom: `1px solid ${DRAFT_B.border}`,
+        bgcolor: DRAFT_B.cream,
+        fontFamily: FONTS.sans,
       }}
     >
       {/* Row 1: Back link */}
@@ -196,16 +207,16 @@ export default function WorkspaceHeader({
           onStoriesClick ? onStoriesClick() : navigate(`${base}/stories`)
         }
         sx={{
-          mb: 1.5,
+          mb: SPACE_BACK_TO_TITLE,
           px: 0,
           minWidth: 0,
-          color: COLORS.textSecondary,
+          color: DRAFT_B.inkMuted,
           textTransform: "none",
           fontWeight: 500,
           fontSize: "0.8125rem",
           "&:hover": {
             bgcolor: "transparent",
-            color: COLORS.textPrimary,
+            color: DRAFT_B.ink,
           },
         }}
       >
@@ -217,7 +228,7 @@ export default function WorkspaceHeader({
         direction="row"
         alignItems="flex-start"
         spacing={1.5}
-        sx={{ mb: 1 }}
+        sx={{ mb: SPACE_TITLE_TO_META }}
       >
         {/* Editable title */}
         {editing ? (
@@ -235,10 +246,10 @@ export default function WorkspaceHeader({
             sx={{
               flex: 1,
               "& .MuiInput-input": {
-                fontSize: "1.35rem",
-                fontWeight: 800,
-                letterSpacing: "-0.02em",
-                color: COLORS.textPrimary,
+                fontSize: "1.625rem",
+                fontWeight: 700,
+                letterSpacing: "-0.03em",
+                color: DRAFT_B.ink,
                 py: 0.25,
               },
             }}
@@ -251,11 +262,12 @@ export default function WorkspaceHeader({
             title="Click to edit title"
             sx={{
               flex: 1,
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: COLORS.textPrimary,
+              fontSize: "1.625rem",
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              color: DRAFT_B.ink,
               cursor: "text",
-              lineHeight: 1.25,
+              lineHeight: 1.2,
               "&:hover": {
                 textDecoration: "underline",
                 textDecorationStyle: "dotted",
@@ -272,34 +284,46 @@ export default function WorkspaceHeader({
           direction="row"
           alignItems="center"
           spacing={0.75}
-          sx={{ flexShrink: 0, pt: 0.375 }}
+          sx={{ flexShrink: 0 }}
         >
           <Chip
             label={
               <Stack
                 direction="row"
                 alignItems="center"
-                spacing={0.625}
+                spacing={0.75}
                 component="span"
               >
-                {showSpinner && (
+                {showSpinner ? (
                   <CircularProgress
                     size={11}
                     sx={{ color: "inherit", flexShrink: 0 }}
                   />
-                )}
+                ) : statusColors.dot ? (
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      bgcolor: statusColors.dot,
+                      flexShrink: 0,
+                    }}
+                  />
+                ) : null}
                 <span>{STATUS_LABELS[story.status]}</span>
               </Stack>
             }
             size="small"
             aria-label={`Status: ${STATUS_LABELS[story.status]}`}
             sx={{
-              bgcolor: statusColors.filledBg.trim(),
-              color: statusColors.filledText.trim(),
+              bgcolor: statusColors.filledBg,
+              color: statusColors.filledText,
               fontWeight: 600,
-              fontSize: "0.7rem",
-              height: 24,
-              "& .MuiChip-label": { px: 1 },
+              fontSize: "0.75rem",
+              height: 26,
+              borderRadius: 999,
+              "& .MuiChip-label": { px: 1.125 },
             }}
           />
 
@@ -363,11 +387,13 @@ export default function WorkspaceHeader({
             size="small"
             variant="outlined"
             sx={{
-              borderColor: COLORS.border,
-              color: COLORS.textSecondary,
-              fontSize: "0.7rem",
-              height: 22,
-              "& .MuiChip-label": { px: 0.875 },
+              borderColor: DRAFT_B.border,
+              color: DRAFT_B.inkSoft,
+              fontSize: "0.72rem",
+              height: 24,
+              fontWeight: 500,
+              letterSpacing: "0.01em",
+              "& .MuiChip-label": { px: 1.125 },
             }}
           />
         )}
@@ -377,11 +403,13 @@ export default function WorkspaceHeader({
             size="small"
             variant="outlined"
             sx={{
-              borderColor: COLORS.border,
-              color: COLORS.textSecondary,
-              fontSize: "0.7rem",
-              height: 22,
-              "& .MuiChip-label": { px: 0.875 },
+              borderColor: DRAFT_B.border,
+              color: DRAFT_B.inkSoft,
+              fontSize: "0.72rem",
+              height: 24,
+              fontWeight: 500,
+              letterSpacing: "0.01em",
+              "& .MuiChip-label": { px: 1.125 },
             }}
           />
         ) : (

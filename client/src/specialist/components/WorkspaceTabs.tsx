@@ -14,6 +14,7 @@ import Tabs from "@mui/material/Tabs";
 
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
+import { DRAFT_B } from "./draftB/tokens";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,7 +47,7 @@ export default function WorkspaceTabs({
   }
 
   return (
-    <Box sx={{ borderBottom: `1px solid ${COLORS.border}` }}>
+    <Box sx={{ borderBottom: `1px solid ${DRAFT_B.border}`, bgcolor: DRAFT_B.cream, px: { xs: 2, sm: 3, md: 5 } }}>
       <Tabs
         value={activeTab}
         onChange={handleChange}
