@@ -46,10 +46,10 @@ function EmptyFirstTime() {
       <Typography
         variant="body1"
         color="text.secondary"
-        sx={{ maxWidth: 400 }}
+        sx={{ maxWidth: 440, lineHeight: 1.6 }}
       >
-        Create a story brief to begin generating therapeutic stories with Agent
-        1.
+        Start with a strong clinical brief so the AI can draft a safe,
+        therapeutic story for review before use.
       </Typography>
       <Button
         variant="contained"

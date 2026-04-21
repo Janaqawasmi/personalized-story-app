@@ -181,7 +181,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           icon={<CircularProgress size={18} color="inherit" />}
           sx={{ mb: 2, borderRadius: 2 }}
         >
-          Agent 1 is generating your story. This usually takes 30–60 seconds.
+          AI is drafting your therapeutic story. This usually takes 30–60 seconds.
         </Alert>
         <SubmittedBriefReadView
           brief={story.brief}
@@ -230,8 +230,9 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
               Start by filling out the clinical brief
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.65 }}>
-              This 5-section form captures everything Agent 1 needs to generate a therapeutic story. You can save
-              your progress and come back anytime.
+              This 5-section brief captures the child context, safety boundaries,
+              and therapeutic goals needed for a high-quality story draft.
+              You can save your progress and come back anytime.
             </Typography>
           </Paper>
         )}

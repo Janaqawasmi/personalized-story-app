@@ -83,7 +83,7 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       break;
 
     case "agent1_generated":
-      mainLabel = `Agent 1 generated story (v${event.version})${event.succeeded ? "" : " — failed"}`;
+      mainLabel = `AI drafted story (v${event.version})${event.succeeded ? "" : " — failed"}`;
       break;
 
     case "regeneration_requested":
