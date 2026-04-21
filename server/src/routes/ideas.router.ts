@@ -45,11 +45,14 @@ router.post("/", async (req: Request, res: Response) => {
 
   const uid = decodedToken.uid;
   const role = (decodedToken as any)?.role;
-  if (typeof role !== "string" || role !== "caregiver") {
+  if (
+    typeof role !== "string" ||
+    (role !== "caregiver" && role !== "specialist" && role !== "admin")
+  ) {
     res.status(403).json({
       success: false,
       errorCode: "forbidden",
-      message: "Only caregivers can submit story ideas",
+      message: "Only authenticated users with a valid role can submit story ideas",
     });
     return;
   }
@@ -104,29 +107,42 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // ── 5. Load caregiver profile (fresh) ──────────────────────────────────
+    // ── 5. Resolve submitter name/email ────────────────────────────────────
+    let submittedByName = "";
+    let submittedByEmail = "";
+
+    // Attempt 1: caregiver profile doc (preferred)
     const caregiverSnap = await db
       .collection(COLLECTIONS.CAREGIVERS)
       .doc(uid)
       .get();
+    if (caregiverSnap.exists) {
+      const caregiverData = caregiverSnap.data() as
+        | { fullName?: unknown; email?: unknown }
+        | undefined;
+      const nameFromDoc =
+        typeof caregiverData?.fullName === "string" ? caregiverData.fullName.trim() : "";
+      const emailFromDoc =
+        typeof caregiverData?.email === "string" ? caregiverData.email.trim() : "";
 
-    if (!caregiverSnap.exists) {
-      res.status(400).json({
-        success: false,
-        errorCode: "caregiver_not_found",
-        message: "Caregiver profile missing",
-      });
-      return;
+      if (nameFromDoc && emailFromDoc) {
+        submittedByName = nameFromDoc;
+        submittedByEmail = emailFromDoc;
+      }
     }
 
-    const caregiverData = caregiverSnap.data() as
-      | { fullName?: unknown; email?: unknown }
-      | undefined;
-    const submittedByNameRaw =
-      typeof caregiverData?.fullName === "string" ? caregiverData.fullName.trim() : "";
-    const submittedByEmailRaw =
-      typeof caregiverData?.email === "string" ? caregiverData.email.trim() : "";
-    if (!submittedByNameRaw || !submittedByEmailRaw) {
+    // Attempt 2: Auth user record (fallback for specialist/admin or incomplete caregiver doc)
+    if (!submittedByName || !submittedByEmail) {
+      const userRecord = await admin.auth().getUser(uid);
+      const nameFromAuth = (userRecord.displayName ?? "").trim();
+      const emailFromAuth = (userRecord.email ?? "").trim();
+      if (nameFromAuth && emailFromAuth) {
+        submittedByName = nameFromAuth;
+        submittedByEmail = emailFromAuth;
+      }
+    }
+
+    if (!submittedByName.trim() || !submittedByEmail.trim()) {
       res.status(400).json({
         success: false,
         errorCode: "caregiver_profile_incomplete",
@@ -134,8 +150,6 @@ router.post("/", async (req: Request, res: Response) => {
       });
       return;
     }
-    const submittedByName = submittedByNameRaw;
-    const submittedByEmail = submittedByEmailRaw;
 
     // ── 6. Write idea document ─────────────────────────────────────────────
     const now = admin.firestore.FieldValue.serverTimestamp();

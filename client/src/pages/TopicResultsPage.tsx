@@ -14,6 +14,7 @@ import { useLanguage } from "../i18n/context/useLanguage";
 import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup, LockedFilter } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
+import SuggestStoryBanner from "../components/SuggestStoryBanner";
 
 const storyGridSx = {
   display: "grid",
@@ -201,12 +202,16 @@ export default function TopicResultsPage() {
               }}
             />
           ))}
+          <SuggestStoryBanner variant="topic" filterLabel={situationTitleDisplay} />
         </Box>
       ) : (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
             {t("pages.topicResults.noStories")}
           </Typography>
+          <Box sx={{ mt: 3 }}>
+            <SuggestStoryBanner variant="topic" filterLabel={situationTitleDisplay} />
+          </Box>
         </Box>
       )}
     </Container>

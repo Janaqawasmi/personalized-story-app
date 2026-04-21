@@ -48,7 +48,8 @@
       "terms": "Terms of service",
       "childSafety": "Child safety",
       "refund": "Refund policy",
-      "cookies": "Cookies"
+      "cookies": "Cookies",
+      "suggestStory": "Suggest a story"
     },
     "trust": {
       "safe": "Child-safe content",
@@ -547,6 +548,84 @@
         "phobias": "Phobias",
         "emotional_regulation": "Emotional Regulation"
       }
+    }
+  },
+  "suggest": {
+    "hero": {
+      "title": "Got a story in your heart?",
+      "subtitle": "Share it with us and we might turn it into the next DAMMAH story",
+      "reassurance": "Only our team will see what you write"
+    },
+    "form": {
+      "title": {
+        "label": "Give your idea a short title",
+        "placeholder": "e.g., a story about changing schools"
+      },
+      "topic": {
+        "label": "What emotion is it about?",
+        "placeholder": "Choose an emotion",
+        "loading": "Loading themes...",
+        "error": "Could not load themes. Try refreshing."
+      },
+      "age": {
+        "label": "Who is this for?"
+      },
+      "description": {
+        "label": "Tell us about the story you wish existed",
+        "placeholder": "Describe the idea in your own words — what happens in the story? Who is the main character? What does the child need to discover or feel?"
+      },
+      "motivation": {
+        "label": "Why does this feel important?",
+        "optional": "(optional)",
+        "placeholder": "If you'd like to share — what brings this idea to mind right now?"
+      },
+      "consent": {
+        "label": "It's okay to contact me if we make this story"
+      },
+      "submit": "Send idea",
+      "submitting": "Sending...",
+      "microcopy": "We read every idea. We can't make every story, but yours will help shape what we build next.",
+      "required": "*",
+      "optional": "(optional)"
+    },
+    "error": {
+      "validation": "Please check your entries and try again",
+      "rate_limit": "You've shared 3 ideas recently — we're reading them! Please come back in a few weeks.",
+      "topic_not_found": "Please choose a valid theme",
+      "caregiver_profile_incomplete": "Your profile is missing some information. Please update it and try again.",
+      "server": "Something went wrong. Please try again.",
+      "network": "Network error. Please check your connection."
+    },
+    "success": {
+      "title": "Thank you for sharing ✨",
+      "body_line_1": "Your idea is in good hands.",
+      "body_line_2": "Our team reads every idea carefully and will be in touch if we make it.",
+      "submit_another": "Share another idea",
+      "browse": "Browse stories"
+    },
+    "not_caregiver": "This page is for caregivers only",
+    "banner": {
+      "default": {
+        "title": "Got an idea for a story?",
+        "subtitle": "Tell us what your child needs — it might become our next story."
+      },
+      "age": {
+        "title": "Looking for something else for this age?",
+        "subtitle": "Share an idea that fits {filterLabel} and we'll consider making it."
+      },
+      "category": {
+        "title": "Didn't find the story you were looking for?",
+        "subtitle": "Tell us what's missing in {filterLabel} and we might make it."
+      },
+      "topic": {
+        "title": "Didn't find the story you were looking for?",
+        "subtitle": "Tell us what's missing about {filterLabel} and we might make it."
+      },
+      "empty": {
+        "title": "We couldn't find a matching story.",
+        "subtitle": "But you can help us create one — share your idea."
+      },
+      "cta": "Share an idea"
     }
   },
   "login": {

@@ -48,6 +48,7 @@ const LINKS: Record<string, FooterLink[]> = {
     { labelKey: "footer.links.parentGuide", path: "/" },
     { labelKey: "footer.links.approach", path: "/" },
     { labelKey: "footer.links.myOrders", path: "/my-stories" },
+    { labelKey: "footer.links.suggestStory", path: "/suggest" },
   ],
   company: [
     { labelKey: "footer.links.about", path: "/" },

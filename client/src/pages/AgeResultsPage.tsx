@@ -14,6 +14,7 @@ import { useLanguage } from "../i18n/context/useLanguage";
 import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup, LockedFilter } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
+import SuggestStoryBanner from "../components/SuggestStoryBanner";
 
 const storyGridSx = {
   display: "grid",
@@ -226,12 +227,16 @@ export default function AgeResultsPage() {
               }}
             />
           ))}
+          <SuggestStoryBanner variant="age" filterLabel={ageLabel} />
         </Box>
       ) : (
         <Box sx={{ textAlign: "center", py: 8 }}>
           <Typography variant="h6" color="text.secondary">
             {t("pages.ageResults.noStories")}
           </Typography>
+          <Box sx={{ mt: 3 }}>
+            <SuggestStoryBanner variant="age" filterLabel={ageLabel} />
+          </Box>
         </Box>
       )}
     </Container>
