@@ -24,6 +24,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { COLORS } from "../../theme";
 import {
   listDammaStoryBriefFeedback,
@@ -58,12 +59,21 @@ export interface BriefFeedbackPanelProps {
   briefId: string | null;
   activeStep: number | null;
   personalization: "yes" | "no";
+  /**
+   * When the panel sits inside a parent sticky column (brief form md+ rail),
+   * it should scroll internally instead of using its own sticky positioning.
+   */
+  embeddedInStickyRail?: boolean;
+  /** When set (e.g. brief page navbar clearance), overrides default md sticky `top` (24px). */
+  stickyTopPx?: number;
 }
 
 export default function BriefFeedbackPanel({
   briefId,
   activeStep,
   personalization,
+  embeddedInStickyRail = false,
+  stickyTopPx,
 }: BriefFeedbackPanelProps) {
   const ui = useStoryBriefUi();
   const [fieldFeedback, setFieldFeedback] = useState<Record<string, BriefFieldFeedbackEntry>>({});
@@ -193,20 +203,47 @@ export default function BriefFeedbackPanel({
     }
   }
 
-  const panelPaperSx = {
+  const embeddedRailSx: SxProps<Theme> = {
     p: { xs: 2.25, sm: 2.75 },
     borderRadius: 2.5,
     border: "1px solid rgba(208, 200, 192, 0.55)",
     backgroundColor: COLORS.surface,
     boxShadow: "0 12px 40px -20px rgba(97, 120, 145, 0.2)",
-    width: { xs: "100%", md: 400 },
-    flexShrink: 0,
-    position: { md: "sticky" },
-    top: { md: 24 },
-    alignSelf: "flex-start",
-    maxHeight: { md: "calc(100vh - 48px)" },
+    width: { xs: "100%", md: "100%" },
+    flexShrink: { xs: 0, md: 0 },
+    alignSelf: "stretch",
+    position: { md: "relative" },
+    top: { md: "auto" },
+    flex: { md: 1 },
+    minHeight: { md: 0 },
+    maxHeight: { md: "none" },
     overflowY: { md: "auto" },
   };
+
+  const standaloneStickySx: SxProps<Theme> = useMemo(
+    () => ({
+      p: { xs: 2.25, sm: 2.75 },
+      borderRadius: 2.5,
+      border: "1px solid rgba(208, 200, 192, 0.55)",
+      backgroundColor: COLORS.surface,
+      boxShadow: "0 12px 40px -20px rgba(97, 120, 145, 0.2)",
+      width: { xs: "100%", md: 400 },
+      flexShrink: 0,
+      position: { md: "sticky" },
+      top: { md: stickyTopPx ?? 24 },
+      alignSelf: "flex-start",
+      maxHeight: {
+        md:
+          stickyTopPx != null
+            ? `calc(100vh - ${stickyTopPx}px - 24px)`
+            : "calc(100vh - 48px)",
+      },
+      overflowY: { md: "auto" },
+    }),
+    [stickyTopPx],
+  );
+
+  const panelPaperSx = embeddedInStickyRail ? embeddedRailSx : standaloneStickySx;
 
   return (
     <Paper

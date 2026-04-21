@@ -20,13 +20,6 @@ export const Z_INDEX_SEARCH_OVERLAY_BACKDROP = 1200;
 /** Search overlay panel. Must sit above its backdrop but still below the navbar. */
 export const Z_INDEX_SEARCH_OVERLAY_PANEL = 1201;
 
-/**
- * Complexity meter (fixed bottom). Kept at the historical effective value
- * (previously `theme.zIndex.appBar` = 1100) to avoid any visual changes.
- * Must remain below snackbars/toasts.
- */
-export const Z_INDEX_COMPLEXITY_METER = 1100;
-
 /** Fullscreen book reader top controls (fixed). Kept at historical value. */
 export const Z_INDEX_BOOK_READER_TOP_CONTROLS = 1300;
 
