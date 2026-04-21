@@ -34,6 +34,8 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import Switch from "@mui/material/Switch";
 import { alpha } from "@mui/material/styles";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -71,6 +73,39 @@ const CHECK_TYPE_LABELS: Record<PostValidationFlag["checkType"], string> = {
   coping_tool: "Coping tool",
   age_appropriateness: "Age appropriateness",
 };
+
+/** Lower = higher priority for the sticky blocker strip (must-never → shame → age → coping). */
+const FLAG_BLOCKER_PRIORITY: Record<PostValidationFlag["checkType"], number> = {
+  must_never: 0,
+  shame_handling: 1,
+  age_appropriateness: 2,
+  coping_tool: 3,
+};
+
+const REVIEW_MODE_STORAGE_KEY = "specialist-draft-review-mode";
+
+function getTopUndismissedBlockers(
+  flags: PostValidationFlag[],
+  dismissedFlags: Set<number>,
+  limit = 3,
+): Array<{ index: number; flag: PostValidationFlag }> {
+  const items = flags
+    .map((flag, index) => ({ flag, index }))
+    .filter(({ index }) => !dismissedFlags.has(index));
+  items.sort(
+    (a, b) =>
+      FLAG_BLOCKER_PRIORITY[a.flag.checkType] -
+      FLAG_BLOCKER_PRIORITY[b.flag.checkType],
+  );
+  return items.slice(0, limit);
+}
+
+function countUndismissedFlags(
+  flags: PostValidationFlag[],
+  dismissedFlags: Set<number>,
+): number {
+  return flags.reduce((n, _, i) => n + (dismissedFlags.has(i) ? 0 : 1), 0);
+}
 
 const PLACEHOLDERS = [
   "[CHILD_NAME]",
@@ -649,6 +684,102 @@ function InferredIntentionCard({
 }
 
 // ---------------------------------------------------------------------------
+// Sticky validation summary (top blockers — must-never / shame / age first)
+// ---------------------------------------------------------------------------
+
+function truncatePassage(text: string, maxChars: number): string {
+  const t = text.trim();
+  if (t.length <= maxChars) return t;
+  return `${t.slice(0, maxChars)}…`;
+}
+
+function ValidationBlockerStrip({
+  flags,
+  dismissedFlags,
+  onToggleFlag,
+  hideButtons,
+  reviewMode,
+}: {
+  flags: PostValidationFlag[];
+  dismissedFlags: Set<number>;
+  onToggleFlag: (index: number) => void;
+  hideButtons?: boolean;
+  reviewMode?: boolean;
+}) {
+  const undismissedCount = countUndismissedFlags(flags, dismissedFlags);
+  const blockers = getTopUndismissedBlockers(flags, dismissedFlags, 3);
+  if (undismissedCount === 0 || blockers.length === 0) return null;
+
+  const remaining = Math.max(0, undismissedCount - blockers.length);
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        mb: 2,
+        px: 2,
+        py: 1.5,
+        borderRadius: 2,
+        border: `1px solid ${alpha(COLORS.warning, 0.45)}`,
+        bgcolor: alpha(COLORS.warning, 0.06),
+        position: "sticky",
+        top: 8,
+        zIndex: 4,
+      }}
+    >
+      <Stack direction="row" alignItems="flex-start" spacing={1}>
+        <WarningAmberIcon
+          sx={{ color: COLORS.warning, flexShrink: 0, mt: 0.15, fontSize: 22 }}
+        />
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.75 }}>
+            Safety review needed ({undismissedCount}{" "}
+            {undismissedCount === 1 ? "finding" : "findings"})
+          </Typography>
+          <Stack spacing={0.75}>
+            {blockers.map(({ index, flag }) => (
+              <Stack
+                key={index}
+                direction="row"
+                alignItems="flex-start"
+                justifyContent="space-between"
+                spacing={1}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="caption" fontWeight={700} component="span" sx={{ mr: 0.75 }}>
+                    {CHECK_TYPE_LABELS[flag.checkType]}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    {truncatePassage(flag.passage, 140)}
+                  </Typography>
+                </Box>
+                {!hideButtons && (
+                  <Button
+                    size="small"
+                    variant="text"
+                    onClick={() => onToggleFlag(index)}
+                    sx={{ flexShrink: 0, minWidth: 0, px: 0.5, fontSize: "0.75rem" }}
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </Stack>
+            ))}
+          </Stack>
+          {remaining > 0 ? (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+              {reviewMode
+                ? `+${remaining} more — turn off Review mode to open the evidence sidebar.`
+                : `+${remaining} more below in Safety Review.`}
+            </Typography>
+          ) : null}
+        </Box>
+      </Stack>
+    </Paper>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Safety Review (post-validation findings — cannot be collapsed; always first in evidence)
 // ---------------------------------------------------------------------------
 
@@ -1136,6 +1267,22 @@ export default function DraftTab({
 
   const [snackbar, setSnackbar] = useState<string | null>(null);
 
+  const [reviewMode, setReviewMode] = useState(() => {
+    try {
+      return sessionStorage.getItem(REVIEW_MODE_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(REVIEW_MODE_STORAGE_KEY, reviewMode ? "1" : "0");
+    } catch {
+      // ignore private mode / quota
+    }
+  }, [reviewMode]);
+
   // Ref to the textarea DOM element (used for placeholder cursor insertion)
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1402,11 +1549,50 @@ export default function DraftTab({
         </Alert>
       )}
 
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        alignItems={{ sm: "center" }}
+        justifyContent="space-between"
+        spacing={1.5}
+        sx={{ mb: 2 }}
+      >
+        <FormControlLabel
+          control={
+            <Switch
+              checked={reviewMode}
+              onChange={(_, v) => setReviewMode(v)}
+              inputProps={{
+                "aria-label":
+                  "Review mode: larger story text and hide evidence sidebar",
+              }}
+            />
+          }
+          label={
+            <Box>
+              <Typography variant="body2" fontWeight={600}>
+                Review mode
+              </Typography>
+              <Typography variant="caption" color="text.secondary" display="block">
+                Larger story text · hides evidence sidebar (placeholders & coping)
+              </Typography>
+            </Box>
+          }
+        />
+      </Stack>
+
+      <ValidationBlockerStrip
+        flags={flags}
+        dismissedFlags={dismissedFlags}
+        onToggleFlag={handleToggleFlag}
+        hideButtons={isReadOnly}
+        reviewMode={reviewMode}
+      />
+
       {/* Two-zone layout: story editor (left) + evidence panel (right) */}
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
+          flexDirection: { xs: "column", md: reviewMode ? "column" : "row" },
           gap: 2,
           alignItems: "stretch",
         }}
@@ -1414,8 +1600,8 @@ export default function DraftTab({
         {/* ── Left: story (primary) ───────────────────────────────────────── */}
         <Box
           sx={{
-            flex: { xs: "1 1 auto", md: "0 0 60%" },
-            width: { xs: "100%", md: "60%" },
+            flex: { xs: "1 1 auto", md: reviewMode ? "1 1 auto" : "0 0 60%" },
+            width: { xs: "100%", md: reviewMode ? "100%" : "60%" },
             minWidth: 0,
             display: "flex",
             flexDirection: "column",
@@ -1447,7 +1633,13 @@ export default function DraftTab({
               }
             }}
             InputProps={{ readOnly: isReadOnly }}
-            sx={{ mb: 1, ...readOnlyInputSx }}
+            sx={{
+              mb: 1,
+              ...readOnlyInputSx,
+              ...(reviewMode
+                ? { "& .MuiInputBase-input": { fontSize: "1.05rem" } }
+                : {}),
+            }}
           />
 
           <Stack direction="row" justifyContent="flex-end" sx={{ mb: 0.5 }}>
@@ -1498,6 +1690,9 @@ export default function DraftTab({
                   overflow: "auto !important",
                   resize: "none",
                   boxSizing: "border-box",
+                  ...(reviewMode
+                    ? { fontSize: "1.125rem", lineHeight: 1.7 }
+                    : {}),
                 },
               }}
             />
@@ -1681,31 +1876,33 @@ export default function DraftTab({
         </Box>
 
         {/* ── Right: evidence panel ─────────────────────────────────────────── */}
-        <Box
-          sx={{
-            flex: { xs: "1 1 auto", md: "0 0 40%" },
-            width: { xs: "100%", md: "40%" },
-            minWidth: 0,
-            borderLeft: { md: `1px solid ${COLORS.border}` },
-            pl: { md: 2 },
-          }}
-        >
-          <EvidencePanel
-            story={story}
-            displayedResult={displayedResult}
-            dismissedFlags={dismissedFlags}
-            onToggleFlag={handleToggleFlag}
-            onFeedback={handleFeedback}
-            hideButtons={isReadOnly}
-            textareaRef={textareaRef}
-            editorBody={editorBody}
-            onEditorBodyChange={(body) => {
-              setEditorBody(body);
-              setHasUnsavedChanges(true);
+        {!reviewMode && (
+          <Box
+            sx={{
+              flex: { xs: "1 1 auto", md: "0 0 40%" },
+              width: { xs: "100%", md: "40%" },
+              minWidth: 0,
+              borderLeft: { md: `1px solid ${COLORS.border}` },
+              pl: { md: 2 },
             }}
-            onNavigateToTab={onNavigateToTab}
-          />
-        </Box>
+          >
+            <EvidencePanel
+              story={story}
+              displayedResult={displayedResult}
+              dismissedFlags={dismissedFlags}
+              onToggleFlag={handleToggleFlag}
+              onFeedback={handleFeedback}
+              hideButtons={isReadOnly}
+              textareaRef={textareaRef}
+              editorBody={editorBody}
+              onEditorBodyChange={(body) => {
+                setEditorBody(body);
+                setHasUnsavedChanges(true);
+              }}
+              onNavigateToTab={onNavigateToTab}
+            />
+          </Box>
+        )}
       </Box>
 
       {/* ── Version switch confirmation dialog ─────────────────────────────── */}
