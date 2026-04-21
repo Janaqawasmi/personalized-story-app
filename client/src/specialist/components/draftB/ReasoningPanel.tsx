@@ -1,9 +1,13 @@
 import React, { useState } from "react";
+import Accordion from "@mui/material/Accordion";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExploreIcon from "@mui/icons-material/Explore";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import LayersIcon from "@mui/icons-material/Layers";
@@ -12,15 +16,70 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import type { Agent1Result } from "../../../types/agent1Result";
 import { COLORS } from "../../../theme";
 import { FeedbackDialog } from "./shared";
-import { DRAFT_B } from "./tokens";
+import { DRAFT_B, FONTS } from "./tokens";
 
-const cardSx = {
-  mb: "14px",
-  p: "12px",
-  borderRadius: "8px",
-  border: `1px solid ${DRAFT_B.border}`,
-  background: "white",
-} as const;
+function ReasoningAccordionCard({
+  title,
+  icon,
+  defaultExpanded = false,
+  accentLeft,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  defaultExpanded?: boolean;
+  accentLeft?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Accordion
+      defaultExpanded={defaultExpanded}
+      disableGutters
+      elevation={0}
+      sx={{
+        mb: "14px",
+        borderRadius: "8px",
+        border: `1px solid ${DRAFT_B.border}`,
+        background: "#fff",
+        fontFamily: FONTS.sans,
+        "&:before": { display: "none" },
+        overflow: "hidden",
+        ...(accentLeft ? { borderLeft: `3px solid ${accentLeft}`, pl: 0 } : {}),
+      }}
+    >
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon sx={{ color: DRAFT_B.inkMuted, fontSize: 22 }} />}
+        sx={{
+          px: "12px",
+          minHeight: 48,
+          "& .MuiAccordionSummary-content": {
+            alignItems: "center",
+            gap: 1,
+            my: 1,
+          },
+          "&.Mui-expanded": { minHeight: 48 },
+        }}
+      >
+        <Box
+          sx={{
+            width: 24,
+            height: 24,
+            borderRadius: "6px",
+            bgcolor: DRAFT_B.primarySoft,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {icon}
+        </Box>
+        <Typography sx={{ fontSize: "13px", fontWeight: 700, color: DRAFT_B.ink }}>{title}</Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ pt: 0, px: "12px", pb: "12px" }}>{children}</AccordionDetails>
+    </Accordion>
+  );
+}
 
 export interface ReasoningPanelProps {
   result: Agent1Result;
@@ -59,20 +118,13 @@ function FeedbackRow({
   }
 
   if (noted) {
-    return (
-      <Chip label="Feedback noted" size="small" sx={{ mt: 1 }} variant="outlined" />
-    );
+    return <Chip label="Feedback noted" size="small" sx={{ mt: 1 }} variant="outlined" />;
   }
 
   return (
     <>
       <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mt: 1 }}>
-        <Button
-          size="small"
-          variant="outlined"
-          color="success"
-          onClick={() => setConfirmed(true)}
-        >
+        <Button size="small" variant="outlined" color="success" onClick={() => setConfirmed(true)}>
           Right
         </Button>
         <Button size="small" variant="outlined" color="warning" onClick={() => setDialogOpen(true)}>
@@ -104,24 +156,12 @@ export default function ReasoningPanel({
 
   return (
     <Box>
-      <Box sx={cardSx}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: "6px",
-              bgcolor: DRAFT_B.primarySoft,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <FavoriteIcon sx={{ fontSize: 16, color: COLORS.primary }} />
-          </Box>
-          <Typography sx={{ fontSize: "13px", fontWeight: 700 }}>Emotional truth</Typography>
-        </Stack>
-        <Typography sx={{ fontSize: "13px", color: DRAFT_B.inkSoft, lineHeight: 1.6, mt: 1 }}>
+      <ReasoningAccordionCard
+        title="Emotional truth"
+        icon={<FavoriteIcon sx={{ fontSize: 16, color: COLORS.primary }} />}
+        defaultExpanded
+      >
+        <Typography sx={{ fontSize: "13px", color: DRAFT_B.inkSoft, lineHeight: 1.6 }}>
           {result.emotionalTruth}
         </Typography>
         <FeedbackRow
@@ -130,26 +170,13 @@ export default function ReasoningPanel({
           readOnly={readOnly}
           onFeedback={onFeedback}
         />
-      </Box>
+      </ReasoningAccordionCard>
 
-      <Box sx={cardSx}>
-        <Stack direction="row" alignItems="center" spacing={1}>
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: "6px",
-              bgcolor: DRAFT_B.primarySoft,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <ExploreIcon sx={{ fontSize: 16, color: COLORS.primary }} />
-          </Box>
-          <Typography sx={{ fontSize: "13px", fontWeight: 700 }}>Narrative blueprint</Typography>
-        </Stack>
-        <Box component="ol" sx={{ pl: 2, mt: 1, fontSize: "12.5px", lineHeight: 1.5 }}>
+      <ReasoningAccordionCard
+        title="Narrative blueprint"
+        icon={<ExploreIcon sx={{ fontSize: 16, color: COLORS.primary }} />}
+      >
+        <Box component="ol" sx={{ pl: 2, m: 0, fontSize: "12.5px", lineHeight: 1.5 }}>
           {result.blueprint.map((point) => (
             <li key={point.index}>
               <Typography component="span" sx={{ fontSize: "12.5px" }}>
@@ -172,24 +199,18 @@ export default function ReasoningPanel({
           readOnly={readOnly}
           onFeedback={onFeedback}
         />
-      </Box>
+      </ReasoningAccordionCard>
 
       {result.compressionMetadata && (
-        <Box
-          sx={{
-            ...cardSx,
-            borderLeft: `3px solid ${COLORS.warning}`,
-          }}
+        <ReasoningAccordionCard
+          title="Compression"
+          icon={<LayersIcon sx={{ fontSize: 16, color: COLORS.warning }} />}
+          accentLeft={COLORS.warning}
         >
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-            <LayersIcon sx={{ fontSize: 20, color: COLORS.warning }} />
-            <Typography sx={{ fontSize: "13px", fontWeight: 700 }}>Compression</Typography>
-          </Stack>
-
           <Typography sx={{ fontSize: "10.5px", fontWeight: 700, textTransform: "uppercase", color: COLORS.success, mb: 0.5 }}>
-            FULLY INCLUDED
+            Fully included
           </Typography>
-          <Box component="ul" sx={{ pl: 2, mb: 1.5 }}>
+          <Box component="ul" sx={{ pl: 2, mb: 1.5, mt: 0 }}>
             {result.compressionMetadata.fullyIncluded.map((item, i) => (
               <li key={i}>
                 <Typography sx={{ fontSize: "12px" }}>{item}</Typography>
@@ -198,9 +219,9 @@ export default function ReasoningPanel({
           </Box>
 
           <Typography sx={{ fontSize: "10.5px", fontWeight: 700, textTransform: "uppercase", color: COLORS.warning, mb: 0.5 }}>
-            COMPRESSED
+            Compressed
           </Typography>
-          <Box component="ul" sx={{ pl: 2, mb: 1.5 }}>
+          <Box component="ul" sx={{ pl: 2, mb: 1.5, mt: 0 }}>
             {result.compressionMetadata.compressed.map((item, i) => (
               <li key={i}>
                 <Typography sx={{ fontSize: "12px" }}>
@@ -211,9 +232,9 @@ export default function ReasoningPanel({
           </Box>
 
           <Typography sx={{ fontSize: "10.5px", fontWeight: 700, textTransform: "uppercase", color: COLORS.error, mb: 0.5 }}>
-            OMITTED
+            Omitted
           </Typography>
-          <Box component="ul" sx={{ pl: 2 }}>
+          <Box component="ul" sx={{ pl: 2, m: 0 }}>
             {result.compressionMetadata.omitted.map((item, i) => (
               <li key={i}>
                 <Typography sx={{ fontSize: "12px" }}>
@@ -222,19 +243,18 @@ export default function ReasoningPanel({
               </li>
             ))}
           </Box>
-        </Box>
+        </ReasoningAccordionCard>
       )}
 
       {intention && (
-        <Box sx={cardSx}>
-          <Typography sx={{ fontSize: "13px", fontWeight: 700, mb: 1 }}>Inferred intention</Typography>
+        <ReasoningAccordionCard title="Inferred intention" icon={<ExploreIcon sx={{ fontSize: 16, color: COLORS.primary }} />}>
           <Typography sx={{ fontSize: "12.5px", mb: 0.5 }}>
             <strong>Feel:</strong> {intention.feel}
           </Typography>
           <Typography sx={{ fontSize: "12.5px", mb: 0.5 }}>
             <strong>Because:</strong> {intention.because}
           </Typography>
-          <Typography sx={{ fontSize: "12.5px", mb: 1.5 }}>
+          <Typography sx={{ fontSize: "12.5px", mb: readOnly ? 0 : 1.5 }}>
             <strong>Reason:</strong> {intention.reason}
           </Typography>
           {!readOnly && (
@@ -253,7 +273,7 @@ export default function ReasoningPanel({
               )}
             </Stack>
           )}
-        </Box>
+        </ReasoningAccordionCard>
       )}
 
       {result.alignmentNote && (
@@ -265,6 +285,9 @@ export default function ReasoningPanel({
             mb: "14px",
           }}
         >
+          <Typography sx={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: DRAFT_B.primaryDark, mb: 0.75 }}>
+            Alignment note
+          </Typography>
           <Typography sx={{ fontSize: "13px", color: DRAFT_B.inkSoft, fontStyle: "italic", lineHeight: 1.6 }}>
             {result.alignmentNote}
           </Typography>
