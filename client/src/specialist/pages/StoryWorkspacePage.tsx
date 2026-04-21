@@ -200,6 +200,46 @@ export default function StoryWorkspacePage() {
     return unsub;
   }, [resolvedStoryId, fetchStory]);
 
+  // Opening the workspace while Agent 1 output is unread moves the story to `in_review`
+  // (sets lastOpenedAt server-side). Approve/regenerate require `in_review`, not `awaiting_review`.
+  useEffect(() => {
+    if (!story || story.status !== "awaiting_review") return;
+
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const updated = await draftStore.transitionStatus(resolvedStoryId, "in_review");
+        if (!cancelled) {
+          setError(null);
+          setStory(updated);
+        }
+      } catch (e: unknown) {
+        try {
+          const recovered = await draftStore.getStory(resolvedStoryId);
+          if (!cancelled && recovered?.status === "in_review") {
+            setError(null);
+            setStory(recovered);
+          } else if (!cancelled) {
+            setError(
+              e instanceof Error ? e.message : "Could not open story for review.",
+            );
+          }
+        } catch {
+          if (!cancelled) {
+            setError(
+              e instanceof Error ? e.message : "Could not open story for review.",
+            );
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [story?.status, resolvedStoryId]);
+
   // Slow-loading indicator (fires after 3 s if still loading)
   useEffect(() => {
     if (!loading) {

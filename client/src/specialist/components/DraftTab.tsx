@@ -1316,6 +1316,10 @@ export default function DraftTab({
       if (hasUnsavedChanges) {
         await handleSave();
       }
+      if (story.status === "awaiting_review") {
+        const opened = await draftStore.transitionStatus(story.id, "in_review");
+        onStoryUpdate(opened);
+      }
       const updatedStory = await draftStore.transitionStatus(
         story.id,
         "needs_revision",
@@ -1334,6 +1338,10 @@ export default function DraftTab({
 
   async function handleApprove() {
     try {
+      if (story.status === "awaiting_review") {
+        const opened = await draftStore.transitionStatus(story.id, "in_review");
+        onStoryUpdate(opened);
+      }
       const updatedStory = await draftStore.transitionStatus(story.id, "approved");
       onStoryUpdate(updatedStory);
     } catch (err) {
@@ -1617,7 +1625,7 @@ export default function DraftTab({
                           <Button
                             variant="outlined"
                             color="secondary"
-                            disabled={maxRegenReached}
+                            disabled={maxRegenReached || story.status === "awaiting_review"}
                             onClick={openRegenDialog}
                           >
                             Regenerate
@@ -1631,13 +1639,19 @@ export default function DraftTab({
                             ? "Save your edits first"
                             : hasUndismissedFlags
                               ? "Finish Safety Review for each finding before approving"
-                              : ""
+                              : story.status === "awaiting_review"
+                                ? "Opening workspace for review… try again in a moment"
+                                : ""
                         }
                       >
                         <span>
                           <Button
                             variant="contained"
-                            disabled={hasUnsavedChanges || hasUndismissedFlags}
+                            disabled={
+                              hasUnsavedChanges ||
+                              hasUndismissedFlags ||
+                              story.status === "awaiting_review"
+                            }
                             onClick={() => void handleApprove()}
                             sx={{
                               bgcolor: COLORS.success,
