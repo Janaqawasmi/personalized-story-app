@@ -60,9 +60,8 @@ export default function ApproveBar({
       sx={{
         position: "sticky",
         bottom: "16px",
-        alignSelf: "stretch",
-        width: "100%",
-        maxWidth: "100%",
+        mx: "40px",
+        mb: 2,
         mt: "24px",
         background: "rgba(255,255,255,0.95)",
         backdropFilter: "blur(8px)",

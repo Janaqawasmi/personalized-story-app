@@ -423,11 +423,20 @@ export default function DraftTabB({
     STORY_TYPE_LABELS[story.storyType] ?? "";
 
   return (
-    <Box sx={{ background: DRAFT_B.paper, minHeight: "100%", px: { xs: 2, md: 5 }, py: 3 }}>
+    /* Full-width flex column — no horizontal padding; each band owns its own. */
+    <Box
+      sx={{
+        background: DRAFT_B.paper,
+        minHeight: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* ── Archived banner ───────────────────────────────────────────── */}
       {story.status === "archived" && (
         <Alert
           severity="warning"
-          sx={{ mb: 3 }}
+          sx={{ mx: "40px", mt: 2 }}
           action={
             <Button color="inherit" size="small" onClick={() => void handleRestore()}>
               Restore
@@ -438,25 +447,47 @@ export default function DraftTabB({
         </Alert>
       )}
 
-      <VersionTimeline
-        versions={versions}
-        selectedIndex={selectedVersionIndex}
-        onSelect={handleVersionChange}
-        wordCount={currentWordCount}
-        targetRange={[targetMin, targetMax]}
-        regenRemaining={regenRemaining}
-      />
+      {/* ── Version timeline (cream strip) ────────────────────────────── */}
+      <Box
+        sx={{
+          bgcolor: DRAFT_B.cream,
+          borderBottom: `1px solid ${DRAFT_B.border}`,
+          px: "40px",
+          py: "14px",
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          flexWrap: "wrap",
+        }}
+      >
+        <VersionTimeline
+          versions={versions}
+          selectedIndex={selectedVersionIndex}
+          onSelect={handleVersionChange}
+          wordCount={currentWordCount}
+          targetRange={[targetMin, targetMax]}
+          regenRemaining={regenRemaining}
+        />
+      </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 0 }}>
+      {/* ── Manuscript + right rail (CSS grid) ────────────────────────── */}
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: `1fr ${RAIL_WIDTH_DEFAULT}px`,
+          flex: 1,
+          opacity: story.status === "archived" ? 0.58 : 1,
+        }}
+      >
+        {/* Manuscript column */}
         <Box
           sx={{
+            padding: "36px 48px 140px",
             display: "flex",
-            gap: 0,
-            alignItems: "flex-start",
-            opacity: story.status === "archived" ? 0.58 : 1,
+            justifyContent: "center",
           }}
         >
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ width: "100%", maxWidth: "680px", position: "relative" }}>
             <ManuscriptEditor
               title={editorTitle}
               body={editorBody}
@@ -538,44 +569,46 @@ export default function DraftTabB({
               </Box>
             )}
           </Box>
-
-          <EvidenceRail
-            story={story}
-            result={displayedResult}
-            dismissedFlags={dismissedFlags}
-            onToggleFlag={handleToggleFlag}
-            onFlagHover={setHoveredFlagIndex}
-            onGoToPassage={handleGoToPassage}
-            activeTab={activeRailTab}
-            onTabChange={(t) => {
-              setHoveredFlagIndex(null);
-              setActiveRailTab(t);
-            }}
-            onFeedback={handleFeedback}
-            onInsertPlaceholder={insertPlaceholder}
-            onNavigateToBrief={() => onNavigateToTab?.("brief")}
-            onEditBrief={handleEditBrief}
-            readOnly={isReadOnly}
-            scrollRef={railScrollRef}
-            width={RAIL_WIDTH_DEFAULT}
-            selectedVersionIndex={selectedVersionIndex}
-            ageRangeLabel={ageRangeLabel}
-            storyTypeLabel={storyTypeLabelText}
-          />
         </Box>
 
-        {story.status !== "archived" && story.status !== "approved" && (
-          <ApproveBar
-            checks={checks}
-            canApprove={canApprove}
-            status={story.status}
-            regenCount={regenCount}
-            regenRemaining={regenRemaining}
-            onRegenerate={openRegenDialog}
-            onApprove={() => void handleApprove()}
-          />
-        )}
+        {/* Evidence rail — sticky 100vh, cream background */}
+        <EvidenceRail
+          story={story}
+          result={displayedResult}
+          dismissedFlags={dismissedFlags}
+          onToggleFlag={handleToggleFlag}
+          onFlagHover={setHoveredFlagIndex}
+          onGoToPassage={handleGoToPassage}
+          activeTab={activeRailTab}
+          onTabChange={(t) => {
+            setHoveredFlagIndex(null);
+            setActiveRailTab(t);
+          }}
+          onFeedback={handleFeedback}
+          onInsertPlaceholder={insertPlaceholder}
+          onNavigateToBrief={() => onNavigateToTab?.("brief")}
+          onEditBrief={handleEditBrief}
+          readOnly={isReadOnly}
+          scrollRef={railScrollRef}
+          width={RAIL_WIDTH_DEFAULT}
+          selectedVersionIndex={selectedVersionIndex}
+          ageRangeLabel={ageRangeLabel}
+          storyTypeLabel={storyTypeLabelText}
+        />
       </Box>
+
+      {/* ── Floating approve bar (sticky bottom) ──────────────────────── */}
+      {story.status !== "archived" && story.status !== "approved" && (
+        <ApproveBar
+          checks={checks}
+          canApprove={canApprove}
+          status={story.status}
+          regenCount={regenCount}
+          regenRemaining={regenRemaining}
+          onRegenerate={openRegenDialog}
+          onApprove={() => void handleApprove()}
+        />
+      )}
 
       <Dialog open={pendingVersionIndex !== null} onClose={handleCancelVersionSwitch} maxWidth="xs">
         <DialogTitle>Discard unsaved changes?</DialogTitle>

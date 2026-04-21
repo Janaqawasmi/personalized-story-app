@@ -1,3 +1,7 @@
+/**
+ * VersionTimeline — renders the three inline sections of the version strip.
+ * This component is a fragment; the cream strip Box lives in DraftTabB.
+ */
 import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -8,12 +12,11 @@ import { formatRelativeTime } from "../StoryRow";
 import { MAX_VERSIONS } from "./shared";
 import { DRAFT_B, FONTS } from "./tokens";
 
-/** Git-branch style icon (matches Direction B mock). */
-function BranchGlyph({ size = 14 }: { size?: number }) {
+function BranchGlyph() {
   return (
     <svg
-      width={size}
-      height={size}
+      width={14}
+      height={14}
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden
@@ -50,21 +53,9 @@ export default function VersionTimeline({
   const outOfRange = wordCount < min || wordCount > max;
 
   return (
-    <Box
-      sx={{
-        px: { xs: 0, md: 0 },
-        py: 1.75,
-        mb: 2,
-        bgcolor: DRAFT_B.cream,
-        borderBottom: `1px solid ${DRAFT_B.border}`,
-        display: "flex",
-        alignItems: "center",
-        gap: 2,
-        flexWrap: "wrap",
-        fontFamily: FONTS.sans,
-      }}
-    >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+    <>
+      {/* Branch icon + "VERSIONS" label */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, flexShrink: 0 }}>
         <BranchGlyph />
         <Typography
           sx={{
@@ -73,13 +64,24 @@ export default function VersionTimeline({
             letterSpacing: "0.06em",
             textTransform: "uppercase",
             color: DRAFT_B.inkMuted,
+            fontFamily: FONTS.sans,
           }}
         >
           Versions
         </Typography>
       </Box>
 
-      <Box sx={{ display: "flex", alignItems: "center", flex: 1, gap: 0, flexWrap: "wrap", minWidth: 0 }}>
+      {/* Pills row */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          flex: 1,
+          gap: 0,
+          flexWrap: "wrap",
+          minWidth: 0,
+        }}
+      >
         {versions.map((version, i) => {
           const isLatest = i === versions.length - 1;
           const sel = i === selectedIndex;
@@ -133,9 +135,17 @@ export default function VersionTimeline({
                 >
                   v{i + 1}
                 </span>
-                <span style={{ fontSize: 11.5, fontWeight: 600, textAlign: "left" }}>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    textAlign: "left",
+                  }}
+                >
                   <span style={{ display: "block" }}>{titleTop}</span>
-                  <span style={{ fontSize: 10, opacity: 0.75, fontWeight: 500 }}>{subtitleLine}</span>
+                  <span style={{ fontSize: 10, opacity: 0.75, fontWeight: 500 }}>
+                    {subtitleLine}
+                  </span>
                 </span>
               </button>
             </React.Fragment>
@@ -149,9 +159,9 @@ export default function VersionTimeline({
                 width: 40,
                 height: "1px",
                 bgcolor: DRAFT_B.border,
-                borderTop: `1px dashed ${DRAFT_B.border}`,
                 flexShrink: 0,
                 alignSelf: "center",
+                borderTop: `1px dashed ${DRAFT_B.border}`,
               }}
             />
             <Typography
@@ -164,6 +174,7 @@ export default function VersionTimeline({
                 fontSize: "11.5px",
                 fontWeight: 500,
                 fontStyle: "italic",
+                fontFamily: FONTS.sans,
               }}
             >
               v{versions.length + 1} available via Regenerate
@@ -172,17 +183,18 @@ export default function VersionTimeline({
         )}
       </Box>
 
+      {/* Word count */}
       <Typography
         sx={{
-          fontSize: "12px",
+          fontSize: "11px",
           color: outOfRange ? COLORS.error : DRAFT_B.inkMuted,
           fontWeight: outOfRange ? 600 : 500,
           flexShrink: 0,
-          ml: { xs: 0, md: "auto" },
+          fontFamily: FONTS.sans,
         }}
       >
         {wordCount} words · target {min}–{max}
       </Typography>
-    </Box>
+    </>
   );
 }

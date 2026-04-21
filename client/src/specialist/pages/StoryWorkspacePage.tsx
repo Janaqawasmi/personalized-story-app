@@ -365,12 +365,12 @@ export default function StoryWorkspacePage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1100, mx: "auto", pb: 6, bgcolor: COLORS.background, minHeight: "100vh" }}>
-      {/* Error banner — shown above header so it's always visible */}
+    <Box sx={{ bgcolor: COLORS.background, minHeight: "100vh" }}>
+      {/* Error banner */}
       {error && (
         <Alert
           severity="error"
-          sx={{ mx: { xs: 2, sm: 3, md: 4 }, mt: 2, borderRadius: 2 }}
+          sx={{ mx: { xs: 2, sm: 3, md: 5 }, mt: 2, borderRadius: 2 }}
           action={
             <Button color="inherit" size="small" onClick={fetchStory}>
               Try again
@@ -392,36 +392,42 @@ export default function StoryWorkspacePage() {
             onStoriesClick={handleStoriesClick}
           />
 
-          <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 0 }}>
-            <StoryPipelineStepper story={story} />
-            <WorkspaceTabs
-              story={story}
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-            />
+          {/* Pipeline + tabs are full-width cream bands with own internal padding */}
+          <StoryPipelineStepper story={story} />
+          <WorkspaceTabs
+            story={story}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
 
-            <Box
-              role="tabpanel"
-              id={`tabpanel-${activeTab}`}
-              aria-labelledby={`tab-${activeTab}`}
-            >
-              {activeTab === "brief" && (
+          <Box
+            role="tabpanel"
+            id={`tabpanel-${activeTab}`}
+            aria-labelledby={`tab-${activeTab}`}
+          >
+            {activeTab === "brief" && (
+              <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 3, pb: 6 }}>
                 <BriefTab
                   story={story}
                   onStoryUpdate={setStory}
                   onNavigateToTab={handleTabChange}
                 />
-              )}
-              {activeTab === "draft" && (
-                <DraftTabB
-                  story={story}
-                  onStoryUpdate={setStory}
-                  onNavigateToTab={handleTabChange}
-                  onUnsavedDraftChange={setDraftHasUnsaved}
-                />
-              )}
-              {activeTab === "history" && <HistoryTab story={story} />}
-            </Box>
+              </Box>
+            )}
+            {activeTab === "draft" && (
+              /* DraftTabB is full-width — manages its own internal layout */
+              <DraftTabB
+                story={story}
+                onStoryUpdate={setStory}
+                onNavigateToTab={handleTabChange}
+                onUnsavedDraftChange={setDraftHasUnsaved}
+              />
+            )}
+            {activeTab === "history" && (
+              <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 3, pb: 6 }}>
+                <HistoryTab story={story} />
+              </Box>
+            )}
           </Box>
         </>
       )}

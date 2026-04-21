@@ -73,7 +73,6 @@ export default function ManuscriptEditor({
       sx={{
         maxWidth: MANUSCRIPT_MAX_WIDTH,
         mx: "auto",
-        pb: "140px",
       }}
     >
       <Box

@@ -47,7 +47,7 @@ export default function WorkspaceTabs({
   }
 
   return (
-    <Box sx={{ borderBottom: `1px solid ${DRAFT_B.border}`, bgcolor: DRAFT_B.cream }}>
+    <Box sx={{ borderBottom: `1px solid ${DRAFT_B.border}`, bgcolor: DRAFT_B.cream, px: { xs: 2, sm: 3, md: 5 } }}>
       <Tabs
         value={activeTab}
         onChange={handleChange}

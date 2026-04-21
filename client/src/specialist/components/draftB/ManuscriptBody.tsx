@@ -128,6 +128,7 @@ export default function ManuscriptBody({
               <span
                 style={{
                   float: "left",
+                  fontFamily,
                   fontSize: "62px",
                   lineHeight: "0.85",
                   fontWeight: 600,

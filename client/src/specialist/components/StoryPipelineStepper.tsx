@@ -55,6 +55,7 @@ export default function StoryPipelineStepper({ story }: StoryPipelineStepperProp
       component="nav"
       aria-label="Story pipeline progress"
       sx={{
+        px: { xs: 2, sm: 3, md: 5 },
         pt: 1.75,
         pb: 2,
         mb: 0,
