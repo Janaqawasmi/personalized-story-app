@@ -488,6 +488,19 @@ export default function DraftTabB({
           }}
         >
           <Box sx={{ width: "100%", maxWidth: "680px", position: "relative" }}>
+            {/* Edit / save first so Edit mode is reachable without scrolling past the manuscript */}
+            {!isReadOnly && (
+              <SaveStatusBar
+                unsaved={hasUnsavedChanges}
+                isSaving={isSaving}
+                lastSavedAt={lastSavedAt}
+                onSave={() => void handleSave()}
+                mode={editorMode}
+                onModeToggle={handleModeToggle}
+                readOnly={isReadOnly}
+              />
+            )}
+
             <ManuscriptEditor
               title={editorTitle}
               body={editorBody}
@@ -522,18 +535,6 @@ export default function DraftTabB({
               onParagraphHover={setHoveredFlagIndex}
               mode={isReadOnly ? "read" : editorMode}
             />
-
-            {!isReadOnly && (
-              <SaveStatusBar
-                unsaved={hasUnsavedChanges}
-                isSaving={isSaving}
-                lastSavedAt={lastSavedAt}
-                onSave={() => void handleSave()}
-                mode={editorMode}
-                onModeToggle={handleModeToggle}
-                readOnly={isReadOnly}
-              />
-            )}
 
             {story.status === "approved" && (
               <Box sx={{ mt: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
