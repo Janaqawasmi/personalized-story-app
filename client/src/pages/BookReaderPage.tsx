@@ -844,14 +844,27 @@ export default function BookReaderPage() {
           {/* Book Content */}
           <Box
             sx={{
-              pt: isFullScreen ? 4 : 4, // Minimal top padding in both modes
-              pb: 6,
-              px: 3,
               position: "relative",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               width: "100%",
+              ...(isFullScreen
+                ? {
+                    // Fullscreen: fill viewport below the 64px top bar, center the book vertically
+                    minHeight: "calc(100vh - 64px)",
+                    mt: "64px",
+                    justifyContent: "center",
+                    px: 3,
+                    py: { xs: 2, md: 3 },
+                    boxSizing: "border-box",
+                  }
+                : {
+                    // Normal mode: keep existing top-anchored flow (control bar stays directly under header)
+                    pt: 4,
+                    pb: 6,
+                    px: 3,
+                  }),
             }}
           >
             <Box
