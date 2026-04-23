@@ -70,22 +70,9 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    const { title, topicId, ageRange, description, motivation, contactConsent, language } =
-      validated.value;
+    const { title, ageRange, description, motivation, contactConsent, language } = validated.value;
 
-    // ── 3. Verify topic exists ─────────────────────────────────────────────
-    const topicSnap = await db.collection("topics").doc(topicId).get();
-    if (!topicSnap.exists) {
-      res.status(400).json({
-        success: false,
-        errorCode: "topic_not_found",
-        field: "topicId",
-        message: "Invalid topic",
-      });
-      return;
-    }
-
-    // ── 4. Rate limit: 3 submissions / rolling 30 days ─────────────────────
+    // ── 3. Rate limit: 3 submissions / rolling 30 days ─────────────────────
     const thirtyDaysAgo = admin.firestore.Timestamp.fromMillis(
       Date.now() - 30 * 24 * 60 * 60 * 1000
     );
@@ -107,7 +94,7 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // ── 5. Resolve submitter name/email ────────────────────────────────────
+    // ── 4. Resolve submitter name/email ────────────────────────────────────
     let submittedByName = "";
     let submittedByEmail = "";
 
@@ -151,7 +138,7 @@ router.post("/", async (req: Request, res: Response) => {
       return;
     }
 
-    // ── 6. Write idea document ─────────────────────────────────────────────
+    // ── 5. Write idea document ─────────────────────────────────────────────
     const now = admin.firestore.FieldValue.serverTimestamp();
 
     const doc = {
@@ -159,7 +146,6 @@ router.post("/", async (req: Request, res: Response) => {
       submittedByName,
       submittedByEmail,
       title,
-      topicId,
       ageRange,
       description,
       motivation,

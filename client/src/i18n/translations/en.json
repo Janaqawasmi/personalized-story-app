@@ -561,12 +561,6 @@
         "label": "Give your idea a short title",
         "placeholder": "e.g., a story about changing schools"
       },
-      "topic": {
-        "label": "What emotion is it about?",
-        "placeholder": "Choose an emotion",
-        "loading": "Loading themes...",
-        "error": "Could not load themes. Try refreshing."
-      },
       "age": {
         "label": "Who is this for?"
       },
@@ -591,7 +585,6 @@
     "error": {
       "validation": "Please check your entries and try again",
       "rate_limit": "You've shared 3 ideas recently — we're reading them! Please come back in a few weeks.",
-      "topic_not_found": "Please choose a valid theme",
       "caregiver_profile_incomplete": "Your profile is missing some information. Please update it and try again.",
       "server": "Something went wrong. Please try again.",
       "network": "Network error. Please check your connection."

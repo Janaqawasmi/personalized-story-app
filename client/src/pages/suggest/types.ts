@@ -2,7 +2,6 @@ export type AgeRange = "3-5" | "6-8" | "9-12";
 
 export type IdeaFormValues = {
   title: string;
-  topicId: string;
   ageRange: AgeRange | "";
   description: string;
   motivation: string;
@@ -11,7 +10,6 @@ export type IdeaFormValues = {
 
 export type SubmitErrorCode =
   | "validation_error"
-  | "topic_not_found"
   | "caregiver_not_found"
   | "caregiver_profile_incomplete"
   | "rate_limit"
@@ -28,6 +26,4 @@ export type SubmitResult =
       field?: string;
       message: string;
     };
-
-export type TopicOption = { id: string; label: string };
 

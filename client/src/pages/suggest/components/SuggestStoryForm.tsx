@@ -3,12 +3,7 @@ import {
   Button,
   Checkbox,
   CircularProgress,
-  FormControl,
   FormControlLabel,
-  FormHelperText,
-  InputLabel,
-  MenuItem,
-  Select,
   TextField,
   Typography,
 } from "@mui/material";
@@ -16,7 +11,6 @@ import { useMemo, useState } from "react";
 import { COLORS } from "../../../theme";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { useLanguage } from "../../../i18n/context/useLanguage";
-import { useTopics } from "../hooks/useTopics";
 import type { AgeRange, IdeaFormValues, SubmitResult } from "../types";
 import { submitIdea } from "../api/submitIdea";
 
@@ -46,11 +40,9 @@ export function SuggestStoryForm({
 }) {
   const t = useTranslation();
   const { language, isRTL, direction } = useLanguage();
-  const { topics, loading: topicsLoading, error: topicsError } = useTopics();
 
   const [values, setValues] = useState<IdeaFormValues>({
     title: "",
-    topicId: "",
     ageRange: "",
     description: "",
     motivation: "",
@@ -64,26 +56,21 @@ export function SuggestStoryForm({
   const motivationTrim = values.motivation.trim();
 
   const canSubmit = useMemo(() => {
-    if (topicsLoading) return false;
-    if (topicsError) return false;
     if (submitting) return false;
     return (
       titleTrim.length >= 3 &&
       titleTrim.length <= 80 &&
-      Boolean(values.topicId) &&
       Boolean(values.ageRange) &&
       descTrim.length >= 20 &&
       descTrim.length <= 500
     );
-  }, [topicsLoading, topicsError, submitting, titleTrim.length, values.topicId, values.ageRange, descTrim.length]);
+  }, [submitting, titleTrim.length, values.ageRange, descTrim.length]);
 
   function translateSubmitError(result: SubmitResult): string {
     if (result.ok) return "";
     switch (result.errorCode) {
       case "rate_limit":
         return t("suggest.error.rate_limit");
-      case "topic_not_found":
-        return t("suggest.error.topic_not_found");
       case "caregiver_profile_incomplete":
         return t("suggest.error.caregiver_profile_incomplete");
       case "network_error":
@@ -168,41 +155,6 @@ export function SuggestStoryForm({
             inputProps={{ maxLength: 80, dir: isRTL ? "rtl" : "ltr" }}
             sx={fieldSx}
           />
-        </Box>
-
-        {/* Topic */}
-        <Box>
-          <FormControl fullWidth sx={fieldSx} disabled={topicsLoading}>
-            <InputLabel>
-              <Box component="span">
-                {t("suggest.form.topic.label")}
-                <RequiredMark />
-              </Box>
-            </InputLabel>
-            <Select
-              value={values.topicId}
-              label={
-                // MUI Select label expects string, but ReactNode works at runtime; keep minimal.
-                t("suggest.form.topic.label")
-              }
-              onChange={(e) => setValues((v) => ({ ...v, topicId: String(e.target.value) }))}
-              displayEmpty
-            >
-              <MenuItem value="" disabled>
-                {topicsLoading ? t("suggest.form.topic.loading") : t("suggest.form.topic.placeholder")}
-              </MenuItem>
-              {topics.map((tp) => (
-                <MenuItem key={tp.id} value={tp.id}>
-                  {tp.label}
-                </MenuItem>
-              ))}
-            </Select>
-            {topicsError ? (
-              <FormHelperText sx={{ color: COLORS.error }}>
-                {t("suggest.form.topic.error")}
-              </FormHelperText>
-            ) : null}
-          </FormControl>
         </Box>
 
         {/* Age */}

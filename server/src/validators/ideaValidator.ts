@@ -3,7 +3,6 @@ export type IdeaLanguage = "he" | "en" | "ar";
 
 export type SanitizedIdea = {
   title: string;
-  topicId: string;
   ageRange: AgeRange;
   description: string;
   motivation: string | null;
@@ -57,25 +56,6 @@ export function validateIdeaInput(body: any): IdeaValidationResult {
       errorCode: "validation_error",
       field: "title",
       message: "Title must not contain links",
-    };
-  }
-
-  const rawTopicId = body?.topicId;
-  if (!isNonEmptyString(rawTopicId)) {
-    return {
-      ok: false,
-      errorCode: "validation_error",
-      field: "topicId",
-      message: "Topic is required",
-    };
-  }
-  const topicId = stripHtmlAndNormalizeNewlines(rawTopicId);
-  if (!topicId) {
-    return {
-      ok: false,
-      errorCode: "validation_error",
-      field: "topicId",
-      message: "Topic is required",
     };
   }
 
@@ -177,7 +157,6 @@ export function validateIdeaInput(body: any): IdeaValidationResult {
     ok: true,
     value: {
       title,
-      topicId,
       ageRange,
       description,
       motivation,

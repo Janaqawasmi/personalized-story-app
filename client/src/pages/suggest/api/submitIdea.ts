@@ -15,7 +15,6 @@ type ApiErrorBody =
 
 const KNOWN_ERROR_CODES: SubmitErrorCode[] = [
   "validation_error",
-  "topic_not_found",
   "caregiver_not_found",
   "caregiver_profile_incomplete",
   "rate_limit",
@@ -52,7 +51,6 @@ export async function submitIdea(
       },
       body: JSON.stringify({
         title: values.title,
-        topicId: values.topicId,
         ageRange: values.ageRange,
         description: values.description,
         motivation: values.motivation,
