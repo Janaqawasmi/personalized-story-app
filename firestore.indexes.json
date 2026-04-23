@@ -103,6 +103,14 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "caregiverUid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "storyPreviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caregiverUid", "order": "ASCENDING" },
         { "fieldPath": "childFirstName", "order": "ASCENDING" },
         { "fieldPath": "childGender", "order": "ASCENDING" },
         { "fieldPath": "templateId", "order": "ASCENDING" },
