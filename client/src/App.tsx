@@ -31,6 +31,7 @@ import StoryDetailPage from "./pages/StoryDetailPage";
 import AllBooksPage from "./pages/AllBooksPage";
 import FavoritesPage from "./pages/FavoritesPage";
 import MyStoriesPage from "./pages/MyStoriesPage";
+import SuggestStoryPage from "./pages/suggest/SuggestStoryPage";
 
 import RequireAdmin from "./components/RequireAdmin";
 import AdminLayout from "./pages/admin/components/AdminLayout";
@@ -94,6 +95,7 @@ function AppContent() {
           {/* ───────────── USER PAGES ───────────── */}
           <Route path="search" element={<SearchPage />} />
           <Route path="login" element={<LoginPage />} />
+          <Route path="suggest" element={<SuggestStoryPage />} />
           <Route element={<RequireAuth />}>
             <Route path="favorites" element={<FavoritesPage />} />
             <Route path="my-stories" element={<MyStoriesPage />} />

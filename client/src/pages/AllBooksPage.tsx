@@ -10,6 +10,7 @@ import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
 import { filterBarSx } from "../components/FilterBar/FilterBar.styles";
+import SuggestStoryBanner from "../components/SuggestStoryBanner";
 
 function normalizeAgeGroup(value?: string): string | null {
   if (!value) return null;
@@ -359,6 +360,7 @@ export default function AllBooksPage() {
               }}
             />
           ))}
+          <SuggestStoryBanner variant="default" />
         </Box>
       ) : (
         <Box
@@ -391,6 +393,9 @@ export default function AllBooksPage() {
               {t("filters.clear")}
             </Button>
           ) : null}
+          <Box sx={{ width: "100%", mt: 3 }}>
+            <SuggestStoryBanner variant="empty" />
+          </Box>
         </Box>
       )}
     </Container>
