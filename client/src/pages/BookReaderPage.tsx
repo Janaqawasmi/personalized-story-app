@@ -1096,13 +1096,14 @@ export default function BookReaderPage() {
                     onDismiss={() => setPreviewUnlockOverlayOpen(false)}
                     dismissLabel={t("pages.bookReader.previewEndModalClose")}
                     ctaAnchorRef={previewCtaAnchorRef}
+                    isRTL={isRTL}
                   />
                 ) : null}
 
                 {/* LEFT ARROW — NEXT PAGE (RTL) or PREVIOUS PAGE (LTR) */}
                 {isRTL ? (
                   // RTL: LEFT arrow = NEXT page
-                  canGoNext && (
+                  canGoNext && !previewUnlockOverlayOpen && (
                     <Box
                       onClick={requestFlipNext}
                       sx={{
@@ -1144,7 +1145,7 @@ export default function BookReaderPage() {
                   )
                 ) : (
                   // LTR: LEFT arrow = PREVIOUS page
-                  canGoPrev && (
+                  canGoPrev && !previewUnlockOverlayOpen && (
                     <Box
                       onClick={requestFlipPrev}
                       sx={{
@@ -1189,7 +1190,7 @@ export default function BookReaderPage() {
                 {/* RIGHT ARROW — PREVIOUS PAGE (RTL) or NEXT PAGE (LTR) */}
                 {isRTL ? (
                   // RTL: RIGHT arrow = PREVIOUS page
-                  canGoPrev && (
+                  canGoPrev && !previewUnlockOverlayOpen && (
                     <Box
                       onClick={requestFlipPrev}
                       sx={{
@@ -1231,7 +1232,7 @@ export default function BookReaderPage() {
                   )
                 ) : (
                   // LTR: RIGHT arrow = NEXT page
-                  canGoNext && (
+                  canGoNext && !previewUnlockOverlayOpen && (
                     <Box
                       onClick={requestFlipNext}
                       sx={{
