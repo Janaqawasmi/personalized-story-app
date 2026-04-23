@@ -848,6 +848,10 @@ export default function BookReaderPage() {
               pb: 6,
               px: 3,
               position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              width: "100%",
             }}
           >
             <Box
@@ -995,7 +999,13 @@ export default function BookReaderPage() {
 
               {/* Wrapper for book and arrows */}
               <Box
+                dir="ltr"
                 sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  width: "100%",
+                  mx: "auto",
                   position: "relative",
                   isolation: "isolate", // 🔥 VERY IMPORTANT - prevents stacking context issues
                   overflow: "visible",
