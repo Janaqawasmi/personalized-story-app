@@ -9,7 +9,7 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
@@ -25,7 +25,7 @@ import PauseIcon from "@mui/icons-material/Pause";
 import StopIcon from "@mui/icons-material/Stop";
 import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
 import BookCover from "../components/book/BookCover";
-import BookSpread from "../components/book/BookSpread";
+import BookSpread, { type BookSpreadHandle } from "../components/book/BookSpread";
 import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
 import { Z_INDEX_BOOK_READER_TOP_CONTROLS } from "../constants/zIndex";
 import InstructionModal from "../components/InstructionModal";
@@ -105,6 +105,7 @@ export default function BookReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const bookSpreadRef = useRef<BookSpreadHandle | null>(null);
   const previewCtaSectionRef = useRef<HTMLDivElement>(null);
   const previewCtaAnchorRef = useRef<HTMLDivElement>(null);
   const hasAutoScrolledToPreviewCTARef = useRef(false);
@@ -374,6 +375,30 @@ export default function BookReaderPage() {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [isFullScreen, toggleFullScreen]);
 
+  // Animated flip wrappers — used by external arrows and keyboard.
+  // These defer to BookSpread's flip API which animates first and then
+  // invokes handleNext/handlePrev via its onNext/onPrev props.
+  const requestFlipNext = useCallback(() => {
+    if (!autoRead) handleStopReading();
+    if (!story) return;
+    if (spreadIndex >= story.pages.length - 1) return;
+    // If we're at the last unlocked preview page, open the gate instead of flipping.
+    if (
+      spreadIndex === lastUnlockedSpreadIndex &&
+      spreadIndex < story.pages.length - 1
+    ) {
+      setPreviewUnlockOverlayOpen(true);
+      return;
+    }
+    bookSpreadRef.current?.flipNext();
+  }, [autoRead, story, spreadIndex, lastUnlockedSpreadIndex]);
+
+  const requestFlipPrev = useCallback(() => {
+    if (!autoRead) handleStopReading();
+    if (spreadIndex <= 0) return;
+    bookSpreadRef.current?.flipPrev();
+  }, [autoRead, spreadIndex]);
+
   // Keyboard navigation (same bounds as tap/drag; works in fullscreen too)
   useEffect(() => {
     if (loading || showCover) return;
@@ -389,19 +414,15 @@ export default function BookReaderPage() {
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         if (isRTL) {
           if (e.key === "ArrowLeft") {
-            if (spreadIndex < (story?.pages.length || 0) - 1) {
-              handleNext();
-            }
-          } else if (e.key === "ArrowRight" && spreadIndex > 0) {
-            handlePrev();
+            requestFlipNext();
+          } else if (e.key === "ArrowRight") {
+            requestFlipPrev();
           }
         } else {
-          if (e.key === "ArrowLeft" && spreadIndex > 0) {
-            handlePrev();
+          if (e.key === "ArrowLeft") {
+            requestFlipPrev();
           } else if (e.key === "ArrowRight") {
-            if (spreadIndex < (story?.pages.length || 0) - 1) {
-              handleNext();
-            }
+            requestFlipNext();
           }
         }
       }
@@ -410,13 +431,13 @@ export default function BookReaderPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    spreadIndex,
-    story,
     showCover,
     loading,
     isRTL,
     navigate,
     previewUnlockOverlayOpen,
+    requestFlipNext,
+    requestFlipPrev,
   ]);
 
   // Auto-hide controls
@@ -1026,6 +1047,7 @@ export default function BookReaderPage() {
               >
                 {/* Book Spread */}
                 <BookSpread
+                  ref={bookSpreadRef}
                   page={currentPage}
                   title={story.title}
                   isRTL={isRTL}
@@ -1082,7 +1104,7 @@ export default function BookReaderPage() {
                   // RTL: LEFT arrow = NEXT page
                   canGoNext && (
                     <Box
-                      onClick={handleNext}
+                      onClick={requestFlipNext}
                       sx={{
                         position: "absolute",
                         top: "50%",
@@ -1124,7 +1146,7 @@ export default function BookReaderPage() {
                   // LTR: LEFT arrow = PREVIOUS page
                   canGoPrev && (
                     <Box
-                      onClick={handlePrev}
+                      onClick={requestFlipPrev}
                       sx={{
                         position: "absolute",
                         top: "50%",
@@ -1169,7 +1191,7 @@ export default function BookReaderPage() {
                   // RTL: RIGHT arrow = PREVIOUS page
                   canGoPrev && (
                     <Box
-                      onClick={handlePrev}
+                      onClick={requestFlipPrev}
                       sx={{
                         position: "absolute",
                         top: "50%",
@@ -1211,7 +1233,7 @@ export default function BookReaderPage() {
                   // LTR: RIGHT arrow = NEXT page
                   canGoNext && (
                     <Box
-                      onClick={handleNext}
+                      onClick={requestFlipNext}
                       sx={{
                         position: "absolute",
                         top: "50%",

@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  forwardRef,
+  useImperativeHandle,
+} from "react";
 import { Box } from "@mui/material";
 
 type Page = {
@@ -22,7 +29,12 @@ interface BookSpreadProps {
   nextPage?: Page;
 }
 
-const FLIP_DURATION_MS = 650;
+export type BookSpreadHandle = {
+  flipNext: () => void;
+  flipPrev: () => void;
+};
+
+const FLIP_DURATION_MS = 850;
 const DRAG_THRESHOLD = 70;
 const DRAG_RANGE = 280;
 
@@ -33,7 +45,7 @@ const BOOK_CSS = `
   width: 860px; height: 500px;
   transform-style: preserve-3d; border-radius: 4px 8px 8px 4px;
   filter: drop-shadow(0 24px 48px rgba(90,48,64,.38)) drop-shadow(0 4px 10px rgba(90,48,64,.2));
-  --bs2-flip: 0.65s;
+  --bs2-flip: 0.85s;
   --bs2-fs: 22px;
   --bs2-lh: 1.85;
 }
@@ -122,7 +134,7 @@ const BOOK_CSS = `
 .bs2-flip {
   position: absolute; inset: 0; transform-origin: left center;
   transform-style: preserve-3d; z-index: 5; border-radius: 0 8px 8px 0;
-  transition: transform var(--bs2-flip) cubic-bezier(0.645,0.045,0.355,1.000);
+  transition: transform var(--bs2-flip) cubic-bezier(0.33, 0.1, 0.25, 1);
   cursor: e-resize;
 }
 .bs2-flip.bs2-flipped { transform: rotateY(-180deg); }
@@ -221,18 +233,21 @@ const CornerOrn = ({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) => (
   </svg>
 );
 
-export default function BookSpread({
-  page,
-  title,
-  isRTL,
-  totalPages,
-  onNext,
-  onPrev,
-  canGoNext = true,
-  canGoPrev = true,
-  isFullScreen = false,
-  nextPage,
-}: BookSpreadProps) {
+const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSpread(
+  {
+    page,
+    title,
+    isRTL,
+    totalPages,
+    onNext,
+    onPrev,
+    canGoNext = true,
+    canGoPrev = true,
+    isFullScreen = false,
+    nextPage,
+  },
+  ref
+) {
   const flipRef = useRef<HTMLDivElement | null>(null);
   const textRef = useRef<HTMLDivElement | null>(null);
   const [isFlipping, setIsFlipping] = useState(false);
@@ -345,6 +360,15 @@ export default function BookSpread({
   const imageUrl = displayedPage.imageUrl;
   const fallbackText = displayedPage.imagePromptTemplate;
   const underText = nextPage?.textTemplate ?? "";
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      flipNext: () => triggerFlip("next"),
+      flipPrev: () => triggerFlip("prev"),
+    }),
+    [triggerFlip]
+  );
 
   return (
     <Box className="bs2-scene">
@@ -468,4 +492,6 @@ export default function BookSpread({
       </div>
     </Box>
   );
-}
+});
+
+export default BookSpread;
