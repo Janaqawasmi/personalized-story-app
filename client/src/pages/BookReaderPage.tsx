@@ -1012,6 +1012,7 @@ export default function BookReaderPage() {
                   canGoNext={canGoNext}
                   canGoPrev={canGoPrev}
                   isFullScreen={isFullScreen}
+                  nextPage={story.pages[spreadIndex + 1]}
                 />
 
                 {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
