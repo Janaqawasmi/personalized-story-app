@@ -28,8 +28,10 @@ import BookCover from "../components/book/BookCover";
 import BookSpread, { type BookSpreadHandle } from "../components/book/BookSpread";
 import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
 import { Z_INDEX_BOOK_READER_TOP_CONTROLS } from "../constants/zIndex";
-import InstructionModal from "../components/InstructionModal";
+import BookPreface from "../components/book/BookPreface";
+import { LOCAL_STORAGE_PREFACE_SEEN_KEY } from "../components/book/bookTokens";
 import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/LanguageContext";
 import { useReader } from "../contexts/ReaderContext";
 import { addToCart, ApiError } from "../api/caregiverApi";
 import {
@@ -66,6 +68,8 @@ type StoryTemplate = {
     language?: string;
   };
   status?: string;
+  coverImage?: string;
+  childName?: string;
 };
 
 function getCurrentLanguage(): string {
@@ -97,6 +101,7 @@ export default function BookReaderPage() {
   const navigate = useLangNavigate();
   const [searchParams] = useSearchParams();
   const t = useTranslation();
+  const { language: uiLanguage } = useLanguage();
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +132,7 @@ export default function BookReaderPage() {
     searchParams.get("previewId") ||
     (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
 
-  const CURRENT_LANGUAGE = getCurrentLanguage();
+  const CURRENT_LANGUAGE = uiLanguage || getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
   const ttsLang = CURRENT_LANGUAGE === "ar" ? "ar-SA" : CURRENT_LANGUAGE === "he" ? "he-IL" : "en-US";
 
@@ -270,12 +275,19 @@ export default function BookReaderPage() {
           lockedPlaceholderName: t("pages.bookReader.lockedChildPlaceholder"),
         });
 
+        const resolvedCoverImage =
+          (typeof data.coverImage === "string" && data.coverImage.trim()) ||
+          (typeof data.coverImageUrl === "string" && data.coverImageUrl.trim()) ||
+          undefined;
+
         setStory({
           id: storySnap.id,
           title: data.title || t("search.storyWithoutName"),
           pages,
           language: storyLanguage,
           status: data.status,
+          coverImage: resolvedCoverImage,
+          childName: displayName,
         });
       } catch (err: any) {
         console.error("Error fetching story:", err);
@@ -463,11 +475,38 @@ export default function BookReaderPage() {
     };
   }, [showCover]);
 
+  const prefaceAlreadySeen = (): boolean => {
+    try {
+      return localStorage.getItem(LOCAL_STORAGE_PREFACE_SEEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const markPrefaceSeen = () => {
+    try {
+      localStorage.setItem(LOCAL_STORAGE_PREFACE_SEEN_KEY, "1");
+    } catch {
+      // localStorage unavailable; fall through — preface just shows again next time
+    }
+  };
+
   const handleStart = () => {
+    console.log("[BookCover] handleStart fired");
+    if (prefaceAlreadySeen()) {
+      // Returning reader — skip the preface and go straight to the story
+      setShowInstructions(false);
+      setShowCover(false);
+      setSpreadIndex(0);
+      setPreviewUnlockOverlayOpen(false);
+      return;
+    }
+    setShowCover(false);
     setShowInstructions(true);
   };
 
   const handleInstructionsClose = () => {
+    markPrefaceSeen();
     setShowInstructions(false);
     setShowCover(false);
     setSpreadIndex(0);
@@ -684,10 +723,6 @@ export default function BookReaderPage() {
 
   return (
     <>
-      <InstructionModal
-        open={showInstructions}
-        onClose={handleInstructionsClose}
-      />
       <Box
         ref={containerRef}
         sx={{
@@ -702,10 +737,19 @@ export default function BookReaderPage() {
             title={story.title}
             onStart={handleStart}
             language={story.language || CURRENT_LANGUAGE}
+            uiLanguage={CURRENT_LANGUAGE}
+            coverImage={story.coverImage}
+            childName={story.childName}
+          />
+        ) : showInstructions ? (
+          <BookPreface
+            title={story.title}
+            childName={story.childName}
+            language={story.language || CURRENT_LANGUAGE}
+            onBegin={handleInstructionsClose}
           />
         ) : (
-          !showInstructions && (
-            <>
+          <>
           {/* Top Controls - Fixed, only in fullscreen mode */}
           {isFullScreen && (
             <Box
@@ -1277,7 +1321,6 @@ export default function BookReaderPage() {
             </Box>
           </Box>
           </>
-          )
         )}
       </Box>
     </>
