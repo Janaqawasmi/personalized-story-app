@@ -498,20 +498,11 @@ export default function BookReaderPage() {
   };
 
   const handleStart = () => {
-    if (prefaceAlreadySeen()) {
-      // Returning reader — skip the preface and go straight to the story
-      setShowInstructions(false);
-      setShowCover(false);
-      setSpreadIndex(0);
-      setPreviewUnlockOverlayOpen(false);
-      return;
-    }
     setShowCover(false);
     setShowInstructions(true);
   };
 
   const handleInstructionsClose = () => {
-    markPrefaceSeen();
     setShowInstructions(false);
     setShowCover(false);
     setSpreadIndex(0);
