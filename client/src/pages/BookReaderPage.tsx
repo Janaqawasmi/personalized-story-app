@@ -475,9 +475,15 @@ export default function BookReaderPage() {
     };
   }, [showCover]);
 
+  const getPrefaceSeenKey = (): string => {
+    return storyId
+      ? `${LOCAL_STORAGE_PREFACE_SEEN_KEY}.${storyId}`
+      : LOCAL_STORAGE_PREFACE_SEEN_KEY;
+  };
+
   const prefaceAlreadySeen = (): boolean => {
     try {
-      return localStorage.getItem(LOCAL_STORAGE_PREFACE_SEEN_KEY) === "1";
+      return localStorage.getItem(getPrefaceSeenKey()) === "1";
     } catch {
       return false;
     }
@@ -485,14 +491,13 @@ export default function BookReaderPage() {
 
   const markPrefaceSeen = () => {
     try {
-      localStorage.setItem(LOCAL_STORAGE_PREFACE_SEEN_KEY, "1");
+      localStorage.setItem(getPrefaceSeenKey(), "1");
     } catch {
       // localStorage unavailable; fall through — preface just shows again next time
     }
   };
 
   const handleStart = () => {
-    console.log("[BookCover] handleStart fired");
     if (prefaceAlreadySeen()) {
       // Returning reader — skip the preface and go straight to the story
       setShowInstructions(false);
@@ -745,7 +750,7 @@ export default function BookReaderPage() {
           <BookPreface
             title={story.title}
             childName={story.childName}
-            language={story.language || CURRENT_LANGUAGE}
+            language={CURRENT_LANGUAGE}
             onBegin={handleInstructionsClose}
           />
         ) : (
