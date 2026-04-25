@@ -1,203 +1,340 @@
-import { Box, Button } from "@mui/material";
-import { useTranslation } from "../../i18n/useTranslation";
+import { Box, Button, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import {
+  BOOK_COLORS,
+  BOOK_FONTS,
+  BOOK_GRADIENTS,
+  BOOK_RADII,
+  BOOK_SHADOWS,
+  BOOK_LEATHER_NOISE_SVG,
+} from "./bookTokens";
 
-type BookCoverProps = {
+interface BookCoverProps {
   title: string;
   onStart: () => void;
   language?: string;
-};
+  uiLanguage?: string;
+  coverImage?: string;
+  childName?: string;
+  startLabel?: string;
+}
+
+const RTL_LANGUAGES = ["he", "ar", "iw", "he-il", "ar-sa", "ar-il"];
+
+function isRtlLanguage(language?: string): boolean {
+  if (!language) return false;
+  return RTL_LANGUAGES.includes(language.toLowerCase());
+}
 
 export default function BookCover({
   title,
   onStart,
-  language = "he"
+  language,
+  uiLanguage,
+  coverImage,
+  childName,
+  startLabel,
 }: BookCoverProps) {
-  const t = useTranslation();
+  // Story language — affects body text direction, Hebrew/Arabic body font
+  const isStoryRTL = isRtlLanguage(language);
+  // UI language — affects button label and the "preview disclaimer" line
+  const isUiRTL = isRtlLanguage(uiLanguage || language);
+  const [imgLoaded, setImgLoaded] = useState(!coverImage);
+  const [imgFailed, setImgFailed] = useState(false);
 
-  const isRTL = language === "he" || language === "ar";
-  const startText = t("book.startReading");
+  useEffect(() => {
+    if (!coverImage) {
+      setImgLoaded(true);
+      setImgFailed(false);
+      return;
+    }
+    setImgLoaded(false);
+    setImgFailed(false);
+    const img = new Image();
+    let cancelled = false;
+    const done = (failed: boolean) => {
+      if (cancelled) return;
+      setImgLoaded(true);
+      if (failed) setImgFailed(true);
+    };
+    img.onload = () => done(false);
+    img.onerror = () => done(true);
+    img.src = coverImage;
+    // Safety timeout — if neither event fires within 4s, reveal anyway.
+    const fallbackTimeout = window.setTimeout(() => done(true), 4000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(fallbackTimeout);
+    };
+  }, [coverImage]);
+
+  const showImageHero = Boolean(coverImage && !imgFailed);
+  const bodyFont = isUiRTL ? BOOK_FONTS.bodyRtl : BOOK_FONTS.bodyLtr;
+  const bodyStyle = isUiRTL ? "normal" : "italic";
+
+  const forLabel = childName
+    ? isUiRTL
+      ? `סיפור עבור ${childName}`
+      : `A story for ${childName}`
+    : isUiRTL
+    ? "סיפור אישי"
+    : "Your story";
+
+  const openLabel = startLabel || (isUiRTL ? "פתח את הספר" : "Open the book");
 
   return (
     <Box
+      dir="ltr"
       sx={{
         minHeight: "100vh",
+        background: BOOK_COLORS.pageBgRadial,
         display: "flex",
         flexDirection: "column",
-        alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #f5f1e8 0%, #e8dfc8 100%)",
-        padding: 4,
-        gap: 4
+        alignItems: "center",
+        padding: { xs: "48px 20px 32px", md: "72px 24px 48px" },
       }}
     >
-      {/* 3D Hardcover Book Container */}
       <Box
         sx={{
           position: "relative",
-          width: { xs: "85%", sm: "400px", md: "480px" },
-          maxWidth: "480px",
-          // Let image determine height - no fixed aspect ratio
-          display: "flex",
-          flexDirection: "column",
-          // Outer shadow - book resting on surface
-          filter: "drop-shadow(0 20px 40px rgba(0, 0, 0, 0.15)) drop-shadow(0 8px 16px rgba(0, 0, 0, 0.08))",
-          transition: "transform 0.3s ease",
-          "&:hover": {
-            transform: "translateY(-4px)",
-            filter: "drop-shadow(0 24px 48px rgba(0, 0, 0, 0.18)) drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1))"
-          }
+          width: { xs: 260, sm: 300, md: 340 },
+          height: { xs: 380, sm: 440, md: 490 },
+          filter: BOOK_SHADOWS.bookDropStrong,
+          borderRadius: BOOK_RADII.bookPoster,
+          mb: { xs: 3, md: 4 },
         }}
       >
-        {/* Solid Hardcover Spine – Connected & Color-Matched */}
         <Box
+          aria-hidden
           sx={{
             position: "absolute",
-            left: "-18px",        // tighter → connected
-            top: 0,
-            bottom: 0,
-            width: "18px",
-
-            // Same family as cover, slightly darker
-            background: `
-              linear-gradient(
-                to right,
-                #e8dfc8 0%,
-                #d8ceb2 35%,
-                #cfc4a5 100%
-              )
-            `,
-
-            borderRadius: "6px 0 0 6px",
-
-            // IMPORTANT: inset shadow = glued seam
-            boxShadow: `
-              inset -2px 0 4px rgba(0,0,0,0.18),
-              inset 1px 0 1px rgba(255,255,255,0.4)
-            `,
-
-            zIndex: 300
+            top: 3,
+            bottom: 3,
+            left: -8,
+            width: 10,
+            background: BOOK_GRADIENTS.coverBoard,
+            zIndex: 0,
+            borderRadius: "2px",
+          }}
+        />
+        <Box
+          aria-hidden
+          sx={{
+            position: "absolute",
+            top: 3,
+            bottom: 3,
+            right: -8,
+            width: 10,
+            background: BOOK_COLORS.parchmentEdgeDark,
+            borderLeft: `1px solid rgba(130,77,92,.15)`,
+            zIndex: 0,
           }}
         />
 
-        {/* Paper Pages - Right Edge (Visible Thickness) */}
-        {[...Array(12)].map((_, i) => {
-          // Create natural unevenness in page edges
-          const baseOffset = i * 1.5;
-          const xJitter = (i % 3 === 0 ? 0.4 : i % 3 === 1 ? -0.2 : 0.1);
-          const yJitter = (i % 2 === 0 ? 0.3 : -0.2);
-          
-          // Cream/off-white color variation for realistic paper
-          const creamShades = [
-            "#fdfbf7", "#faf8f4", "#f8f6f2", "#f5f3ef",
-            "#f3f1ed", "#f0eeea", "#eeece8", "#ebe9e5",
-            "#e9e7e3", "#e6e4e0", "#e4e2de", "#e1dfdb"
-          ];
-
-          return (
-            <Box
-              key={`right-page-${i}`}
-              sx={{
-                position: "absolute",
-                right: -(baseOffset + xJitter),
-                top: baseOffset * 0.3 + yJitter,
-                bottom: baseOffset * 0.3 - yJitter,
-                width: "6px",
-                background: `linear-gradient(to right, 
-                  ${creamShades[i]} 0%, 
-                  ${creamShades[i]} 70%, 
-                  rgba(0,0,0,0.03) 100%)`,
-                borderRadius: "0 2px 2px 0",
-                boxShadow: "inset -1px 0 2px rgba(0,0,0,0.04)",
-                zIndex: 100 - i
-              }}
-            />
-          );
-        })}
-
-        {/* Paper Pages - Bottom Edge (Visible Thickness) */}
-        {[...Array(12)].map((_, i) => {
-          const baseOffset = i * 1.5;
-          const yJitter = (i % 3 === 0 ? 0.4 : i % 3 === 1 ? -0.2 : 0.1);
-          const xJitter = (i % 2 === 0 ? 0.3 : -0.2);
-          
-          const creamShades = [
-            "#fdfbf7", "#faf8f4", "#f8f6f2", "#f5f3ef",
-            "#f3f1ed", "#f0eeea", "#eeece8", "#ebe9e5",
-            "#e9e7e3", "#e6e4e0", "#e4e2de", "#e1dfdb"
-          ];
-
-          return (
-            <Box
-              key={`bottom-page-${i}`}
-              sx={{
-                position: "absolute",
-                bottom: -(baseOffset + yJitter),
-                left: baseOffset * 0.3 + xJitter,
-                right: baseOffset * 0.3 - xJitter,
-                height: "6px",
-                background: `linear-gradient(to bottom, 
-                  ${creamShades[i]} 0%, 
-                  ${creamShades[i]} 70%, 
-                  rgba(0,0,0,0.04) 100%)`,
-                borderRadius: "0 0 2px 2px",
-                boxShadow: "inset 0 -1px 2px rgba(0,0,0,0.04)",
-                zIndex: 100 - i
-              }}
-            />
-          );
-        })}
-
-        {/* Hardcover Book Front */}
         <Box
           sx={{
-            position: "relative",
-            width: "100%",
-            height: "100%",
-            borderRadius: "8px",
+            position: "absolute",
+            inset: 0,
+            background: showImageHero
+              ? BOOK_GRADIENTS.leather
+              : BOOK_GRADIENTS.leatherRich,
+            borderRadius: BOOK_RADII.bookPoster,
+            zIndex: 2,
             overflow: "hidden",
-            background: "#fff",
-            // Subtle 3D bevel effect
-            boxShadow: `
-              inset 0 1px 0 rgba(255,255,255,0.5),
-              inset 0 -1px 0 rgba(0,0,0,0.05),
-              0 2px 4px rgba(0,0,0,0.08)
-            `,
-            zIndex: 200
           }}
         >
-          {/* Cover Image */}
+          {showImageHero ? (
+            <>
+              <Box
+                aria-hidden
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  backgroundImage: `url(${coverImage})`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center top",
+                  height: "78%",
+                  opacity: imgLoaded ? 1 : 0,
+                  transition: "opacity 0.5s ease",
+                }}
+              />
+              <Box
+                aria-hidden
+                sx={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: "62%",
+                  background: `linear-gradient(to top, ${BOOK_COLORS.leatherDark} 0%, rgba(60,28,40,0.92) 35%, transparent 100%)`,
+                }}
+              />
+            </>
+          ) : (
+            <Box
+              aria-hidden
+              sx={{
+                position: "absolute",
+                inset: 0,
+                opacity: 0.3,
+                backgroundImage: BOOK_LEATHER_NOISE_SVG,
+              }}
+            />
+          )}
+
           <Box
-            component="img"
-            src="/story-images/placeholders/book-intro-placeholder.jpg"
-            alt={title}
             sx={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              display: "block",
-              filter: "contrast(0.98) saturate(1.05)"
+              position: "absolute",
+              top: 26,
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              zIndex: 3,
             }}
-          />
+          >
+            <Box
+              aria-hidden
+              sx={{
+                width: 30,
+                height: "0.5px",
+                background:
+                  "linear-gradient(to right, transparent, rgba(253,245,238,0.7))",
+              }}
+            />
+            <Typography
+              component="div"
+              sx={{
+                fontFamily: BOOK_FONTS.display,
+                fontSize: 9,
+                fontWeight: 600,
+                letterSpacing: "0.34em",
+                textTransform: "uppercase",
+                color: BOOK_COLORS.cream,
+              }}
+            >
+              Dammah
+            </Typography>
+            <Box
+              aria-hidden
+              sx={{
+                width: 30,
+                height: "0.5px",
+                background:
+                  "linear-gradient(to left, transparent, rgba(253,245,238,0.7))",
+              }}
+            />
+          </Box>
+
+          {!showImageHero ? (
+            <Box
+              sx={{
+                position: "absolute",
+                inset: 18,
+                border: `1px solid rgba(253,245,238,0.18)`,
+                borderRadius: "3px",
+                pointerEvents: "none",
+              }}
+              aria-hidden
+            />
+          ) : null}
+
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: { xs: 22, md: 32 },
+              left: 24,
+              right: 24,
+              textAlign: "center",
+              zIndex: 3,
+            }}
+          >
+            <Typography
+              component="div"
+              sx={{
+                fontFamily: BOOK_FONTS.sans,
+                fontSize: { xs: 8, md: 9 },
+                fontWeight: 800,
+                letterSpacing: "0.26em",
+                textTransform: "uppercase",
+                color: "rgba(253,245,238,0.7)",
+                mb: "10px",
+              }}
+            >
+              {forLabel}
+            </Typography>
+
+            <Typography
+              component="div"
+              sx={{
+                fontFamily: BOOK_FONTS.display,
+                fontSize: { xs: 26, sm: 30, md: 34 },
+                fontWeight: 700,
+                fontStyle: "italic",
+                color: BOOK_COLORS.cream,
+                letterSpacing: "-0.01em",
+                lineHeight: 1.05,
+                textShadow: "0 2px 12px rgba(0,0,0,0.45)",
+              }}
+            >
+              {title}
+            </Typography>
+
+            <Box
+              aria-hidden
+              sx={{
+                width: 48,
+                height: "0.5px",
+                background:
+                  "linear-gradient(to right, transparent, rgba(253,245,238,0.55), transparent)",
+                margin: "16px auto 0",
+              }}
+            />
+          </Box>
         </Box>
       </Box>
 
-      {/* Start Reading Button */}
       <Button
-        variant="contained"
         onClick={onStart}
         sx={{
-          px: 4,
-          py: 1.2,
-          borderRadius: 999,
-          direction: isRTL ? "rtl" : "ltr",
-          backgroundColor: "#824D5C",
+          padding: { xs: "12px 36px", md: "14px 44px" },
+          borderRadius: BOOK_RADII.pill,
+          background: BOOK_GRADIENTS.ctaPrimary,
+          fontFamily: BOOK_FONTS.sans,
+          fontSize: { xs: 12, md: 13 },
+          fontWeight: 800,
+          color: BOOK_COLORS.cream,
+          letterSpacing: "0.1em",
+          boxShadow: BOOK_SHADOWS.ctaPrimaryStrong,
+          textTransform: "uppercase",
+          transition: "background 0.3s ease, box-shadow 0.3s ease",
           "&:hover": {
-            backgroundColor: "#6f404d",
+            background: BOOK_GRADIENTS.ctaPrimaryHover,
+            boxShadow: "0 10px 28px rgba(90,48,64,0.42)",
           },
         }}
       >
-        {startText}
+        {openLabel}
       </Button>
+
+      <Typography
+        component="div"
+        sx={{
+          fontFamily: BOOK_FONTS.bodyLtr,
+          fontSize: 12,
+          fontStyle: "italic",
+          color: BOOK_COLORS.inkSoft,
+          mt: "14px",
+          direction: isUiRTL ? "rtl" : "ltr",
+          ...(isUiRTL ? { fontFamily: bodyFont, fontStyle: bodyStyle } : {}),
+        }}
+      >
+        {isUiRTL
+          ? "שלושה עמודי תצוגה — ללא צורך ברכישה"
+          : "3 pages of preview — no purchase needed"}
+      </Typography>
     </Box>
   );
 }
