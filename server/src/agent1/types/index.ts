@@ -156,10 +156,16 @@ export type Agent1Result = {
   characterNotesContradictions?: ContradictionFlag[];
   // Step 2
   title: string;
+  // Legacy single-string body — derived from joining pages[].text.
   story: string;
   wordCount: number;
   targetWordRange: readonly [number, number];
   wordCountDrift: "within_range" | "under" | "over";
+  // Structured page output
+  pages?: StoryPage[];
+  pageCount?: number;
+  targetPageRange?: readonly [number, number];
+  pageCountDrift?: PageCountDrift;
   // Step 3
   alignmentNote: string;
   postValidationFlags: PostValidationFlag[];

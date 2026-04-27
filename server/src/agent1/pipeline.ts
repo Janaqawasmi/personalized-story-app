@@ -113,6 +113,10 @@ export async function executePipelineWithBrief(
     wordCount: step2Output.wordCount,
     targetWordRange: step2Output.targetWordRange,
     wordCountDrift: step2Output.wordCountDrift,
+    ...(step2Output.pages !== undefined ? { pages: step2Output.pages } : {}),
+    ...(step2Output.pageCount !== undefined ? { pageCount: step2Output.pageCount } : {}),
+    ...(step2Output.targetPageRange !== undefined ? { targetPageRange: step2Output.targetPageRange } : {}),
+    ...(step2Output.pageCountDrift !== undefined ? { pageCountDrift: step2Output.pageCountDrift } : {}),
 
     // Step 3
     alignmentNote: postValidationResult.alignmentNote,
