@@ -14,7 +14,7 @@ import {
   createStoryForGeneration,
   isTransitionAllowed,
 } from "@/models/story.model";
-import type { Story, StoryStatus } from "@/models/story.model";
+import type { Story, StoryStatus, StoryPage } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 
@@ -331,6 +331,29 @@ async function handlePatchStory(req: Request, res: Response): Promise<void> {
       },
     };
     updatedHistory.push(historyEntry);
+  }
+
+  // When pages are patched, keep currentDraft in sync so the legacy body
+  // field stays consistent for UI consumers that still read currentDraft.body.
+  if (Array.isArray(patch.pages) && patch.pages.length > 0) {
+    const newPages = patch.pages as StoryPage[];
+    const derivedBody = newPages.map((p) => p.text).join("\n\n");
+    const derivedWordCount = newPages.reduce((sum, p) => sum + p.wordCount, 0);
+    const existingDraft = story.currentDraft;
+    patch.currentDraft = {
+      title: existingDraft?.title ?? story.title,
+      body: derivedBody,
+      wordCount: derivedWordCount,
+      updatedAt: now,
+    };
+    if (!updatedHistory.some((e) => e.event.kind === "draft_edited")) {
+      updatedHistory.push({
+        id: crypto.randomUUID(),
+        at: now,
+        byUid: ownerUid,
+        event: { kind: "draft_edited" as const, snapshot: patch.currentDraft },
+      });
+    }
   }
 
   await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
