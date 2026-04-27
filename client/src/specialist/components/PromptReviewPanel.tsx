@@ -271,6 +271,7 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
   const [pages, setPages] = useState<PageIllustration[]>(story.pages ?? []);
   const [triggering, setTriggering] = useState(false);
   const [triggerError, setTriggerError] = useState<string | null>(null);
+  const [pollTick, setPollTick] = useState(0);
   const waitingSinceRef = useRef<number>(Date.now());
 
   function handlePageUpdated(updated: PageIllustration) {
@@ -282,6 +283,8 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
   const hasPrompts = pages.some((p) => p.imagePrompt !== null);
   const waitingTooLong = !hasPrompts && Date.now() - waitingSinceRef.current > 120_000;
 
+  // Poll every 5 s while prompts are still generating.
+  // Each completed poll increments pollTick, re-running the effect to schedule the next one.
   useEffect(() => {
     if (hasPrompts) return;
 
@@ -296,6 +299,8 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
         }
       } catch {
         // Keep polling silently; the info alert remains visible.
+      } finally {
+        if (!cancelled) setPollTick((t) => t + 1);
       }
     }, 5000);
 
@@ -303,10 +308,12 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [hasPrompts, onStoryStatusChange, story.id, story.status]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasPrompts, pollTick, story.id, story.status]);
 
   useEffect(() => {
     waitingSinceRef.current = Date.now();
+    setPollTick(0);
   }, [story.id]);
 
   async function handleGenerateIllustrations() {
@@ -367,8 +374,8 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
 
         {!hasPrompts && (
           <Alert severity={waitingTooLong ? "warning" : "info"} sx={{ mt: 2, borderRadius: 2 }} icon={<CircularProgress size={16} />}>
-            Claude is generating image prompts. This panel auto-refreshes every few seconds.
-            {waitingTooLong && " It is taking longer than usual; please check server logs if this persists."}
+            Claude is generating image prompts — checking for updates every 5 seconds.
+            {waitingTooLong && " This is taking longer than usual. Check the server logs if it doesn't appear soon."}
           </Alert>
         )}
       </Box>
