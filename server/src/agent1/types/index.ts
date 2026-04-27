@@ -132,6 +132,9 @@ export type PostValidationFlag = {
   passage: string;
   reasoning: string;
   severity: "likely_violation" | "borderline_specialist_review";
+  // Which page the flag concerns. null = whole-story flag. Undefined when
+  // the validator ran against a legacy single-string story (no page data).
+  pageNumber?: number | null;
 };
 
 export type PostValidationResult = {
