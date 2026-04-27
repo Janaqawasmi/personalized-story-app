@@ -47,33 +47,55 @@ function makeBrief(personalization: boolean): StoryBrief {
 }
 
 describe('buildStep2SectionJ', () => {
-  it('contains numbered TITLE and STORY headings', () => {
+  it('contains OUTPUT FORMAT header', () => {
     const out = buildStep2SectionJ(makeBrief(false));
-    expect(out).toContain('1. TITLE');
-    expect(out).toContain('2. STORY');
+    expect(out).toContain('OUTPUT FORMAT');
+  });
+
+  it('contains JSON schema with title and pages fields', () => {
+    const out = buildStep2SectionJ(makeBrief(false));
+    expect(out).toContain('"title"');
+    expect(out).toContain('"pages"');
+    expect(out).toContain('"pageNumber"');
+    expect(out).toContain('"text"');
+  });
+
+  it('instructs the model to output only valid JSON with no markdown fences', () => {
+    const out = buildStep2SectionJ(makeBrief(false));
+    expect(out).toContain('Output ONLY valid JSON');
+    expect(out).toContain('no markdown fences');
+  });
+
+  it('contains PAGE RULES header', () => {
+    const out = buildStep2SectionJ(makeBrief(false));
+    expect(out).toContain('PAGE RULES');
+  });
+
+  it('defines a page as a single visual moment', () => {
+    const out = buildStep2SectionJ(makeBrief(false));
+    expect(out).toContain('ONE visual moment');
+  });
+
+  it('references the target page count range from Section E', () => {
+    const out = buildStep2SectionJ(makeBrief(false));
+    expect(out).toContain('Target page count range');
   });
 
   it('contains the child-facing title guidance', () => {
-    expect(buildStep2SectionJ(makeBrief(false))).toContain(
-      'A title a child would be drawn to.',
-    );
+    const out = buildStep2SectionJ(makeBrief(false));
+    expect(out).toContain('a title a child would be drawn to');
+    expect(out).toContain('Not clinical, not cute');
   });
 
-  it('contains the 9–12 Extended chapter-break exception', () => {
-    expect(buildStep2SectionJ(makeBrief(false))).toContain(
-      'No chapter breaks (unless 9–12 Extended)',
-    );
-  });
-
-  it('personalization true → placeholders note', () => {
-    expect(buildStep2SectionJ(makeBrief(true))).toContain('placeholders throughout');
+  it('personalization true → placeholders note included', () => {
+    expect(buildStep2SectionJ(makeBrief(true))).toContain('placeholders');
   });
 
   it('personalization false → no placeholders note', () => {
-    expect(buildStep2SectionJ(makeBrief(false))).not.toContain('placeholders throughout');
+    expect(buildStep2SectionJ(makeBrief(false))).not.toContain('placeholders');
   });
 
-  it('never contains the literal undefined', () => {
+  it('never contains the literal string "undefined"', () => {
     expect(buildStep2SectionJ(makeBrief(false))).not.toContain('undefined');
     expect(buildStep2SectionJ(makeBrief(true))).not.toContain('undefined');
   });
