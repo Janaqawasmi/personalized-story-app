@@ -18,6 +18,7 @@ import {
 import type { Story, StoryStatus, PageIllustration } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
+import { generateImagePromptsForPages } from "@/specialist/specialistIllustration.service";
 
 const router = Router();
 
@@ -461,6 +462,25 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     ...extraFields,
     editHistory: updatedHistory,
   });
+
+  // Auto-advance: approved → pages_review
+  // Fire-and-forget: generate image prompts immediately after approval.
+  // The story status is still "approved" until this call writes "pages_review"
+  // to Firestore. Any failure is logged but does NOT roll back the approval.
+  if (to === "approved") {
+    // Advance status to pages_review before generating prompts
+    await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
+      status: "pages_review" as StoryStatus,
+      updatedAt: Date.now(),
+    });
+    // Fire-and-forget prompt generation — errors are non-fatal to the HTTP response
+    generateImagePromptsForPages(storyId, ownerUid).catch((err: unknown) => {
+      console.error(
+        `[illustration-pipeline] generateImagePromptsForPages failed for story ${storyId}:`,
+        err,
+      );
+    });
+  }
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
   const finalStory = { id: storyId, ...finalDoc.data() } as Story;
