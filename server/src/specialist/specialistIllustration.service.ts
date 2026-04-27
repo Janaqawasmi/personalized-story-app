@@ -5,7 +5,7 @@
 // Orchestrates the full illustration pipeline for approved stories:
 //
 //   approved
-//     → (auto) pages_review        — generateImagePromptsForPages() runs here
+//     → (auto) prompt_review       — generateImagePromptsForPages() runs here
 //     → (Gate 1) illustrating      — triggerIllustrationGeneration() runs here
 //     → (Gate 2) illustration_review
 //     → illustration_ready
@@ -72,8 +72,7 @@ export async function loadStory(storyId: string): Promise<Story> {
 
 /**
  * Calls Claude once to produce a Visual Bible + one Seedream prompt per page.
- * Persists results to Firestore and advances the story to pages_review if
- * called from the approved auto-advance path (status already pages_review).
+ * Persists results to Firestore while the story is in prompt_review.
  *
  * Idempotent: if all prompts are already populated (non-null imagePrompt),
  * returns without making another Claude call.
@@ -84,9 +83,9 @@ export async function generateImagePromptsForPages(
 ): Promise<void> {
   const story = await loadStory(storyId);
 
-  if (story.status !== "pages_review") {
+  if (story.status !== "prompt_review") {
     throw new Error(
-      `generateImagePromptsForPages: story must be in pages_review status, got '${story.status}'`,
+      `generateImagePromptsForPages: story must be in prompt_review status, got '${story.status}'`,
     );
   }
 

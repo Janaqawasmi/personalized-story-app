@@ -1,0 +1,270 @@
+// IllustrationsTab — orchestrates the illustration pipeline UI.
+// Adapts its content based on story.status:
+//   approved           → prompts still generating (loader + polling)
+//   prompt_review      → Gate 1: PromptReviewPanel
+//   illustrating       → Seedream running (progress + polling)
+//   illustration_review → Gate 2: IllustrationReviewPanel
+//   illustration_ready / published → read-only gallery
+
+import React, { useEffect, useRef, useState } from "react";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import CircularProgress from "@mui/material/CircularProgress";
+import Chip from "@mui/material/Chip";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import ImageIcon from "@mui/icons-material/Image";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+
+import type { Story, PageIllustration } from "../../types/story";
+import { COLORS, DESIGN_TOKENS } from "../../theme";
+import * as api from "../../api/specialistStories";
+import { draftStore } from "../storage";
+import PromptReviewPanel from "./PromptReviewPanel";
+import IllustrationReviewPanel from "./IllustrationReviewPanel";
+
+const POLL_INTERVAL_MS = 5000;
+
+// ---------------------------------------------------------------------------
+// Loader state (approved → prompts generating, or illustrating)
+// ---------------------------------------------------------------------------
+
+function PipelineLoader({ label, hint }: { label: string; hint: string }) {
+  return (
+    <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 5, pb: 6 }}>
+      <Stack alignItems="center" spacing={2.5}>
+        <CircularProgress size={44} sx={{ color: COLORS.primary }} />
+        <Box textAlign="center">
+          <Typography
+            variant="h6"
+            sx={{ fontFamily: DESIGN_TOKENS.fontDisplay, fontWeight: 700,
+              color: COLORS.textPrimary, mb: 0.5 }}
+          >
+            {label}
+          </Typography>
+          <Typography variant="body2" sx={{ color: COLORS.textSecondary, maxWidth: 360 }}>
+            {hint}
+          </Typography>
+        </Box>
+      </Stack>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Illustrating progress panel — shows per-page status while Seedream runs
+// ---------------------------------------------------------------------------
+
+function IllustratingPanel({ story, onStoryUpdate }: { story: Story; onStoryUpdate: (s: Story) => void }) {
+  const pages = story.pages ?? [];
+  const doneCount = pages.filter((p) => p.illustrationStatus === "done").length;
+  const failedCount = pages.filter((p) => p.illustrationStatus === "failed").length;
+  const total = pages.length;
+
+  // Poll until all pages are no longer "generating" / "pending"
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const done = pages.every(
+      (p) => p.illustrationStatus === "done" || p.illustrationStatus === "failed",
+    );
+    if (done || story.status !== "illustrating") return;
+
+    pollRef.current = setTimeout(async () => {
+      try {
+        const updated = await draftStore.getStory(story.id);
+        if (updated) onStoryUpdate(updated);
+      } catch { /* silent */ }
+    }, POLL_INTERVAL_MS);
+
+    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
+  });
+
+  return (
+    <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 3, pb: 6 }}>
+      <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 3 }}>
+        <CircularProgress size={20} sx={{ color: COLORS.primary }} />
+        <Typography variant="h6"
+          sx={{ fontFamily: DESIGN_TOKENS.fontDisplay, fontWeight: 700, color: COLORS.textPrimary }}>
+          Generating illustrations
+        </Typography>
+      </Stack>
+
+      <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 3 }}>
+        Seedream is generating images page by page. This page refreshes automatically.
+        &nbsp;
+        <Box component="span" sx={{ fontWeight: 700, color: COLORS.textPrimary }}>
+          {doneCount} of {total} done{failedCount > 0 ? `, ${failedCount} failed` : ""}.
+        </Box>
+      </Typography>
+
+      <Stack spacing={1.5}>
+        {pages.map((page) => {
+          const statusConfig = {
+            done:       { color: COLORS.success,       label: "Done" },
+            failed:     { color: COLORS.error,         label: "Failed" },
+            generating: { color: COLORS.primary,       label: "Generating…" },
+            pending:    { color: COLORS.textSecondary, label: "Waiting" },
+          } as const;
+          const s = statusConfig[page.illustrationStatus];
+
+          return (
+            <Stack key={page.pageNumber} direction="row" alignItems="center"
+              spacing={2} sx={{ py: 1.25, px: 2, bgcolor: COLORS.surface,
+                border: `1px solid ${COLORS.border}`, borderRadius: 2 }}>
+              <ImageIcon sx={{ color: COLORS.border, fontSize: 20 }} />
+              <Typography variant="body2" sx={{ flex: 1, color: COLORS.textPrimary,
+                fontWeight: 500 }}>
+                Page {page.pageNumber}
+              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                {page.illustrationStatus === "generating" && (
+                  <CircularProgress size={12} sx={{ color: COLORS.primary }} />
+                )}
+                <Typography variant="caption" sx={{ color: s.color, fontWeight: 700 }}>
+                  {s.label}
+                </Typography>
+              </Box>
+            </Stack>
+          );
+        })}
+      </Stack>
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Read-only gallery (illustration_ready / published)
+// ---------------------------------------------------------------------------
+
+function IllustrationGallery({ story }: { story: Story }) {
+  const [lightbox, setLightbox] = useState<string | null>(null);
+  const pages = (story.pages ?? []).filter((p) => p.illustrationUrl);
+
+  return (
+    <>
+      {lightbox && (
+        <Dialog open onClose={() => setLightbox(null)} maxWidth="lg"
+          PaperProps={{ sx: { bgcolor: "#111", p: 0 } }}>
+          <DialogContent sx={{ p: 0 }}>
+            <Box component="img" src={lightbox} alt="Illustration"
+              sx={{ maxWidth: "90vw", maxHeight: "90vh", display: "block" }} />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 3, pb: 6 }}>
+        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 0.5 }}>
+          <CheckCircleIcon sx={{ color: COLORS.success, fontSize: 22 }} />
+          <Typography variant="h6"
+            sx={{ fontFamily: DESIGN_TOKENS.fontDisplay, fontWeight: 700, color: COLORS.textPrimary }}>
+            {story.status === "published" ? "Published illustrations" : "Illustrations ready"}
+          </Typography>
+        </Stack>
+        <Typography variant="body2" sx={{ color: COLORS.textSecondary, mb: 3 }}>
+          {pages.length} illustration{pages.length !== 1 ? "s" : ""} approved.
+          {story.status === "illustration_ready" && " This story is ready to publish."}
+        </Typography>
+
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 2 }}>
+          {pages.map((page) => (
+            <Box key={page.pageNumber}
+              onClick={() => setLightbox(page.illustrationUrl!)}
+              sx={{ borderRadius: 2, overflow: "hidden", cursor: "zoom-in", position: "relative",
+                border: `1px solid ${COLORS.border}`, bgcolor: COLORS.surface,
+                "&:hover .zoom-overlay": { opacity: 1 } }}>
+              <Box component="img" src={page.illustrationUrl!} alt={`Page ${page.pageNumber}`}
+                sx={{ width: "100%", display: "block", aspectRatio: "1", objectFit: "cover" }} />
+              <Box className="zoom-overlay"
+                sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0,0,0,0.3)",
+                  display: "flex", alignItems: "flex-end", p: 1.5,
+                  opacity: 0, transition: "opacity 0.15s" }}>
+                <Stack direction="row" alignItems="center" justifyContent="space-between"
+                  sx={{ width: "100%" }}>
+                  <Chip size="small" label={`Page ${page.pageNumber}`}
+                    sx={{ bgcolor: "rgba(255,255,255,0.9)", fontWeight: 700, fontSize: "0.72rem" }} />
+                  <ZoomInIcon sx={{ color: "#fff", fontSize: 22 }} />
+                </Stack>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// IllustrationsTab — main export
+// ---------------------------------------------------------------------------
+
+interface IllustrationsTabProps {
+  story: Story;
+  onStoryUpdate: (story: Story) => void;
+}
+
+export default function IllustrationsTab({ story, onStoryUpdate }: IllustrationsTabProps) {
+  function handleStatusChange(status: Story["status"]) {
+    onStoryUpdate({ ...story, status });
+  }
+
+  // Poll when status is "approved" (prompts still generating server-side)
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (story.status !== "approved") return;
+    pollRef.current = setTimeout(async () => {
+      try {
+        const updated = await draftStore.getStory(story.id);
+        if (updated && updated.status !== "approved") onStoryUpdate(updated);
+      } catch { /* silent */ }
+    }, POLL_INTERVAL_MS);
+    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
+  });
+
+  switch (story.status) {
+    case "approved":
+      return (
+        <PipelineLoader
+          label="Generating image prompts…"
+          hint="Claude is creating one image prompt per page. This usually takes under a minute."
+        />
+      );
+
+    case "prompt_review":
+      return (
+        <PromptReviewPanel
+          story={story}
+          onStoryStatusChange={handleStatusChange}
+        />
+      );
+
+    case "illustrating":
+      return (
+        <IllustratingPanel story={story} onStoryUpdate={onStoryUpdate} />
+      );
+
+    case "illustration_review":
+      return (
+        <IllustrationReviewPanel
+          story={story}
+          onStoryStatusChange={handleStatusChange}
+        />
+      );
+
+    case "illustration_ready":
+    case "published":
+      return <IllustrationGallery story={story} />;
+
+    default:
+      return (
+        <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 5, pb: 6, textAlign: "center" }}>
+          <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+            Illustrations will be available after the story is approved.
+          </Typography>
+        </Box>
+      );
+  }
+}

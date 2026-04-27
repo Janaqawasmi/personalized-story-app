@@ -64,7 +64,7 @@ export const STATUS_CHIP_COLORS: Record<StoryStatus | "all", StatusColor> = {
     outlinedText: "#4a5f3f",
     dot: COLORS.success,
   },
-  pages_review: {
+  prompt_review: {
     filledBg: "#e4eaf0",
     filledText: "#3a5268",
     outlinedBorder: "#6a9bbf",

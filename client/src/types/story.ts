@@ -30,7 +30,7 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
-  "pages_review",
+  "prompt_review",
   "illustrating",
   "illustration_review",
   "illustration_ready",
@@ -46,6 +46,33 @@ export const BRIEF_STATUSES = [
 ] as const;
 
 export type BriefStatus = (typeof BRIEF_STATUSES)[number];
+
+// ============================================================================
+// ILLUSTRATION PIPELINE TYPES
+// ============================================================================
+
+export type PromptStatus = "pending" | "approved" | "rejected";
+export type IllustrationStatus = "pending" | "generating" | "done" | "failed";
+
+export interface PageIllustration {
+  pageNumber: number;
+  text: string;
+  wordCount: number;
+  imagePrompt: string | null;
+  promptStatus: PromptStatus;
+  promptRejectionNote: string | null;
+  illustrationUrl: string | null;
+  illustrationStatus: IllustrationStatus;
+  illustrationRejectionNote: string | null;
+}
+
+export interface VisualBible {
+  protagonist: string;
+  styleGuide: string;
+  environmentRegistry: Record<string, string>;
+  palette: string;
+  generatedAt: number;
+}
 
 // ============================================================================
 // SUPPORTING TYPES
@@ -108,12 +135,21 @@ export interface Story {
   currentDraft: StoryDraft | null;
   editHistory: EditHistoryEntry[];
 
+  // Illustration pipeline (null until approved)
+  pages: PageIllustration[] | null;
+  visualBible: VisualBible | null;
+  illustrationSeed: number | null;
+
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
   updatedAt: number;
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
+  promptsGeneratedAt: number | null;
+  illustrationCompletedAt: number | null;
+  illustrationReadyAt: number | null;
+  publishedAt: number | null;
 }
 
 // ============================================================================
@@ -136,10 +172,10 @@ export const ALLOWED_TRANSITIONS: readonly Transition[] = [
   { from: "in_review",       to: "archived" },
   { from: "needs_revision",  to: "awaiting_review" },
   { from: "needs_revision",  to: "in_review" },
-  { from: "approved",            to: "pages_review" },
+  { from: "approved",            to: "prompt_review" },
   { from: "approved",            to: "in_review" },
   { from: "approved",            to: "archived" },
-  { from: "pages_review",        to: "illustrating" },
+  { from: "prompt_review",       to: "illustrating" },
   { from: "illustrating",        to: "illustration_review" },
   { from: "illustration_review", to: "illustration_ready" },
   { from: "illustration_review", to: "illustrating" },

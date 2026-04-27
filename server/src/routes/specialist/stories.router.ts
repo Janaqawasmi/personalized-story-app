@@ -461,17 +461,9 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     editHistory: updatedHistory,
   });
 
-  // Auto-advance: approved → pages_review
-  // Fire-and-forget: generate image prompts immediately after approval.
-  // The story status is still "approved" until this call writes "pages_review"
-  // to Firestore. Any failure is logged but does NOT roll back the approval.
-  if (to === "approved") {
-    // Advance status to pages_review before generating prompts
-    await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
-      status: "pages_review" as StoryStatus,
-      updatedAt: Date.now(),
-    });
-    // Fire-and-forget prompt generation — errors are non-fatal to the HTTP response
+  // Fire-and-forget prompt generation starts only when specialist explicitly
+  // moves approved → prompt_review.
+  if (to === "prompt_review") {
     generateImagePromptsForPages(storyId, ownerUid).catch((err: unknown) => {
       console.error(
         `[illustration-pipeline] generateImagePromptsForPages failed for story ${storyId}:`,
@@ -1039,10 +1031,10 @@ async function handleReviewPrompt(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  if (story.status !== "pages_review") {
+  if (story.status !== "prompt_review") {
     res.status(409).json({
       error: "WRONG_STATUS",
-      message: `Prompt review requires status 'pages_review', got '${story.status}'.`,
+      message: `Prompt review requires status 'prompt_review', got '${story.status}'.`,
     });
     return;
   }

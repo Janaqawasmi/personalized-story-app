@@ -64,20 +64,20 @@ describe("isTransitionAllowed", () => {
     expect(isTransitionAllowed("approved", "published")).toBe(false);
   });
 
-  test('approved → pages_review is allowed', () => {
-    expect(isTransitionAllowed("approved", "pages_review")).toBe(true);
+  test('approved → prompt_review is allowed', () => {
+    expect(isTransitionAllowed("approved", "prompt_review")).toBe(true);
   });
 
-  test('pages_review → illustrating is allowed', () => {
-    expect(isTransitionAllowed("pages_review", "illustrating")).toBe(true);
+  test('prompt_review → illustrating is allowed', () => {
+    expect(isTransitionAllowed("prompt_review", "illustrating")).toBe(true);
   });
 
   test('illustrating → illustration_review is allowed', () => {
     expect(isTransitionAllowed("illustrating", "illustration_review")).toBe(true);
   });
 
-  test('illustrating → pages_review is allowed (catastrophic failure fallback)', () => {
-    expect(isTransitionAllowed("illustrating", "pages_review")).toBe(true);
+  test('illustrating → prompt_review is allowed (catastrophic failure fallback)', () => {
+    expect(isTransitionAllowed("illustrating", "prompt_review")).toBe(true);
   });
 
   test('illustration_review → illustration_ready is allowed', () => {

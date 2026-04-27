@@ -10,7 +10,7 @@ const STATUS_TO_ACTIVITY_VERB: Record<StoryStatus, string> = {
   in_review: "Review started",
   needs_revision: "Needs revision",
   approved: "Approved",
-  pages_review: "Prompts generating",
+  prompt_review: "Prompts generating",
   illustrating: "Illustrating",
   illustration_review: "Illustration review",
   illustration_ready: "Illustration ready",

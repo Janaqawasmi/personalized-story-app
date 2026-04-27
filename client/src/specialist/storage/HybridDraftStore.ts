@@ -77,6 +77,13 @@ export class HybridDraftStore implements DraftStore {
       lastOpenedAt: now,
       submittedAt: null,
       approvedAt: null,
+      pages: null,
+      visualBible: null,
+      illustrationSeed: null,
+      promptsGeneratedAt: null,
+      illustrationCompletedAt: null,
+      illustrationReadyAt: null,
+      publishedAt: null,
     };
 
     const registry = loadRegistry();

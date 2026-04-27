@@ -70,6 +70,7 @@ export default function DraftTabB({
   const [regenDialogOpen, setRegenDialogOpen] = useState(false);
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenSubmitting, setRegenSubmitting] = useState(false);
+  const [promptGenerationSubmitting, setPromptGenerationSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
@@ -284,6 +285,19 @@ export default function DraftTabB({
       onStoryUpdate(updatedStory);
     } catch (err) {
       setSnackbar(err instanceof Error ? err.message : "Failed to reopen story.");
+    }
+  }
+
+  async function handleGenerateImagePrompts() {
+    setPromptGenerationSubmitting(true);
+    try {
+      const updatedStory = await draftStore.transitionStatus(story.id, "prompt_review");
+      onStoryUpdate(updatedStory);
+      setSnackbar("Image prompt generation started.");
+    } catch (err) {
+      setSnackbar(err instanceof Error ? err.message : "Failed to generate image prompts.");
+    } finally {
+      setPromptGenerationSubmitting(false);
     }
   }
 
@@ -564,6 +578,21 @@ export default function DraftTabB({
                     {new Date(story.approvedAt).toLocaleString()}
                   </Typography>
                 ) : null}
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={promptGenerationSubmitting}
+                  onClick={() => void handleGenerateImagePrompts()}
+                >
+                  {promptGenerationSubmitting ? (
+                    <>
+                      <CircularProgress size={14} thickness={5} color="inherit" sx={{ mr: 1 }} />
+                      Starting…
+                    </>
+                  ) : (
+                    "Generate image prompts"
+                  )}
+                </Button>
                 <Button variant="text" size="small" onClick={() => void handleReopen()}>
                   Reopen for editing
                 </Button>

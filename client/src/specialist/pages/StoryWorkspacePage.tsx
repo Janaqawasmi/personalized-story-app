@@ -25,6 +25,7 @@ import WorkspaceTabs, { type WorkspaceTabValue } from "../components/WorkspaceTa
 import BriefTab from "../components/BriefTab";
 import DraftTabB from "../components/draftB/DraftTabB";
 import HistoryTab from "../components/HistoryTab";
+import IllustrationsTab from "../components/IllustrationsTab";
 
 // ---------------------------------------------------------------------------
 // Default tab lookup
@@ -36,17 +37,17 @@ const DEFAULT_TAB: Record<StoryStatus, WorkspaceTabValue> = {
   awaiting_review: "draft",
   in_review: "draft",
   needs_revision: "draft",
-  approved: "draft",
-  pages_review: "draft",
-  illustrating: "draft",
-  illustration_review: "draft",
-  illustration_ready: "draft",
-  published: "draft",
+  approved: "illustrations",
+  prompt_review: "illustrations",
+  illustrating: "illustrations",
+  illustration_review: "illustrations",
+  illustration_ready: "illustrations",
+  published: "illustrations",
   archived: "brief",
 };
 
 function isValidTab(tab: string | undefined): tab is WorkspaceTabValue {
-  return tab === "brief" || tab === "draft" || tab === "history";
+  return tab === "brief" || tab === "draft" || tab === "history" || tab === "illustrations";
 }
 
 type PendingLeaveNavigation =
@@ -85,7 +86,7 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
         direction="row"
         sx={{ borderBottom: `1px solid ${COLORS.border}`, mb: 2.5 }}
       >
-        {["Brief", "Story", "History"].map((label) => (
+        {["Brief", "Story", "History", "Illustrations"].map((label) => (
           <Skeleton
             key={label}
             width={68}
@@ -431,6 +432,9 @@ export default function StoryWorkspacePage() {
               <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 3, pb: 6 }}>
                 <HistoryTab story={story} />
               </Box>
+            )}
+            {activeTab === "illustrations" && (
+              <IllustrationsTab story={story} onStoryUpdate={setStory} />
             )}
           </Box>
         </>

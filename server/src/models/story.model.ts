@@ -35,7 +35,7 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
-  "pages_review",         // specialist reviews AI-generated image prompts before Seedream
+  "prompt_review",        // specialist reviews AI-generated image prompts before Seedream
   "illustrating",         // Seedream generating page illustrations (async)
   "illustration_review",  // specialist reviews generated illustrations per page
   "illustration_ready",   // all illustrations approved; ready to publish
@@ -160,7 +160,7 @@ export interface Story {
   editHistory: EditHistoryEntry[];
 
   // Illustration pipeline
-  /** Visual Bible generated once before page prompts. Null until pages_review. */
+  /** Visual Bible generated once before page prompts. Null until prompt_review. */
   visualBible: VisualBible | null;
   /** Fixed seed passed to Seedream for every page so style is reproducible. */
   illustrationSeed: number | null;
@@ -171,7 +171,7 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
-  /** When all page image prompts were generated (pages_review entered). */
+  /** When all page image prompts were generated (prompt_review entered). */
   promptsGeneratedAt: number | null;
   /** When all page prompts passed Gate 1 specialist review. */
   promptsApprovedAt: number | null;
@@ -201,15 +201,15 @@ export const ALLOWED_TRANSITIONS: readonly Transition[] = [
   { from: "in_review",            to: "archived" },
   { from: "needs_revision",       to: "awaiting_review" },
   { from: "needs_revision",       to: "in_review" },
-  // approved → pages_review is the auto-advance; direct publish removed.
-  { from: "approved",             to: "pages_review" },
+  // approved → prompt_review is specialist-triggered; direct publish removed.
+  { from: "approved",             to: "prompt_review" },
   { from: "approved",             to: "in_review" },
   { from: "approved",             to: "archived" },
   // Illustration pipeline
-  { from: "pages_review",         to: "illustrating" },
-  { from: "pages_review",         to: "archived" },
+  { from: "prompt_review",        to: "illustrating" },
+  { from: "prompt_review",        to: "archived" },
   { from: "illustrating",         to: "illustration_review" },
-  { from: "illustrating",         to: "pages_review" },   // catastrophic failure fallback
+  { from: "illustrating",         to: "prompt_review" },  // catastrophic failure fallback
   { from: "illustration_review",  to: "illustrating" },   // re-trigger failed pages
   { from: "illustration_review",  to: "illustration_ready" },
   { from: "illustration_review",  to: "archived" },

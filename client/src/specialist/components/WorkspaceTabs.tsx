@@ -12,15 +12,19 @@ import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
-import type { Story } from "../../types/story";
+import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import { DRAFT_B } from "./draftB/tokens";
+
+const ILLUSTRATION_STATUSES = new Set<StoryStatus>([
+  "prompt_review", "illustrating", "illustration_review", "illustration_ready", "published",
+]);
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type WorkspaceTabValue = "brief" | "draft" | "history";
+export type WorkspaceTabValue = "brief" | "draft" | "history" | "illustrations";
 
 export interface WorkspaceTabsProps {
   story: Story;
@@ -38,6 +42,7 @@ export default function WorkspaceTabs({
   onTabChange,
 }: WorkspaceTabsProps) {
   const draftDisabled = story.agent1Result === null;
+  const illustrationsEnabled = ILLUSTRATION_STATUSES.has(story.status);
 
   function handleChange(
     _event: React.SyntheticEvent,
@@ -95,6 +100,15 @@ export default function WorkspaceTabs({
           value="history"
           id="tab-history"
           aria-controls="tabpanel-history"
+        />
+
+        <Tab
+          label="Illustrations"
+          value="illustrations"
+          id="tab-illustrations"
+          aria-controls="tabpanel-illustrations"
+          disabled={!illustrationsEnabled}
+          sx={!illustrationsEnabled ? { opacity: 0.4 } : {}}
         />
       </Tabs>
     </Box>
