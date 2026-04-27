@@ -135,12 +135,11 @@ export class HybridDraftStore implements DraftStore {
 
     let merged = [...dedupedLocal, ...serverStories];
 
-    // Status filter
+    // Status filter — if statuses are specified, apply them; otherwise return all
+    // (SpecialistStoriesPage.applyFilters() excludes archived by default)
     if (filter?.statuses && filter.statuses.length > 0) {
       const allowed = new Set(filter.statuses);
       merged = merged.filter((s) => allowed.has(s.status));
-    } else {
-      merged = merged.filter((s) => s.status !== "archived");
     }
 
     // Search query — client-side since the API doesn't support it

@@ -229,12 +229,10 @@ async function handleListStories(req: Request, res: Response): Promise<void> {
     (doc) => ({ id: doc.id, ...doc.data() }) as Story,
   );
 
-  // Filter by statuses
+  // Filter by statuses (optional — no filter returns all stories including archived)
   if (statusesParam && typeof statusesParam === "string") {
     const requested = statusesParam.split(",").map((s) => s.trim()) as StoryStatus[];
     stories = stories.filter((s) => requested.includes(s.status));
-  } else {
-    stories = stories.filter((s) => s.status !== "archived");
   }
 
   // Sort
