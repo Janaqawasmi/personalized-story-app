@@ -8,7 +8,7 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 
-import { draftStore } from "../storage";
+import { draftStore, hybridStore } from "../storage";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import StoriesFilterBar from "../components/StoriesFilterBar";
@@ -99,6 +99,7 @@ export default function SpecialistStoriesPage() {
   const [allStories, setAllStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [serverWarning, setServerWarning] = useState<string | null>(null);
 
   // ---- filter state ----
   const [activeStatuses, setActiveStatuses] = useState<StoryStatus[]>([]);
@@ -118,13 +119,17 @@ export default function SpecialistStoriesPage() {
       .then((stories) => {
         setAllStories(stories);
         setLoading(false);
+        setServerWarning(hybridStore.lastServerError);
       })
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : "Failed to load stories.");
         setLoading(false);
       });
 
-    const unsub = draftStore.subscribeToList(setAllStories);
+    const unsub = draftStore.subscribeToList((stories) => {
+      setAllStories(stories);
+      setServerWarning(hybridStore.lastServerError);
+    });
     return unsub;
   }, []);
 
@@ -263,6 +268,22 @@ export default function SpecialistStoriesPage() {
           }
         >
           {error}
+        </Alert>
+      )}
+
+      {/* Server fetch warning — shown when server stories couldn't be loaded */}
+      {!error && serverWarning && (
+        <Alert
+          severity="warning"
+          onClose={() => setServerWarning(null)}
+          sx={{ mb: 2, borderRadius: 2 }}
+        >
+          <strong>Could not load stories from the server.</strong>{" "}
+          Only locally saved drafts are shown.
+          <br />
+          <span style={{ fontSize: "0.82em", opacity: 0.85 }}>
+            Reason: {serverWarning}
+          </span>
         </Alert>
       )}
 

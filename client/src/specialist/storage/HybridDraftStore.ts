@@ -47,6 +47,9 @@ function saveRegistry(registry: StoryRegistry): void {
 // ============================================================================
 
 export class HybridDraftStore implements DraftStore {
+  /** Set when the most recent server fetch fails. Cleared on success. */
+  lastServerError: string | null = null;
+
   private storyListeners = new Map<string, Set<(story: Story) => void>>();
   private listListeners = new Set<(stories: Story[]) => void>();
 
@@ -108,12 +111,11 @@ export class HybridDraftStore implements DraftStore {
     let serverStories: Story[] = [];
     try {
       serverStories = await apiClient.listStories();
+      this.lastServerError = null;
     } catch (err) {
-      console.error(
-        "Failed to fetch server stories, falling back to localStorage-only:",
-        err,
-      );
-      // TODO: Surface a non-blocking "offline" indicator to the UI
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("Failed to fetch server stories:", msg);
+      this.lastServerError = msg;
     }
 
     // Merge: server wins on conflict, silently clean up localStorage duplicates
