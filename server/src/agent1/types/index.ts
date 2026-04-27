@@ -92,6 +92,15 @@ export type Step1Output = {
   llmCallRecord: LLMCallRecord;
 };
 
+// A single page as emitted by the Step 2 Author.
+// Illustration-specific fields (scene, emotionalTone, etc.) are added later
+// when the page is extended for the Story model and illustration pipeline.
+export type StoryPage = {
+  pageNumber: number;
+  text: string;
+  wordCount: number;
+};
+
 export type Step2Output = {
   title: string;
   story: string;
