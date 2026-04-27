@@ -839,4 +839,145 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
   }
 }
 
+// ============================================================================
+// GATE 1 — IMAGE PROMPT REVIEW
+// ============================================================================
+//
+// GET  /:storyId/pages                         list pages with prompt statuses
+// PATCH /:storyId/pages/:pageNumber/prompt     approve or reject a single prompt
+//   body: { action: "approve" | "reject", rejectionNote?: string }
+//
+// When all prompts are approved the story auto-advances to "illustrating" and
+// triggerIllustrationGeneration() is fired in the background.
+
+import { triggerIllustrationGeneration } from "@/specialist/specialistIllustration.service";
+
+router.get("/:storyId/pages", handleListPages);
+router.patch("/:storyId/pages/:pageNumber/prompt", handleReviewPrompt);
+
+async function handleListPages(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+
+  if (!story.pages || story.pages.length === 0) {
+    res.status(200).json({ pages: [] });
+    return;
+  }
+
+  res.status(200).json({ pages: story.pages });
+}
+
+async function handleReviewPrompt(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+
+  const storyId = req.params["storyId"] ?? "";
+  const pageNumberRaw = req.params["pageNumber"];
+  const pageNumber = parseInt(pageNumberRaw ?? "", 10);
+
+  if (isNaN(pageNumber) || pageNumber < 1) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "pageNumber must be a positive integer." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+
+  if (story.status !== "pages_review") {
+    res.status(409).json({
+      error: "WRONG_STATUS",
+      message: `Prompt review requires status 'pages_review', got '${story.status}'.`,
+    });
+    return;
+  }
+
+  if (!story.pages) {
+    res.status(409).json({ error: "NO_PAGES", message: "Story has no pages." });
+    return;
+  }
+
+  const pageIndex = story.pages.findIndex((p) => p.pageNumber === pageNumber);
+  if (pageIndex === -1) {
+    res.status(404).json({ error: "NOT_FOUND", message: `Page ${pageNumber} not found.` });
+    return;
+  }
+
+  const { action, rejectionNote } = req.body as {
+    action?: string;
+    rejectionNote?: string;
+  };
+
+  if (action !== "approve" && action !== "reject") {
+    res.status(400).json({
+      error: "INVALID_INPUT",
+      message: "body.action must be 'approve' or 'reject'.",
+    });
+    return;
+  }
+
+  if (action === "reject" && (!rejectionNote || typeof rejectionNote !== "string" || !rejectionNote.trim())) {
+    res.status(400).json({
+      error: "INVALID_INPUT",
+      message: "rejectionNote is required when action is 'reject'.",
+    });
+    return;
+  }
+
+  const updatedPages = story.pages.map((p, i) => {
+    if (i !== pageIndex) return p;
+    return {
+      ...p,
+      promptStatus: action === "approve" ? ("approved" as const) : ("rejected" as const),
+      promptRejectionNote: action === "reject" ? (rejectionNote ?? null) : null,
+    };
+  });
+
+  const now = Date.now();
+  await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
+    pages: updatedPages,
+    updatedAt: now,
+  });
+
+  // Auto-advance: if all prompts are now approved, move to illustrating
+  const allApproved = updatedPages.every((p) => p.promptStatus === "approved");
+  if (allApproved) {
+    await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
+      status: "illustrating" as StoryStatus,
+      promptsApprovedAt: now,
+      updatedAt: now,
+    });
+    triggerIllustrationGeneration(storyId, ownerUid).catch((err: unknown) => {
+      console.error(
+        `[illustration-pipeline] triggerIllustrationGeneration failed for story ${storyId}:`,
+        err,
+      );
+    });
+  }
+
+  const updatedDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
+  const updatedStory = { id: storyId, ...updatedDoc.data() } as Story;
+
+  res.status(200).json({
+    page: updatedStory.pages?.[pageIndex] ?? null,
+    allPromptsApproved: allApproved,
+    storyStatus: updatedStory.status,
+  });
+}
+
 export default router;
