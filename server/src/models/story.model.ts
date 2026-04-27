@@ -11,7 +11,12 @@
 // No Firestore Timestamp objects are used in this file.
 
 import type { AgeRange, StoryBrief, StoryType } from "@/models/storyBrief.model";
-import type { Agent1Result } from "@/agent1/types";
+import type { Agent1Result, StoryPage } from "@/agent1/types";
+
+// Re-export so downstream modules can import StoryPage from here rather than
+// reaching into agent1/types directly. Step 1.3 will extend this type with
+// illustration-specific fields without changing the import path for consumers.
+export type { StoryPage };
 
 // ============================================================================
 // COLLECTION CONSTANT
@@ -99,6 +104,10 @@ export interface Story {
   agent1Result: Agent1Result | null;
   agent1Versions: Agent1Result[];
   currentDraft: StoryDraft | null;
+  // Structured pages — populated from agent1Result.pages on generation.
+  // Null until first generation; replaced on each regeneration.
+  // Extended with illustration fields in Step 1.3.
+  pages: StoryPage[] | null;
   editHistory: EditHistoryEntry[];
 
   // Timestamps (ms since epoch for Firestore compatibility)
@@ -179,6 +188,7 @@ export function createStoryForGeneration(params: {
     agent1Result: null,
     agent1Versions: [],
     currentDraft: null,
+    pages: null,
     editHistory: [
       {
         id: crypto.randomUUID(),

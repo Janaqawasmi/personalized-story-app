@@ -664,6 +664,9 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
         wordCount: agent1Result.wordCount,
         updatedAt: now,
       },
+      // Persist structured pages when the new JSON-format parser produced them.
+      // null when the legacy text-format fallback was used.
+      pages: agent1Result.pages ?? null,
       updatedAt: now,
     };
 

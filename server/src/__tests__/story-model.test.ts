@@ -129,6 +129,11 @@ describe("createStoryForGeneration", () => {
     expect(story.agent1Result).toBeNull();
   });
 
+  test("pages is null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.pages).toBeNull();
+  });
+
   test("agent1Versions is an empty array", () => {
     const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
     expect(story.agent1Versions).toEqual([]);
