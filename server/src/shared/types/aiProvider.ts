@@ -25,12 +25,14 @@ export interface ImageGenerationProvider {
 
   generateImage(params: {
     textPrompt: string;
-    referenceImage: Buffer | string;
+    /** Optional reference image for style consistency. Omit for the first page. */
+    referenceImage?: Buffer | string;
     referenceImageMediaType?: string;
     style?: string;
     outputFormat?: "png" | "jpeg" | "webp";
     outputWidth?: number;
     outputHeight?: number;
+    seed?: number;
     additionalParams?: Record<string, unknown>;
   }): Promise<ImageGenerationResult>;
 }
