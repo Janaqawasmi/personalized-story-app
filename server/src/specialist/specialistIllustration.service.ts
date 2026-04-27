@@ -21,9 +21,11 @@
 //   rejectIllustration(storyId, pageNumber, note, uid)     — Step 7.x
 
 import { firestore } from "@/config/firebase";
+import { FieldValue } from "firebase-admin/firestore";
 import type { ImageGenerationProvider } from "@/shared/types/aiProvider";
 import { STORIES_COLLECTION } from "@/models/story.model";
-import type { Story } from "@/models/story.model";
+import type { Story, PageIllustration } from "@/models/story.model";
+import { callClaudeForImagePrompts } from "./image-prompt-generator";
 
 // ---------------------------------------------------------------------------
 // Provider registration (parallel to fullStoryGeneration pattern)
@@ -63,14 +65,64 @@ export async function loadStory(storyId: string): Promise<Story> {
 }
 
 // ---------------------------------------------------------------------------
-// Step 3.2 placeholder — will be implemented in the next step
+// Step 3.2 — Generate image prompts for all pages
 // ---------------------------------------------------------------------------
 
+/**
+ * Calls Claude once to produce a Visual Bible + one Seedream prompt per page.
+ * Persists results to Firestore and advances the story to pages_review if
+ * called from the approved auto-advance path (status already pages_review).
+ *
+ * Idempotent: if all prompts are already populated (non-null imagePrompt),
+ * returns without making another Claude call.
+ */
 export async function generateImagePromptsForPages(
-  _storyId: string,
-  _specialistUid: string,
+  storyId: string,
+  specialistUid: string,
 ): Promise<void> {
-  throw new Error("generateImagePromptsForPages: not yet implemented");
+  const story = await loadStory(storyId);
+
+  if (story.status !== "pages_review") {
+    throw new Error(
+      `generateImagePromptsForPages: story must be in pages_review status, got '${story.status}'`,
+    );
+  }
+
+  if (!story.pages || story.pages.length === 0) {
+    throw new Error(
+      `generateImagePromptsForPages: story ${storyId} has no pages`,
+    );
+  }
+
+  // Idempotency: skip if prompts already generated
+  const allPromptsPresent = story.pages.every((p) => p.imagePrompt !== null);
+  if (allPromptsPresent && story.visualBible !== null) {
+    return;
+  }
+
+  const { visualBible, imagePrompts } = await callClaudeForImagePrompts(
+    story.pages,
+    story.brief,
+  );
+
+  const seed = Math.floor(Math.random() * 2 ** 31);
+
+  const updatedPages: PageIllustration[] = story.pages.map((page, i) => ({
+    ...page,
+    imagePrompt: imagePrompts[i] ?? null,
+    promptStatus: "pending" as const,
+  }));
+
+  await firestore
+    .collection(STORIES_COLLECTION)
+    .doc(storyId)
+    .update({
+      pages: updatedPages,
+      visualBible,
+      illustrationSeed: seed,
+      promptsGeneratedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
 }
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,164 @@
+// server/src/specialist/image-prompt-generator.ts
+//
+// Calls Claude to produce the Visual Bible + one image prompt per page in a
+// single batched API call (minimises API round-trips, enables prompt caching
+// for the shared story context).
+//
+// Output JSON shape:
+// {
+//   "visualBible": {
+//     "protagonist": "...",
+//     "styleGuide": "...",
+//     "environmentRegistry": { "bedroom": "...", ... },
+//     "palette": "..."
+//   },
+//   "imagePrompts": ["<page 1 prompt>", "<page 2 prompt>", ...]
+// }
+
+import { Anthropic } from "@anthropic-ai/sdk";
+import type { PageIllustration, VisualBible } from "@/models/story.model";
+import type { StoryBrief } from "@/models/storyBrief.model";
+import { AGE_RANGE_LABELS } from "@/models/storyBrief.model";
+
+const client = new Anthropic({ maxRetries: 0 });
+
+export interface ImagePromptsResult {
+  visualBible: VisualBible;
+  /** imagePrompts[i] corresponds to pages[i]. */
+  imagePrompts: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Prompt builder
+// ---------------------------------------------------------------------------
+
+export function buildImagePromptsPrompt(
+  pages: PageIllustration[],
+  brief: StoryBrief,
+): string {
+  const ageLabel = AGE_RANGE_LABELS[brief.ageAndScope.ageRange];
+
+  const pagesText = pages
+    .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
+    .join("\n\n");
+
+  return `You are a children's book art director. You will read a therapeutic picture-book story and produce two things:
+
+1. A VISUAL BIBLE that anchors every illustration in a consistent visual world.
+2. One SEEDREAM IMAGE PROMPT per page — concise, visual, and consistent with the bible.
+
+STORY CONTEXT:
+Age range: ${ageLabel}
+Story type: ${brief.storyType.replace(/_/g, " ")}
+
+STORY PAGES:
+${pagesText}
+
+INSTRUCTIONS:
+
+VISUAL BIBLE rules:
+- protagonist: one sentence describing the main character's permanent physical appearance (species, size, colour, clothing). No names.
+- styleGuide: one sentence specifying art medium and mood (e.g. "Soft watercolour, warm earthy tones, gentle rounded shapes").
+- environmentRegistry: an object mapping each distinct setting that appears in the story to a one-sentence visual description. Keys are lowercase scene labels (e.g. "bedroom", "garden").
+- palette: a comma-separated list of 4-6 hex colours OR descriptive colour names that capture the story's emotional tone.
+
+IMAGE PROMPT rules per page:
+- 1-3 sentences. Describe the key visual moment of that page.
+- Start with the protagonist description from the Visual Bible (abbreviated after page 1).
+- Mention the specific setting from the environment registry.
+- End with the art style from the styleGuide.
+- Do NOT include text, speech bubbles, or logos.
+- Do NOT reference emotions directly — show them through posture, environment, light.
+- Do NOT include anything age-inappropriate or frightening.
+
+OUTPUT: Reply with ONLY valid JSON matching this exact schema (no markdown fences):
+{
+  "visualBible": {
+    "protagonist": "string",
+    "styleGuide": "string",
+    "environmentRegistry": { "<scene>": "string" },
+    "palette": "string"
+  },
+  "imagePrompts": ["string", "string", ...]
+}
+
+The imagePrompts array must have exactly ${pages.length} elements, one per page in order.`;
+}
+
+// ---------------------------------------------------------------------------
+// Parser
+// ---------------------------------------------------------------------------
+
+interface RawOutput {
+  visualBible: {
+    protagonist: string;
+    styleGuide: string;
+    environmentRegistry: Record<string, string>;
+    palette: string;
+  };
+  imagePrompts: string[];
+}
+
+function stripMarkdownFences(raw: string): string {
+  return raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+}
+
+export function parseImagePromptsResponse(
+  raw: string,
+  expectedPageCount: number,
+): ImagePromptsResult {
+  let parsed: RawOutput;
+  try {
+    parsed = JSON.parse(stripMarkdownFences(raw)) as RawOutput;
+  } catch {
+    throw new Error(
+      `ImagePromptGenerator: failed to parse Claude response as JSON. Raw: ${raw.slice(0, 200)}`,
+    );
+  }
+
+  if (!parsed.visualBible || !Array.isArray(parsed.imagePrompts)) {
+    throw new Error(
+      "ImagePromptGenerator: response missing visualBible or imagePrompts",
+    );
+  }
+
+  if (parsed.imagePrompts.length !== expectedPageCount) {
+    throw new Error(
+      `ImagePromptGenerator: expected ${expectedPageCount} image prompts, got ${parsed.imagePrompts.length}`,
+    );
+  }
+
+  const visualBible: VisualBible = {
+    protagonist: parsed.visualBible.protagonist,
+    styleGuide: parsed.visualBible.styleGuide,
+    environmentRegistry: parsed.visualBible.environmentRegistry ?? {},
+    palette: parsed.visualBible.palette,
+    generatedAt: Date.now(),
+  };
+
+  return { visualBible, imagePrompts: parsed.imagePrompts };
+}
+
+// ---------------------------------------------------------------------------
+// Main call
+// ---------------------------------------------------------------------------
+
+export async function callClaudeForImagePrompts(
+  pages: PageIllustration[],
+  brief: StoryBrief,
+): Promise<ImagePromptsResult> {
+  const prompt = buildImagePromptsPrompt(pages, brief);
+
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 2048,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("ImagePromptGenerator: Claude returned no text block");
+  }
+
+  return parseImagePromptsResponse(textBlock.text, pages.length);
+}
