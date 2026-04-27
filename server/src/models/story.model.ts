@@ -35,6 +35,10 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
+  "pages_review",         // specialist reviews AI-generated image prompts before Seedream
+  "illustrating",         // Seedream generating page illustrations (async)
+  "illustration_review",  // specialist reviews generated illustrations per page
+  "illustration_ready",   // all illustrations approved; ready to publish
   "published",
   "archived",
 ] as const;
