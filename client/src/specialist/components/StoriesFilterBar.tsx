@@ -127,6 +127,26 @@ const CHIP_CONFIGS: ChipConfig[] = [
     color: STATUS_CHIP_COLORS.approved,
   },
   {
+    label: "Prompt review",
+    status: "pages_review",
+    color: STATUS_CHIP_COLORS.pages_review,
+  },
+  {
+    label: "Illustrating",
+    status: "illustrating",
+    color: STATUS_CHIP_COLORS.illustrating,
+  },
+  {
+    label: "Illustration review",
+    status: "illustration_review",
+    color: STATUS_CHIP_COLORS.illustration_review,
+  },
+  {
+    label: "Illustration ready",
+    status: "illustration_ready",
+    color: STATUS_CHIP_COLORS.illustration_ready,
+  },
+  {
     label: "Archived",
     status: "archived",
     color: STATUS_CHIP_COLORS.archived,

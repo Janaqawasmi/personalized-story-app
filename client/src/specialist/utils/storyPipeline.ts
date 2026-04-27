@@ -35,7 +35,15 @@ function nextHintForStatus(status: StoryStatus): string {
     case "in_review":
       return "Finish reviewing the generated story, then approve, edit, or request changes.";
     case "approved":
-      return "This story is approved. Publish when you are ready to share it.";
+      return "This story is approved. Image prompts are being generated.";
+    case "pages_review":
+      return "Review the AI-generated image prompts before illustration begins.";
+    case "illustrating":
+      return "Illustrations are being generated — check back shortly.";
+    case "illustration_review":
+      return "Review the generated illustrations and approve or request changes.";
+    case "illustration_ready":
+      return "All illustrations are approved. Publish when you are ready.";
     case "published":
       return "This story has been published.";
     default:
@@ -73,6 +81,10 @@ export function getStoryPipelineUiState(status: StoryStatus): StoryPipelineUiSta
         nextHint,
       };
     case "approved":
+    case "pages_review":
+    case "illustrating":
+    case "illustration_review":
+    case "illustration_ready":
     case "published":
       return {
         kind: "active",

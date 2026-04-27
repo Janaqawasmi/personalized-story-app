@@ -56,6 +56,10 @@ const STATUS_LABELS: Record<StoryStatus, string> = {
   in_review: "In review",
   needs_revision: "Needs revision",
   approved: "Approved",
+  pages_review: "Prompt review",
+  illustrating: "Illustrating",
+  illustration_review: "Illustration review",
+  illustration_ready: "Illustration ready",
   published: "Published",
   archived: "Archived",
 };

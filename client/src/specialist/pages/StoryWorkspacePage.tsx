@@ -37,6 +37,10 @@ const DEFAULT_TAB: Record<StoryStatus, WorkspaceTabValue> = {
   in_review: "draft",
   needs_revision: "draft",
   approved: "draft",
+  pages_review: "draft",
+  illustrating: "draft",
+  illustration_review: "draft",
+  illustration_ready: "draft",
   published: "draft",
   archived: "brief",
 };
