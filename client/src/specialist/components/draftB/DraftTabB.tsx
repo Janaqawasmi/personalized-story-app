@@ -381,8 +381,10 @@ export default function DraftTabB({
   const displayedResult: Agent1Result =
     versions[selectedVersionIndex] ?? story.agent1Result;
 
-  const isReadOnly =
-    story.status === "approved" || story.status === "archived";
+  const isReadOnly = !(
+    story.status === "awaiting_review" ||
+    story.status === "in_review"
+  );
 
   const [targetMin, targetMax] = displayedResult.targetWordRange;
 
@@ -550,7 +552,7 @@ export default function DraftTabB({
               mode={isReadOnly ? "read" : editorMode}
             />
 
-            {story.status === "approved" && (
+            {(story.status === "approved" || story.status === "prompt_review") && (
               <Box sx={{ mt: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <Box
                   sx={{
@@ -578,24 +580,32 @@ export default function DraftTabB({
                     {new Date(story.approvedAt).toLocaleString()}
                   </Typography>
                 ) : null}
-                <Button
-                  variant="contained"
-                  size="small"
-                  disabled={promptGenerationSubmitting}
-                  onClick={() => void handleGenerateImagePrompts()}
-                >
-                  {promptGenerationSubmitting ? (
-                    <>
-                      <CircularProgress size={14} thickness={5} color="inherit" sx={{ mr: 1 }} />
-                      Starting…
-                    </>
-                  ) : (
-                    "Generate image prompts"
-                  )}
-                </Button>
-                <Button variant="text" size="small" onClick={() => void handleReopen()}>
-                  Reopen for editing
-                </Button>
+                {story.status === "approved" ? (
+                  <>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={promptGenerationSubmitting}
+                      onClick={() => void handleGenerateImagePrompts()}
+                    >
+                      {promptGenerationSubmitting ? (
+                        <>
+                          <CircularProgress size={14} thickness={5} color="inherit" sx={{ mr: 1 }} />
+                          Starting…
+                        </>
+                      ) : (
+                        "Generate image prompts"
+                      )}
+                    </Button>
+                    <Button variant="text" size="small" onClick={() => void handleReopen()}>
+                      Reopen for editing
+                    </Button>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Image prompt generation in progress.
+                  </Typography>
+                )}
               </Box>
             )}
           </Box>
@@ -628,7 +638,7 @@ export default function DraftTabB({
       </Box>
 
       {/* ── Floating approve bar (sticky bottom) ──────────────────────── */}
-      {story.status !== "archived" && story.status !== "approved" && (
+      {(story.status === "awaiting_review" || story.status === "in_review") && (
         <ApproveBar
           checks={checks}
           canApprove={canApprove}

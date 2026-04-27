@@ -2,7 +2,7 @@
 // Shows each page's text alongside its imagePrompt; specialist approves or rejects.
 // When all prompts are approved the "Generate illustrations" button becomes active.
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -271,6 +271,7 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
   const [pages, setPages] = useState<PageIllustration[]>(story.pages ?? []);
   const [triggering, setTriggering] = useState(false);
   const [triggerError, setTriggerError] = useState<string | null>(null);
+  const waitingSinceRef = useRef<number>(Date.now());
 
   function handlePageUpdated(updated: PageIllustration) {
     setPages((prev) => prev.map((p) => p.pageNumber === updated.pageNumber ? updated : p));
@@ -279,6 +280,34 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
   const approvedCount = pages.filter((p) => p.promptStatus === "approved").length;
   const allApproved = pages.length > 0 && approvedCount === pages.length;
   const hasPrompts = pages.some((p) => p.imagePrompt !== null);
+  const waitingTooLong = !hasPrompts && Date.now() - waitingSinceRef.current > 120_000;
+
+  useEffect(() => {
+    if (hasPrompts) return;
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const latest = await api.getStory(story.id);
+        if (cancelled) return;
+        setPages(latest.pages ?? []);
+        if (latest.status !== story.status) {
+          onStoryStatusChange(latest.status);
+        }
+      } catch {
+        // Keep polling silently; the info alert remains visible.
+      }
+    }, 5000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [hasPrompts, onStoryStatusChange, story.id, story.status]);
+
+  useEffect(() => {
+    waitingSinceRef.current = Date.now();
+  }, [story.id]);
 
   async function handleGenerateIllustrations() {
     setTriggering(true); setTriggerError(null);
@@ -337,9 +366,9 @@ export default function PromptReviewPanel({ story, onStoryStatusChange }: Prompt
         )}
 
         {!hasPrompts && (
-          <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }} icon={<CircularProgress size={16} />}>
-            Claude is generating image prompts — this usually takes under a minute.
-            Refresh the page to see them.
+          <Alert severity={waitingTooLong ? "warning" : "info"} sx={{ mt: 2, borderRadius: 2 }} icon={<CircularProgress size={16} />}>
+            Claude is generating image prompts. This panel auto-refreshes every few seconds.
+            {waitingTooLong && " It is taking longer than usual; please check server logs if this persists."}
           </Alert>
         )}
       </Box>
