@@ -86,7 +86,7 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
         direction="row"
         sx={{ borderBottom: `1px solid ${COLORS.border}`, mb: 2.5 }}
       >
-        {["Brief", "Story", "History", "Illustrations"].map((label) => (
+        {["Brief", "Story", "Illustrations", "History"].map((label) => (
           <Skeleton
             key={label}
             width={68}

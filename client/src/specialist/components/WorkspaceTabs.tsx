@@ -96,19 +96,19 @@ export default function WorkspaceTabs({
         />
 
         <Tab
-          label="History"
-          value="history"
-          id="tab-history"
-          aria-controls="tabpanel-history"
-        />
-
-        <Tab
           label="Illustrations"
           value="illustrations"
           id="tab-illustrations"
           aria-controls="tabpanel-illustrations"
           disabled={!illustrationsEnabled}
           sx={!illustrationsEnabled ? { opacity: 0.4 } : {}}
+        />
+
+        <Tab
+          label="History"
+          value="history"
+          id="tab-history"
+          aria-controls="tabpanel-history"
         />
       </Tabs>
     </Box>

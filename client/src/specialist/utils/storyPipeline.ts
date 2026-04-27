@@ -1,17 +1,25 @@
-// Maps StoryStatus → coarse pipeline stages (Brief → Generate → Review → Approved)
+// Maps StoryStatus → coarse pipeline stages
+// (Brief → Generate → Review → Approved → Illustration → Publish)
 // shared by StoryPipelineStepper and the stories list column.
 
 import type { StoryStatus } from "../../types/story";
 
-export const PIPELINE_STEP_LABELS = ["Brief", "Generate", "Review", "Approved"] as const;
+export const PIPELINE_STEP_LABELS = [
+  "Brief",
+  "Generate",
+  "Review",
+  "Approved",
+  "Illustration",
+  "Publish",
+] as const;
 
-export type PipelineStepIndex = 0 | 1 | 2 | 3;
+export type PipelineStepIndex = 0 | 1 | 2 | 3 | 4 | 5;
 
 export interface StoryPipelineActive {
   kind: "active";
-  /** Steps shown as completed (0–4). When 4, the story is approved or published. */
-  stepsCompleted: 0 | 1 | 2 | 3 | 4;
-  /** Step that receives emphasis when stepsCompleted < 4. */
+  /** Steps shown as completed (0–6). */
+  stepsCompleted: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /** Step that receives emphasis when stepsCompleted < 6. */
   emphasisStepIndex: PipelineStepIndex;
   nextHint: string;
 }
@@ -81,15 +89,39 @@ export function getStoryPipelineUiState(status: StoryStatus): StoryPipelineUiSta
         nextHint,
       };
     case "approved":
+      return {
+        kind: "active",
+        stepsCompleted: 3,
+        emphasisStepIndex: 3,
+        nextHint,
+      };
     case "prompt_review":
-    case "illustrating":
-    case "illustration_review":
-    case "illustration_ready":
-    case "published":
       return {
         kind: "active",
         stepsCompleted: 4,
-        emphasisStepIndex: 3,
+        emphasisStepIndex: 4,
+        nextHint,
+      };
+    case "illustrating":
+    case "illustration_review":
+      return {
+        kind: "active",
+        stepsCompleted: 5,
+        emphasisStepIndex: 4,
+        nextHint,
+      };
+    case "illustration_ready":
+      return {
+        kind: "active",
+        stepsCompleted: 5,
+        emphasisStepIndex: 5,
+        nextHint,
+      };
+    case "published":
+      return {
+        kind: "active",
+        stepsCompleted: 6,
+        emphasisStepIndex: 5,
         nextHint,
       };
   }
@@ -100,15 +132,15 @@ export function getPipelineListLabel(status: StoryStatus): string {
   if (status === "archived") return "Archived";
   const s = getStoryPipelineUiState(status);
   if (s.kind === "archived") return "Archived";
-  if (s.stepsCompleted === 4) return "Approved";
+  if (s.stepsCompleted === 6) return "Publish";
   return PIPELINE_STEP_LABELS[s.emphasisStepIndex];
 }
 
-/** Which pipeline step (0–3) the list icon should reflect. */
+/** Which pipeline step (0–5) the list icon should reflect. */
 export function getPipelineListStepIndex(status: StoryStatus): PipelineStepIndex | null {
   if (status === "archived") return null;
   const s = getStoryPipelineUiState(status);
   if (s.kind === "archived") return null;
-  if (s.stepsCompleted === 4) return 3;
+  if (s.stepsCompleted === 6) return 5;
   return s.emphasisStepIndex;
 }

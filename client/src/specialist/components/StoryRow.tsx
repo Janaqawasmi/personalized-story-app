@@ -11,8 +11,10 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
+import CollectionsOutlinedIcon from "@mui/icons-material/CollectionsOutlined";
 import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import PublishOutlinedIcon from "@mui/icons-material/PublishOutlined";
 import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
 import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
@@ -28,6 +30,8 @@ const PIPELINE_LIST_ICONS = [
   AutoFixHighOutlinedIcon,
   RateReviewOutlinedIcon,
   VerifiedOutlinedIcon,
+  CollectionsOutlinedIcon,
+  PublishOutlinedIcon,
 ] as const;
 
 // ---------------------------------------------------------------------------

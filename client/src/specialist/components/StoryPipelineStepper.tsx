@@ -1,4 +1,5 @@
-// Compact horizontal pipeline for the story workspace (Brief → Generate → Review → Approved).
+// Compact horizontal pipeline for the story workspace
+// (Brief → Generate → Review → Approved → Illustration → Publish).
 
 import React from "react";
 import Box from "@mui/material/Box";
@@ -44,7 +45,8 @@ export default function StoryPipelineStepper({ story }: StoryPipelineStepperProp
   const ui = getStoryPipelineUiState(story.status);
   const archived = ui.kind === "archived";
   const active = ui.kind === "active" ? ui : null;
-  const allComplete = active !== null && active.stepsCompleted === 4;
+  const totalSteps = PIPELINE_STEP_LABELS.length;
+  const allComplete = active !== null && active.stepsCompleted === totalSteps;
 
   const hint = archived
     ? "This story is archived. Restore it from the menu to continue the pipeline."
