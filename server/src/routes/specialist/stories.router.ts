@@ -13,8 +13,9 @@ import {
   STORIES_COLLECTION,
   createStoryForGeneration,
   isTransitionAllowed,
+  toPageIllustrations,
 } from "@/models/story.model";
-import type { Story, StoryStatus, StoryPage } from "@/models/story.model";
+import type { Story, StoryStatus, PageIllustration } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 
@@ -336,7 +337,7 @@ async function handlePatchStory(req: Request, res: Response): Promise<void> {
   // When pages are patched, keep currentDraft in sync so the legacy body
   // field stays consistent for UI consumers that still read currentDraft.body.
   if (Array.isArray(patch.pages) && patch.pages.length > 0) {
-    const newPages = patch.pages as StoryPage[];
+    const newPages = patch.pages as PageIllustration[];
     const derivedBody = newPages.map((p) => p.text).join("\n\n");
     const derivedWordCount = newPages.reduce((sum, p) => sum + p.wordCount, 0);
     const existingDraft = story.currentDraft;
@@ -689,7 +690,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       },
       // Persist structured pages when the new JSON-format parser produced them.
       // null when the legacy text-format fallback was used.
-      pages: agent1Result.pages ?? null,
+      pages: agent1Result.pages ? toPageIllustrations(agent1Result.pages) : null,
       updatedAt: now,
     };
 

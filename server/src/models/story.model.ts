@@ -154,11 +154,16 @@ export interface Story {
   agent1Result: Agent1Result | null;
   agent1Versions: Agent1Result[];
   currentDraft: StoryDraft | null;
-  // Structured pages — populated from agent1Result.pages on generation.
-  // Null until first generation; replaced on each regeneration.
-  // Extended with illustration fields in Step 1.3.
-  pages: StoryPage[] | null;
+  // Structured pages — null until first generation.
+  // Upgraded to PageIllustration[] when the illustration pipeline starts.
+  pages: PageIllustration[] | null;
   editHistory: EditHistoryEntry[];
+
+  // Illustration pipeline
+  /** Visual Bible generated once before page prompts. Null until pages_review. */
+  visualBible: VisualBible | null;
+  /** Fixed seed passed to Seedream for every page so style is reproducible. */
+  illustrationSeed: number | null;
 
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
@@ -166,6 +171,14 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
+  /** When all page image prompts were generated (pages_review entered). */
+  promptsGeneratedAt: number | null;
+  /** When all page prompts passed Gate 1 specialist review. */
+  promptsApprovedAt: number | null;
+  /** When Seedream finished generating all page illustrations. */
+  illustrationCompletedAt: number | null;
+  /** When all illustrations passed Gate 2 specialist review. */
+  illustrationReadyAt: number | null;
 }
 
 // ============================================================================
@@ -218,6 +231,27 @@ export function isTransitionAllowed(
 }
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Upgrades a plain StoryPage array (from Agent 1 output) to PageIllustration[]
+ * by adding default illustration fields. Call this when persisting agent1Result.pages
+ * to Story.pages so the types stay in sync.
+ */
+export function toPageIllustrations(pages: StoryPage[]): PageIllustration[] {
+  return pages.map((p) => ({
+    ...p,
+    imagePrompt: null,
+    promptStatus: "pending" as PromptStatus,
+    promptRejectionNote: null,
+    illustrationUrl: null,
+    illustrationStatus: "pending" as IllustrationStatus,
+    illustrationRejectionNote: null,
+  }));
+}
+
+// ============================================================================
 // FACTORY FUNCTION
 // ============================================================================
 
@@ -260,10 +294,17 @@ export function createStoryForGeneration(params: {
       },
     ],
 
+    visualBible: null,
+    illustrationSeed: null,
+
     createdAt: now,
     updatedAt: now,
     lastOpenedAt: now,
     submittedAt: now,
     approvedAt: null,
+    promptsGeneratedAt: null,
+    promptsApprovedAt: null,
+    illustrationCompletedAt: null,
+    illustrationReadyAt: null,
   };
 }

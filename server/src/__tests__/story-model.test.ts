@@ -4,7 +4,9 @@ import {
   STORY_STATUSES,
   createStoryForGeneration,
   isTransitionAllowed,
+  toPageIllustrations,
 } from "@/models/story.model";
+import type { StoryPage } from "@/agent1/types";
 
 // ---------------------------------------------------------------------------
 // Minimal StoryBrief builder for factory tests
@@ -191,5 +193,82 @@ describe("createStoryForGeneration", () => {
     const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
     expect(story.storyType).toBe("fear_anxiety");
     expect(story.ageRange).toBe("7-9");
+  });
+
+  test("visualBible is null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.visualBible).toBeNull();
+  });
+
+  test("illustrationSeed is null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.illustrationSeed).toBeNull();
+  });
+
+  test("illustration timestamps are all null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.promptsGeneratedAt).toBeNull();
+    expect(story.promptsApprovedAt).toBeNull();
+    expect(story.illustrationCompletedAt).toBeNull();
+    expect(story.illustrationReadyAt).toBeNull();
+  });
+});
+
+// ============================================================================
+// Group 5: toPageIllustrations helper
+// ============================================================================
+
+describe("toPageIllustrations", () => {
+  const storyPages: StoryPage[] = [
+    { pageNumber: 1, text: "The rabbit looked up.", wordCount: 4 },
+    { pageNumber: 2, text: "She stepped outside.", wordCount: 3 },
+  ];
+
+  test("returns same number of pages as input", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result).toHaveLength(2);
+  });
+
+  test("preserves StoryPage base fields", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.pageNumber).toBe(1);
+    expect(result[0]?.text).toBe("The rabbit looked up.");
+    expect(result[0]?.wordCount).toBe(4);
+  });
+
+  test("imagePrompt defaults to null", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.imagePrompt).toBeNull();
+    expect(result[1]?.imagePrompt).toBeNull();
+  });
+
+  test("promptStatus defaults to 'pending'", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.promptStatus).toBe("pending");
+    expect(result[1]?.promptStatus).toBe("pending");
+  });
+
+  test("promptRejectionNote defaults to null", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.promptRejectionNote).toBeNull();
+  });
+
+  test("illustrationUrl defaults to null", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.illustrationUrl).toBeNull();
+  });
+
+  test("illustrationStatus defaults to 'pending'", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.illustrationStatus).toBe("pending");
+  });
+
+  test("illustrationRejectionNote defaults to null", () => {
+    const result = toPageIllustrations(storyPages);
+    expect(result[0]?.illustrationRejectionNote).toBeNull();
+  });
+
+  test("empty array returns empty array", () => {
+    expect(toPageIllustrations([])).toEqual([]);
   });
 });
