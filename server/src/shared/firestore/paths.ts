@@ -17,4 +17,7 @@ export const STORAGE_PATHS = {
     `generated-illustrations/${caregiverUid}/${storyId}/page-${pageNumber}.${ext}`,
   templateAsset: (templateId: string, filename: string) =>
     `template-assets/${templateId}/${filename}`,
+  /** Specialist pipeline — no caregiver UID; keyed by storyId and pageNumber. */
+  specialistIllustration: (storyId: string, pageNumber: number, ext: string) =>
+    `specialist-illustrations/${storyId}/page-${pageNumber}.${ext}`,
 } as const;
