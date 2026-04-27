@@ -84,6 +84,52 @@ export interface EditHistoryEntry {
 }
 
 // ============================================================================
+// ILLUSTRATION TYPES
+// ============================================================================
+
+/** Lifecycle of a single page's AI-generated image prompt through Gate 1 review. */
+export type PromptStatus = "pending" | "approved" | "rejected";
+
+/** Lifecycle of a single page's Seedream-generated illustration through Gate 2 review. */
+export type IllustrationStatus = "pending" | "generating" | "done" | "failed";
+
+/**
+ * Extends StoryPage with image prompt and illustration fields.
+ * `pages` on Story becomes PageIllustration[] once the illustration pipeline starts.
+ */
+export interface PageIllustration extends StoryPage {
+  /** Claude-generated Seedream prompt text. Null until prompts are generated. */
+  imagePrompt: string | null;
+  /** Gate 1 specialist review decision. */
+  promptStatus: PromptStatus;
+  /** Specialist note when rejecting a prompt (feeds into regeneration). */
+  promptRejectionNote: string | null;
+  /** Firebase Storage URL of the generated illustration. Null until done. */
+  illustrationUrl: string | null;
+  /** Gate 2 specialist review decision. */
+  illustrationStatus: IllustrationStatus;
+  /** Specialist note when failing an illustration (feeds into re-generation). */
+  illustrationRejectionNote: string | null;
+}
+
+/**
+ * One-time Claude artifact that anchors visual consistency across all pages.
+ * Generated once per story before any page prompts are created.
+ */
+export interface VisualBible {
+  /** Physical description of the protagonist for all pages. */
+  protagonist: string;
+  /** Art style directive (medium, palette, line quality). */
+  styleGuide: string;
+  /** Environment/setting descriptions keyed by scene label. */
+  environmentRegistry: Record<string, string>;
+  /** Hex palette or colour name list, comma-separated. */
+  palette: string;
+  /** ms since epoch */
+  generatedAt: number;
+}
+
+// ============================================================================
 // STORY INTERFACE
 // ============================================================================
 
