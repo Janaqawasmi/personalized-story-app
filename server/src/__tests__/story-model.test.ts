@@ -58,8 +58,40 @@ describe("isTransitionAllowed", () => {
     expect(isTransitionAllowed("in_review", "draft_brief")).toBe(false);
   });
 
-  test('approved → published is allowed', () => {
-    expect(isTransitionAllowed("approved", "published")).toBe(true);
+  test('approved → published is NOT allowed (must go through illustration pipeline)', () => {
+    expect(isTransitionAllowed("approved", "published")).toBe(false);
+  });
+
+  test('approved → pages_review is allowed', () => {
+    expect(isTransitionAllowed("approved", "pages_review")).toBe(true);
+  });
+
+  test('pages_review → illustrating is allowed', () => {
+    expect(isTransitionAllowed("pages_review", "illustrating")).toBe(true);
+  });
+
+  test('illustrating → illustration_review is allowed', () => {
+    expect(isTransitionAllowed("illustrating", "illustration_review")).toBe(true);
+  });
+
+  test('illustrating → pages_review is allowed (catastrophic failure fallback)', () => {
+    expect(isTransitionAllowed("illustrating", "pages_review")).toBe(true);
+  });
+
+  test('illustration_review → illustration_ready is allowed', () => {
+    expect(isTransitionAllowed("illustration_review", "illustration_ready")).toBe(true);
+  });
+
+  test('illustration_review → illustrating is allowed (re-trigger failed pages)', () => {
+    expect(isTransitionAllowed("illustration_review", "illustrating")).toBe(true);
+  });
+
+  test('illustration_ready → published is allowed', () => {
+    expect(isTransitionAllowed("illustration_ready", "published")).toBe(true);
+  });
+
+  test('illustration_ready → illustration_review is allowed (reopen review)', () => {
+    expect(isTransitionAllowed("illustration_ready", "illustration_review")).toBe(true);
   });
 
   test('archived → draft_brief is allowed (restore)', () => {

@@ -132,22 +132,34 @@ interface Transition {
 }
 
 export const ALLOWED_TRANSITIONS: readonly Transition[] = [
-  { from: "draft_brief",     to: "generating" },
-  { from: "draft_brief",     to: "archived" },
-  { from: "generating",      to: "awaiting_review" },
-  { from: "generating",      to: "draft_brief" },
-  { from: "awaiting_review", to: "in_review" },
-  { from: "in_review",       to: "needs_revision" },
-  { from: "in_review",       to: "approved" },
-  { from: "in_review",       to: "archived" },
-  { from: "needs_revision",  to: "awaiting_review" },
-  { from: "needs_revision",  to: "in_review" },
-  { from: "approved",        to: "published" },
-  { from: "approved",        to: "in_review" },
-  { from: "approved",        to: "archived" },
-  { from: "published",       to: "archived" },
-  { from: "archived",        to: "draft_brief" },
-  { from: "archived",        to: "in_review" },
+  { from: "draft_brief",          to: "generating" },
+  { from: "draft_brief",          to: "archived" },
+  { from: "generating",           to: "awaiting_review" },
+  { from: "generating",           to: "draft_brief" },
+  { from: "awaiting_review",      to: "in_review" },
+  { from: "in_review",            to: "needs_revision" },
+  { from: "in_review",            to: "approved" },
+  { from: "in_review",            to: "archived" },
+  { from: "needs_revision",       to: "awaiting_review" },
+  { from: "needs_revision",       to: "in_review" },
+  // approved → pages_review is the auto-advance; direct publish removed.
+  { from: "approved",             to: "pages_review" },
+  { from: "approved",             to: "in_review" },
+  { from: "approved",             to: "archived" },
+  // Illustration pipeline
+  { from: "pages_review",         to: "illustrating" },
+  { from: "pages_review",         to: "archived" },
+  { from: "illustrating",         to: "illustration_review" },
+  { from: "illustrating",         to: "pages_review" },   // catastrophic failure fallback
+  { from: "illustration_review",  to: "illustrating" },   // re-trigger failed pages
+  { from: "illustration_review",  to: "illustration_ready" },
+  { from: "illustration_review",  to: "archived" },
+  { from: "illustration_ready",   to: "published" },
+  { from: "illustration_ready",   to: "illustration_review" },  // reopen review
+  { from: "illustration_ready",   to: "archived" },
+  { from: "published",            to: "archived" },
+  { from: "archived",             to: "draft_brief" },
+  { from: "archived",             to: "in_review" },
 ];
 
 export function isTransitionAllowed(
