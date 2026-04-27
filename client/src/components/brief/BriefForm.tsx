@@ -246,6 +246,8 @@ interface Props {
    */
   onSubmit?: (brief: CompleteBrief) => Promise<{ briefId: string }>;
   storageAdapter?: BriefFormStorageAdapter;
+  /** When false, skip the built-in success screen after submit. */
+  showSubmitSuccess?: boolean;
   /**
    * Fired when the specialist edits the brief (any section), selects a story type, or advances —
    * not on initial load from storage.
@@ -435,7 +437,7 @@ function legacyAdapter(draftId: string): BriefFormStorageAdapter {
 // ============================================================================
 
 function BriefFormInner(props: Props) {
-  const { onSubmit, storageAdapter, onUserInteraction } = props;
+  const { onSubmit, storageAdapter, onUserInteraction, showSubmitSuccess = true } = props;
 
   const touchUserInteraction = useCallback(() => {
     onUserInteraction?.();
@@ -789,7 +791,9 @@ function BriefFormInner(props: Props) {
       }
       adapter.onSubmitted();
       resetComplexitySession();
-      setSubmitSuccess({ briefId, jsonText });
+      if (showSubmitSuccess) {
+        setSubmitSuccess({ briefId, jsonText });
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : ui.submitErrorGeneric;
@@ -813,7 +817,7 @@ function BriefFormInner(props: Props) {
 
   // ── Post-submit success ─
 
-  if (submitSuccess) {
+  if (showSubmitSuccess && submitSuccess) {
     return (
       <BriefPageWithSidebar
         briefId={feedbackBriefId}

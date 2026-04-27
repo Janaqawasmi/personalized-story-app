@@ -137,11 +137,38 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
 
   const handleSubmit = useCallback(
     async (_brief: CompleteBrief): Promise<{ briefId: string }> => {
-      const updated = await draftStore.submitBrief(story.id);
-      onStoryUpdate(updated);
+      const now = Date.now();
+      const optimistic: Story = {
+        ...story,
+        status: "generating",
+        briefStatus: "submitted",
+        submittedAt: story.submittedAt ?? now,
+        updatedAt: now,
+      };
+      onStoryUpdate(optimistic);
+      navigate(`${base}/stories/${story.id}/brief`, { replace: true });
+
+      // Run the expensive server generation in background so the UI can switch
+      // immediately to the submitted/read-only brief state.
+      void draftStore.submitBrief(story.id).then(
+        (updated) => {
+          onStoryUpdate(updated);
+        },
+        async () => {
+          // If submission fails, recover story state so BriefTab can show
+          // "Generation failed" and allow edits again.
+          setGenerationFailed(true);
+          try {
+            const recovered = await draftStore.getStory(story.id);
+            if (recovered) onStoryUpdate(recovered);
+          } catch {
+            // Keep optimistic state; polling/error banners handle follow-up.
+          }
+        },
+      );
       return { briefId: story.id };
     },
-    [story.id, onStoryUpdate],
+    [story, onStoryUpdate, navigate, base],
   );
 
   // ---- "Open new revision" ----
@@ -250,6 +277,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
         <BriefForm
           storageAdapter={storageAdapter}
           onSubmit={handleSubmit}
+          showSubmitSuccess={false}
           onUserInteraction={() => setWelcomeDismissed(true)}
         />
       </Box>
