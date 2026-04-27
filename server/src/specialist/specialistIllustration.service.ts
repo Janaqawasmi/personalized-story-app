@@ -20,12 +20,14 @@
 //   approveIllustration(storyId, pageNumber, uid)          — Step 7.x
 //   rejectIllustration(storyId, pageNumber, note, uid)     — Step 7.x
 
-import { firestore } from "@/config/firebase";
+import { firestore, admin } from "@/config/firebase";
 import { FieldValue } from "firebase-admin/firestore";
 import type { ImageGenerationProvider } from "@/shared/types/aiProvider";
 import { STORIES_COLLECTION } from "@/models/story.model";
-import type { Story, PageIllustration } from "@/models/story.model";
+import type { Story, PageIllustration, StoryStatus } from "@/models/story.model";
+import { STORAGE_PATHS } from "@/shared/firestore/paths";
 import { callClaudeForImagePrompts } from "./image-prompt-generator";
+import { assembleSeedreamPrompt } from "./prompt-builder";
 
 // ---------------------------------------------------------------------------
 // Provider registration (parallel to fullStoryGeneration pattern)
@@ -132,12 +134,113 @@ export async function generateImagePromptsForPages(
 export { assembleSeedreamPrompt } from "./prompt-builder";
 
 // ---------------------------------------------------------------------------
-// Step 6.1 placeholder
+// Step 6.1 — Trigger Seedream illustration generation for all approved pages
 // ---------------------------------------------------------------------------
 
+/**
+ * Generates Seedream illustrations for all pages whose prompts are approved.
+ * Page 1 is generated without a reference image; pages 2-N use page 1's
+ * buffer as a style reference. A fixed seed anchors reproducibility.
+ *
+ * Per-page failures are recorded as illustrationStatus "failed" rather than
+ * aborting the whole batch. The story advances to illustration_review once
+ * all pages have been attempted.
+ */
 export async function triggerIllustrationGeneration(
-  _storyId: string,
+  storyId: string,
   _specialistUid: string,
 ): Promise<void> {
-  throw new Error("triggerIllustrationGeneration: not yet implemented");
+  const provider = requireIllustrationProvider();
+  const story = await loadStory(storyId);
+
+  if (story.status !== "illustrating") {
+    throw new Error(
+      `triggerIllustrationGeneration: story must be in 'illustrating' status, got '${story.status}'`,
+    );
+  }
+
+  if (!story.pages || story.pages.length === 0) {
+    throw new Error(`triggerIllustrationGeneration: story ${storyId} has no pages`);
+  }
+
+  if (!story.visualBible) {
+    throw new Error(`triggerIllustrationGeneration: story ${storyId} has no visualBible`);
+  }
+
+  const seed = story.illustrationSeed ?? undefined;
+  const updatedPages: PageIllustration[] = [...story.pages];
+  let page1Buffer: Buffer | undefined;
+
+  for (let i = 0; i < updatedPages.length; i++) {
+    const page = updatedPages[i]!;
+
+    if (page.promptStatus !== "approved" || !page.imagePrompt) {
+      updatedPages[i] = {
+        ...page,
+        illustrationStatus: "failed",
+        illustrationRejectionNote: "Prompt not approved — skipped.",
+      };
+      continue;
+    }
+
+    updatedPages[i] = { ...page, illustrationStatus: "generating" };
+
+    try {
+      const seedreamPrompt = assembleSeedreamPrompt(page, story.visualBible);
+
+      const result = await provider.generateImage({
+        textPrompt: seedreamPrompt,
+        ...(i > 0 && page1Buffer ? { referenceImage: page1Buffer, referenceImageMediaType: "image/png" } : {}),
+        outputFormat: "png",
+        outputWidth: 1024,
+        outputHeight: 1024,
+        ...(seed !== undefined ? { seed } : {}),
+      });
+
+      if (i === 0) {
+        page1Buffer = result.imageBuffer;
+      }
+
+      const ext = result.mimeType.split("/")[1] ?? "png";
+      const storagePath = STORAGE_PATHS.specialistIllustration(storyId, page.pageNumber, ext);
+      const bucket = admin.storage().bucket();
+      await bucket.file(storagePath).save(result.imageBuffer, {
+        metadata: { contentType: result.mimeType },
+      });
+
+      // Make publicly readable and get a permanent URL
+      await bucket.file(storagePath).makePublic();
+      const illustrationUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+
+      updatedPages[i] = {
+        ...updatedPages[i]!,
+        illustrationUrl,
+        illustrationStatus: "done",
+      };
+    } catch (err) {
+      console.error(
+        `[illustration-pipeline] page ${page.pageNumber} generation failed:`,
+        err,
+      );
+      updatedPages[i] = {
+        ...updatedPages[i]!,
+        illustrationStatus: "failed",
+        illustrationRejectionNote:
+          err instanceof Error ? err.message : "Unknown generation error.",
+      };
+    }
+
+    // Persist progress after each page
+    await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
+      pages: updatedPages,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Advance to illustration_review regardless of per-page failures
+  await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
+    status: "illustration_review" as StoryStatus,
+    illustrationCompletedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
 }

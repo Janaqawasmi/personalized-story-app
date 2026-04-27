@@ -25,6 +25,7 @@ import { admin, firestore } from "./config/firebase";
 import { SeedreamProvider } from "./providers/seedream.provider";
 import { registerImageProvider } from "./services/preview.service";
 import { registerImageProviderForStory } from "./services/fullStoryGeneration.service";
+import { registerIllustrationProvider } from "./specialist/specialistIllustration.service";
 
 import dammaStoryBriefRouter from "./routes/dammaStoryBrief.routes";
 import templateRoutes from "./routes/template.routes";
@@ -55,6 +56,7 @@ if (process.env.SEEDREAM_API_KEY) {
   const seedream = new SeedreamProvider();
   registerImageProvider(seedream);
   registerImageProviderForStory(seedream);
+  registerIllustrationProvider(seedream);
   console.log("Seedream image provider registered.");
 } else {
   console.warn(
