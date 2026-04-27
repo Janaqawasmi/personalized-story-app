@@ -13,9 +13,11 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Chip from "@mui/material/Chip";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import Alert from "@mui/material/Alert";
 import ImageIcon from "@mui/icons-material/Image";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 
@@ -206,32 +208,90 @@ interface IllustrationsTabProps {
   onStoryUpdate: (story: Story) => void;
 }
 
+function ApprovedPanel({
+  story,
+  onStoryUpdate,
+}: {
+  story: Story;
+  onStoryUpdate: (s: Story) => void;
+}) {
+  const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleStart() {
+    setStarting(true);
+    setError(null);
+    try {
+      const updated = await api.transitionStory(story.id, "prompt_review");
+      onStoryUpdate(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to start prompt generation.");
+      setStarting(false);
+    }
+  }
+
+  return (
+    <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 5, pb: 6 }}>
+      <Stack alignItems="center" spacing={3} sx={{ maxWidth: 480, mx: "auto", textAlign: "center" }}>
+        <Box
+          sx={{ width: 64, height: 64, borderRadius: "50%", bgcolor: "#eaf0e4",
+            display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <AutoAwesomeIcon sx={{ fontSize: 30, color: COLORS.success }} />
+        </Box>
+
+        <Box>
+          <Typography variant="h6"
+            sx={{ fontFamily: DESIGN_TOKENS.fontDisplay, fontWeight: 700,
+              color: COLORS.textPrimary, mb: 0.75 }}>
+            Story approved
+          </Typography>
+          <Typography variant="body2" sx={{ color: COLORS.textSecondary, lineHeight: 1.7 }}>
+            The next step is to generate one AI image prompt per page.
+            Claude will create a Visual Bible and a tailored prompt for each page —
+            you'll review them before any illustrations are produced.
+          </Typography>
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ width: "100%", borderRadius: 2, textAlign: "left" }}>
+            {error}
+          </Alert>
+        )}
+
+        <Button
+          variant="contained"
+          size="large"
+          disabled={starting}
+          onClick={handleStart}
+          startIcon={starting
+            ? <CircularProgress size={18} color="inherit" />
+            : <AutoAwesomeIcon />}
+          sx={{
+            px: 4, py: 1.4, fontWeight: 700, borderRadius: 2,
+            bgcolor: COLORS.primary, "&:hover": { bgcolor: COLORS.primaryDark },
+            boxShadow: "0 8px 24px -8px rgba(97,120,145,0.45)",
+          }}
+        >
+          {starting ? "Starting…" : "Generate image prompts"}
+        </Button>
+
+        <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+          This usually takes under a minute. You can navigate away and come back.
+        </Typography>
+      </Stack>
+    </Box>
+  );
+}
+
 export default function IllustrationsTab({ story, onStoryUpdate }: IllustrationsTabProps) {
   function handleStatusChange(status: Story["status"]) {
     onStoryUpdate({ ...story, status });
   }
 
-  // Poll when status is "approved" (prompts still generating server-side)
-  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (story.status !== "approved") return;
-    pollRef.current = setTimeout(async () => {
-      try {
-        const updated = await draftStore.getStory(story.id);
-        if (updated && updated.status !== "approved") onStoryUpdate(updated);
-      } catch { /* silent */ }
-    }, POLL_INTERVAL_MS);
-    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
-  });
-
   switch (story.status) {
     case "approved":
-      return (
-        <PipelineLoader
-          label="Generating image prompts…"
-          hint="Claude is creating one image prompt per page. This usually takes under a minute."
-        />
-      );
+      return <ApprovedPanel story={story} onStoryUpdate={onStoryUpdate} />;
 
     case "prompt_review":
       return (
