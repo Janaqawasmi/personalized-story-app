@@ -101,12 +101,22 @@ export type StoryPage = {
   wordCount: number;
 };
 
+export type PageCountDrift = "within_range" | "under" | "over";
+
 export type Step2Output = {
   title: string;
+  // Legacy single-string story body — kept for backward compat.
+  // Derived from joining pages[].text once pages are populated.
   story: string;
   wordCount: number;
   targetWordRange: readonly [number, number];
   wordCountDrift: "within_range" | "under" | "over";
+  // Structured page output — populated by the JSON-format parser (Step 0.4).
+  // Optional until the parser is updated; required thereafter.
+  pages?: StoryPage[];
+  pageCount?: number;
+  targetPageRange?: readonly [number, number];
+  pageCountDrift?: PageCountDrift;
   rawResponse: string;
   promptHash: string;
   llmCallRecord: LLMCallRecord;
