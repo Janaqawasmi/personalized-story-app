@@ -91,7 +91,7 @@ export default function DraftTabB({
 
   const [hoveredFlagIndex, setHoveredFlagIndex] = useState<number | null>(null);
 
-  const [storyFont, setStoryFont] = useState<"serif" | "sans">(() => {
+  const [storyFont] = useState<"serif" | "sans">(() => {
     try {
       const v = sessionStorage.getItem(FONT_STORAGE_KEY);
       if (v === "sans" || v === "serif") return v;
