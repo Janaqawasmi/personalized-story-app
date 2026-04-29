@@ -1094,11 +1094,31 @@ async function handleReviewPrompt(req: Request, res: Response): Promise<void> {
       promptsApprovedAt: now,
       updatedAt: now,
     });
-    triggerIllustrationGeneration(storyId, ownerUid).catch((err: unknown) => {
+    triggerIllustrationGeneration(storyId, ownerUid).catch(async (err: unknown) => {
       console.error(
         `[illustration-pipeline] triggerIllustrationGeneration failed for story ${storyId}:`,
         err,
       );
+      try {
+        const latestDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
+        if (!latestDoc.exists) return;
+        const latestStory = latestDoc.data() as Story;
+        if (latestStory.status !== "illustrating") return;
+
+        await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
+          status: "prompt_review" as StoryStatus,
+          promptsApprovedAt: null,
+          updatedAt: Date.now(),
+        });
+        console.error(
+          `[illustration-pipeline] Rolled story ${storyId} back to prompt_review after trigger failure.`,
+        );
+      } catch (rollbackErr) {
+        console.error(
+          `[illustration-pipeline] Failed to roll story ${storyId} back to prompt_review:`,
+          rollbackErr,
+        );
+      }
     });
   }
 
