@@ -168,7 +168,7 @@ export async function triggerIllustrationGeneration(
 
   const seed = story.illustrationSeed ?? undefined;
   const updatedPages: PageIllustration[] = [...story.pages];
-  let page1Buffer: Buffer | undefined;
+  let page1Url: string | undefined;
 
   for (let i = 0; i < updatedPages.length; i++) {
     const page = updatedPages[i]!;
@@ -189,18 +189,14 @@ export async function triggerIllustrationGeneration(
 
       const result = await provider.generateImage({
         textPrompt: seedreamPrompt,
-        ...(i > 0 && page1Buffer ? { referenceImage: page1Buffer, referenceImageMediaType: "image/png" } : {}),
-        outputFormat: "png",
+        // Pages 2-N use page 1's public Firebase Storage URL for style consistency.
+        ...(i > 0 && page1Url ? { referenceImage: page1Url } : {}),
         outputWidth: 1024,
         outputHeight: 1024,
         ...(seed !== undefined ? { seed } : {}),
       });
 
-      if (i === 0) {
-        page1Buffer = result.imageBuffer;
-      }
-
-      const ext = result.mimeType.split("/")[1] ?? "png";
+      const ext = result.mimeType.split("/")[1] ?? "jpeg";
       const storagePath = STORAGE_PATHS.specialistIllustration(storyId, page.pageNumber, ext);
       const bucket = admin.storage().bucket();
       await bucket.file(storagePath).save(result.imageBuffer, {
@@ -210,6 +206,11 @@ export async function triggerIllustrationGeneration(
       // Make publicly readable and get a permanent URL
       await bucket.file(storagePath).makePublic();
       const illustrationUrl = `https://storage.googleapis.com/${bucket.name}/${storagePath}`;
+
+      // Capture page 1's URL so pages 2-N can use it as a style reference.
+      if (i === 0) {
+        page1Url = illustrationUrl;
+      }
 
       updatedPages[i] = {
         ...updatedPages[i]!,

@@ -225,8 +225,9 @@ async function runFullStoryGeneration(
       (p) => !previewPageNumbers.has(p.pageNumber)
     );
 
-    // Load photo for remaining page generation
-    let photoBuffer: Buffer | null = null;
+    // Generate a short-lived signed URL so Seedream can fetch the child's photo.
+    // Requires the service account to have iam.serviceAccounts.signBlob permission.
+    let photoSignedUrl: string | null = null;
     if (
       preview.photoPath &&
       preview.photoStatus !== "deleted" &&
@@ -236,11 +237,14 @@ async function runFullStoryGeneration(
         const photoFile = bucket.file(preview.photoPath);
         const [exists] = await photoFile.exists();
         if (exists) {
-          const [buffer] = await photoFile.download();
-          photoBuffer = buffer;
+          const [url] = await photoFile.getSignedUrl({
+            action: "read",
+            expires: Date.now() + 60 * 60 * 1000, // 1 hour — covers full story generation
+          });
+          photoSignedUrl = url;
         }
       } catch {
-        console.warn(`Could not load preview photo for story ${storyId}`);
+        console.warn(`Could not generate signed URL for preview photo of story ${storyId}`);
       }
     }
 
@@ -257,12 +261,11 @@ async function runFullStoryGeneration(
           let generatedImagePath: string | null = null;
           let aiMetadata: PersonalizedStoryPage["aiMetadata"] = null;
 
-          if (photoBuffer) {
+          if (photoSignedUrl) {
             const imageResult: ImageGenerationResult = await imageProvider.generateImage({
               textPrompt: imagePrompt,
-              referenceImage: photoBuffer,
+              referenceImage: photoSignedUrl,
               style: templatePage.emotionalTone,
-              outputFormat: "webp",
               outputWidth: 1024,
               outputHeight: 1024,
             });
@@ -321,7 +324,7 @@ async function runFullStoryGeneration(
     }
 
     // Step 3: Retry failed pages once
-    if (failedIndexes.length > 0 && photoBuffer) {
+    if (failedIndexes.length > 0 && photoSignedUrl) {
       const retryPages = template.pages.filter((p) =>
         failedIndexes.includes(p.pageNumber)
       );
@@ -335,9 +338,8 @@ async function runFullStoryGeneration(
 
           const imageResult = await imageProvider.generateImage({
             textPrompt: imagePrompt,
-            referenceImage: photoBuffer,
+            referenceImage: photoSignedUrl,
             style: templatePage.emotionalTone,
-            outputFormat: "webp",
             outputWidth: 1024,
             outputHeight: 1024,
           });

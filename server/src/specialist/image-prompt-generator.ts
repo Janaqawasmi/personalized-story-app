@@ -71,7 +71,7 @@ export function buildImagePromptsPrompt(
   return `You are a children's book art director. You will read a therapeutic picture-book story and produce two things:
 
 1. A VISUAL BIBLE that anchors every illustration in a consistent visual world.
-2. One SEEDREAM IMAGE PROMPT per page — concise, visual, and consistent with the bible.
+2. One SEEDREAM 4.0 IMAGE PROMPT per page — a concise natural-language scene description.
 
 STORY CONTEXT:
 Age range: ${ageLabel}
@@ -86,16 +86,19 @@ VISUAL BIBLE rules:
 - protagonist: one sentence describing the main character's permanent physical appearance (species, size, colour, clothing). No names.
 - styleGuide: one sentence specifying art medium and mood (e.g. "Soft watercolour, warm earthy tones, gentle rounded shapes").
 - environmentRegistry: an object mapping each distinct setting that appears in the story to a one-sentence visual description. Keys are lowercase scene labels (e.g. "bedroom", "garden").
-- palette: a comma-separated list of 4-6 hex colours OR descriptive colour names that capture the story's emotional tone.
+- palette: a comma-separated list of 4–6 hex colours OR descriptive colour names that capture the story's emotional tone.
 
-IMAGE PROMPT rules per page:
-- 1-3 sentences. Describe the key visual moment of that page.
-- Start with the protagonist description from the Visual Bible (abbreviated after page 1).
+IMAGE PROMPT rules per page (Seedream 4.0 style):
+- 1–2 sentences only. Describe the key visual moment as coherent natural language: subject + action + environment.
 - Mention the specific setting from the environment registry.
-- End with the art style from the styleGuide.
+- Do NOT repeat the style or character description — those are appended separately.
+- Do NOT use keyword lists (e.g. "rabbit, meadow, sunshine" is wrong).
 - Do NOT include text, speech bubbles, or logos.
-- Do NOT reference emotions directly — show them through posture, environment, light.
+- Do NOT reference emotions directly — show them through posture, environment, and light.
 - Do NOT include anything age-inappropriate or frightening.
+
+EXAMPLE of a good image prompt:
+"A small brown rabbit sits in a sun-dappled garden clearing, reaching one paw toward a glowing firefly hovering just out of reach."
 
 OUTPUT: Reply with ONLY valid JSON matching this exact schema (no markdown fences):
 {

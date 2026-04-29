@@ -1,41 +1,44 @@
 // server/src/providers/seedream.provider.ts
 //
-// Implements ImageGenerationProvider for ByteDance Seedream 3.0.
+// Implements ImageGenerationProvider for BytePlus ModelArk Seedream 4.0.
 // Env vars required:
-//   SEEDREAM_API_KEY  — API key for the Seedream service
-//   SEEDREAM_API_URL  — Base URL (default: https://api.seeeddream.com/v2)
+//   ARK_API_KEY         — API key for BytePlus ModelArk
+//   ARK_API_URL         — Base URL (default: https://ark.ap-southeast.bytepluses.com/api/v3)
+//   SEEDREAM_MODEL_ID   — Model ID (default: seedream-4-0-250828)
 //
-// Page-1 of a story is generated with no referenceImage (model's own style).
-// Pages 2-N pass the page-1 output Buffer as referenceImage for consistency.
-// A fixed numeric seed is passed on every call to make the style reproducible.
+// Text-to-image (page 1): no referenceImage.
+// Image-to-image (pages 2-N): pass page 1's public Firebase Storage URL as referenceImage.
+// A fixed numeric seed is passed on every call for style reproducibility.
 
 import type {
   ImageGenerationProvider,
   ImageGenerationResult,
 } from "@/shared/types/aiProvider";
 
-const DEFAULT_API_URL = "https://api.seeeddream.com/v2";
+const DEFAULT_API_URL = "https://ark.ap-southeast.bytepluses.com/api/v3";
+const DEFAULT_MODEL_ID = "seedream-4-0-250828";
+const DEFAULT_GUIDANCE_SCALE = 7.5;
+const PROMPT_WARN_CHARS = 1200; // ~300-token threshold per official docs
 
-interface SeedreamGenerateRequest {
+interface SeedreamRequest {
   model: string;
   prompt: string;
   n?: number;
   size?: string;
-  image_format?: string;
+  response_format?: string;
   seed?: number;
-  reference_image?: string; // base64 data URI or URL
+  guidance_scale?: number;
+  watermark?: boolean;
+  image?: string;
 }
 
-interface SeedreamGenerateResponse {
+interface SeedreamResponse {
+  created?: number;
   data: Array<{
     b64_json?: string;
     url?: string;
+    revised_prompt?: string;
   }>;
-  model: string;
-  usage?: {
-    prompt_tokens?: number;
-    completion_tokens?: number;
-  };
 }
 
 export class SeedreamProvider implements ImageGenerationProvider {
@@ -46,13 +49,13 @@ export class SeedreamProvider implements ImageGenerationProvider {
   private readonly apiUrl: string;
 
   constructor(options?: { apiKey?: string; apiUrl?: string; modelId?: string }) {
-    this.apiKey = options?.apiKey ?? process.env.SEEDREAM_API_KEY ?? "";
-    this.apiUrl = options?.apiUrl ?? process.env.SEEDREAM_API_URL ?? DEFAULT_API_URL;
-    this.modelId = options?.modelId ?? "seedream-3";
+    this.apiKey = options?.apiKey ?? process.env.ARK_API_KEY ?? "";
+    this.apiUrl = options?.apiUrl ?? process.env.ARK_API_URL ?? DEFAULT_API_URL;
+    this.modelId = options?.modelId ?? process.env.SEEDREAM_MODEL_ID ?? DEFAULT_MODEL_ID;
 
     if (!this.apiKey) {
       throw new Error(
-        "SeedreamProvider: SEEDREAM_API_KEY is not set. " +
+        "SeedreamProvider: ARK_API_KEY is not set. " +
           "Set it in the environment or pass apiKey in the constructor.",
       );
     }
@@ -60,10 +63,9 @@ export class SeedreamProvider implements ImageGenerationProvider {
 
   async generateImage(params: {
     textPrompt: string;
-    referenceImage?: Buffer | string;
-    referenceImageMediaType?: string;
+    referenceImage?: string;
     style?: string;
-    outputFormat?: "png" | "jpeg" | "webp";
+    outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
     seed?: number;
@@ -71,26 +73,28 @@ export class SeedreamProvider implements ImageGenerationProvider {
   }): Promise<ImageGenerationResult> {
     const startMs = Date.now();
 
-    const outputFormat = params.outputFormat ?? "png";
-    const width = params.outputWidth ?? 1024;
-    const height = params.outputHeight ?? 1024;
-    const size = `${width}x${height}`;
+    if (params.textPrompt.length > PROMPT_WARN_CHARS) {
+      console.warn(
+        `SeedreamProvider: prompt is ${params.textPrompt.length} chars — may exceed 300-token limit and be truncated.`,
+      );
+    }
 
-    const body: SeedreamGenerateRequest = {
+    const guidanceScale =
+      typeof params.additionalParams?.guidance_scale === "number"
+        ? params.additionalParams.guidance_scale
+        : DEFAULT_GUIDANCE_SCALE;
+
+    const body: SeedreamRequest = {
       model: this.modelId,
       prompt: params.textPrompt,
       n: 1,
-      size,
-      image_format: outputFormat,
+      size: "2K",
+      response_format: "b64_json",
+      watermark: false,
+      guidance_scale: guidanceScale,
       ...(params.seed !== undefined ? { seed: params.seed } : {}),
+      ...(params.referenceImage !== undefined ? { image: params.referenceImage } : {}),
     };
-
-    if (params.referenceImage !== undefined) {
-      body.reference_image = this.toDataUri(
-        params.referenceImage,
-        params.referenceImageMediaType ?? `image/${outputFormat}`,
-      );
-    }
 
     const response = await fetch(`${this.apiUrl}/images/generations`, {
       method: "POST",
@@ -103,12 +107,10 @@ export class SeedreamProvider implements ImageGenerationProvider {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => "(no body)");
-      throw new Error(
-        `SeedreamProvider: HTTP ${response.status} — ${errorText}`,
-      );
+      throw new Error(`SeedreamProvider: HTTP ${response.status} — ${errorText}`);
     }
 
-    const json = (await response.json()) as SeedreamGenerateResponse;
+    const json = (await response.json()) as SeedreamResponse;
     const item = json.data[0];
 
     if (!item) {
@@ -116,11 +118,9 @@ export class SeedreamProvider implements ImageGenerationProvider {
     }
 
     let imageBuffer: Buffer;
-    let mimeType: string;
 
     if (item.b64_json) {
       imageBuffer = Buffer.from(item.b64_json, "base64");
-      mimeType = `image/${outputFormat}`;
     } else if (item.url) {
       const imgResponse = await fetch(item.url);
       if (!imgResponse.ok) {
@@ -128,30 +128,20 @@ export class SeedreamProvider implements ImageGenerationProvider {
           `SeedreamProvider: failed to download image from URL ${item.url}`,
         );
       }
-      const arrayBuffer = await imgResponse.arrayBuffer();
-      imageBuffer = Buffer.from(arrayBuffer);
-      mimeType =
-        imgResponse.headers.get("content-type") ?? `image/${outputFormat}`;
+      imageBuffer = Buffer.from(await imgResponse.arrayBuffer());
     } else {
-      throw new Error(
-        "SeedreamProvider: response item has neither b64_json nor url",
-      );
+      throw new Error("SeedreamProvider: response item has neither b64_json nor url");
     }
 
     return {
       imageBuffer,
-      mimeType,
+      mimeType: "image/jpeg",
       providerId: this.providerId,
       modelId: this.modelId,
       latencyMs: Date.now() - startMs,
+      ...(item.revised_prompt
+        ? { providerMetadata: { revised_prompt: item.revised_prompt } }
+        : {}),
     };
-  }
-
-  private toDataUri(image: Buffer | string, mimeType: string): string {
-    if (typeof image === "string") {
-      // Already a data URI or URL — pass through
-      return image;
-    }
-    return `data:${mimeType};base64,${image.toString("base64")}`;
   }
 }

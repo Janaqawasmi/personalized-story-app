@@ -6,7 +6,7 @@
 
 import "dotenv/config";
 console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
-console.log("SEEDREAM KEY EXISTS:", !!process.env.SEEDREAM_API_KEY);
+console.log("ARK API KEY EXISTS:", !!process.env.ARK_API_KEY);
 
 // ---------- GLOBAL ERROR HANDLERS ----------
 process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
@@ -52,7 +52,7 @@ import caregiverStoriesRouter from "./routes/caregiver/stories.router";
 // ---------- IMAGE PROVIDER ----------
 // Register Seedream as the image generation backend for all services.
 // Guarded so the server still boots in test/CI environments without the key.
-if (process.env.SEEDREAM_API_KEY) {
+if (process.env.ARK_API_KEY) {
   const seedream = new SeedreamProvider();
   registerImageProvider(seedream);
   registerImageProviderForStory(seedream);

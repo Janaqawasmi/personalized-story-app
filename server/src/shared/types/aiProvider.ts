@@ -25,11 +25,10 @@ export interface ImageGenerationProvider {
 
   generateImage(params: {
     textPrompt: string;
-    /** Optional reference image for style consistency. Omit for the first page. */
-    referenceImage?: Buffer | string;
-    referenceImageMediaType?: string;
+    /** Public or signed URL of a reference image. Omit for the first page. */
+    referenceImage?: string;
     style?: string;
-    outputFormat?: "png" | "jpeg" | "webp";
+    outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
     seed?: number;
