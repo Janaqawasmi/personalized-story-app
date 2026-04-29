@@ -27,6 +27,33 @@ interface BookSpreadProps {
   canGoPrev?: boolean;
   isFullScreen?: boolean;
   nextPage?: Page;
+
+  /* Mobile-only: control panel state injected from BookReaderPage.
+     When this prop is present and the viewport is mobile, BookSpread renders
+     a tap-to-toggle controls panel that gives full TTS parity with desktop. */
+  mobileControls?: {
+    onClose: () => void;
+    onReadStory: () => void;
+    onPauseResume: () => void;
+    onStopReading: () => void;
+    onToggleAutoRead: () => void;
+    autoRead: boolean;
+    isReading: boolean;
+    isPaused: boolean;
+    voices: SpeechSynthesisVoice[];
+    selectedVoiceName: string;
+    onSelectVoice: (name: string) => void;
+    labels: {
+      close: string;
+      read: string;
+      pause: string;
+      resume: string;
+      stop: string;
+      autoRead: string;
+      voice: string;
+      voiceAuto: string;
+    };
+  };
 }
 
 export type BookSpreadHandle = {
@@ -37,6 +64,7 @@ export type BookSpreadHandle = {
 const FLIP_DURATION_MS = 850;
 const DRAG_THRESHOLD = 70;
 const DRAG_RANGE = 280;
+const MOBILE_CONTROLS_AUTO_HIDE_MS = 3500;
 
 const BOOK_CSS = `
 .bs2-scene { perspective: 2800px; position: relative; }
@@ -206,9 +234,11 @@ const BOOK_CSS = `
 .bs2-curl:hover, .bs2-curl-prev:hover { transform: scale(1.15); }
 .bs2-curl:disabled, .bs2-curl-prev:disabled { cursor: default; opacity: .2 !important; pointer-events: none; }
 
-/* Mobile-only nav + topbar are hidden on desktop */
-.bs2-mobile-nav    { display: none; }
-.bs2-mobile-topbar { display: none; }
+/* Mobile-only elements are hidden on desktop */
+.bs2-mobile-nav            { display: none; }
+.bs2-mobile-topbar         { display: none; }
+.bs2-mobile-controls-panel { display: none; }
+.bs2-mobile-tap-zone       { display: none; }
 
 @media (max-width: 768px) {
   /* Book container fills the whole viewport */
@@ -255,7 +285,7 @@ const BOOK_CSS = `
     object-position: center top;
   }
 
-  /* Always-on contrast gradient — Layer 1 */
+  /* Always-on contrast gradient */
   .bs2-cinema-gradient {
     position: absolute;
     left: 0; right: 0; bottom: 0;
@@ -330,7 +360,7 @@ const BOOK_CSS = `
     margin-bottom: 0;
   }
 
-  /* Mobile bottom nav */
+  /* Mobile bottom nav (always visible) */
   .bs2-mobile-nav {
     display: flex;
     align-items: center;
@@ -338,6 +368,8 @@ const BOOK_CSS = `
     padding: 20px 28px 36px;
     width: 100%;
     flex-shrink: 0;
+    position: relative;
+    z-index: 6;
   }
   .bs2-mobile-btn {
     width: 44px; height: 44px;
@@ -377,16 +409,18 @@ const BOOK_CSS = `
     transition: width 0.4s ease;
   }
 
-  /* Mobile top bar */
+  /* Subtle title bar (always visible until controls panel opens) */
   .bs2-mobile-topbar {
     display: flex;
     position: absolute;
     top: 0; left: 0; right: 0;
     padding: 14px 20px;
     align-items: center;
-    justify-content: space-between;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
-    z-index: 10;
+    justify-content: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.45), transparent);
+    z-index: 8;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
   }
   .bs2-mobile-topbar-title {
     font-family: 'Playfair Display', serif;
@@ -395,27 +429,102 @@ const BOOK_CSS = `
     letter-spacing: 0.18em;
     text-transform: uppercase;
     color: rgba(253,245,238,0.7);
-    flex: 1;
     text-align: center;
-    pointer-events: none;
   }
-  .bs2-mobile-close {
-    width: 34px; height: 34px;
-    border-radius: 50%;
-    border: none;
-    background: rgba(0,0,0,0.4);
-    backdrop-filter: blur(8px);
-    color: #FDF5EE;
-    font-size: 18px;
-    line-height: 1;
+  /* Hide the basic topbar when the full controls panel is showing */
+  .bs2-scene.bs2-controls-open .bs2-mobile-topbar { opacity: 0; }
+
+  /* Tap zone — covers the central area; tapping it toggles the controls panel.
+     Sits below the bottom nav and the bottom story text so they remain interactive. */
+  .bs2-mobile-tap-zone {
+    display: block;
+    position: absolute;
+    top: 56px;
+    left: 0; right: 0;
+    bottom: 130px;
+    z-index: 5;
+    background: transparent;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Slide-down controls panel — appears on tap, auto-hides after a few seconds */
+  .bs2-mobile-controls-panel {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    flex-direction: column;
+    gap: 10px;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 16px 16px;
+    background: linear-gradient(to bottom, rgba(20,6,14,0.92) 0%, rgba(20,6,14,0.78) 70%, rgba(20,6,14,0) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 11;
+    transform: translateY(-100%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(.2,.7,.2,1), opacity 0.22s ease;
+  }
+  .bs2-mobile-controls-panel.bs2-show {
+    transform: translateY(0);
+    opacity: 1;
     pointer-events: auto;
   }
-  .bs2-mobile-close-spacer { width: 34px; height: 34px; flex-shrink: 0; }
+
+  .bs2-mobile-controls-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .bs2-mobile-controls-row.spread { justify-content: space-between; }
+
+  .bs2-mobile-iconbtn {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(253,245,238,0.18);
+    background: rgba(253,245,238,0.08);
+    color: #FDF5EE;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s ease, transform 0.1s ease, border-color 0.15s ease;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .bs2-mobile-iconbtn:not(:disabled):active { transform: scale(0.92); }
+  .bs2-mobile-iconbtn:disabled { opacity: 0.35; cursor: default; }
+  .bs2-mobile-iconbtn.bs2-active {
+    background: rgba(176,122,138,0.4);
+    border-color: rgba(176,122,138,0.7);
+  }
+  .bs2-mobile-iconbtn svg { width: 18px; height: 18px; }
+
+  .bs2-mobile-controls-title {
+    flex: 1;
+    font-family: 'Playfair Display', serif;
+    font-size: 11px;
+    font-style: italic;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(253,245,238,0.85);
+    text-align: center;
+  }
+
+  .bs2-mobile-voice-select {
+    flex: 1;
+    background: rgba(253,245,238,0.08);
+    color: #FDF5EE;
+    border: 1px solid rgba(253,245,238,0.18);
+    border-radius: 18px;
+    padding: 7px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%23FDF5EE' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-inline-end: 28px;
+  }
+  .bs2-mobile-voice-select option { background: #1a0e14; color: #FDF5EE; }
 
   /* Hide all desktop-only elements */
   .bs2-flip-back, .bs2-fold-shadow, .bs2-under,
@@ -432,6 +541,44 @@ const CornerOrn = ({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) => (
   </svg>
 );
 
+/* Inline icons — no external dep, streaming-safe */
+const Icon = {
+  close: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+      <path d="M5 5l10 10M15 5l-10 10" />
+    </svg>
+  ),
+  speaker: () => (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M3 8v4h3l4 3V5L6 8H3z" />
+      <path d="M13 7a4 4 0 010 6" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+      <path d="M15 5a7 7 0 010 10" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
+    </svg>
+  ),
+  pause: () => (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <rect x="5" y="4" width="3.4" height="12" rx="1" />
+      <rect x="11.6" y="4" width="3.4" height="12" rx="1" />
+    </svg>
+  ),
+  play: () => (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M6 4l10 6-10 6V4z" />
+    </svg>
+  ),
+  stop: () => (
+    <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <rect x="5" y="5" width="10" height="10" rx="1.5" />
+    </svg>
+  ),
+  autoplay: () => (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M8.5 7.2v5.6L13 10z" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+};
+
 const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSpread(
   {
     page,
@@ -444,6 +591,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     canGoPrev = true,
     isFullScreen = false,
     nextPage,
+    mobileControls,
   },
   ref
 ) {
@@ -453,6 +601,38 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   const [displayedPage, setDisplayedPage] = useState<Page>(page);
   const dragStartRef = useRef<number | null>(null);
   const swipeTouchRef = useRef<number | null>(null);
+
+  /* Mobile controls toggle state */
+  const [showControls, setShowControls] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
+
+  const scheduleHide = useCallback(() => {
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = window.setTimeout(() => setShowControls(false), MOBILE_CONTROLS_AUTO_HIDE_MS);
+  }, []);
+
+  const revealControls = useCallback(() => {
+    setShowControls(true);
+    scheduleHide();
+  }, [scheduleHide]);
+
+  const toggleControls = useCallback(() => {
+    if (showControls) {
+      setShowControls(false);
+      if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    } else {
+      revealControls();
+    }
+  }, [showControls, revealControls]);
+
+  // Reveal briefly when reading starts so the user sees the pause/stop
+  useEffect(() => {
+    if (mobileControls?.isReading) revealControls();
+  }, [mobileControls?.isReading, revealControls]);
+
+  useEffect(() => () => {
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+  }, []);
 
   // Inject styles once
   useEffect(() => {
@@ -470,7 +650,6 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     const node = textRef.current;
     if (node) {
       node.style.animation = "none";
-      // force reflow
       void node.offsetHeight;
       node.style.animation = "bs2-fadeIn .4s ease forwards";
     }
@@ -486,7 +665,6 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
       const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
 
       if (!flipEl || isMobile) {
-        // Mobile / no-flip: just invoke callback; BookReaderPage will advance and the text fade-in handles the feel
         if (direction === "next") onNext?.();
         else onPrev?.();
         return;
@@ -521,7 +699,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     [isFlipping, canGoNext, canGoPrev, onNext, onPrev]
   );
 
-  // Desktop drag-to-flip on the right page
+  // Desktop drag-to-flip
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (window.innerWidth <= 768) return;
     dragStartRef.current = e.clientX;
@@ -571,11 +749,13 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     swipeTouchRef.current = null;
   };
 
+  const sceneClass = `bs2-scene ${showControls ? "bs2-controls-open" : ""}`.trim();
   const bookClass = `bs2-book ${isRTL ? "bs2-rtl" : ""} ${isFullScreen ? "bs2-fullscreen" : ""}`.trim();
 
   const imageUrl = displayedPage.imageUrl;
   const fallbackText = displayedPage.imagePromptTemplate;
   const underText = nextPage?.textTemplate ?? "";
+  const voicesForCurrentLang = mobileControls?.voices ?? [];
 
   useImperativeHandle(
     ref,
@@ -587,17 +767,104 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   );
 
   return (
-    <Box className="bs2-scene">
+    <Box className={sceneClass}>
       <div className={bookClass}>
-        {/* Cinema Page mobile only — title bar at top */}
+
+        {/* ───── Mobile controls panel (slide-down, tap-to-toggle) ───── */}
+        {mobileControls ? (
+          <div
+            className={`bs2-mobile-controls-panel ${showControls ? "bs2-show" : ""}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Row 1: close + title (centered) */}
+            <div className="bs2-mobile-controls-row spread">
+              <button
+                className="bs2-mobile-iconbtn"
+                onClick={() => mobileControls.onClose()}
+                aria-label={mobileControls.labels.close}
+                type="button"
+              >
+                <Icon.close />
+              </button>
+              <span className="bs2-mobile-controls-title">{title}</span>
+              <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden />
+            </div>
+
+            {/* Row 2: TTS controls */}
+            <div className="bs2-mobile-controls-row" style={{ justifyContent: "center", gap: 14 }}>
+              <button
+                className="bs2-mobile-iconbtn"
+                onClick={() => { mobileControls.onReadStory(); revealControls(); }}
+                disabled={mobileControls.isReading}
+                aria-label={mobileControls.labels.read}
+                type="button"
+              >
+                <Icon.speaker />
+              </button>
+              <button
+                className="bs2-mobile-iconbtn"
+                onClick={() => { mobileControls.onPauseResume(); revealControls(); }}
+                disabled={!mobileControls.isReading}
+                aria-label={mobileControls.isPaused ? mobileControls.labels.resume : mobileControls.labels.pause}
+                type="button"
+              >
+                {mobileControls.isPaused ? <Icon.play /> : <Icon.pause />}
+              </button>
+              <button
+                className="bs2-mobile-iconbtn"
+                onClick={() => { mobileControls.onStopReading(); revealControls(); }}
+                disabled={!mobileControls.isReading}
+                aria-label={mobileControls.labels.stop}
+                type="button"
+              >
+                <Icon.stop />
+              </button>
+              <button
+                className={`bs2-mobile-iconbtn ${mobileControls.autoRead ? "bs2-active" : ""}`}
+                onClick={() => { mobileControls.onToggleAutoRead(); revealControls(); }}
+                aria-label={mobileControls.labels.autoRead}
+                aria-pressed={mobileControls.autoRead}
+                type="button"
+              >
+                <Icon.autoplay />
+              </button>
+            </div>
+
+            {/* Row 3: voice picker (only if voices available) */}
+            {voicesForCurrentLang.length > 0 ? (
+              <div className="bs2-mobile-controls-row">
+                <select
+                  className="bs2-mobile-voice-select"
+                  value={mobileControls.selectedVoiceName}
+                  onChange={(e) => { mobileControls.onSelectVoice(e.target.value); revealControls(); }}
+                  aria-label={mobileControls.labels.voice}
+                >
+                  <option value="">{mobileControls.labels.voiceAuto}</option>
+                  {voicesForCurrentLang.map((v) => (
+                    <option key={v.name} value={v.name}>{v.name}</option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Mobile only — subtle title bar (always visible until controls panel opens) */}
         <div className="bs2-mobile-topbar">
-          <div className="bs2-mobile-close-spacer" aria-hidden />
           <span className="bs2-mobile-topbar-title">{title}</span>
-          <div className="bs2-mobile-close-spacer" aria-hidden />
         </div>
 
-        {/* Cinema Page mobile only — always-on contrast gradient */}
+        {/* Mobile only — always-on contrast gradient */}
         <div className="bs2-cinema-gradient" aria-hidden />
+
+        {/* Mobile only — invisible tap zone that toggles the controls panel */}
+        {mobileControls ? (
+          <div
+            className="bs2-mobile-tap-zone"
+            onClick={toggleControls}
+            aria-hidden
+          />
+        ) : null}
 
         <div className="bs2-cover-board left" />
         <div className="bs2-cover-board right" />
@@ -677,7 +944,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 <div className="bs2-ornament b" />
               </div>
 
-              {/* Cinema Page mobile only — bottom nav */}
+              {/* Mobile only — bottom nav */}
               <div className="bs2-mobile-nav">
                 <button
                   className="bs2-mobile-btn"
