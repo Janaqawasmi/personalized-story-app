@@ -134,12 +134,11 @@ function PageCard({ page, storyId, onUpdated }: PageCardProps) {
           <IllustrationStatusChip status={page.illustrationStatus} />
         </Stack>
 
-        {/* Two-column layout on medium+ screens */}
+        {/* Vertical layout: text on top, image below */}
         <Stack
-          direction={{ xs: "column", md: "row" }}
+          direction="column"
           sx={{ minHeight: 220 }}
-          divider={<Box sx={{ width: { xs: "100%", md: 1 }, height: { xs: 1, md: "auto" },
-            bgcolor: COLORS.border }} />}
+          divider={<Box sx={{ width: "100%", height: 1, bgcolor: COLORS.border }} />}
         >
           {/* Left: story text */}
           <Box sx={{ flex: 1, px: 3, py: 2.5 }}>
@@ -167,6 +166,7 @@ function PageCard({ page, storyId, onUpdated }: PageCardProps) {
                 onClick={() => setLightboxOpen(true)}
                 sx={{ position: "relative", cursor: "zoom-in",
                   borderRadius: 2, overflow: "hidden", width: "100%",
+                  border: `1px solid ${COLORS.border}`, bgcolor: "#f8f5f1",
                   "&:hover .zoom-hint": { opacity: 1 } }}
               >
                 <Box
@@ -174,7 +174,7 @@ function PageCard({ page, storyId, onUpdated }: PageCardProps) {
                   src={page.illustrationUrl}
                   alt={`Page ${page.pageNumber} illustration`}
                   sx={{ width: "100%", display: "block", borderRadius: 2,
-                    maxHeight: 280, objectFit: "cover" }}
+                    minHeight: { xs: 260, md: 320 }, maxHeight: 420, objectFit: "contain" }}
                 />
                 <Box className="zoom-hint"
                   sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0,0,0,0.35)",

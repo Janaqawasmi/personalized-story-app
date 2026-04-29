@@ -21,7 +21,7 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Dialog from "@mui/material/Dialog";
 import DialogContent from "@mui/material/DialogContent";
 
-import type { Story, PageIllustration } from "../../types/story";
+import type { Story } from "../../types/story";
 import { COLORS, DESIGN_TOKENS } from "../../theme";
 import * as api from "../../api/specialistStories";
 import { draftStore } from "../storage";
@@ -29,32 +29,6 @@ import PromptReviewPanel from "./PromptReviewPanel";
 import IllustrationReviewPanel from "./IllustrationReviewPanel";
 
 const POLL_INTERVAL_MS = 5000;
-
-// ---------------------------------------------------------------------------
-// Loader state (approved → prompts generating, or illustrating)
-// ---------------------------------------------------------------------------
-
-function PipelineLoader({ label, hint }: { label: string; hint: string }) {
-  return (
-    <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 5, pb: 6 }}>
-      <Stack alignItems="center" spacing={2.5}>
-        <CircularProgress size={44} sx={{ color: COLORS.primary }} />
-        <Box textAlign="center">
-          <Typography
-            variant="h6"
-            sx={{ fontFamily: DESIGN_TOKENS.fontDisplay, fontWeight: 700,
-              color: COLORS.textPrimary, mb: 0.5 }}
-          >
-            {label}
-          </Typography>
-          <Typography variant="body2" sx={{ color: COLORS.textSecondary, maxWidth: 360 }}>
-            {hint}
-          </Typography>
-        </Box>
-      </Stack>
-    </Box>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Illustrating progress panel — shows per-page status while Seedream runs
@@ -179,7 +153,8 @@ function IllustrationGallery({ story }: { story: Story }) {
                 border: `1px solid ${COLORS.border}`, bgcolor: COLORS.surface,
                 "&:hover .zoom-overlay": { opacity: 1 } }}>
               <Box component="img" src={page.illustrationUrl!} alt={`Page ${page.pageNumber}`}
-                sx={{ width: "100%", display: "block", aspectRatio: "1", objectFit: "cover" }} />
+                sx={{ width: "100%", display: "block", height: { xs: 260, md: 320 },
+                  objectFit: "contain", bgcolor: "#f8f5f1" }} />
               <Box className="zoom-overlay"
                 sx={{ position: "absolute", inset: 0, bgcolor: "rgba(0,0,0,0.3)",
                   display: "flex", alignItems: "flex-end", p: 1.5,
@@ -226,6 +201,7 @@ function ApprovedPanel({
       onStoryUpdate(updated);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start prompt generation.");
+    } finally {
       setStarting(false);
     }
   }
