@@ -34,6 +34,11 @@ import {
 } from "./shared";
 import { DRAFT_B, FONTS, RAIL_WIDTH_DEFAULT } from "./tokens";
 
+type SnackbarState = {
+  message: string;
+  severity: "success" | "error" | "info" | "warning";
+};
+
 const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
   fear_anxiety: "Fear & Anxiety",
   big_emotions: "Big Emotions",
@@ -71,7 +76,7 @@ export default function DraftTabB({
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenSubmitting, setRegenSubmitting] = useState(false);
   const [promptGenerationSubmitting, setPromptGenerationSubmitting] = useState(false);
-  const [snackbar, setSnackbar] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
   const [activeRailTab, setActiveRailTab] = useState<"safety" | "reasoning" | "tools">(() => {
@@ -146,7 +151,10 @@ export default function DraftTabB({
       setLastSavedAt(Date.now());
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to save.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to save.",
+        severity: "error",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -258,9 +266,10 @@ export default function DraftTabB({
       onStoryUpdate(updatedStory);
       handleRegenDialogClose();
     } catch (err) {
-      setSnackbar(
-        err instanceof Error ? err.message : "Failed to request regeneration.",
-      );
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to request regeneration.",
+        severity: "error",
+      });
     } finally {
       setRegenSubmitting(false);
     }
@@ -275,7 +284,10 @@ export default function DraftTabB({
       const updatedStory = await draftStore.transitionStatus(story.id, "approved");
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to approve story.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to approve story.",
+        severity: "error",
+      });
     }
   }
 
@@ -284,7 +296,10 @@ export default function DraftTabB({
       const updatedStory = await draftStore.transitionStatus(story.id, "in_review");
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to reopen story.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to reopen story.",
+        severity: "error",
+      });
     }
   }
 
@@ -293,9 +308,15 @@ export default function DraftTabB({
     try {
       const updatedStory = await draftStore.transitionStatus(story.id, "prompt_review");
       onStoryUpdate(updatedStory);
-      setSnackbar("Image prompt generation started.");
+      setSnackbar({
+        message: "Image prompt generation started.",
+        severity: "success",
+      });
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to generate image prompts.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to generate image prompts.",
+        severity: "error",
+      });
     } finally {
       setPromptGenerationSubmitting(false);
     }
@@ -306,7 +327,10 @@ export default function DraftTabB({
       const updatedStory = await draftStore.transitionStatus(story.id, "draft_brief");
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to restore story.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to restore story.",
+        severity: "error",
+      });
     }
   }
 
@@ -722,8 +746,8 @@ export default function DraftTabB({
         onClose={() => setSnackbar(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert severity="error" onClose={() => setSnackbar(null)} sx={{ width: "100%" }}>
-          {snackbar}
+        <Alert severity={snackbar?.severity ?? "info"} onClose={() => setSnackbar(null)} sx={{ width: "100%" }}>
+          {snackbar?.message}
         </Alert>
       </Snackbar>
     </Box>
