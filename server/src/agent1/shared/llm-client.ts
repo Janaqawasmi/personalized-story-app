@@ -18,6 +18,8 @@ interface CallLogEntry {
   latencyMs: number;
   success: boolean;
   errorMessage?: string;
+  /** Raw text returned by the LLM (first text block). */
+  rawText?: string;
 }
 
 function appendLogLine(entry: CallLogEntry): void {
@@ -123,6 +125,7 @@ export async function callLLM(input: LLMCallInput): Promise<LLMCallOutput> {
       outputTokens,
       latencyMs,
       success: true,
+      rawText: text,
     });
 
     return { text, inputTokens, outputTokens, latencyMs };

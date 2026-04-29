@@ -16,11 +16,37 @@
 // }
 
 import { Anthropic } from "@anthropic-ai/sdk";
+import * as fs from "fs";
+import * as path from "path";
 import type { PageIllustration, VisualBible } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { AGE_RANGE_LABELS } from "@/models/storyBrief.model";
 
 const client = new Anthropic({ maxRetries: 0 });
+const LOG_PATH = path.resolve(process.cwd(), "logs", "image-prompt-calls.jsonl");
+
+interface ImagePromptCallLogEntry {
+  timestamp: string;
+  model: string;
+  pageCount: number;
+  promptLength: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  latencyMs: number;
+  success: boolean;
+  errorMessage?: string;
+  prompt: string;
+  rawText?: string;
+}
+
+function appendLogLine(entry: ImagePromptCallLogEntry): void {
+  try {
+    fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
+    fs.appendFileSync(LOG_PATH, JSON.stringify(entry) + "\n", "utf8");
+  } catch (err) {
+    console.error("Failed to write image prompt call log:", err);
+  }
+}
 
 export interface ImagePromptsResult {
   visualBible: VisualBible;
@@ -147,18 +173,47 @@ export async function callClaudeForImagePrompts(
   pages: PageIllustration[],
   brief: StoryBrief,
 ): Promise<ImagePromptsResult> {
+  const model = "claude-haiku-4-5-20251001";
   const prompt = buildImagePromptsPrompt(pages, brief);
+  const startTime = Date.now();
 
-  const response = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
-    messages: [{ role: "user", content: prompt }],
-  });
+  try {
+    const response = await client.messages.create({
+      model,
+      max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") {
-    throw new Error("ImagePromptGenerator: Claude returned no text block");
+    const textBlock = response.content.find((b) => b.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("ImagePromptGenerator: Claude returned no text block");
+    }
+
+    const result = parseImagePromptsResponse(textBlock.text, pages.length);
+    appendLogLine({
+      timestamp: new Date().toISOString(),
+      model,
+      pageCount: pages.length,
+      promptLength: prompt.length,
+      inputTokens: response.usage?.input_tokens,
+      outputTokens: response.usage?.output_tokens,
+      latencyMs: Date.now() - startTime,
+      success: true,
+      prompt,
+      rawText: textBlock.text,
+    });
+    return result;
+  } catch (err) {
+    appendLogLine({
+      timestamp: new Date().toISOString(),
+      model,
+      pageCount: pages.length,
+      promptLength: prompt.length,
+      latencyMs: Date.now() - startTime,
+      success: false,
+      errorMessage: err instanceof Error ? err.message : String(err),
+      prompt,
+    });
+    throw err;
   }
-
-  return parseImagePromptsResponse(textBlock.text, pages.length);
 }
