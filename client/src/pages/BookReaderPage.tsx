@@ -128,6 +128,19 @@ export default function BookReaderPage() {
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
   const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
 
+  // Mobile detection — for hiding desktop chrome and locking scroll on the reader screen
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+
   const previewId =
     searchParams.get("previewId") ||
     (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
@@ -166,13 +179,14 @@ export default function BookReaderPage() {
     isFullScreenRef.current = isFullScreen;
   }, [isFullScreen]);
 
-  // Smooth scroll when unlock overlay opens (normal mode only); reset guard when it closes.
+  // Smooth scroll when unlock overlay opens (normal-desktop only); reset guard when it closes.
+  // On mobile the cinema layout is fixed so scroll has no meaning.
   useEffect(() => {
     if (!previewUnlockOverlayOpen) {
       hasAutoScrolledToPreviewCTARef.current = false;
       return;
     }
-    if (loading || showCover || showInstructions || !story || isFullScreen) return;
+    if (loading || showCover || showInstructions || !story || isFullScreen || isMobile) return;
     if (hasAutoScrolledToPreviewCTARef.current) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -196,6 +210,7 @@ export default function BookReaderPage() {
     story,
     previewUnlockOverlayOpen,
     isFullScreen,
+    isMobile,
   ]);
 
   // Check for personalization before loading story
@@ -341,24 +356,21 @@ export default function BookReaderPage() {
     })();
   }, []);
 
-  // Lock scroll when full screen is enabled and scroll to top
-  // ✅ Only lock scroll in fullscreen
+  // Lock scroll when full screen is enabled OR when on mobile reader (cinema overlay)
   useEffect(() => {
-    if (!isFullScreen) {
-      // Restore scroll when exiting fullscreen
+    const shouldLock = isFullScreen || (isMobile && !showCover && !showInstructions);
+
+    if (!shouldLock) {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       return;
     }
 
-    // Scroll to top when entering fullscreen (before locking scroll)
-    // Note: "auto" provides instant scrolling (no animation), which is what "instant" would do
+    // Scroll to top when entering locked mode
     window.scrollTo({ top: 0, behavior: "auto" });
-    // Also force html/body scrollTop to 0 (covers Safari / edge cases)
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
 
-    // Lock scroll when entering fullscreen
     const prevHtml = document.documentElement.style.overflow;
     const prevBody = document.body.style.overflow;
 
@@ -369,7 +381,7 @@ export default function BookReaderPage() {
       document.documentElement.style.overflow = prevHtml;
       document.body.style.overflow = prevBody;
     };
-  }, [isFullScreen]);
+  }, [isFullScreen, isMobile, showCover, showInstructions]);
 
   // ESC to exit full screen (with priority)
   useEffect(() => {
@@ -717,6 +729,11 @@ export default function BookReaderPage() {
   const canGoPrev = spreadIndex > 0;
   const canGoNext = spreadIndex < story.pages.length - 1;
 
+  // On mobile, while the reader is active (past cover & preface), render a minimal
+  // shell — no controls bar, no external arrows, no header pressure. The cinema
+  // overlay is fixed and full-viewport via BookSpread's mobile CSS.
+  const isMobileReaderActive = isMobile && !showCover && !showInstructions;
+
   return (
     <>
       <Box
@@ -744,7 +761,86 @@ export default function BookReaderPage() {
             language={CURRENT_LANGUAGE}
             onBegin={handleInstructionsClose}
           />
+        ) : isMobileReaderActive ? (
+          // ─── MOBILE READER (Cinema Page) ─────────────────────────────────
+          // BookSpread's mobile CSS positions itself fixed/inset:0 to fill viewport.
+          // We render only BookSpread + the unlock gate overlay; no controls, no arrows.
+          <>
+            <BookSpread
+              ref={bookSpreadRef}
+              page={currentPage}
+              title={story.title}
+              isRTL={isRTL}
+              totalPages={story.pages.length}
+              onNext={handleNext}
+              onPrev={handlePrev}
+              canGoNext={canGoNext}
+              canGoPrev={canGoPrev}
+              isFullScreen={isFullScreen}
+              nextPage={story.pages[spreadIndex + 1]}
+            />
+
+            {/* Floating close button (top-right on LTR, top-left on RTL) */}
+            <IconButton
+              onClick={handleClose}
+              aria-label={t("pages.bookReader.close" as any) || "Close"}
+              sx={{
+                position: "fixed",
+                top: 12,
+                ...(isRTL ? { left: 12 } : { right: 12 }),
+                width: 36,
+                height: 36,
+                color: "#FDF5EE",
+                backgroundColor: "rgba(0,0,0,0.45)",
+                backdropFilter: "blur(8px)",
+                zIndex: 9100,
+                "&:hover": { backgroundColor: "rgba(0,0,0,0.6)" },
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+
+            {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
+              <ReaderPreviewGate
+                variant="overlay"
+                sectionRef={previewCtaSectionRef}
+                teaserPage={
+                  hasLockedSpreadsBeyondPreview
+                    ? story.pages[lastUnlockedSpreadIndex + 1]
+                    : undefined
+                }
+                title={t("pages.bookReader.previewUnlockTitle")}
+                subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                teaserLine={t("pages.bookReader.previewTeaserLine")}
+                addToCartLabel={t("pages.bookReader.addToCart")}
+                onAddToCart={async () => {
+                  if (!previewId) {
+                    setPreviewUnlockOverlayOpen(false);
+                    navigate("/cart");
+                    return;
+                  }
+                  try {
+                    await addToCart(previewId);
+                  } catch (e) {
+                    if (e instanceof ApiError) {
+                      console.warn("Add to cart failed:", e.message, e.code);
+                    } else {
+                      console.warn("Add to cart failed:", e);
+                    }
+                  } finally {
+                    setPreviewUnlockOverlayOpen(false);
+                    navigate("/cart");
+                  }
+                }}
+                onDismiss={() => setPreviewUnlockOverlayOpen(false)}
+                dismissLabel={t("pages.bookReader.previewEndModalClose")}
+                ctaAnchorRef={previewCtaAnchorRef}
+                isRTL={isRTL}
+              />
+            ) : null}
+          </>
         ) : (
+          // ─── DESKTOP READER (unchanged) ──────────────────────────────────
           <>
           {/* Top Controls - Fixed, only in fullscreen mode */}
           {isFullScreen && (
@@ -1322,4 +1418,3 @@ export default function BookReaderPage() {
     </>
   );
 }
-

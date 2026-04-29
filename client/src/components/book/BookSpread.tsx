@@ -206,23 +206,222 @@ const BOOK_CSS = `
 .bs2-curl:hover, .bs2-curl-prev:hover { transform: scale(1.15); }
 .bs2-curl:disabled, .bs2-curl-prev:disabled { cursor: default; opacity: .2 !important; pointer-events: none; }
 
+/* Mobile-only nav + topbar are hidden on desktop */
+.bs2-mobile-nav    { display: none; }
+.bs2-mobile-topbar { display: none; }
+
 @media (max-width: 768px) {
-  .bs2-scene { perspective: none; width: 100%; }
-  .bs2-book { width: 100%; height: auto; flex-direction: column; border-radius: 0; filter: none;
-    box-shadow: 0 4px 24px rgba(90,48,64,.28); }
-  .bs2-book.bs2-rtl { flex-direction: column; }
-  .bs2-page-left { width: 100%; height: 56vw; max-height: 340px; border-radius: 0; cursor: default; flex-shrink: 0; }
-  .bs2-right { width: 100%; height: auto; flex-shrink: 0; }
-  .bs2-flip, .bs2-under { position: relative; border-radius: 0; transform: none !important; transition: opacity .35s !important; }
-  .bs2-flip { transform-style: flat !important; }
+  /* Book container fills the whole viewport */
+  .bs2-scene {
+    perspective: none;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100svh;
+    z-index: 9000;
+    background: #1a0e14;
+  }
+  .bs2-book {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    flex-direction: row;
+    border-radius: 0;
+    filter: none;
+    box-shadow: none;
+    overflow: hidden;
+  }
+  .bs2-book.bs2-rtl { flex-direction: row; }
+
+  /* Illustration fills the entire screen */
+  .bs2-page-left {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    cursor: default;
+    flex-shrink: unset;
+    z-index: 1;
+  }
+  .bs2-page-left:hover { filter: none; }
+  .bs2-page-left::after,
+  .bs2-page-left::before { display: none; }
+  .bs2-page-left img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+  }
+
+  /* Always-on contrast gradient — Layer 1 */
+  .bs2-cinema-gradient {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 72%;
+    background: linear-gradient(to top,
+      rgba(20,6,14,0.97) 0%,
+      rgba(20,6,14,0.88) 28%,
+      rgba(20,6,14,0.55) 52%,
+      rgba(20,6,14,0.15) 72%,
+      transparent 100%);
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* Right panel: full-screen overlay */
+  .bs2-right {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    flex-shrink: unset;
+    z-index: 4;
+  }
+
+  /* Flip wrapper: transparent, no 3D */
+  .bs2-flip {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    background: transparent;
+    transform: none !important;
+    transform-style: flat !important;
+    transition: opacity 0.35s ease !important;
+    cursor: default;
+  }
   .bs2-flip.bs2-flipped { opacity: 0; pointer-events: none; position: absolute; }
-  .bs2-flip-front { border-radius: 0; padding: 32px 28px; min-height: 200px; }
-  .bs2-flip-back, .bs2-fold-shadow { display: none; }
-  .bs2-under { border-radius: 0; position: absolute; inset: 0; opacity: 0; transition: opacity .35s; }
-  .bs2-stack, .bs2-cover-board { display: none; }
-  .bs2-spine { width: 100%; height: 8px; writing-mode: unset; }
-  .bs2-spine-text { display: none; }
-  .bs2-curl, .bs2-curl-prev { display: none; }
+
+  /* Flip front: transparent, text pushed to bottom */
+  .bs2-flip-front {
+    background: transparent;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 0;
+    min-height: unset;
+    overflow: visible;
+  }
+  .bs2-flip-front::before,
+  .bs2-flip-front::after { display: none; }
+
+  /* Story text */
+  .bs2-text-content {
+    max-width: 100%;
+    width: 100%;
+    padding: 0 28px;
+    align-items: center;
+  }
+  .bs2-title-label {
+    color: rgba(176,122,138,0.9);
+    margin-bottom: 12px;
+  }
+  .bs2-ornament { opacity: 0.4; }
+  .bs2-ornament.b { display: none; }
+  .bs2-story-text {
+    font-size: 17px;
+    line-height: 1.75;
+    color: rgba(253,245,238,0.95);
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+    margin-bottom: 0;
+  }
+
+  /* Mobile bottom nav */
+  .bs2-mobile-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px 36px;
+    width: 100%;
+    flex-shrink: 0;
+  }
+  .bs2-mobile-btn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #824D5C, #B07A8A);
+    color: #FDF5EE;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(90,48,64,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+    padding-bottom: 2px;
+  }
+  .bs2-mobile-btn:disabled {
+    background: rgba(130,77,92,0.15);
+    box-shadow: none;
+    opacity: 0.35;
+    cursor: default;
+  }
+  .bs2-mobile-btn:not(:disabled):active { transform: scale(0.93); }
+  .bs2-mobile-progress {
+    flex: 1;
+    height: 3px;
+    background: rgba(253,245,238,0.15);
+    border-radius: 2px;
+    margin: 0 16px;
+    overflow: hidden;
+  }
+  .bs2-mobile-progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: linear-gradient(to right, #824D5C, #B07A8A);
+    transition: width 0.4s ease;
+  }
+
+  /* Mobile top bar */
+  .bs2-mobile-topbar {
+    display: flex;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 20px;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55), transparent);
+    z-index: 10;
+  }
+  .bs2-mobile-topbar-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 10px;
+    font-style: italic;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgba(253,245,238,0.7);
+    flex: 1;
+    text-align: center;
+    pointer-events: none;
+  }
+  .bs2-mobile-close {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+    color: #FDF5EE;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    pointer-events: auto;
+  }
+  .bs2-mobile-close-spacer { width: 34px; height: 34px; flex-shrink: 0; }
+
+  /* Hide all desktop-only elements */
+  .bs2-flip-back, .bs2-fold-shadow, .bs2-under,
+  .bs2-stack, .bs2-cover-board, .bs2-spine,
+  .bs2-curl, .bs2-curl-prev, .bs2-edge-shadow,
+  .bs2-corner-orn, .bs2-counter { display: none; }
 }
 `;
 
@@ -253,6 +452,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   const [isFlipping, setIsFlipping] = useState(false);
   const [displayedPage, setDisplayedPage] = useState<Page>(page);
   const dragStartRef = useRef<number | null>(null);
+  const swipeTouchRef = useRef<number | null>(null);
 
   // Inject styles once
   useEffect(() => {
@@ -352,7 +552,23 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
 
   const onRightClick = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".bs2-curl, .bs2-curl-prev")) return;
+    if (window.innerWidth <= 768) return;
     triggerFlip("next");
+  };
+
+  // Mobile swipe-to-turn (RTL-aware)
+  const onMobileTouchStart = (e: React.TouchEvent) => {
+    if (window.innerWidth > 768) return;
+    swipeTouchRef.current = e.touches[0].clientX;
+  };
+  const onMobileTouchEnd = (e: React.TouchEvent) => {
+    if (window.innerWidth > 768 || swipeTouchRef.current === null) return;
+    const dx = swipeTouchRef.current - e.changedTouches[0].clientX;
+    if (Math.abs(dx) > 44) {
+      if (dx > 0) triggerFlip(isRTL ? "prev" : "next");
+      else        triggerFlip(isRTL ? "next" : "prev");
+    }
+    swipeTouchRef.current = null;
   };
 
   const bookClass = `bs2-book ${isRTL ? "bs2-rtl" : ""} ${isFullScreen ? "bs2-fullscreen" : ""}`.trim();
@@ -373,6 +589,16 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   return (
     <Box className="bs2-scene">
       <div className={bookClass}>
+        {/* Cinema Page mobile only — title bar at top */}
+        <div className="bs2-mobile-topbar">
+          <div className="bs2-mobile-close-spacer" aria-hidden />
+          <span className="bs2-mobile-topbar-title">{title}</span>
+          <div className="bs2-mobile-close-spacer" aria-hidden />
+        </div>
+
+        {/* Cinema Page mobile only — always-on contrast gradient */}
+        <div className="bs2-cinema-gradient" aria-hidden />
+
         <div className="bs2-cover-board left" />
         <div className="bs2-cover-board right" />
         <div className="bs2-stack left">
@@ -385,7 +611,10 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
         {/* LEFT: illustration */}
         <div
           className="bs2-page-left"
-          onClick={() => triggerFlip("prev")}
+          onClick={() => {
+            if (window.innerWidth <= 768) return;
+            triggerFlip("prev");
+          }}
           role="button"
           aria-label="Previous page"
         >
@@ -405,7 +634,11 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
         </div>
 
         {/* RIGHT: flip zone */}
-        <div className="bs2-right">
+        <div
+          className="bs2-right"
+          onTouchStart={onMobileTouchStart}
+          onTouchEnd={onMobileTouchEnd}
+        >
           {/* Under page (next page's text shows through during flip) */}
           <div className="bs2-under">
             <CornerOrn pos="tl" />
@@ -443,6 +676,33 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 <p className="bs2-story-text">{displayedPage.textTemplate}</p>
                 <div className="bs2-ornament b" />
               </div>
+
+              {/* Cinema Page mobile only — bottom nav */}
+              <div className="bs2-mobile-nav">
+                <button
+                  className="bs2-mobile-btn"
+                  disabled={!canGoPrev}
+                  onClick={(e) => { e.stopPropagation(); triggerFlip("prev"); }}
+                  aria-label="Previous page"
+                  type="button"
+                >{'\u2039'}</button>
+                <div className="bs2-mobile-progress">
+                  <div
+                    className="bs2-mobile-progress-fill"
+                    style={{
+                      width: `${(displayedPage.pageNumber / totalPages) * 100}%`,
+                    }}
+                  />
+                </div>
+                <button
+                  className="bs2-mobile-btn"
+                  disabled={!canGoNext}
+                  onClick={(e) => { e.stopPropagation(); triggerFlip("next"); }}
+                  aria-label="Next page"
+                  type="button"
+                >{'\u203A'}</button>
+              </div>
+
               <div className="bs2-fold-shadow" />
             </div>
             <div className="bs2-flip-back" />
