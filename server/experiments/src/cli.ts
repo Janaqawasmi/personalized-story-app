@@ -4,6 +4,7 @@
 //   ts-node -r tsconfig-paths/register experiments/src/cli.ts \
 //     --variant baseline --story <storyId> --pages 1,4,7 --out exp-00-baseline
 
+import "./bootstrap";
 import { runExperiment } from "./runner";
 import { VARIANTS } from "./variants";
 

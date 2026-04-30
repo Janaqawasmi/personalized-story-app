@@ -4,7 +4,7 @@
 // Usage:
 //   npm run -w server experiment:list
 
-import "dotenv/config";
+import "./bootstrap";
 import { firestore } from "@/config/firebase";
 import { STORIES_COLLECTION, type Story } from "@/models/story.model";
 

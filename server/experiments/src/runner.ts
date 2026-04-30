@@ -1,7 +1,7 @@
 // Orchestrator: load story from Firestore (read-only), dispatch the variant,
 // persist outputs to disk. NEVER writes back to Firestore.
 
-import "dotenv/config";
+import "./bootstrap";
 import * as path from "path";
 import { firestore } from "@/config/firebase";
 import { STORIES_COLLECTION, type Story } from "@/models/story.model";
