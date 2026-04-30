@@ -81,10 +81,6 @@ function getCurrentLanguage(): string {
   return "he";
 }
 
-/**
- * Strong guided scroll: vertically centers the purchase block in the viewport, then nudges
- * downward so headline + Add to cart sit clearly in view (not just the CTA top edge).
- */
 function scrollPreviewPurchaseBlockIntoView(el: HTMLElement) {
   const rect = el.getBoundingClientRect();
   const elCenterY = rect.top + window.scrollY + rect.height / 2;
@@ -125,8 +121,21 @@ export default function BookReaderPage() {
   const lastUnlockedSpreadIndexRef = useRef(0);
   const shouldClearPersonalizationRef = useRef(true);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceName, setSelectedVoiceName] = useState<string>(""); // empty = auto best
+  const [selectedVoiceName, setSelectedVoiceName] = useState<string>("");
   const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
+
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
 
   const previewId =
     searchParams.get("previewId") ||
@@ -136,7 +145,6 @@ export default function BookReaderPage() {
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
   const ttsLang = CURRENT_LANGUAGE === "ar" ? "ar-SA" : CURRENT_LANGUAGE === "he" ? "he-IL" : "en-US";
 
-  // Filter voices for current language (so dropdown isn't huge)
   const voicesForCurrentLang = voices.filter((v) => {
     const vLang = (v.lang || "").toLowerCase();
     const target = (ttsLang || "").toLowerCase();
@@ -166,13 +174,13 @@ export default function BookReaderPage() {
     isFullScreenRef.current = isFullScreen;
   }, [isFullScreen]);
 
-  // Smooth scroll when unlock overlay opens (normal mode only); reset guard when it closes.
+  // Smooth-scroll the preview CTA only on desktop normal mode
   useEffect(() => {
     if (!previewUnlockOverlayOpen) {
       hasAutoScrolledToPreviewCTARef.current = false;
       return;
     }
-    if (loading || showCover || showInstructions || !story || isFullScreen) return;
+    if (loading || showCover || showInstructions || !story || isFullScreen || isMobile) return;
     if (hasAutoScrolledToPreviewCTARef.current) return;
 
     const timeoutId = window.setTimeout(() => {
@@ -189,16 +197,9 @@ export default function BookReaderPage() {
     }, 650);
 
     return () => window.clearTimeout(timeoutId);
-  }, [
-    loading,
-    showCover,
-    showInstructions,
-    story,
-    previewUnlockOverlayOpen,
-    isFullScreen,
-  ]);
+  }, [loading, showCover, showInstructions, story, previewUnlockOverlayOpen, isFullScreen, isMobile]);
 
-  // Check for personalization before loading story
+  // Personalization gate + story load (unchanged)
   useEffect(() => {
     if (!storyId) {
       setError("Story ID is missing");
@@ -206,12 +207,10 @@ export default function BookReaderPage() {
       return;
     }
 
-    // Check if personalization session exists and is completed
     const personalizationKey = getStoryPersonalizationStorageKey(storyId);
     const personalizationStr = localStorage.getItem(personalizationKey);
-    
+
     if (!personalizationStr) {
-      // No session - redirect to personalization
       navigate(`/stories/${storyId}/personalize`);
       return;
     }
@@ -220,12 +219,10 @@ export default function BookReaderPage() {
     try {
       session = JSON.parse(personalizationStr);
       if (session.status !== "completed") {
-        // Draft session or invalid - redirect to personalization
         navigate(`/stories/${storyId}/personalize`);
         return;
       }
     } catch {
-      // Invalid session data - redirect to personalization
       navigate(`/stories/${storyId}/personalize`);
       return;
     }
@@ -242,15 +239,13 @@ export default function BookReaderPage() {
         }
 
         const data = storySnap.data();
-        
-        // Check status
+
         if (data.status !== "approved") {
           setError("Story is not approved");
           setLoading(false);
           return;
         }
 
-        // Get story language (for display, not blocking)
         const storyLanguage = data.language || data.generationConfig?.language;
         const lang = normalizeStoryLanguage(storyLanguage);
         const gender = resolveGenderForPreview(session.data?.gender);
@@ -258,8 +253,7 @@ export default function BookReaderPage() {
         const displayName = session.data?.childName?.trim()
           ? session.data.childName.trim()
           : placeholderName;
-        const photo =
-          session.data?.photoPreviewUrl?.trim() || undefined;
+        const photo = session.data?.photoPreviewUrl?.trim() || undefined;
 
         const sortedRaw = (data.pages || []).sort(
           (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
@@ -300,40 +294,21 @@ export default function BookReaderPage() {
     fetchStory();
   }, [storyId, CURRENT_LANGUAGE, navigate, t]);
 
-  // Clear personalization when component unmounts (user leaves the story)
-  // This ensures personalization is session-scoped, not persistent
   useEffect(() => {
     if (!storyId) return;
-
     const personalizationKey = getStoryPersonalizationStorageKey(storyId);
-    
     return () => {
       if (!shouldClearPersonalizationRef.current) return;
       localStorage.removeItem(personalizationKey);
     };
   }, [storyId]);
 
-  // IMPORTANT: stop reading when leaving the page
-  useEffect(() => {
-    return () => {
-      ttsStop();
-    };
-  }, []);
+  useEffect(() => () => { ttsStop(); }, []);
 
-  // Sync refs with state
-  useEffect(() => {
-    autoReadRef.current = autoRead;
-  }, [autoRead]);
+  useEffect(() => { autoReadRef.current = autoRead; }, [autoRead]);
+  useEffect(() => { spreadIndexRef.current = spreadIndex; }, [spreadIndex]);
+  useEffect(() => { lastUnlockedSpreadIndexRef.current = lastUnlockedSpreadIndex; }, [lastUnlockedSpreadIndex]);
 
-  useEffect(() => {
-    spreadIndexRef.current = spreadIndex;
-  }, [spreadIndex]);
-
-  useEffect(() => {
-    lastUnlockedSpreadIndexRef.current = lastUnlockedSpreadIndex;
-  }, [lastUnlockedSpreadIndex]);
-
-  // Load voices once
   useEffect(() => {
     (async () => {
       const v = await ttsGetVoices();
@@ -341,40 +316,29 @@ export default function BookReaderPage() {
     })();
   }, []);
 
-  // Lock scroll when full screen is enabled and scroll to top
-  // ✅ Only lock scroll in fullscreen
+  // Lock body scroll in fullscreen OR on mobile reader (cinema overlay)
   useEffect(() => {
-    if (!isFullScreen) {
-      // Restore scroll when exiting fullscreen
+    const shouldLock = isFullScreen || (isMobile && !showCover && !showInstructions);
+    if (!shouldLock) {
       document.documentElement.style.overflow = "";
       document.body.style.overflow = "";
       return;
     }
-
-    // Scroll to top when entering fullscreen (before locking scroll)
-    // Note: "auto" provides instant scrolling (no animation), which is what "instant" would do
     window.scrollTo({ top: 0, behavior: "auto" });
-    // Also force html/body scrollTop to 0 (covers Safari / edge cases)
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-
-    // Lock scroll when entering fullscreen
     const prevHtml = document.documentElement.style.overflow;
     const prevBody = document.body.style.overflow;
-
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
-
     return () => {
       document.documentElement.style.overflow = prevHtml;
       document.body.style.overflow = prevBody;
     };
-  }, [isFullScreen]);
+  }, [isFullScreen, isMobile, showCover, showInstructions]);
 
-  // ESC to exit full screen (with priority)
   useEffect(() => {
     if (!isFullScreen) return;
-
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -382,19 +346,14 @@ export default function BookReaderPage() {
         toggleFullScreen();
       }
     };
-
-    window.addEventListener("keydown", onKeyDown, true); // Use capture phase for priority
+    window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [isFullScreen, toggleFullScreen]);
 
-  // Animated flip wrappers — used by external arrows and keyboard.
-  // These defer to BookSpread's flip API which animates first and then
-  // invokes handleNext/handlePrev via its onNext/onPrev props.
   const requestFlipNext = useCallback(() => {
     if (!autoRead) handleStopReading();
     if (!story) return;
     if (spreadIndex >= story.pages.length - 1) return;
-    // If we're at the last unlocked preview page, open the gate instead of flipping.
     if (
       spreadIndex === lastUnlockedSpreadIndex &&
       spreadIndex < story.pages.length - 1
@@ -411,10 +370,8 @@ export default function BookReaderPage() {
     bookSpreadRef.current?.flipPrev();
   }, [autoRead, spreadIndex]);
 
-  // Keyboard navigation (same bounds as tap/drag; works in fullscreen too)
   useEffect(() => {
     if (loading || showCover) return;
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (previewUnlockOverlayOpen) {
@@ -425,83 +382,33 @@ export default function BookReaderPage() {
         navigate(-1);
       } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
         if (isRTL) {
-          if (e.key === "ArrowLeft") {
-            requestFlipNext();
-          } else if (e.key === "ArrowRight") {
-            requestFlipPrev();
-          }
+          if (e.key === "ArrowLeft") requestFlipNext();
+          else if (e.key === "ArrowRight") requestFlipPrev();
         } else {
-          if (e.key === "ArrowLeft") {
-            requestFlipPrev();
-          } else if (e.key === "ArrowRight") {
-            requestFlipNext();
-          }
+          if (e.key === "ArrowLeft") requestFlipPrev();
+          else if (e.key === "ArrowRight") requestFlipNext();
         }
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [
-    showCover,
-    loading,
-    isRTL,
-    navigate,
-    previewUnlockOverlayOpen,
-    requestFlipNext,
-    requestFlipPrev,
-  ]);
+  }, [showCover, loading, isRTL, navigate, previewUnlockOverlayOpen, requestFlipNext, requestFlipPrev]);
 
-  // Auto-hide controls
   useEffect(() => {
     if (showCover) return;
-
     const handleMouseMove = () => {
       setControlsVisible(true);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
-      controlsTimeoutRef.current = setTimeout(() => {
-        setControlsVisible(false);
-      }, 2000);
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+      controlsTimeoutRef.current = setTimeout(() => setControlsVisible(false), 2000);
     };
-
     window.addEventListener("mousemove", handleMouseMove);
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
-      if (controlsTimeoutRef.current) {
-        clearTimeout(controlsTimeoutRef.current);
-      }
+      if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     };
   }, [showCover]);
 
-  const getPrefaceSeenKey = (): string => {
-    return storyId
-      ? `${LOCAL_STORAGE_PREFACE_SEEN_KEY}.${storyId}`
-      : LOCAL_STORAGE_PREFACE_SEEN_KEY;
-  };
-
-  const prefaceAlreadySeen = (): boolean => {
-    try {
-      return localStorage.getItem(getPrefaceSeenKey()) === "1";
-    } catch {
-      return false;
-    }
-  };
-
-  const markPrefaceSeen = () => {
-    try {
-      localStorage.setItem(getPrefaceSeenKey(), "1");
-    } catch {
-      // localStorage unavailable; fall through — preface just shows again next time
-    }
-  };
-
-  const handleStart = () => {
-    setShowCover(false);
-    setShowInstructions(true);
-  };
-
+  const handleStart = () => { setShowCover(false); setShowInstructions(true); };
   const handleInstructionsClose = () => {
     setShowInstructions(false);
     setShowCover(false);
@@ -514,10 +421,8 @@ export default function BookReaderPage() {
     const currentPage = story?.pages[currentIndex];
     const textToRead = currentPage?.textTemplate || "";
     if (!textToRead.trim()) return;
-
     setIsReading(true);
     setIsPaused(false);
-
     ttsSpeak({
       text: textToRead,
       lang: ttsLang,
@@ -525,17 +430,14 @@ export default function BookReaderPage() {
       pitch: 1,
       voiceName: selectedVoiceName || undefined,
       onEnd: () => {
-        // If auto-read is OFF → stop here
         if (!autoReadRef.current) {
           setIsReading(false);
           setIsPaused(false);
           return;
         }
-
         const latestIndex = spreadIndexRef.current;
         const latestStory = story;
         const lastUnlocked = lastUnlockedSpreadIndexRef.current;
-
         if (
           !latestStory ||
           latestIndex >= lastUnlocked ||
@@ -545,72 +447,40 @@ export default function BookReaderPage() {
           setIsPaused(false);
           return;
         }
-
         setSpreadIndex(latestIndex + 1);
-
-        // Wait a moment for the next page state to load, then read again
-        setTimeout(() => {
-          readNextPageAfterFlip();
-        }, 150);
+        setTimeout(() => readNextPageAfterFlip(), 150);
       },
     });
   };
 
   const readNextPageAfterFlip = () => {
-    // page will be updated after onNext; readCurrentPage will read new page text
     const currentIndex = spreadIndexRef.current;
     const currentPage = story?.pages[currentIndex];
     const nextText = currentPage?.textTemplate || "";
     if (!nextText.trim()) {
-      // If the page text didn't update yet, try once more shortly
       setTimeout(() => {
         const retryIndex = spreadIndexRef.current;
         const retryPage = story?.pages[retryIndex];
         const retryText = retryPage?.textTemplate || "";
         if (retryText.trim()) readCurrentPage();
-        else {
-          setIsReading(false);
-          setIsPaused(false);
-        }
+        else { setIsReading(false); setIsPaused(false); }
       }, 200);
       return;
     }
-
     readCurrentPage();
   };
 
-  const handleReadStory = () => {
-    readCurrentPage();
-  };
-
+  const handleReadStory = () => readCurrentPage();
   const handlePauseResume = () => {
     if (!ttsIsSpeaking() && !isReading) return;
-
-    if (ttsIsPaused() || isPaused) {
-      ttsResume();
-      setIsPaused(false);
-    } else {
-      ttsPause();
-      setIsPaused(true);
-    }
+    if (ttsIsPaused() || isPaused) { ttsResume(); setIsPaused(false); }
+    else { ttsPause(); setIsPaused(true); }
   };
-
-  const handleStopReading = () => {
-    ttsStop();
-    setIsReading(false);
-    setIsPaused(false);
-  };
+  const handleStopReading = () => { ttsStop(); setIsReading(false); setIsPaused(false); };
 
   const handleClose = () => {
     handleStopReading();
-
-    // Exit fullscreen if active
-    if (isFullScreen) {
-      toggleFullScreen();
-    }
-
-    // Return to the personalized book cover/title page
-    // Keep personalization data — don't navigate away
+    if (isFullScreen) toggleFullScreen();
     setShowCover(true);
     setSpreadIndex(0);
     setPreviewUnlockOverlayOpen(false);
@@ -643,72 +513,25 @@ export default function BookReaderPage() {
 
   if (loading) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: theme.palette.background.default,
-        }}
-      >
-        <Typography sx={{ color: theme.palette.text.secondary }}>
-          {t("pages.bookReader.loading")}
-        </Typography>
+      <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default }}>
+        <Typography sx={{ color: theme.palette.text.secondary }}>{t("pages.bookReader.loading")}</Typography>
       </Box>
     );
   }
 
   if (error || !story) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: theme.palette.background.default,
-          px: 3,
-        }}
-      >
-        <Typography
-          sx={{
-            color: theme.palette.text.secondary,
-            mb: 2,
-            textAlign: "center",
-          }}
-        >
-          {error || t("pages.bookReader.error")}
-        </Typography>
-        <IconButton onClick={() => navigate(-1)}>
-          <CloseIcon />
-        </IconButton>
+      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default, px: 3 }}>
+        <Typography sx={{ color: theme.palette.text.secondary, mb: 2, textAlign: "center" }}>{error || t("pages.bookReader.error")}</Typography>
+        <IconButton onClick={() => navigate(-1)}><CloseIcon /></IconButton>
       </Box>
     );
   }
 
   if (!story.pages || story.pages.length === 0) {
     return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: theme.palette.background.default,
-          px: 3,
-        }}
-      >
-        <Typography
-          sx={{
-            color: theme.palette.text.secondary,
-            textAlign: "center",
-          }}
-        >
-          {t("pages.bookReader.noPages")}
-        </Typography>
+      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default, px: 3 }}>
+        <Typography sx={{ color: theme.palette.text.secondary, textAlign: "center" }}>{t("pages.bookReader.noPages")}</Typography>
       </Box>
     );
   }
@@ -716,6 +539,44 @@ export default function BookReaderPage() {
   const currentPage = story.pages[spreadIndex];
   const canGoPrev = spreadIndex > 0;
   const canGoNext = spreadIndex < story.pages.length - 1;
+
+  const isMobileReaderActive = isMobile && !showCover && !showInstructions;
+
+  // Mobile-only labels — falls back to English text if a translation key is missing
+  const tt = (k: string, fallback: string) => {
+    try {
+      const v = (t as any)(k);
+      return v && v !== k ? v : fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const mobileControlsProps = isMobileReaderActive ? {
+    onClose: handleClose,
+    onReadStory: handleReadStory,
+    onPauseResume: handlePauseResume,
+    onStopReading: handleStopReading,
+    onToggleAutoRead: () => setAutoRead((p) => !p),
+    autoRead,
+    isReading,
+    isPaused,
+    voices: voicesForCurrentLang,
+    selectedVoiceName,
+    onSelectVoice: setSelectedVoiceName,
+    labels: {
+      close: tt("pages.bookReader.close", "Close"),
+      read: tt("pages.bookReader.readStory", "Read story"),
+      pause: tt("pages.bookReader.pause", "Pause"),
+      resume: tt("pages.bookReader.resume", "Resume"),
+      stop: tt("pages.bookReader.stop", "Stop"),
+      autoRead: autoRead
+        ? tt("pages.bookReader.autoReadOn", "Auto-read on")
+        : tt("pages.bookReader.autoReadOff", "Auto-read off"),
+      voice: tt("pages.bookReader.voice", "Voice"),
+      voiceAuto: tt("pages.bookReader.voiceAuto", "Auto (best)"),
+    },
+  } : undefined;
 
   return (
     <>
@@ -744,7 +605,114 @@ export default function BookReaderPage() {
             language={CURRENT_LANGUAGE}
             onBegin={handleInstructionsClose}
           />
+        ) : isMobileReaderActive ? (
+          // ─── MOBILE READER (Cinema Page) ────────────────────────────────────
+          <>
+            <BookSpread
+              ref={bookSpreadRef}
+              page={currentPage}
+              title={story.title}
+              isRTL={isRTL}
+              totalPages={story.pages.length}
+              onNext={handleNext}
+              onPrev={handlePrev}
+              canGoNext={canGoNext}
+              canGoPrev={canGoPrev}
+              isFullScreen={isFullScreen}
+              nextPage={story.pages[spreadIndex + 1]}
+              mobileControls={mobileControlsProps}
+            />
+
+            {/* Bottom-sheet preview gate (mobile) */}
+            {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
+              <Box
+                sx={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 9500,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* Backdrop above the illustration's TOP 40% — keeps illustration visible */}
+                <Box
+                  onClick={() => setPreviewUnlockOverlayOpen(false)}
+                  sx={{
+                    flex: "0 0 40%",
+                    background: "linear-gradient(to bottom, rgba(20,6,14,0.05), rgba(20,6,14,0.55))",
+                    cursor: "pointer",
+                  }}
+                />
+                {/* Bottom sheet — 60% of viewport */}
+                <Box
+                  sx={{
+                    flex: "0 0 60%",
+                    background: "linear-gradient(180deg, #FDF8F2 0%, #F5E6EA 100%)",
+                    borderRadius: "24px 24px 0 0",
+                    boxShadow: "0 -12px 40px rgba(20,6,14,0.45)",
+                    px: 3,
+                    py: 3,
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    overflow: "auto",
+                    animation: "bs-sheet-in 320ms cubic-bezier(.2,.7,.2,1)",
+                    "@keyframes bs-sheet-in": {
+                      from: { transform: "translateY(100%)" },
+                      to: { transform: "translateY(0)" },
+                    },
+                  }}
+                >
+                  {/* Drag handle */}
+                  <Box sx={{
+                    width: 40, height: 4, borderRadius: 2,
+                    backgroundColor: "rgba(130,77,92,0.25)",
+                    alignSelf: "center", mb: 2,
+                  }} />
+
+                  {/* The existing gate component, scaled to fit a sheet */}
+                  <ReaderPreviewGate
+                    variant="overlay"
+                    sectionRef={previewCtaSectionRef}
+                    teaserPage={
+                      hasLockedSpreadsBeyondPreview
+                        ? story.pages[lastUnlockedSpreadIndex + 1]
+                        : undefined
+                    }
+                    title={t("pages.bookReader.previewUnlockTitle")}
+                    subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                    teaserLine={t("pages.bookReader.previewTeaserLine")}
+                    addToCartLabel={t("pages.bookReader.addToCart")}
+                    onAddToCart={async () => {
+                      if (!previewId) {
+                        setPreviewUnlockOverlayOpen(false);
+                        navigate("/cart");
+                        return;
+                      }
+                      try {
+                        await addToCart(previewId);
+                      } catch (e) {
+                        if (e instanceof ApiError) {
+                          console.warn("Add to cart failed:", e.message, e.code);
+                        } else {
+                          console.warn("Add to cart failed:", e);
+                        }
+                      } finally {
+                        setPreviewUnlockOverlayOpen(false);
+                        navigate("/cart");
+                      }
+                    }}
+                    onDismiss={() => setPreviewUnlockOverlayOpen(false)}
+                    dismissLabel={t("pages.bookReader.previewEndModalClose")}
+                    ctaAnchorRef={previewCtaAnchorRef}
+                    isRTL={isRTL}
+                  />
+                </Box>
+              </Box>
+            ) : null}
+          </>
         ) : (
+          // ─── DESKTOP READER (unchanged) ──────────────────────────────────
           <>
           {/* Top Controls - Fixed, only in fullscreen mode */}
           {isFullScreen && (
@@ -767,134 +735,29 @@ export default function BookReaderPage() {
               }}
             >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <IconButton
-                onClick={handleClose}
-                sx={{
-                  color: theme.palette.text.primary,
-                }}
-              >
-                <CloseIcon />
-              </IconButton>
-
-              <IconButton
-                onClick={handlePrev}
-                disabled={!canGoPrev}
-                sx={{
-                  color: theme.palette.text.primary,
-                  "&:disabled": {
-                    color: theme.palette.text.secondary,
-                  },
-                }}
-              >
-                <ArrowBackIosNewIcon />
-              </IconButton>
-
-              <IconButton
-                onClick={handleNext}
-                disabled={!canGoNext}
-                sx={{
-                  color: theme.palette.text.primary,
-                  "&:disabled": {
-                    color: theme.palette.text.secondary,
-                  },
-                }}
-              >
-                <ArrowForwardIosIcon />
-              </IconButton>
+              <IconButton onClick={handleClose} sx={{ color: theme.palette.text.primary }}><CloseIcon /></IconButton>
+              <IconButton onClick={handlePrev} disabled={!canGoPrev} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowBackIosNewIcon /></IconButton>
+              <IconButton onClick={handleNext} disabled={!canGoNext} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowForwardIosIcon /></IconButton>
             </Box>
-
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-              <Typography
-                sx={{
-                  fontSize: "0.85rem",
-                  color: theme.palette.text.secondary,
-                }}
-              >
+              <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
                 {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
               </Typography>
-
-              <Tooltip title="Read story" arrow>
-                <span>
-                  <IconButton
-                    onClick={handleReadStory}
-                    disabled={isReading}
-                    sx={{
-                      color: theme.palette.text.primary,
-                    }}
-                  >
-                    <VolumeUpIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              <Tooltip title={isPaused ? "Resume" : "Pause"} arrow>
-                <span>
-                  <IconButton
-                    onClick={handlePauseResume}
-                    disabled={!isReading}
-                    sx={{
-                      color: theme.palette.text.primary,
-                    }}
-                  >
-                    <PauseIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
-              <Tooltip title="Stop" arrow>
-                <span>
-                  <IconButton
-                    onClick={handleStopReading}
-                    disabled={!isReading}
-                    sx={{
-                      color: theme.palette.text.primary,
-                    }}
-                  >
-                    <StopIcon />
-                  </IconButton>
-                </span>
-              </Tooltip>
-
+              <Tooltip title="Read story" arrow><span><IconButton onClick={handleReadStory} disabled={isReading} sx={{ color: theme.palette.text.primary }}><VolumeUpIcon /></IconButton></span></Tooltip>
+              <Tooltip title={isPaused ? "Resume" : "Pause"} arrow><span><IconButton onClick={handlePauseResume} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><PauseIcon /></IconButton></span></Tooltip>
+              <Tooltip title="Stop" arrow><span><IconButton onClick={handleStopReading} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><StopIcon /></IconButton></span></Tooltip>
               <Tooltip title={autoRead ? "Auto-read: ON" : "Auto-read: OFF"} arrow>
-                <IconButton
-                  onClick={() => setAutoRead((p) => !p)}
-                  sx={{
-                    color: autoRead ? theme.palette.primary.main : theme.palette.text.primary,
-                  }}
-                >
-                  <AutoplayIcon />
-                </IconButton>
+                <IconButton onClick={() => setAutoRead((p) => !p)} sx={{ color: autoRead ? theme.palette.primary.main : theme.palette.text.primary }}><AutoplayIcon /></IconButton>
               </Tooltip>
-
               <FormControl size="small" sx={{ minWidth: 180 }}>
                 <InputLabel>Voice</InputLabel>
-                <Select
-                  label="Voice"
-                  value={selectedVoiceName}
-                  onChange={(e) => setSelectedVoiceName(e.target.value)}
-                >
-                  <MenuItem value="">
-                    Auto (best)
-                  </MenuItem>
-
-                  {voicesForCurrentLang.map((v) => (
-                    <MenuItem key={v.name} value={v.name}>
-                      {v.name}
-                    </MenuItem>
-                  ))}
+                <Select label="Voice" value={selectedVoiceName} onChange={(e) => setSelectedVoiceName(e.target.value)}>
+                  <MenuItem value="">Auto (best)</MenuItem>
+                  {voicesForCurrentLang.map((v) => (<MenuItem key={v.name} value={v.name}>{v.name}</MenuItem>))}
                 </Select>
               </FormControl>
-
-              <Tooltip
-                title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")}
-                arrow
-              >
-                <IconButton
-                  onClick={toggleFullScreen}
-                  sx={{
-                    color: theme.palette.text.primary,
-                  }}
-                >
+              <Tooltip title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")} arrow>
+                <IconButton onClick={toggleFullScreen} sx={{ color: theme.palette.text.primary }}>
                   {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                 </IconButton>
               </Tooltip>
@@ -912,7 +775,6 @@ export default function BookReaderPage() {
               width: "100%",
               ...(isFullScreen
                 ? {
-                    // Fullscreen: fill viewport below the 64px top bar, center the book vertically
                     minHeight: "calc(100vh - 64px)",
                     mt: "64px",
                     justifyContent: "center",
@@ -920,153 +782,40 @@ export default function BookReaderPage() {
                     py: { xs: 2, md: 3 },
                     boxSizing: "border-box",
                   }
-                : {
-                    // Normal mode: keep existing top-anchored flow (control bar stays directly under header)
-                    pt: 4,
-                    pb: 6,
-                    px: 3,
-                  }),
+                : { pt: 4, pb: 6, px: 3 }),
             }}
           >
-            <Box
-              sx={{
-                opacity: 1,
-                transform: "translateX(0)",
-                transition: "opacity 0.4s ease, transform 0.4s ease",
-              }}
-            >
+            <Box sx={{ opacity: 1, transform: "translateX(0)", transition: "opacity 0.4s ease, transform 0.4s ease" }}>
               {/* ReaderControls - Regular mode (scrolls with content) */}
               {!isFullScreen && (
                 <Box
                   sx={{
-                    maxWidth: 1200,
-                    mx: "auto",
-                    mt: 2,
-                    mb: 2,
-                    px: { xs: 2, md: 0 },
-                    py: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 2,
+                    maxWidth: 1200, mx: "auto", mt: 2, mb: 2, px: { xs: 2, md: 0 }, py: 1,
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,
                     backgroundColor: theme.palette.background.paper,
                     border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 2,
-                    backdropFilter: "blur(8px)",
+                    borderRadius: 2, backdropFilter: "blur(8px)",
                   }}
                 >
-                  {/* Left side: Prev/Next + page */}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <IconButton
-                      onClick={handlePrev}
-                      disabled={!canGoPrev}
-                      sx={{
-                        color: theme.palette.text.primary,
-                        "&:disabled": {
-                          color: theme.palette.text.secondary,
-                        },
-                      }}
-                    >
-                      <ArrowBackIosNewIcon />
-                    </IconButton>
-
-                    <IconButton
-                      onClick={handleNext}
-                      disabled={!canGoNext}
-                      sx={{
-                        color: theme.palette.text.primary,
-                        "&:disabled": {
-                          color: theme.palette.text.secondary,
-                        },
-                      }}
-                    >
-                      <ArrowForwardIosIcon />
-                    </IconButton>
-
-                    <Typography
-                      sx={{
-                        fontSize: "0.85rem",
-                        color: theme.palette.text.secondary,
-                      }}
-                    >
+                    <IconButton onClick={handlePrev} disabled={!canGoPrev} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowBackIosNewIcon /></IconButton>
+                    <IconButton onClick={handleNext} disabled={!canGoNext} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowForwardIosIcon /></IconButton>
+                    <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
                       {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
                     </Typography>
                   </Box>
 
-                  {/* Right side: Sound + fullscreen */}
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Tooltip title="Read story" arrow>
-                      <span>
-                        <IconButton
-                          onClick={handleReadStory}
-                          disabled={isReading}
-                          sx={{
-                            color: theme.palette.text.primary,
-                          }}
-                        >
-                          <VolumeUpIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-
-                    <Tooltip title={isPaused ? "Resume" : "Pause"} arrow>
-                      <span>
-                        <IconButton
-                          onClick={handlePauseResume}
-                          disabled={!isReading}
-                          sx={{
-                            color: theme.palette.text.primary,
-                          }}
-                        >
-                          <PauseIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-
-                    <Tooltip title="Stop" arrow>
-                      <span>
-                        <IconButton
-                          onClick={handleStopReading}
-                          disabled={!isReading}
-                          sx={{
-                            color: theme.palette.text.primary,
-                          }}
-                        >
-                          <StopIcon />
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-
+                    <Tooltip title="Read story" arrow><span><IconButton onClick={handleReadStory} disabled={isReading} sx={{ color: theme.palette.text.primary }}><VolumeUpIcon /></IconButton></span></Tooltip>
+                    <Tooltip title={isPaused ? "Resume" : "Pause"} arrow><span><IconButton onClick={handlePauseResume} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><PauseIcon /></IconButton></span></Tooltip>
+                    <Tooltip title="Stop" arrow><span><IconButton onClick={handleStopReading} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><StopIcon /></IconButton></span></Tooltip>
                     <Tooltip title={autoRead ? "Auto-read: ON" : "Auto-read: OFF"} arrow>
-                      <IconButton
-                        onClick={() => setAutoRead((p) => !p)}
-                        sx={{
-                          color: autoRead ? theme.palette.primary.main : theme.palette.text.primary,
-                        }}
-                      >
-                        <AutoplayIcon />
-                      </IconButton>
+                      <IconButton onClick={() => setAutoRead((p) => !p)} sx={{ color: autoRead ? theme.palette.primary.main : theme.palette.text.primary }}><AutoplayIcon /></IconButton>
                     </Tooltip>
-
                     <Tooltip title={t("pages.bookReader.fullScreen")} arrow>
-                      <IconButton
-                        onClick={toggleFullScreen}
-                        sx={{
-                          color: theme.palette.text.primary,
-                        }}
-                      >
-                        <FullscreenIcon />
-                      </IconButton>
+                      <IconButton onClick={toggleFullScreen} sx={{ color: theme.palette.text.primary }}><FullscreenIcon /></IconButton>
                     </Tooltip>
-
-                    <IconButton
-                      onClick={handleClose}
-                      sx={{
-                        color: theme.palette.text.primary,
-                      }}
-                    >
-                      <CloseIcon />
-                    </IconButton>
+                    <IconButton onClick={handleClose} sx={{ color: theme.palette.text.primary }}><CloseIcon /></IconButton>
                   </Box>
                 </Box>
               )}
@@ -1075,17 +824,10 @@ export default function BookReaderPage() {
               <Box
                 dir="ltr"
                 sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  width: "100%",
-                  mx: "auto",
-                  position: "relative",
-                  isolation: "isolate", // 🔥 VERY IMPORTANT - prevents stacking context issues
-                  overflow: "visible",
+                  display: "flex", justifyContent: "center", alignItems: "center", width: "100%",
+                  mx: "auto", position: "relative", isolation: "isolate", overflow: "visible",
                 }}
               >
-                {/* Book Spread */}
                 <BookSpread
                   ref={bookSpreadRef}
                   page={currentPage}
@@ -1122,7 +864,6 @@ export default function BookReaderPage() {
                       try {
                         await addToCart(previewId);
                       } catch (e) {
-                        // Best-effort: still take user to cart (it may already contain the item)
                         if (e instanceof ApiError) {
                           console.warn("Add to cart failed:", e.message, e.code);
                         } else {
@@ -1140,176 +881,75 @@ export default function BookReaderPage() {
                   />
                 ) : null}
 
-                {/* LEFT ARROW — NEXT PAGE (RTL) or PREVIOUS PAGE (LTR) */}
+                {/* External arrows — desktop only */}
                 {isRTL ? (
-                  // RTL: LEFT arrow = NEXT page
                   canGoNext && !previewUnlockOverlayOpen && (
-                    <Box
-                      onClick={requestFlipNext}
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        left: { xs: -56, md: -72 },
-                        transform: "translateY(-50%)",
-                        width: { xs: 44, md: 56 },
-                        height: { xs: 56, md: 72 },
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        userSelect: "none",
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        border: `2px solid ${theme.palette.divider}`,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
-                        "&:hover": {
-                          opacity: 1,
-                          backgroundColor: "rgba(255, 255, 255, 1)",
-                          transform: "translateY(-50%) scale(1.05)",
-                        },
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: { xs: "1.5rem", md: "1.8rem" },
-                          color: "#824D5C",
-                          fontWeight: 600,
-                          lineHeight: 1,
-                        }}
-                      >
-                        ←
-                      </Typography>
+                    <Box onClick={requestFlipNext} sx={{
+                      position: "absolute", top: "50%", left: { xs: -56, md: -72 }, transform: "translateY(-50%)",
+                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", userSelect: "none",
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      border: `2px solid ${theme.palette.divider}`,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                      zIndex: 10000,
+                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
+                    }}>
+                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>←</Typography>
                     </Box>
                   )
                 ) : (
-                  // LTR: LEFT arrow = PREVIOUS page
                   canGoPrev && !previewUnlockOverlayOpen && (
-                    <Box
-                      onClick={requestFlipPrev}
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        left: { xs: -56, md: -72 },
-                        transform: "translateY(-50%)",
-                        width: { xs: 44, md: 56 },
-                        height: { xs: 56, md: 72 },
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        userSelect: "none",
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        border: `2px solid ${theme.palette.divider}`,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
-                        "&:hover": {
-                          opacity: 1,
-                          backgroundColor: "rgba(255, 255, 255, 1)",
-                          transform: "translateY(-50%) scale(1.05)",
-                        },
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: { xs: "1.5rem", md: "1.8rem" },
-                          color: "#824D5C",
-                          fontWeight: 600,
-                          lineHeight: 1,
-                        }}
-                      >
-                        ←
-                      </Typography>
+                    <Box onClick={requestFlipPrev} sx={{
+                      position: "absolute", top: "50%", left: { xs: -56, md: -72 }, transform: "translateY(-50%)",
+                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", userSelect: "none",
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      border: `2px solid ${theme.palette.divider}`,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                      zIndex: 10000,
+                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
+                    }}>
+                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>←</Typography>
                     </Box>
                   )
                 )}
 
-                {/* RIGHT ARROW — PREVIOUS PAGE (RTL) or NEXT PAGE (LTR) */}
                 {isRTL ? (
-                  // RTL: RIGHT arrow = PREVIOUS page
                   canGoPrev && !previewUnlockOverlayOpen && (
-                    <Box
-                      onClick={requestFlipPrev}
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        right: { xs: -56, md: -72 },
-                        transform: "translateY(-50%)",
-                        width: { xs: 44, md: 56 },
-                        height: { xs: 56, md: 72 },
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        userSelect: "none",
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        border: `2px solid ${theme.palette.divider}`,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
-                        "&:hover": {
-                          opacity: 1,
-                          backgroundColor: "rgba(255, 255, 255, 1)",
-                          transform: "translateY(-50%) scale(1.05)",
-                        },
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: { xs: "1.5rem", md: "1.8rem" },
-                          color: "#824D5C",
-                          fontWeight: 600,
-                          lineHeight: 1,
-                        }}
-                      >
-                        →
-                      </Typography>
+                    <Box onClick={requestFlipPrev} sx={{
+                      position: "absolute", top: "50%", right: { xs: -56, md: -72 }, transform: "translateY(-50%)",
+                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", userSelect: "none",
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      border: `2px solid ${theme.palette.divider}`,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                      zIndex: 10000,
+                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
+                    }}>
+                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>→</Typography>
                     </Box>
                   )
                 ) : (
-                  // LTR: RIGHT arrow = NEXT page
                   canGoNext && !previewUnlockOverlayOpen && (
-                    <Box
-                      onClick={requestFlipNext}
-                      sx={{
-                        position: "absolute",
-                        top: "50%",
-                        right: { xs: -56, md: -72 },
-                        transform: "translateY(-50%)",
-                        width: { xs: 44, md: 56 },
-                        height: { xs: 56, md: 72 },
-                        borderRadius: "50%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        userSelect: "none",
-                        backgroundColor: "rgba(255, 255, 255, 0.9)",
-                        border: `2px solid ${theme.palette.divider}`,
-                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                        zIndex: 10000, // 🔥 REQUIRED - higher than page turn overlay (9999)
-                        "&:hover": {
-                          opacity: 1,
-                          backgroundColor: "rgba(255, 255, 255, 1)",
-                          transform: "translateY(-50%) scale(1.05)",
-                        },
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          fontSize: { xs: "1.5rem", md: "1.8rem" },
-                          color: "#824D5C",
-                          fontWeight: 600,
-                          lineHeight: 1,
-                        }}
-                      >
-                        →
-                      </Typography>
+                    <Box onClick={requestFlipNext} sx={{
+                      position: "absolute", top: "50%", right: { xs: -56, md: -72 }, transform: "translateY(-50%)",
+                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", userSelect: "none",
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      border: `2px solid ${theme.palette.divider}`,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
+                      zIndex: 10000,
+                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
+                    }}>
+                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>→</Typography>
                     </Box>
                   )
                 )}
@@ -1322,4 +962,3 @@ export default function BookReaderPage() {
     </>
   );
 }
-
