@@ -4,11 +4,13 @@ import type { ExperimentVariant } from "../types";
 import { baselineVariant } from "./baseline";
 import { noReferenceVariant } from "./no-reference";
 import { rollingReferenceVariant } from "./rolling-reference";
+import { promptEngineeringVariant } from "./prompt-engineering";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
   [baselineVariant.id]: baselineVariant,
   [noReferenceVariant.id]: noReferenceVariant,
   [rollingReferenceVariant.id]: rollingReferenceVariant,
+  [promptEngineeringVariant.id]: promptEngineeringVariant,
 };
 
 export function getVariant(id: string): ExperimentVariant {
