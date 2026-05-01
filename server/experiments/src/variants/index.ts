@@ -6,6 +6,7 @@ import { noReferenceVariant } from "./no-reference";
 import { rollingReferenceVariant } from "./rolling-reference";
 import { promptEngineeringVariant } from "./prompt-engineering";
 import { styleBibleVariant } from "./style-bible";
+import { styleBibleSonnetVariant } from "./style-bible-sonnet";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
   [baselineVariant.id]: baselineVariant,
@@ -13,6 +14,7 @@ export const VARIANTS: Record<string, ExperimentVariant> = {
   [rollingReferenceVariant.id]: rollingReferenceVariant,
   [promptEngineeringVariant.id]: promptEngineeringVariant,
   [styleBibleVariant.id]: styleBibleVariant,
+  [styleBibleSonnetVariant.id]: styleBibleSonnetVariant,
 };
 
 export function getVariant(id: string): ExperimentVariant {

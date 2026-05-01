@@ -56,7 +56,7 @@ palette (string):
 5–7 colour names separated by commas. Compact — no role descriptions. These are the only colours that should appear.
 
 avoidList (array of 6–8 strings, each under 8 words):
-Short concrete phrases — NOT full sentences. Each names one specific thing to avoid. Focus on: (1) rendering errors for this character type, (2) metaphor-derived literal shapes (if story says "mountain of books" → avoid "mountain silhouette behind book pile"), (3) off-style elements, (4) props not in this story. Example: "mountain silhouette behind book pile", "saturated bright colours", "photorealistic skin texture".
+Short concrete phrases — NOT full sentences. Each names one specific thing to avoid. The FIRST item must always be "text, letters, words, or captions of any kind". Then focus on: (1) rendering errors for this character type, (2) metaphor-derived literal shapes (if story says "mountain of books" → avoid "mountain silhouette behind book pile"), (3) off-style elements, (4) props not in this story. Example first item: "text, letters, words, or captions of any kind".
 
 OUTPUT: Reply with ONLY valid JSON (no markdown fences):
 {
@@ -184,8 +184,8 @@ The scenePrompts array must have exactly ${pages.length} elements, one per page 
 export async function callClaudeForStructuredScenePrompts(
   pages: PageIllustration[],
   bible: StyleBible,
+  model = "claude-haiku-4-5-20251001",
 ): Promise<ScenePromptSections[]> {
-  const model = "claude-haiku-4-5-20251001";
   const prompt = buildStructuredScenePromptsPrompt(pages, bible);
 
   const response = await client.messages.create({

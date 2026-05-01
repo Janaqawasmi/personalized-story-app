@@ -3,13 +3,15 @@
  *
  * Ordering is deliberate: most critical visual information first so that if
  * Seedream truncates near the 1200-char limit, the style lock and scene are
- * preserved over the palette/avoid footer.
+ * preserved over the palette/avoid footer. The no-text constraint is placed
+ * first because Seedream weights earlier tokens more heavily, and text
+ * suppression must be a hard constraint, not an afterthought.
  *
- *   1. Consistency anchors   — style lock
- *   2. Setting               — where/when/which props
- *   3. Character             — who, on what, body language
- *   4. Focal point           — viewer's eye target
- *   5. Composition           — framing / angle / layers
+ *   1. No-text constraint    — hard suppression, highest token weight
+ *   2. Consistency anchors   — style lock
+ *   3. Setting               — where/when/which props
+ *   4. Character             — who, on what, body language
+ *   5. Focal point           — viewer's eye target
  *   6. Lighting              — source, quality, shadow, mood
  *   7. Palette               — colour lock
  *   8. Avoid                 — negative guidance (embedded in positive prompt)
@@ -35,6 +37,7 @@ export function assembleStyleBiblePagePrompt(
   // improving Seedream's spatial reasoning; budget spent on setting instead.
 
   const parts = [
+    "No text, no letters, no words, no captions, no labels, no speech bubbles, no logos, wordless illustration.",
     anchors + ".",
     `Setting: ${scene.setting}.`,
     `${bible.characterAnchor} In this scene: ${scene.character}.`,
@@ -42,7 +45,7 @@ export function assembleStyleBiblePagePrompt(
     `Lighting: ${scene.lighting}.`,
     `Color palette: ${palette}.`,
     avoid,
-    "No text, no speech bubbles, no logos. Children's book illustration.",
+    "Children's book illustration.",
   ];
 
   const prompt = parts.join(" ");
