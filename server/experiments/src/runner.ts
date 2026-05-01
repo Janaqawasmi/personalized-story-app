@@ -2,9 +2,11 @@
 // persist outputs to disk. NEVER writes back to Firestore.
 
 import "./bootstrap";
+import * as fs from "fs";
 import * as path from "path";
 import { firestore } from "@/config/firebase";
 import { STORIES_COLLECTION, type Story } from "@/models/story.model";
+import type { VisualBible } from "@/models/story.model";
 import { ensureDir, writeMetadata, writeReport } from "./helpers";
 import type { RunContext } from "./types";
 import { getVariant } from "./variants";
@@ -15,6 +17,12 @@ export interface RunOptions {
   pageNumbers: number[];
   /** Folder name under experiments/results/. */
   outName: string;
+  /**
+   * Absolute path to a locked Visual Bible JSON file.
+   * When provided, all variants skip VB generation and use this instead,
+   * ensuring only one variable differs between runs.
+   */
+  lockedVbPath?: string;
 }
 
 async function loadStoryReadOnly(storyId: string): Promise<Story> {
@@ -39,11 +47,19 @@ export async function runExperiment(opts: RunOptions): Promise<void> {
   const outDir = path.resolve(__dirname, "..", "results", opts.outName);
   ensureDir(outDir);
 
+  let lockedVisualBible: VisualBible | undefined;
+  if (opts.lockedVbPath) {
+    const raw = fs.readFileSync(opts.lockedVbPath, "utf8");
+    lockedVisualBible = JSON.parse(raw) as VisualBible;
+    console.log(`[runner] loaded locked Visual Bible from ${opts.lockedVbPath}`);
+  }
+
   const ctx: RunContext = {
     story,
     targetPageNumbers: opts.pageNumbers,
     outDir,
     log: (msg) => console.log(msg),
+    ...(lockedVisualBible ? { lockedVisualBible } : {}),
   };
 
   console.log(

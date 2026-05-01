@@ -6,7 +6,10 @@
 // pages 5 and 10 came back as near-clones of page 1. Cost: character
 // consistency may drop since there's no visual anchor across pages.
 
-import { callClaudeForImagePrompts } from "@/specialist/image-prompt-generator";
+import {
+  callClaudeForImagePrompts,
+  callClaudeForPromptsOnly,
+} from "@/specialist/image-prompt-generator";
 import { assembleSeedreamPrompt } from "@/specialist/prompt-builder";
 import { SeedreamProvider } from "@/providers/seedream.provider";
 import { ensureDir, saveImage, savePromptText } from "../helpers";
@@ -28,11 +31,17 @@ export const noReferenceVariant: ExperimentVariant = {
     const provider = new SeedreamProvider();
     const targetPages = selectTargetPages(ctx.story, ctx.targetPageNumbers);
 
-    ctx.log(`[no-reference] generating Visual Bible + ${targetPages.length} prompts via Claude…`);
-    const { visualBible, imagePrompts } = await callClaudeForImagePrompts(
-      targetPages,
-      ctx.story.brief,
-    );
+    let visualBible;
+    let imagePrompts: string[];
+
+    if (ctx.lockedVisualBible) {
+      ctx.log(`[no-reference] using locked Visual Bible — generating ${targetPages.length} prompts only…`);
+      visualBible = ctx.lockedVisualBible;
+      imagePrompts = await callClaudeForPromptsOnly(targetPages, ctx.story.brief, visualBible);
+    } else {
+      ctx.log(`[no-reference] generating Visual Bible + ${targetPages.length} prompts via Claude…`);
+      ({ visualBible, imagePrompts } = await callClaudeForImagePrompts(targetPages, ctx.story.brief));
+    }
 
     const seed =
       ctx.story.illustrationSeed ?? Math.floor(Math.random() * 2 ** 31);

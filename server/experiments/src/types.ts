@@ -14,6 +14,11 @@ export interface RunContext {
   /** Absolute path of the experiment's output directory. */
   outDir: string;
   log: (msg: string) => void;
+  /**
+   * When set, variants must skip Visual Bible generation and use this instead.
+   * Enforces one-variable isolation across experiments.
+   */
+  lockedVisualBible?: VisualBible;
 }
 
 export interface PageRunResult {

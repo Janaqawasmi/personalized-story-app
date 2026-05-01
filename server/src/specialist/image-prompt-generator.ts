@@ -172,6 +172,203 @@ export function parseImagePromptsResponse(
 // Main call
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Visual-Bible-only generation (for cache / locked-VB workflow)
+// ---------------------------------------------------------------------------
+
+export function buildVisualBibleOnlyPrompt(
+  pages: PageIllustration[],
+  brief: StoryBrief,
+): string {
+  const ageLabel = AGE_RANGE_LABELS[brief.ageAndScope.ageRange];
+  const pagesText = pages
+    .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
+    .join("\n\n");
+
+  return `You are a children's book art director. Read the complete story and produce a VISUAL BIBLE that anchors every illustration in a consistent visual world.
+
+STORY CONTEXT:
+Age range: ${ageLabel}
+Story type: ${brief.storyType.replace(/_/g, " ")}
+
+STORY PAGES:
+${pagesText}
+
+VISUAL BIBLE rules:
+- protagonist: one sentence describing the main character's permanent physical appearance (species, size, colour, clothing). No names.
+- styleGuide: one sentence specifying art medium and mood (e.g. "Soft watercolour, warm earthy tones, gentle rounded shapes").
+- environmentRegistry: an object mapping each distinct setting that appears in the story to a one-sentence visual description. Keys are lowercase scene labels (e.g. "bedroom", "garden").
+- palette: a comma-separated list of 4–6 descriptive colour names that capture the story's emotional tone.
+
+OUTPUT: Reply with ONLY valid JSON (no markdown fences):
+{
+  "visualBible": {
+    "protagonist": "string",
+    "styleGuide": "string",
+    "environmentRegistry": { "<scene>": "string" },
+    "palette": "string"
+  }
+}`;
+}
+
+export async function callClaudeForVisualBible(
+  pages: PageIllustration[],
+  brief: StoryBrief,
+): Promise<VisualBible> {
+  const model = "claude-haiku-4-5-20251001";
+  const prompt = buildVisualBibleOnlyPrompt(pages, brief);
+  const startTime = Date.now();
+
+  const response = await client.messages.create({
+    model,
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("callClaudeForVisualBible: Claude returned no text block");
+  }
+
+  let parsed: { visualBible: RawOutput["visualBible"] };
+  try {
+    parsed = JSON.parse(stripMarkdownFences(textBlock.text)) as {
+      visualBible: RawOutput["visualBible"];
+    };
+  } catch {
+    throw new Error(
+      `callClaudeForVisualBible: failed to parse response as JSON. Raw: ${textBlock.text.slice(0, 200)}`,
+    );
+  }
+
+  appendLogLine({
+    timestamp: new Date().toISOString(),
+    model,
+    pageCount: pages.length,
+    promptLength: prompt.length,
+    inputTokens: response.usage?.input_tokens,
+    outputTokens: response.usage?.output_tokens,
+    latencyMs: Date.now() - startTime,
+    success: true,
+    prompt,
+    rawText: textBlock.text,
+  });
+
+  return {
+    protagonist: parsed.visualBible.protagonist,
+    styleGuide: parsed.visualBible.styleGuide,
+    environmentRegistry: parsed.visualBible.environmentRegistry ?? {},
+    palette: parsed.visualBible.palette,
+    generatedAt: Date.now(),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Prompts-only generation (when Visual Bible is already locked)
+// ---------------------------------------------------------------------------
+
+export function buildPromptsOnlyPrompt(
+  pages: PageIllustration[],
+  brief: StoryBrief,
+  visualBible: VisualBible,
+): string {
+  const ageLabel = AGE_RANGE_LABELS[brief.ageAndScope.ageRange];
+  const pagesText = pages
+    .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
+    .join("\n\n");
+
+  return `You are a children's book art director. The Visual Bible for this story is locked. Generate one SEEDREAM 4.0 IMAGE PROMPT per page.
+
+STORY CONTEXT:
+Age range: ${ageLabel}
+Story type: ${brief.storyType.replace(/_/g, " ")}
+
+VISUAL BIBLE (locked):
+- Protagonist: ${visualBible.protagonist}
+- Style: ${visualBible.styleGuide}
+- Environments: ${JSON.stringify(visualBible.environmentRegistry)}
+- Palette: ${visualBible.palette}
+
+STORY PAGES:
+${pagesText}
+
+IMAGE PROMPT rules per page (Seedream 4.0 style):
+- 1–2 sentences only. Describe the key visual moment as coherent natural language: subject + action + environment.
+- Mention the specific setting from the environment registry.
+- Do NOT repeat the style or character description — those are appended separately.
+- Do NOT use keyword lists (e.g. "rabbit, meadow, sunshine" is wrong).
+- Do NOT include text, speech bubbles, or logos.
+- Do NOT reference emotions directly — show them through posture, environment, and light.
+- Do NOT include anything age-inappropriate or frightening.
+
+EXAMPLE of a good image prompt:
+"A small brown rabbit sits in a sun-dappled garden clearing, reaching one paw toward a glowing firefly hovering just out of reach."
+
+OUTPUT: Reply with ONLY valid JSON (no markdown fences):
+{
+  "imagePrompts": ["string", "string", ...]
+}
+
+The imagePrompts array must have exactly ${pages.length} elements, one per page in order.`;
+}
+
+export async function callClaudeForPromptsOnly(
+  pages: PageIllustration[],
+  brief: StoryBrief,
+  visualBible: VisualBible,
+): Promise<string[]> {
+  const model = "claude-haiku-4-5-20251001";
+  const prompt = buildPromptsOnlyPrompt(pages, brief, visualBible);
+  const startTime = Date.now();
+
+  const response = await client.messages.create({
+    model,
+    max_tokens: 1024,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("callClaudeForPromptsOnly: Claude returned no text block");
+  }
+
+  let parsed: { imagePrompts: string[] };
+  try {
+    parsed = JSON.parse(stripMarkdownFences(textBlock.text)) as {
+      imagePrompts: string[];
+    };
+  } catch {
+    throw new Error(
+      `callClaudeForPromptsOnly: failed to parse response as JSON. Raw: ${textBlock.text.slice(0, 200)}`,
+    );
+  }
+
+  if (!Array.isArray(parsed.imagePrompts) || parsed.imagePrompts.length !== pages.length) {
+    throw new Error(
+      `callClaudeForPromptsOnly: expected ${pages.length} prompts, got ${parsed.imagePrompts?.length}`,
+    );
+  }
+
+  appendLogLine({
+    timestamp: new Date().toISOString(),
+    model,
+    pageCount: pages.length,
+    promptLength: prompt.length,
+    inputTokens: response.usage?.input_tokens,
+    outputTokens: response.usage?.output_tokens,
+    latencyMs: Date.now() - startTime,
+    success: true,
+    prompt,
+    rawText: textBlock.text,
+  });
+
+  return parsed.imagePrompts;
+}
+
+// ---------------------------------------------------------------------------
+// Combined call (original: VB + prompts in one shot)
+// ---------------------------------------------------------------------------
+
 export async function callClaudeForImagePrompts(
   pages: PageIllustration[],
   brief: StoryBrief,

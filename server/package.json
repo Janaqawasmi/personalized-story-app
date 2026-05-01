@@ -13,6 +13,7 @@
     "smoke:agent1": "ts-node -r tsconfig-paths/register scripts/smoke-test-agent1.ts",
     "experiment:list": "ts-node -r tsconfig-paths/register experiments/src/list-stories.ts",
     "experiment:pages": "ts-node -r tsconfig-paths/register experiments/src/print-pages.ts",
+    "experiment:generate-vb": "ts-node -r tsconfig-paths/register experiments/src/generate-vb.ts",
     "experiment:run": "ts-node -r tsconfig-paths/register experiments/src/cli.ts",
     "test": "jest",
     "test:watch": "jest --watch",

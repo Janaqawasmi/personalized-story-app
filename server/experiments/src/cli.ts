@@ -13,6 +13,7 @@ interface Args {
   story: string;
   pages: string;
   out: string;
+  "locked-vb"?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -40,7 +41,8 @@ function printUsage(): void {
   console.log(
     `\nImage-gen experiment runner\n\n` +
       `Usage:\n` +
-      `  npm run -w server experiment:run -- --variant <id> --story <storyId> --pages 1,4,7 --out exp-00-baseline\n\n` +
+      `  npm run -w server experiment:run -- --variant <id> --story <storyId> --pages 1,4,7 --out exp-00-baseline\n` +
+      `  npm run -w server experiment:run -- --variant <id> --story <storyId> --pages 1,5,10 --out exp-01b-no-ref-locked --locked-vb experiments/locked-visual-bibles/<storyId>.json\n\n` +
       `Available variants: ${Object.keys(VARIANTS).join(", ")}\n`,
   );
 }
@@ -77,11 +79,16 @@ async function main(): Promise<void> {
     throw new Error("--pages requires at least one page number");
   }
 
+  const lockedVbPath = args["locked-vb"]
+    ? require("path").resolve(process.cwd(), args["locked-vb"])
+    : undefined;
+
   await runExperiment({
     variantId: args.variant,
     storyId: args.story,
     pageNumbers,
     outName: args.out,
+    lockedVbPath,
   });
 }
 

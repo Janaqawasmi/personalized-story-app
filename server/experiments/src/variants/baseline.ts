@@ -10,7 +10,10 @@
 //     (so reference URLs work the same way) AND to local disk for review.
 
 import { admin } from "@/config/firebase";
-import { callClaudeForImagePrompts } from "@/specialist/image-prompt-generator";
+import {
+  callClaudeForImagePrompts,
+  callClaudeForPromptsOnly,
+} from "@/specialist/image-prompt-generator";
 import { assembleSeedreamPrompt } from "@/specialist/prompt-builder";
 import { SeedreamProvider } from "@/providers/seedream.provider";
 import { ensureDir, saveImage, savePromptText } from "../helpers";
@@ -32,11 +35,17 @@ export const baselineVariant: ExperimentVariant = {
     const provider = new SeedreamProvider();
     const targetPages = selectTargetPages(ctx.story, ctx.targetPageNumbers);
 
-    ctx.log(`[baseline] generating Visual Bible + ${targetPages.length} prompts via Claude…`);
-    const { visualBible, imagePrompts } = await callClaudeForImagePrompts(
-      targetPages,
-      ctx.story.brief,
-    );
+    let visualBible;
+    let imagePrompts: string[];
+
+    if (ctx.lockedVisualBible) {
+      ctx.log(`[baseline] using locked Visual Bible — generating ${targetPages.length} prompts only…`);
+      visualBible = ctx.lockedVisualBible;
+      imagePrompts = await callClaudeForPromptsOnly(targetPages, ctx.story.brief, visualBible);
+    } else {
+      ctx.log(`[baseline] generating Visual Bible + ${targetPages.length} prompts via Claude…`);
+      ({ visualBible, imagePrompts } = await callClaudeForImagePrompts(targetPages, ctx.story.brief));
+    }
 
     // Use a fresh seed per run unless the story has one persisted (rare for experiments).
     const seed =
