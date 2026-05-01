@@ -137,6 +137,13 @@ export default function BookReaderPage() {
     return () => mql.removeEventListener("change", handler);
   }, []);
 
+  useEffect(() => {
+    document.body.classList.add("book-reader");
+    return () => {
+      document.body.classList.remove("book-reader");
+    };
+  }, []);
+
   const previewId =
     searchParams.get("previewId") ||
     (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
@@ -511,6 +518,20 @@ export default function BookReaderPage() {
     }
   };
 
+  const isMobileReaderActive = isMobile && !showCover && !showInstructions;
+
+  // Hide Sienna widget on mobile reader to avoid overlap with nav arrows
+  useEffect(() => {
+    if (!isMobileReaderActive) return;
+    const container = document.querySelector(".asw-container") as HTMLElement | null;
+    if (!container) return;
+    const prev = container.style.display;
+    container.style.setProperty("display", "none", "important");
+    return () => {
+      container.style.display = prev;
+    };
+  }, [isMobileReaderActive]);
+
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default }}>
@@ -539,8 +560,6 @@ export default function BookReaderPage() {
   const currentPage = story.pages[spreadIndex];
   const canGoPrev = spreadIndex > 0;
   const canGoNext = spreadIndex < story.pages.length - 1;
-
-  const isMobileReaderActive = isMobile && !showCover && !showInstructions;
 
   // Mobile-only labels — falls back to English text if a translation key is missing
   const tt = (k: string, fallback: string) => {
@@ -582,6 +601,7 @@ export default function BookReaderPage() {
     <>
       <Box
         ref={containerRef}
+        className="book-reader-page"
         sx={{
           minHeight: "100vh",
           backgroundColor: theme.palette.background.default,
