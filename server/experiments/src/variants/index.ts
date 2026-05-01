@@ -2,9 +2,11 @@
 
 import type { ExperimentVariant } from "../types";
 import { baselineVariant } from "./baseline";
+import { noReferenceVariant } from "./no-reference";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
   [baselineVariant.id]: baselineVariant,
+  [noReferenceVariant.id]: noReferenceVariant,
 };
 
 export function getVariant(id: string): ExperimentVariant {
