@@ -1,0 +1,30 @@
+{
+  "characterSheet": "Theo is a boy of approximately six years old with a slight, compact build — not thin or frail, but small-framed and proportionally child-like. His face is round with a soft jawline, large dark eyes that sit wide-spaced with a gently worried quality, a small rounded nose, and a naturally serious mouth that turns slightly downward at rest — he is a child who feels things deeply. His hair is dark brown, fine-textured, and falls in a slightly tousled, bedhead-friendly way across his forehead and above his ears, never perfectly combed. He wears striped or patterned long-sleeved pajamas in soft muted tones (blues, greys, or warm creams), which are his consistent sleepwear throughout. He has no distinguishing marks or scars, but carries a subtle physical tension in his shoulders and neck when anxious — a hunching quality — and relaxes into a more open posture when calm. His default stance is still and inward-focused, with hands often held close to his body or reaching for tactile comfort (pillow, blanket edge).",
+  "characterAnchor": "A small six-year-old boy with a round face, large dark wide-set eyes, dark tousled hair, and soft patterned pajamas in muted tones. Shoulders often slightly hunched when anxious.",
+  "styleGuide": "Soft, hand-drawn watercolour illustration with gentle line work and translucent layering; muted, naturalistic colour palette dominated by warm greys, soft blues, and creams; high emotional warmth despite dark subject matter; intimate, close-perspective compositions that emphasize interiority and tactile sensation over narrative action.",
+  "consistencyAnchors": [
+    "soft watercolour with gentle line work",
+    "muted grey-blue-cream palette only",
+    "close intimate perspective",
+    "translucent layered wash texture",
+    "warm grey atmospheric light"
+  ],
+  "environmentRegistry": {
+    "theo_bedroom_night": {
+      "atmosphere": "A deeply intimate, small personal sanctuary rendered in warm greys and soft blue-greys; light is sparse and comes from the hallway stripe (fading) or the window's ambient glow; the mood is tender, vulnerable, and gradually steadying — never harsh or cold, but genuinely dark and tactile.",
+      "spatialLayout": "A modest child's bedroom with a single bed positioned center-right where Theo lies; a blue blanket covers the bed; a pillow with visible seam sits at the head; a wooden dresser stands in the back-left corner; a window with faint grey-glow occupies the upper back wall; a pile of books rests on the floor in the left-center area; the doorway is positioned on the right wall showing a thin orange hallway stripe (fading to darkness); the second floorboard is implied near the door; bedroom walls are neutral warm-grey."
+    }
+  },
+  "palette": "warm grey, soft slate blue, pale cream, dark charcoal, muted ochre, soft taupe, barely-there white",
+  "avoidList": [
+    "bright saturated colours or primary blues",
+    "harsh shadows or high-contrast dramatic lighting",
+    "photorealistic texture or anatomical precision",
+    "cartoon-style exaggeration or cute proportions",
+    "glowing magical light or fantasy elements",
+    "active movement or dynamic pose emphasis",
+    "visible door frame hard edges",
+    "literal mountain shape in book pile"
+  ],
+  "generatedAt": 1777651460058
+}

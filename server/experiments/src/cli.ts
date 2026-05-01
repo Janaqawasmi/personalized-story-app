@@ -14,6 +14,7 @@ interface Args {
   pages: string;
   out: string;
   "locked-vb"?: string;
+  "locked-sb"?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -79,16 +80,16 @@ async function main(): Promise<void> {
     throw new Error("--pages requires at least one page number");
   }
 
-  const lockedVbPath = args["locked-vb"]
-    ? require("path").resolve(process.cwd(), args["locked-vb"])
-    : undefined;
+  const resolvePath = (p: string | undefined) =>
+    p ? require("path").resolve(process.cwd(), p) : undefined;
 
   await runExperiment({
     variantId: args.variant,
     storyId: args.story,
     pageNumbers,
     outName: args.out,
-    lockedVbPath,
+    lockedVbPath: resolvePath(args["locked-vb"]),
+    lockedSbPath: resolvePath(args["locked-sb"]),
   });
 }
 

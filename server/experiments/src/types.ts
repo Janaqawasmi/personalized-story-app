@@ -6,6 +6,7 @@
 // the variant returns RunResult — which the runner serialises to disk.
 
 import type { PageIllustration, Story, VisualBible } from "@/models/story.model";
+import type { StyleBible } from "./style-bible.types";
 
 export interface RunContext {
   story: Story;
@@ -19,6 +20,11 @@ export interface RunContext {
    * Enforces one-variable isolation across experiments.
    */
   lockedVisualBible?: VisualBible;
+  /**
+   * When set, the style-bible variant uses this instead of generating a new one.
+   * Loaded from experiments/locked-style-bibles/<storyId>.json via --locked-sb.
+   */
+  lockedStyleBible?: StyleBible;
 }
 
 export interface PageRunResult {

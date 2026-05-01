@@ -7,6 +7,7 @@ import * as path from "path";
 import { firestore } from "@/config/firebase";
 import { STORIES_COLLECTION, type Story } from "@/models/story.model";
 import type { VisualBible } from "@/models/story.model";
+import type { StyleBible } from "./style-bible.types";
 import { ensureDir, writeMetadata, writeReport } from "./helpers";
 import type { RunContext } from "./types";
 import { getVariant } from "./variants";
@@ -23,6 +24,11 @@ export interface RunOptions {
    * ensuring only one variable differs between runs.
    */
   lockedVbPath?: string;
+  /**
+   * Absolute path to a locked Style Bible JSON file (exp-04+).
+   * When provided, the style-bible variant skips generation and uses this.
+   */
+  lockedSbPath?: string;
 }
 
 async function loadStoryReadOnly(storyId: string): Promise<Story> {
@@ -54,12 +60,20 @@ export async function runExperiment(opts: RunOptions): Promise<void> {
     console.log(`[runner] loaded locked Visual Bible from ${opts.lockedVbPath}`);
   }
 
+  let lockedStyleBible: StyleBible | undefined;
+  if (opts.lockedSbPath) {
+    const raw = fs.readFileSync(opts.lockedSbPath, "utf8");
+    lockedStyleBible = JSON.parse(raw) as StyleBible;
+    console.log(`[runner] loaded locked Style Bible from ${opts.lockedSbPath}`);
+  }
+
   const ctx: RunContext = {
     story,
     targetPageNumbers: opts.pageNumbers,
     outDir,
     log: (msg) => console.log(msg),
     ...(lockedVisualBible ? { lockedVisualBible } : {}),
+    ...(lockedStyleBible ? { lockedStyleBible } : {}),
   };
 
   console.log(
