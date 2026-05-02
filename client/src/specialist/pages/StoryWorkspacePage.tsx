@@ -16,6 +16,7 @@ import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { draftStore } from "../storage";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
@@ -60,6 +61,8 @@ type PendingLeaveNavigation =
 // ---------------------------------------------------------------------------
 
 function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
+  const desk = useSpecialistDeskUi();
+  const skTabs = desk.workspaceSkeletonTabs;
   return (
     <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, pt: 2.5 }}>
       {/* Back link */}
@@ -86,7 +89,7 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
         direction="row"
         sx={{ borderBottom: `1px solid ${COLORS.border}`, mb: 2.5 }}
       >
-        {["Brief", "Story", "Illustrations", "History"].map((label) => (
+        {skTabs.map((label) => (
           <Skeleton
             key={label}
             width={68}
@@ -108,7 +111,7 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
           color="text.secondary"
           sx={{ mt: 2.5, textAlign: "center" }}
         >
-          Still loading…
+          {desk.workspaceStillLoading}
         </Typography>
       )}
     </Box>
@@ -120,6 +123,7 @@ function WorkspaceSkeleton({ slowLoading }: { slowLoading: boolean }) {
 // ---------------------------------------------------------------------------
 
 function NotFoundState({ onBack }: { onBack: () => void }) {
+  const desk = useSpecialistDeskUi();
   return (
     <Box
       sx={{
@@ -133,10 +137,10 @@ function NotFoundState({ onBack }: { onBack: () => void }) {
       }}
     >
       <Typography variant="h6" color="text.secondary" textAlign="center">
-        This story doesn't exist or was deleted.
+        {desk.workspaceStoryNotFound}
       </Typography>
       <Button variant="outlined" onClick={onBack}>
-        Back to stories
+        {desk.workspaceBackToStories}
       </Button>
     </Box>
   );
@@ -147,6 +151,7 @@ function NotFoundState({ onBack }: { onBack: () => void }) {
 // ---------------------------------------------------------------------------
 
 export default function StoryWorkspacePage() {
+  const desk = useSpecialistDeskUi();
   const { lang, storyId, tab } = useParams<{
     lang: string;
     storyId: string;
@@ -190,11 +195,13 @@ export default function StoryWorkspacePage() {
         setStory(loaded);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to load story.");
+      setError(
+        e instanceof Error ? e.message : desk.workspaceLoadStoryFailed,
+      );
     } finally {
       setLoading(false);
     }
-  }, [resolvedStoryId]);
+  }, [resolvedStoryId, desk]);
 
   // Initial fetch + real-time subscription
   useEffect(() => {
@@ -227,13 +234,17 @@ export default function StoryWorkspacePage() {
             setStory(recovered);
           } else if (!cancelled) {
             setError(
-              e instanceof Error ? e.message : "Could not open story for review.",
+              e instanceof Error
+                ? e.message
+                : desk.workspaceCouldNotOpenReview,
             );
           }
         } catch {
           if (!cancelled) {
             setError(
-              e instanceof Error ? e.message : "Could not open story for review.",
+              e instanceof Error
+                ? e.message
+                : desk.workspaceCouldNotOpenReview,
             );
           }
         }
@@ -243,7 +254,7 @@ export default function StoryWorkspacePage() {
     return () => {
       cancelled = true;
     };
-  }, [story?.status, resolvedStoryId]);
+  }, [story?.status, resolvedStoryId, desk]);
 
   // Slow-loading indicator (fires after 3 s if still loading)
   useEffect(() => {
@@ -329,7 +340,9 @@ export default function StoryWorkspacePage() {
       await draftStore.transitionStatus(resolvedStoryId, "archived");
       navigate(`${base}/stories`, { replace: true });
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to archive story.");
+      setError(
+        e instanceof Error ? e.message : desk.workspaceArchiveFailed,
+      );
     }
   }
 
@@ -337,7 +350,9 @@ export default function StoryWorkspacePage() {
     try {
       await draftStore.transitionStatus(resolvedStoryId, "draft_brief");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to restore story.");
+      setError(
+        e instanceof Error ? e.message : desk.workspaceRestoreFailed,
+      );
     }
   }
 
@@ -351,7 +366,9 @@ export default function StoryWorkspacePage() {
       await draftStore.updateStory(newStory.id, { parentStoryId: story.id });
       navigate(`${base}/stories/${newStory.id}/brief`);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to create revision.");
+      setError(
+        e instanceof Error ? e.message : desk.workspaceCreateRevisionFailed,
+      );
     }
   }
 
@@ -378,11 +395,11 @@ export default function StoryWorkspacePage() {
           sx={{ mx: { xs: 2, sm: 3, md: 5 }, mt: 2, borderRadius: 2 }}
           action={
             <Button color="inherit" size="small" onClick={fetchStory}>
-              Try again
+              {desk.workspaceTryAgain}
             </Button>
           }
         >
-          We had trouble loading this story.
+          {desk.workspaceErrorBanner}
         </Alert>
       )}
 
@@ -446,18 +463,16 @@ export default function StoryWorkspacePage() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Unsaved changes</DialogTitle>
+        <DialogTitle>{desk.unsavedDialogTitle}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">
-            You have unsaved edits on the Story tab. Leave without saving?
-          </Typography>
+          <Typography variant="body2">{desk.unsavedDialogBody}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
           <Button variant="outlined" onClick={handleLeaveConfirm}>
-            Leave
+            {desk.unsavedLeave}
           </Button>
           <Button variant="contained" onClick={handleLeaveCancel}>
-            Stay
+            {desk.unsavedStay}
           </Button>
         </DialogActions>
       </Dialog>

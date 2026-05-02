@@ -13,62 +13,52 @@ import { useComplexitySignals } from "../../services/complexitySignalTracker";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 const BRIEF_COLUMN_MAX_PX = 840;
 
-/** Inline meter: sit below app bar layer so form controls do not paint over the gauge while scrolling. */
-function inlineStickyZIndex(theme: { zIndex: { appBar: number } }): number {
-  return theme.zIndex.appBar - 1;
-}
-
 const STORY_LENGTH_ORDER: StoryLength[] = ["short", "standard", "extended"];
 
-/** Collapsed: thin line only. Expanded panel shows full reference gauge. */
-const TRACK_W_SLIM_PX = 5;
-const TRACK_W_EXPANDED_PX = 14;
-const TRACK_H_COLLAPSED_INLINE_PX = 92;
-const TRACK_H_COLLAPSED_SIDE_RAIL_PX = 120;
-const TRACK_H_EXPANDED_INLINE_PX = 132;
-const TRACK_H_EXPANDED_SIDE_RAIL_PX = 188;
+/** Collapsed: slim horizontal bar; expanded panel uses a thicker reference bar. */
+const TRACK_H_COLLAPSED_PX = 8;
+const TRACK_H_EXPANDED_PX = 14;
 
 const HOVER_CLOSE_MS = 280;
 
-function VerticalLoadTrack({
+/** Left = 0 load, right = max (direction: ltr so fill matches §16 regardless of page RTL). */
+function HorizontalLoadTrack({
   minTickPct,
   fillRatio,
   barColor,
   heightPx,
-  widthPx,
 }: {
   minTickPct: number;
   fillRatio: number;
   barColor: string;
   heightPx: number;
-  widthPx: number;
 }) {
   const pct = Math.min(Math.max(fillRatio * 100, 0), 100);
   const fillFull = pct >= 99.5;
-  const radius = Math.max(2, widthPx / 2);
+  const radius = Math.max(2, heightPx / 2);
 
   return (
     <Box
       sx={{
         position: "relative",
-        width: widthPx,
+        width: "100%",
         height: heightPx,
-        flexShrink: 0,
         borderRadius: `${radius}px`,
         bgcolor: "rgba(97, 120, 145, 0.12)",
         overflow: "hidden",
+        direction: "ltr",
       }}
       aria-hidden
     >
-      {/* budget.min tick (recommended limit), same scale as §16: bottom = 0 load, top = max */}
+      {/* budget.min tick (recommended limit), same scale as §16 */}
       <Box
         sx={{
           position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: `${minTickPct}%`,
-          height: 2,
-          transform: "translateY(50%)",
+          left: `${minTickPct}%`,
+          top: 0,
+          bottom: 0,
+          width: 2,
+          transform: "translateX(-50%)",
           bgcolor: "rgba(255,255,255,0.7)",
           zIndex: 1,
           pointerEvents: "none",
@@ -79,12 +69,12 @@ function VerticalLoadTrack({
         sx={{
           position: "absolute",
           left: 0,
-          right: 0,
+          top: 0,
           bottom: 0,
-          height: `${pct}%`,
+          width: `${pct}%`,
           bgcolor: barColor,
-          borderRadius: fillFull ? `${radius}px` : `${radius}px ${radius}px 0 0`,
-          transition: "height 0.25s ease, background-color 0.2s ease",
+          borderRadius: fillFull ? `${radius}px` : `${radius}px 0 0 ${radius}px`,
+          transition: "width 0.25s ease, background-color 0.2s ease",
         }}
       />
     </Box>
@@ -110,32 +100,16 @@ function barColorForState(state: ComplexityLoadState, warningMain: string): stri
   }
 }
 
-export type ComplexityMeterLayout = "inline" | "sideRail";
-
 export interface ComplexityMeterProps {
   /** Current brief draft; updates recompute load. */
   brief: CompleteBrief;
   /** Called when the psychologist accepts a longer story length (Layer 2). */
   onLengthChange?: (next: StoryLength) => void;
-  /**
-   * Clearance from the viewport top when the meter is `position: sticky` (fixed navbar height + gap).
-   * Matches BriefForm `briefScrollTopOffsetPx` so the strip never hides under the app header.
-   */
-  stickyTopOffsetPx: number;
-  /** `inline` = under section progress inside the brief card; `sideRail` = narrow column beside the form (md+). */
-  layout?: ComplexityMeterLayout;
-  /**
-   * When the meter is placed inside an already-sticky parent (md+ rail), disable inner sticky to avoid broken stacking.
-   */
-  disableSticky?: boolean;
 }
 
 export default function ComplexityMeter({
   brief,
   onLengthChange,
-  stickyTopOffsetPx,
-  layout = "inline",
-  disableSticky = false,
 }: ComplexityMeterProps) {
   const theme = useTheme();
   const ui = useStoryBriefUi();
@@ -231,10 +205,8 @@ export default function ComplexityMeter({
     return () => document.removeEventListener("keydown", onKey);
   }, [expanded]);
 
-  const isSideRail = layout === "sideRail";
-  const collapsedTrackH = isSideRail ? TRACK_H_COLLAPSED_SIDE_RAIL_PX : TRACK_H_COLLAPSED_INLINE_PX;
-  const panelTrackH = isSideRail ? TRACK_H_EXPANDED_SIDE_RAIL_PX : TRACK_H_EXPANDED_INLINE_PX;
-  const useSticky = !disableSticky;
+  const collapsedTrackH = TRACK_H_COLLAPSED_PX;
+  const panelTrackH = TRACK_H_EXPANDED_PX;
 
   const handleDetailPointerEnter = useCallback(() => {
     cancelCloseHover();
@@ -243,18 +215,15 @@ export default function ComplexityMeter({
 
   const detailPanel = (
     <Stack spacing={1.25} sx={{ pt: 0.25 }}>
-      <Stack direction="row" alignItems="flex-start" spacing={1.5}>
-        <VerticalLoadTrack
-          minTickPct={minTickPct}
-          fillRatio={fillRatio}
-          barColor={barColor}
-          heightPx={panelTrackH}
-          widthPx={TRACK_W_EXPANDED_PX}
-        />
-        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: COLORS.textPrimary, pt: 0.25 }}>
-          {ui.complexityMeterTitle}
-        </Typography>
-      </Stack>
+      <Typography variant="subtitle2" sx={{ fontWeight: 800, color: COLORS.textPrimary }}>
+        {ui.complexityMeterTitle}
+      </Typography>
+      <HorizontalLoadTrack
+        minTickPct={minTickPct}
+        fillRatio={fillRatio}
+        barColor={barColor}
+        heightPx={panelTrackH}
+      />
 
       <Typography variant="caption" color={COLORS.textSecondary} sx={{ fontWeight: 600 }}>
         {ui.complexityBudgetSummary(load.budget.min, load.budget.max, lengthLabel, ageLabel)}
@@ -339,12 +308,10 @@ export default function ComplexityMeter({
           }
         }}
         sx={{
-          position: useSticky ? "sticky" : "relative",
-          top: useSticky ? stickyTopOffsetPx : undefined,
-          zIndex: useSticky ? inlineStickyZIndex(theme) : "auto",
-          display: "inline-flex",
-          alignSelf: "flex-start",
-          mb: isSideRail ? 0 : { xs: 2.5, md: 3 },
+          position: "relative",
+          display: "block",
+          width: "100%",
+          mb: { xs: 2.5, md: 3 },
           cursor: "pointer",
           outline: "none",
           lineHeight: 1.2,
@@ -355,69 +322,57 @@ export default function ComplexityMeter({
           elevation={0}
           sx={{
             display: "flex",
-            flexDirection: isSideRail ? "column" : "row",
-            alignItems: "center",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
             justifyContent: "center",
-            gap: isSideRail ? 1 : 1.5,
-            py: isSideRail ? 1.5 : 1.25,
-            px: isSideRail ? 1.25 : 1.75,
+            gap: { xs: 1.25, sm: 1.75 },
+            py: 1.25,
+            px: 1.75,
             bgcolor: COLORS.surface,
             borderRadius: 2,
             border: `1px solid rgba(208, 200, 192, 0.45)`,
             boxShadow: "0 2px 14px rgba(97, 120, 145, 0.08)",
-            ...(!isSideRail && {
-              width: "100%",
-              maxWidth: BRIEF_COLUMN_MAX_PX,
-              boxSizing: "border-box",
-            }),
+            width: "100%",
+            maxWidth: BRIEF_COLUMN_MAX_PX,
+            boxSizing: "border-box",
           }}
         >
-          {isSideRail ? (
-            <>
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 800,
-                  color: COLORS.textPrimary,
-                  textAlign: "center",
-                  lineHeight: 1.25,
-                  letterSpacing: "0.02em",
-                }}
-              >
-                {ui.complexityMeterTitle}
-              </Typography>
-              <VerticalLoadTrack
-                minTickPct={minTickPct}
-                fillRatio={fillRatio}
-                barColor={barColor}
-                heightPx={collapsedTrackH}
-                widthPx={TRACK_W_SLIM_PX}
-              />
-            </>
-          ) : (
-            <>
-              <VerticalLoadTrack
-                minTickPct={minTickPct}
-                fillRatio={fillRatio}
-                barColor={barColor}
-                heightPx={collapsedTrackH}
-                widthPx={TRACK_W_SLIM_PX}
-              />
-              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: COLORS.textPrimary }}>
-                {ui.complexityMeterTitle}
-              </Typography>
-            </>
-          )}
+          <Typography
+            variant="subtitle2"
+            sx={{
+              fontWeight: 800,
+              color: COLORS.textPrimary,
+              flexShrink: 0,
+              alignSelf: { xs: "flex-start", sm: "center" },
+            }}
+          >
+            {ui.complexityMeterTitle}
+          </Typography>
+          <Box
+            sx={{
+              width: "100%",
+              flex: { sm: 1 },
+              minWidth: { sm: 0 },
+              alignSelf: { xs: "stretch", sm: "center" },
+            }}
+          >
+            <HorizontalLoadTrack
+              minTickPct={minTickPct}
+              fillRatio={fillRatio}
+              barColor={barColor}
+              heightPx={collapsedTrackH}
+            />
+          </Box>
         </Paper>
       </Box>
 
       <Popper
         open={expanded && Boolean(anchorEl)}
         anchorEl={anchorEl}
-        placement={isSideRail ? "left-start" : "bottom-start"}
+        placement="bottom-start"
         transition
         sx={{ zIndex: theme.zIndex.modal }}
-        modifiers={[{ name: "offset", options: { offset: isSideRail ? [-10, 0] : [0, 10] } }]}
+        modifiers={[{ name: "offset", options: { offset: [0, 10] } }]}
       >
         {({ TransitionProps }) => (
           <Fade {...TransitionProps} timeout={180}>
@@ -427,7 +382,7 @@ export default function ComplexityMeter({
               onMouseEnter={handleDetailPointerEnter}
               onMouseLeave={scheduleCloseHover}
               sx={{
-                maxWidth: isSideRail ? 380 : Math.min(BRIEF_COLUMN_MAX_PX, 400),
+                maxWidth: Math.min(BRIEF_COLUMN_MAX_PX, 400),
                 p: 2,
                 borderRadius: 2,
                 border: `1px solid rgba(208, 200, 192, 0.55)`,

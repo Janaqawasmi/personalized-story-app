@@ -29,7 +29,7 @@ interface SeedreamRequest {
   seed?: number;
   guidance_scale?: number;
   watermark?: boolean;
-  image?: string;
+  image?: string | string[];
 }
 
 interface SeedreamResponse {
@@ -64,6 +64,7 @@ export class SeedreamProvider implements ImageGenerationProvider {
   async generateImage(params: {
     textPrompt: string;
     referenceImage?: string;
+    referenceImages?: string[];
     style?: string;
     outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
@@ -93,7 +94,11 @@ export class SeedreamProvider implements ImageGenerationProvider {
       watermark: false,
       guidance_scale: guidanceScale,
       ...(params.seed !== undefined ? { seed: params.seed } : {}),
-      ...(params.referenceImage !== undefined ? { image: params.referenceImage } : {}),
+      ...(params.referenceImages !== undefined && params.referenceImages.length > 0
+        ? { image: params.referenceImages.length === 1 ? params.referenceImages[0] : params.referenceImages }
+        : params.referenceImage !== undefined
+          ? { image: params.referenceImage }
+          : {}),
     };
 
     const response = await fetch(`${this.apiUrl}/images/generations`, {

@@ -89,11 +89,8 @@ import { calculateComplexityLoad, type ComplexityLoadResult } from "../../servic
  */
 const BRIEF_FORM_MAX_WIDTH = 840;
 
-/** Desktop column between the brief card and feedback — holds the vertical story-load meter only (md+). */
-const BRIEF_METER_COLUMN_MD_PX = 96;
-
-/** Sum of brief max width + flex gaps (24×2) + meter gutter + feedback width for the 3-column md layout. */
-const BRIEF_MD_LAYOUT_MAX_WIDTH_PX = BRIEF_FORM_MAX_WIDTH + 24 + BRIEF_METER_COLUMN_MD_PX + 24 + 400;
+/** Sum of brief max width + gap + feedback column for the 2-column md layout (brief + feedback). */
+const BRIEF_MD_LAYOUT_MAX_WIDTH_PX = BRIEF_FORM_MAX_WIDTH + 24 + 400;
 
 /** Page canvas behind the card: frost base + soft wash so the white surface reads as a focused document. */
 const BRIEF_PAGE_BG_LAYERS = [
@@ -126,8 +123,8 @@ const briefPaperSx = {
 };
 
 /**
- * Story brief main column + optional story-load gutter + feedback column (md+).
- * When `railStickyTopPx` is set (sections 1–5), meter and feedback each stick under the app header.
+ * Story brief main column + feedback column (md+).
+ * When `railStickyTopPx` is set (sections 1–5), feedback sticks under the app header.
  */
 function BriefPageWithSidebar({
   briefId,
@@ -140,9 +137,9 @@ function BriefPageWithSidebar({
   briefId: string | null;
   activeStep: number | null;
   personalization: "yes" | "no";
-  /** Story-load meter (md+ only); sits between the brief card and the feedback panel. */
+  /** Optional narrow column between brief and feedback (reserved). */
   sideRailTop?: React.ReactNode;
-  /** When set on md+, sticky offset for meter + feedback (navbar clearance). */
+  /** When set on md+, sticky offset for feedback rail (navbar clearance). */
   railStickyTopPx?: number;
   children: React.ReactNode;
 }) {
@@ -178,11 +175,10 @@ function BriefPageWithSidebar({
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "flex-start",
-              width: BRIEF_METER_COLUMN_MD_PX,
+              width: 96,
               flexShrink: 0,
               alignSelf: "flex-start",
               boxSizing: "border-box",
-              /** Horizontal breathing room around the slim gauge (reads as empty space beside the bar). */
               px: { md: 2.75 },
               ...(railStickyTopPx != null && {
                 position: "sticky",
@@ -869,17 +865,6 @@ function BriefFormInner(props: Props) {
       activeStep={activeStep}
       personalization={personalization}
       railStickyTopPx={briefScrollTopOffsetPx}
-      sideRailTop={
-        showComplexityMeter && !isMdDown ? (
-          <ComplexityMeter
-            brief={normalizedBriefForComplexity}
-            stickyTopOffsetPx={briefScrollTopOffsetPx}
-            layout="sideRail"
-            disableSticky
-            onLengthChange={(next) => updateSection1({ storyLength: next })}
-          />
-        ) : undefined
-      }
     >
       {/* ── Form header with save indicator ────────────────────────── */}
       <Box
@@ -918,6 +903,13 @@ function BriefFormInner(props: Props) {
           )}
         </Box>
 
+        {showComplexityMeter && (
+          <ComplexityMeter
+            brief={normalizedBriefForComplexity}
+            onLengthChange={(next) => updateSection1({ storyLength: next })}
+          />
+        )}
+
         {/* ── Progress indicator ─────────────────────────────────────── */}
         <Box
           sx={{
@@ -941,15 +933,6 @@ function BriefFormInner(props: Props) {
             }}
           />
         </Box>
-
-        {showComplexityMeter && isMdDown && (
-          <ComplexityMeter
-            brief={normalizedBriefForComplexity}
-            stickyTopOffsetPx={briefScrollTopOffsetPx}
-            layout="inline"
-            onLengthChange={(next) => updateSection1({ storyLength: next })}
-          />
-        )}
 
         {/* ── Section content ────────────────────────────────────────── */}
         {activeStep === 1 && (
@@ -1007,7 +990,7 @@ function BriefFormInner(props: Props) {
         )}
     </BriefPageWithSidebar>
 
-      {/* §21 Layer 1 — story load: md+ sticky rail (meter + feedback) aligned with form top; xs–sm sticky meter under progress. */}
+      {/* §21 Layer 1 — story load: horizontal strip at top of brief card (scrolls with content). */}
 
       {/* ── "Saved" snackbar ─────────────────────────────────────────── */}
       <Snackbar

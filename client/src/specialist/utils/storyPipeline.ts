@@ -2,6 +2,7 @@
 // (Brief → Generate → Review → Approved → Illustration → Publish)
 // shared by StoryPipelineStepper and the stories list column.
 
+import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
 import type { StoryStatus } from "../../types/story";
 
 export const PIPELINE_STEP_LABELS = [
@@ -134,6 +135,21 @@ export function getPipelineListLabel(status: StoryStatus): string {
   if (s.kind === "archived") return "Archived";
   if (s.stepsCompleted === 6) return "Publish";
   return PIPELINE_STEP_LABELS[s.emphasisStepIndex];
+}
+
+/** Localized short label for the stories table “Stage” column. */
+export function getPipelineListLabelTranslated(
+  status: StoryStatus,
+  desk: Pick<
+    SpecialistDeskUi,
+    "pipelineSteps" | "pipelineListPublish" | "pipelineListArchived"
+  >,
+): string {
+  if (status === "archived") return desk.pipelineListArchived;
+  const s = getStoryPipelineUiState(status);
+  if (s.kind === "archived") return desk.pipelineListArchived;
+  if (s.stepsCompleted === 6) return desk.pipelineListPublish;
+  return desk.pipelineSteps[s.emphasisStepIndex];
 }
 
 /** Which pipeline step (0–5) the list icon should reflect. */

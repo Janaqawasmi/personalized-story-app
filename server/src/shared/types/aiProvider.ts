@@ -25,8 +25,10 @@ export interface ImageGenerationProvider {
 
   generateImage(params: {
     textPrompt: string;
-    /** Public or signed URL of a reference image. Omit for the first page. */
+    /** Single reference image URL. */
     referenceImage?: string;
+    /** Multiple reference image URLs — provider must support multi-reference. */
+    referenceImages?: string[];
     style?: string;
     outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;

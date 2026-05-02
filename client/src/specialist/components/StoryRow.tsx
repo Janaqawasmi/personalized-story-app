@@ -13,12 +13,19 @@ import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
-import type { AgeRange, StoryType } from "../../types/storyBrief";
+import { useLanguage } from "../../i18n/context/useLanguage";
+import {
+  dateLocaleForLang,
+  formatListEventTimeMs,
+} from "../../i18n/specialistRelativeTime";
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
+import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
+import type { StoryType } from "../../types/storyBrief";
 import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import {
-  PIPELINE_STEP_LABELS,
-  getPipelineListLabel,
+  getPipelineListLabelTranslated,
   getStoryPipelineUiState,
 } from "../utils/storyPipeline";
 import { STATUS_CHIP_COLORS } from "./statusColors";
@@ -26,119 +33,48 @@ import { STATUS_CHIP_COLORS } from "./statusColors";
 const SERIF =
   "'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif";
 
-const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
-  fear_anxiety: "Fear & Anxiety",
-  big_emotions: "Big Emotions",
-  loss_grief: "Loss & Grief",
-  identity_self_worth: "Identity & Self-Worth",
-  life_transitions: "Life Transitions",
-};
-
-const AGE_RANGE_LABELS: Record<AgeRange, string> = {
-  "3-5": "3–5",
-  "5-7": "5–7",
-  "7-9": "7–9",
-  "9-12": "9–12",
-};
-
-const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Brief in progress",
-  generating: "Generating",
-  awaiting_review: "Awaiting review",
-  in_review: "In review",
-  needs_revision: "Needs revision",
-  approved: "Approved",
-  prompt_review: "Image prompt review",
-  illustrating: "Illustrating",
-  illustration_review: "Illustration review",
-  illustration_ready: "Illustration ready",
-  published: "Published",
-  archived: "Archived",
-};
-
-function editEventVerb(event: EditHistoryEvent): string {
+function editEventVerb(event: EditHistoryEvent, desk: SpecialistDeskUi): string {
   switch (event.kind) {
     case "draft_created":
-      return "Created";
+      return desk.editEventCreated;
     case "draft_edited":
-      return "Story edited";
+      return desk.editEventStoryEdited;
     case "status_changed":
-      return "Updated";
+      return desk.editEventUpdated;
     case "brief_submitted":
-      return "Submitted";
+      return desk.editEventSubmitted;
     case "agent1_generated":
-      return event.succeeded ? "Draft generated" : "Generation failed";
+      return event.succeeded
+        ? desk.editEventDraftGenerated
+        : desk.editEventGenerationFailed;
     case "regeneration_requested":
-      return "Regeneration requested";
+      return desk.editEventRegenerationRequested;
     case "archived":
-      return "Archived";
+      return desk.editEventArchived;
     case "restored":
-      return "Restored";
+      return desk.editEventRestored;
     default:
-      return "Updated";
+      return desk.editEventUpdated;
   }
 }
 
-function formatListEventTime(at: number): string {
-  const now = Date.now();
-  const diffMs = Math.max(0, now - at);
-  const dayMs = 24 * 60 * 60 * 1000;
-  if (diffMs >= 7 * dayMs) {
-    const d = new Date(at);
-    const yNow = new Date(now).getFullYear();
-    const month = d.toLocaleString("en-US", { month: "short" });
-    const day = d.getDate();
-    if (d.getFullYear() !== yNow) return `${month} ${day}, ${d.getFullYear()}`;
-    return `${month} ${day}`;
-  }
-  const diffMin = Math.floor(diffMs / (60 * 1000));
-  const diffHr = Math.floor(diffMs / (60 * 60 * 1000));
-  const diffDay = Math.floor(diffMs / dayMs);
-  if (diffDay >= 1) return `${diffDay} day${diffDay === 1 ? "" : "s"} ago`;
-  if (diffHr >= 1) return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
-  if (diffMin >= 1) return `${diffMin} min ago`;
-  return "Just now";
-}
-
-/** Relative time helper (shared with BriefTab / DraftTab). */
-export function formatRelativeTime(ms: number): string {
-  const now = Date.now();
-  const diffMs = now - ms;
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-
-  if (diffSec < 60) return "Just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
-  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
-  if (diffDay === 1) return "Yesterday";
-
-  const date = new Date(ms);
-  const nowDate = new Date(now);
-
-  const month = date.toLocaleString("en", { month: "short" });
-  const day = date.getDate();
-
-  if (date.getFullYear() === nowDate.getFullYear()) {
-    return `${month} ${day}`;
-  }
-  return `${month} ${day}, ${date.getFullYear()}`;
-}
-
-function lastEventLines(story: Story): { what: string; when: string } {
+function lastEventLines(
+  story: Story,
+  desk: SpecialistDeskUi,
+  dateLocale: string,
+): { what: string; when: string } {
   const hist = story.editHistory;
   const last =
     hist && hist.length > 0 ? hist[hist.length - 1] : undefined;
   if (!last) {
     return {
-      what: "Created",
-      when: formatListEventTime(story.createdAt),
+      what: desk.editEventCreated,
+      when: formatListEventTimeMs(story.createdAt, desk, dateLocale),
     };
   }
   return {
-    what: editEventVerb(last.event),
-    when: formatListEventTime(last.at),
+    what: editEventVerb(last.event, desk),
+    when: formatListEventTimeMs(last.at, desk, dateLocale),
   };
 }
 
@@ -169,8 +105,14 @@ function toRomanLower(n: number): string {
   return out;
 }
 
-function PipelineDots({ status }: { status: StoryStatus }) {
-  const n = PIPELINE_STEP_LABELS.length;
+function PipelineDots({
+  status,
+  dotCount,
+}: {
+  status: StoryStatus;
+  dotCount: number;
+}) {
+  const n = dotCount;
   const ui = getStoryPipelineUiState(status);
 
   if (ui.kind === "archived") {
@@ -246,7 +188,11 @@ export default function StoryRow({
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
+  const { language } = useLanguage();
+  const desk = useSpecialistDeskUi();
+  const briefUi = useStoryBriefUi();
   const storyPath = `/${lang ?? "he"}/specialist/stories/${story.id}`;
+  const dateLocale = dateLocaleForLang(language);
 
   const isArchived = story.status === "archived";
   const isAttention = story.status === "awaiting_review";
@@ -254,12 +200,15 @@ export default function StoryRow({
     story.title.trim() === "" ? null : story.title;
 
   const col = STATUS_CHIP_COLORS[story.status];
-  const pipelineLabel = getPipelineListLabel(story.status);
-  const evt = lastEventLines(story);
+  const pipelineLabel = getPipelineListLabelTranslated(story.status, desk);
+  const evt = lastEventLines(story, desk, dateLocale);
+  const statusLabels = desk.statusLabels;
+  const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
+  const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
 
   const briefRev =
     story.parentStoryId || /revision/i.test(story.title ?? "")
-      ? "REV. 2"
+      ? desk.revisionBadge
       : null;
 
   function handleRowClick() {
@@ -378,7 +327,7 @@ export default function StoryRow({
               transition: "color 0.12s ease",
             }}
           >
-            {displayTitle ?? "Untitled story"}
+            {displayTitle ?? desk.untitledStory}
           </Link>
           {briefRev && (
             <Typography
@@ -411,7 +360,10 @@ export default function StoryRow({
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-          <PipelineDots status={story.status} />
+          <PipelineDots
+            status={story.status}
+            dotCount={desk.pipelineSteps.length}
+          />
           <Typography
             sx={{
               fontSize: "0.8125rem",
@@ -442,7 +394,10 @@ export default function StoryRow({
         >
           {story.storyType ? (
             <Chip
-              label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
+              label={
+                storyTypeLabels[story.storyType as StoryType] ??
+                story.storyType
+              }
               size="small"
               variant="outlined"
               sx={{
@@ -456,7 +411,7 @@ export default function StoryRow({
           ) : null}
           {story.ageRange ? (
             <Chip
-              label={AGE_RANGE_LABELS[story.ageRange]}
+              label={ageRangeLabels[story.ageRange]}
               size="small"
               variant="outlined"
               sx={{
@@ -492,7 +447,7 @@ export default function StoryRow({
                   thickness={5}
                   sx={{ color: col.filledText }}
                 />
-                {STATUS_LABELS[story.status]}
+                {statusLabels[story.status]}
               </span>
             ) : (
               <Box
@@ -509,7 +464,7 @@ export default function StoryRow({
                     flexShrink: 0,
                   }}
                 />
-                {STATUS_LABELS[story.status]}
+                {statusLabels[story.status]}
               </Box>
             )
           }
@@ -572,7 +527,7 @@ export default function StoryRow({
         <IconButton
           size="small"
           onClick={handleMenuOpen}
-          aria-label="Story actions"
+          aria-label={desk.rowAriaStoryActions}
           className="dammah-more"
           sx={{
             color: COLORS.textMuted,
@@ -604,12 +559,12 @@ export default function StoryRow({
               <ArchiveOutlinedIcon
                 sx={{ fontSize: 18, mr: 1, opacity: 0.75 }}
               />
-              Archive
+              {desk.rowMenuArchive}
             </MenuItem>
           )}
           {isArchived && (
             <MenuItem onClick={handleRestore} sx={{ fontSize: "0.875rem" }}>
-              Restore
+              {desk.rowMenuRestore}
             </MenuItem>
           )}
         </Menu>

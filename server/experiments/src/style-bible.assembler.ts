@@ -48,6 +48,12 @@ export const COMPOSITE_REF_INSTRUCTION =
   "RIGHT HALF shows the environment layout — preserve the exact positions of the door, floor, walls, and handle from the right half. " +
   "Do not copy the overall composition or lighting from either half.";
 
+export const DUAL_REF_INSTRUCTION =
+  "TWO REFERENCE IMAGES ATTACHED — each has a distinct role: " +
+  "FIRST IMAGE is the character reference — match face shape, hair color and length, skin tone, and clothing colors exactly from this image. " +
+  "SECOND IMAGE is the environment layout reference — preserve the exact positions of the door, floor, walls, and handle from this image. " +
+  "Do not copy overall composition or lighting from either reference.";
+
 export function assembleStyleBiblePagePrompt(
   scene: ScenePromptSections,
   bible: StyleBible,

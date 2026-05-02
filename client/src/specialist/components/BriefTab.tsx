@@ -27,9 +27,14 @@ import type { Story } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import BriefForm, { type BriefFormStorageAdapter } from "../../components/brief/BriefForm";
 import SubmittedBriefReadView from "../../components/specialist/SubmittedBriefReadView";
-import { draftStore } from "../storage";
+import { useLanguage } from "../../i18n/context/useLanguage";
+import {
+  dateLocaleForLang,
+  formatRelativeTimeMs,
+} from "../../i18n/specialistRelativeTime";
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useSpecialistUi } from "../../i18n/specialistUi";
-import { formatRelativeTime } from "./StoryRow";
+import { draftStore } from "../storage";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -59,6 +64,8 @@ function shouldOfferNewStoryWelcome(story: Story): boolean {
 
 export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: BriefTabProps) {
   const sp = useSpecialistUi();
+  const desk = useSpecialistDeskUi();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const { lang } = useParams<{ lang?: string }>();
   const base = `/${lang ?? "he"}/specialist`;
@@ -270,7 +277,13 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
             color="text.secondary"
             sx={{ display: "block", mb: 1.5, fontWeight: 500 }}
           >
-            Saved {formatRelativeTime(story.updatedAt)}
+            {desk.formatSavedAt(
+              formatRelativeTimeMs(
+                story.updatedAt,
+                desk,
+                dateLocaleForLang(language),
+              ),
+            )}
           </Typography>
         )}
 

@@ -10,6 +10,9 @@ import AddIcon from "@mui/icons-material/Add";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import EastIcon from "@mui/icons-material/East";
 
+import { useLanguage } from "../../i18n/context/useLanguage";
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
 import { draftStore, hybridStore } from "../storage";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
@@ -21,33 +24,6 @@ const SERIF =
   "'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif";
 const SANS =
   "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
-
-// ---------------------------------------------------------------------------
-// Header count summary helpers
-// ---------------------------------------------------------------------------
-
-const SUMMARY_STATUSES: { status: StoryStatus; label: string }[] = [
-  { status: "in_review", label: "in review" },
-  { status: "awaiting_review", label: "awaiting review" },
-  { status: "generating", label: "generating" },
-  { status: "needs_revision", label: "needs revision" },
-];
-
-function buildCountSummary(stories: Story[]): string {
-  const nonArchived = stories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-
-  const parts: string[] = [
-    `${total} ${total === 1 ? "manuscript" : "manuscripts"} in care`,
-  ];
-
-  for (const { status, label } of SUMMARY_STATUSES) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count} ${label}`);
-  }
-
-  return parts.join(" · ");
-}
 
 function firstWord(title: string | undefined): string {
   if (!title) return "";
@@ -98,30 +74,14 @@ function applyFilters(
   return result;
 }
 
-function tableFooterLeft(
-  filteredLen: number,
-  allStories: Story[],
-  activeStatuses: StoryStatus[]
-): string {
-  const archivedOnly =
-    activeStatuses.length === 1 && activeStatuses[0] === "archived";
-  const showing =
-    filteredLen === 0 ? "0" : `1–${filteredLen}`;
-
-  if (archivedOnly) {
-    const ac = allStories.filter((s) => s.status === "archived").length;
-    return `Showing ${showing} of ${ac} archived manuscript${ac === 1 ? "" : "s"}`;
-  }
-
-  const liveTotal = allStories.filter((s) => s.status !== "archived").length;
-  return `Showing ${showing} of ${liveTotal} active manuscript${liveTotal === 1 ? "" : "s"}`;
-}
-
 // ---------------------------------------------------------------------------
 // Page component
 // ---------------------------------------------------------------------------
 
 export default function SpecialistStoriesPage() {
+  const desk = useSpecialistDeskUi();
+  const { language } = useLanguage();
+  const isArabic = language === "ar";
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
   const base = `/${lang ?? "he"}/specialist`;
@@ -149,7 +109,9 @@ export default function SpecialistStoriesPage() {
         setServerWarning(hybridStore.lastServerError);
       })
       .catch((e: unknown) => {
-        setError(e instanceof Error ? e.message : "Failed to load stories.");
+        setError(
+          e instanceof Error ? e.message : desk.loadStoriesFailed,
+        );
         setLoading(false);
       });
 
@@ -174,7 +136,9 @@ export default function SpecialistStoriesPage() {
     try {
       await draftStore.transitionStatus(storyId, "archived");
     } catch (e: unknown) {
-      setSnackbar(e instanceof Error ? e.message : "Failed to archive story.");
+      setSnackbar(
+        e instanceof Error ? e.message : desk.archiveStoryFailed,
+      );
     }
   }
 
@@ -182,7 +146,9 @@ export default function SpecialistStoriesPage() {
     try {
       await draftStore.transitionStatus(storyId, "draft_brief");
     } catch (e: unknown) {
-      setSnackbar(e instanceof Error ? e.message : "Failed to restore story.");
+      setSnackbar(
+        e instanceof Error ? e.message : desk.restoreStoryFailed,
+      );
     }
   }
 
@@ -191,7 +157,10 @@ export default function SpecialistStoriesPage() {
     setSearchQuery("");
   }, []);
 
-  const countSummary = useMemo(() => buildCountSummary(allStories), [allStories]);
+  const countSummary = useMemo(
+    () => desk.formatCountSummary(allStories),
+    [desk, allStories],
+  );
 
   const liveStories = useMemo(
     () => allStories.filter((s) => s.status !== "archived"),
@@ -231,8 +200,12 @@ export default function SpecialistStoriesPage() {
 
   const footerLeft = useMemo(
     () =>
-      tableFooterLeft(filteredStories.length, allStories, activeStatuses),
-    [filteredStories.length, allStories, activeStatuses]
+      desk.formatTableFooter(
+        filteredStories.length,
+        allStories,
+        activeStatuses,
+      ),
+    [desk, filteredStories.length, allStories, activeStatuses],
   );
 
   const handleViewArchived = useCallback(() => {
@@ -304,7 +277,7 @@ export default function SpecialistStoriesPage() {
               >
                 d
               </Box>
-              Specialist desk
+              {desk.deskOverline}
             </Typography>
 
             <Typography
@@ -319,7 +292,7 @@ export default function SpecialistStoriesPage() {
                 color: COLORS.textPrimary,
               }}
             >
-              My{" "}
+              {desk.deskTitlePrefix ? `${desk.deskTitlePrefix} ` : null}
               <Box
                 component="em"
                 sx={{
@@ -328,7 +301,7 @@ export default function SpecialistStoriesPage() {
                   color: COLORS.textSecondary,
                 }}
               >
-                stories
+                {desk.deskTitleEmphasis}
               </Box>
             </Typography>
 
@@ -336,15 +309,18 @@ export default function SpecialistStoriesPage() {
               <Typography
                 sx={{
                   fontFamily: SERIF,
-                  fontStyle: "italic",
+                  fontStyle: isArabic ? "normal" : "italic",
                   fontSize: 17,
                   color: COLORS.textSecondary,
                   mt: 1.5,
                   maxWidth: 560,
-                  lineHeight: 1.5,
+                  lineHeight: 1.65,
+                  letterSpacing: isArabic ? "normal" : undefined,
+                  wordSpacing: isArabic ? "normal" : undefined,
                 }}
+                lang={isArabic ? "ar" : undefined}
               >
-                {countSummary || "Your manuscripts in care."}
+                {countSummary || desk.deskSummaryFallback}
               </Typography>
             )}
           </Box>
@@ -362,22 +338,25 @@ export default function SpecialistStoriesPage() {
             >
               <StatBlock
                 value={liveStories.length}
-                label="In care"
+                label={desk.statInCare}
                 serif={SERIF}
+                isArabic={isArabic}
               />
               <StatBlock
                 value={awaitingReviewCount}
-                label="Awaits you"
+                label={desk.statAwaitsYou}
                 serif={SERIF}
                 accent={
                   awaitingReviewCount > 0 ? COLORS.warning : undefined
                 }
+                isArabic={isArabic}
               />
               <StatBlock
                 value={approvedCount}
-                label="Approved"
+                label={desk.statApproved}
                 serif={SERIF}
                 accent={approvedCount > 0 ? COLORS.success : undefined}
+                isArabic={isArabic}
               />
             </Stack>
 
@@ -400,7 +379,7 @@ export default function SpecialistStoriesPage() {
                 "&:hover": { bgcolor: COLORS.primaryDark },
               }}
             >
-              New story
+              {desk.newStory}
             </Button>
           </Stack>
         </Box>
@@ -432,13 +411,13 @@ export default function SpecialistStoriesPage() {
                     })
                     .catch((e: unknown) => {
                       setError(
-                        e instanceof Error ? e.message : "Failed to load stories."
+                        e instanceof Error ? e.message : desk.loadStoriesFailed,
                       );
                       setLoading(false);
                     });
                 }}
               >
-                Retry
+                {desk.retry}
               </Button>
             }
           >
@@ -459,13 +438,12 @@ export default function SpecialistStoriesPage() {
               color: "#5c4a2a",
             }}
           >
-            <strong>Could not load stories from the server.</strong> Only
-            locally saved drafts are shown.
+            <strong>{desk.serverWarningBold}</strong> {desk.serverWarningRest}
             <Box
               component="span"
               sx={{ display: "block", fontSize: "0.82em", opacity: 0.88, mt: 0.5 }}
             >
-              Reason: {serverWarning}
+              {desk.serverWarningReasonPrefix} {serverWarning}
             </Box>
           </Alert>
         )}
@@ -473,6 +451,7 @@ export default function SpecialistStoriesPage() {
         {/* Review queue callout */}
         {!error && firstAwaiting && (
           <ReviewQueueCard
+            desk={desk}
             serif={SERIF}
             sans={SANS}
             count={awaitingReviewCount}
@@ -485,6 +464,7 @@ export default function SpecialistStoriesPage() {
         {/* Needs revision callout */}
         {!error && needsRevisionCount > 0 && firstNeedsRevision && (
           <RevisionQueueCard
+            desk={desk}
             serif={SERIF}
             sans={SANS}
             count={needsRevisionCount}
@@ -525,7 +505,7 @@ export default function SpecialistStoriesPage() {
           />
         )}
 
-        <Footband serif={SERIF} sans={SANS} />
+        <Footband desk={desk} serif={SERIF} sans={SANS} />
 
         <Snackbar
           open={Boolean(snackbar)}
@@ -544,12 +524,24 @@ function StatBlock(props: {
   label: string;
   serif: string;
   accent?: string;
+  isArabic?: boolean;
 }) {
-  const { value, label, serif, accent } = props;
+  const { value, label, serif, accent, isArabic } = props;
+  /** Logical alignment + centered stacks in Arabic so digits sit cleanly above labels. */
   return (
-    <Box sx={{ textAlign: { xs: "left", md: "right" } }}>
+    <Box
+      sx={
+        isArabic
+          ? { textAlign: "center", minWidth: 72 }
+          : { textAlign: { xs: "start", md: "end" } }
+      }
+    >
       <Typography
+        component="div"
+        dir="ltr"
         sx={{
+          direction: "ltr",
+          unicodeBidi: "embed",
           fontFamily: serif,
           fontWeight: 600,
           fontSize: { xs: 28, sm: 34 },
@@ -562,14 +554,16 @@ function StatBlock(props: {
       </Typography>
       <Typography
         sx={{
-          fontSize: 10.5,
-          letterSpacing: "0.14em",
-          textTransform: "uppercase",
+          fontSize: isArabic ? 11 : 10.5,
+          letterSpacing: isArabic ? "normal" : "0.14em",
+          textTransform: isArabic ? "none" : "uppercase",
           color: COLORS.textMuted,
-          mt: 0.75,
+          mt: isArabic ? 0.5 : 0.75,
           fontWeight: 700,
           fontFamily: SANS,
+          lineHeight: 1.35,
         }}
+        lang={isArabic ? "ar" : undefined}
       >
         {label}
       </Typography>
@@ -578,6 +572,7 @@ function StatBlock(props: {
 }
 
 function ReviewQueueCard(props: {
+  desk: SpecialistDeskUi;
   serif: string;
   sans: string;
   count: number;
@@ -585,7 +580,7 @@ function ReviewQueueCard(props: {
   onSkim: () => void;
   onOpen: () => void;
 }) {
-  const { serif, sans, count, story, onSkim, onOpen } = props;
+  const { desk, serif, sans, count, story, onSkim, onOpen } = props;
 
   return (
     <Box
@@ -644,7 +639,7 @@ function ReviewQueueCard(props: {
               fontFamily: sans,
             }}
           >
-            Your review queue
+            {desk.reviewQueueOverline}
           </Typography>
           <Typography
             sx={{
@@ -656,21 +651,9 @@ function ReviewQueueCard(props: {
               lineHeight: 1.25,
             }}
           >
-            {count === 1 ? (
-              <>
-                <Box component="em" sx={{ fontStyle: "italic", fontWeight: 500 }}>
-                  One story
-                </Box>{" "}
-                is awaiting your clinical review
-              </>
-            ) : (
-              <>
-                <Box component="em" sx={{ fontStyle: "italic", fontWeight: 500 }}>
-                  {count} stories
-                </Box>{" "}
-                are awaiting your clinical review
-              </>
-            )}
+            {count === 1
+              ? desk.reviewQueueTitleOne
+              : desk.reviewQueueTitleMany(count)}
           </Typography>
           <Typography
             sx={{
@@ -681,8 +664,9 @@ function ReviewQueueCard(props: {
               fontFamily: sans,
             }}
           >
-            &ldquo;{story.title?.trim() || "Untitled story"}&rdquo; — open the
-            story workspace to complete your read and checklist.
+            {desk.reviewQueueBodyLine(
+              story.title?.trim() || desk.untitledStory,
+            )}
           </Typography>
         </Box>
       </Stack>
@@ -711,7 +695,7 @@ function ReviewQueueCard(props: {
             fontFamily: sans,
           }}
         >
-          Skim queue
+          {desk.skimQueue}
         </Button>
         <Button
           variant="contained"
@@ -732,7 +716,9 @@ function ReviewQueueCard(props: {
             "&:hover": { bgcolor: COLORS.primaryDark },
           }}
         >
-          Open {firstWord(story.title) || "story"}
+          {desk.openNamedStory(
+            firstWord(story.title) || desk.openStoryShort,
+          )}
         </Button>
       </Stack>
     </Box>
@@ -740,6 +726,7 @@ function ReviewQueueCard(props: {
 }
 
 function RevisionQueueCard(props: {
+  desk: SpecialistDeskUi;
   serif: string;
   sans: string;
   count: number;
@@ -747,7 +734,7 @@ function RevisionQueueCard(props: {
   onSkim: () => void;
   onOpen: () => void;
 }) {
-  const { serif, sans, count, story, onSkim, onOpen } = props;
+  const { desk, serif, sans, count, story, onSkim, onOpen } = props;
 
   return (
     <Box
@@ -801,7 +788,7 @@ function RevisionQueueCard(props: {
               fontFamily: sans,
             }}
           >
-            Regeneration in progress
+            {desk.revisionOverline}
           </Typography>
           <Typography
             sx={{
@@ -812,21 +799,9 @@ function RevisionQueueCard(props: {
               lineHeight: 1.25,
             }}
           >
-            {count === 1 ? (
-              <>
-                <Box component="em" sx={{ fontStyle: "italic", fontWeight: 500 }}>
-                  One story
-                </Box>{" "}
-                is updating from your feedback
-              </>
-            ) : (
-              <>
-                <Box component="em" sx={{ fontStyle: "italic", fontWeight: 500 }}>
-                  {count} stories
-                </Box>{" "}
-                are updating from your feedback
-              </>
-            )}
+            {count === 1
+              ? desk.revisionTitleOne
+              : desk.revisionTitleMany(count)}
           </Typography>
           <Typography
             sx={{
@@ -837,8 +812,9 @@ function RevisionQueueCard(props: {
               fontFamily: sans,
             }}
           >
-            &ldquo;{story.title?.trim() || "Untitled story"}&rdquo; — check back
-            shortly, or open the workspace to watch progress.
+            {desk.revisionBodyLine(
+              story.title?.trim() || desk.untitledStory,
+            )}
           </Typography>
         </Box>
       </Stack>
@@ -866,7 +842,7 @@ function RevisionQueueCard(props: {
             fontFamily: sans,
           }}
         >
-          Show queue
+          {desk.showQueue}
         </Button>
         <Button
           variant="contained"
@@ -887,15 +863,22 @@ function RevisionQueueCard(props: {
             "&:hover": { bgcolor: "#6a3d4a" },
           }}
         >
-          Open {firstWord(story.title) || "story"}
+          {desk.openNamedStory(
+            firstWord(story.title) || desk.openStoryShort,
+          )}
         </Button>
       </Stack>
     </Box>
   );
 }
 
-function Footband(props: { serif: string; sans: string }) {
-  const { serif, sans } = props;
+function Footband(props: {
+  desk: SpecialistDeskUi;
+  serif: string;
+  sans: string;
+}) {
+  const { desk, serif, sans } = props;
+  const workflowLines = [desk.footWorkflow1, desk.footWorkflow2, desk.footWorkflow3];
   return (
     <Box
       sx={{
@@ -908,7 +891,7 @@ function Footband(props: { serif: string; sans: string }) {
       }}
     >
       <Box>
-        <FootColLabel label="A note on care" sans={sans} />
+        <FootColLabel label={desk.footCareTitle} sans={sans} />
         <Typography
           sx={{
             fontFamily: serif,
@@ -919,17 +902,12 @@ function Footband(props: { serif: string; sans: string }) {
             m: 0,
           }}
         >
-          Every manuscript here passes through your hands before any child reads
-          it. The AI drafts.{" "}
-          <Box component="strong" sx={{ color: COLORS.textPrimary, fontStyle: "normal", fontWeight: 600 }}>
-            You judge.
-          </Box>{" "}
-          Take the time the work deserves.
+          {desk.footCareBody}
         </Typography>
       </Box>
 
       <Box>
-        <FootColLabel label="Workflow" sans={sans} />
+        <FootColLabel label={desk.footWorkflowTitle} sans={sans} />
         <Box
           component="ul"
           sx={{
@@ -941,11 +919,7 @@ function Footband(props: { serif: string; sans: string }) {
             color: COLORS.textSecondary,
           }}
         >
-          {[
-            "Complete the brief, then generate a first draft.",
-            "Review with the checklist before approving for use.",
-            "Archive stories you no longer need — restore them anytime.",
-          ].map((line, i, arr) => (
+          {workflowLines.map((line, i, arr) => (
             <Box
               component="li"
               key={line}
@@ -979,7 +953,7 @@ function Footband(props: { serif: string; sans: string }) {
       </Box>
 
       <Box>
-        <FootColLabel label="Tips" sans={sans} />
+        <FootColLabel label={desk.footTipsTitle} sans={sans} />
         <Typography
           sx={{
             fontFamily: sans,
@@ -988,9 +962,7 @@ function Footband(props: { serif: string; sans: string }) {
             lineHeight: 1.55,
           }}
         >
-          Use the chips to triage by status. Search covers titles, clinical tags,
-          population, and triggers. Sort by last activity to surface what moved
-          recently.
+          {desk.footTipsBody}
         </Typography>
       </Box>
     </Box>

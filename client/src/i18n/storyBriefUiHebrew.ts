@@ -1,4 +1,4 @@
-// Hebrew UI copy for the Story Brief (and Arabic RTL — same strings via useStoryBriefUi).
+// Hebrew UI copy for the Story Brief.
 
 import * as SB from "../types/storyBrief";
 import type { StoryBriefUi } from "./storyBriefUi.types";
@@ -340,6 +340,10 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
   s2IntentionAriaBecause: "כי",
   s2StrongExamples: "דוגמאות חזקות",
   s2AvoidThis: "להימנע מזה",
+  s2IntentionExampleFeelCue: "להרגיש",
+  s2IntentionExampleBecauseCue: "כי",
+  s2IntentionExampleQuoteOpen: "«…",
+  s2IntentionExampleQuoteClose: "»",
   s2Field24: "חזון יצירתי קליני",
   s2Field24Helper:
     "תארו תמונה אחת, רגע או פרט ספציפי בלב הסיפור. לא מצב רוח — סצנה. התמונה צריכה לתמוך בגישה הטיפולית, לא להחליף אותה. מה קורה, מי שם, מה הילד שם לב?",

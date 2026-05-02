@@ -26,8 +26,10 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 import type { Story, StoryStatus } from "../../types/story";
-import type { AgeRange, StoryType } from "../../types/storyBrief";
+import type { StoryType } from "../../types/storyBrief";
 import { COLORS } from "../../theme";
 import { DRAFT_B, FONTS } from "./draftB/tokens";
 import { STATUS_CHIP_COLORS } from "./statusColors";
@@ -39,40 +41,6 @@ const HEADER_PAD_BOTTOM = "10px";
 const SPACE_BACK_TO_TITLE = "0px";
 /** Tighter band between title and meta chips (~½ title cap-height) */
 const SPACE_TITLE_TO_META = "5px";
-
-// ---------------------------------------------------------------------------
-// Display maps (same source of truth as StoryRow)
-// ---------------------------------------------------------------------------
-
-const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
-  fear_anxiety: "Fear & Anxiety",
-  big_emotions: "Big Emotions",
-  loss_grief: "Loss & Grief",
-  identity_self_worth: "Identity & Self-Worth",
-  life_transitions: "Life Transitions",
-};
-
-const AGE_RANGE_LABELS: Record<AgeRange, string> = {
-  "3-5": "3–5",
-  "5-7": "5–7",
-  "7-9": "7–9",
-  "9-12": "9–12",
-};
-
-const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Brief in progress",
-  generating: "Generating",
-  awaiting_review: "Awaiting review",
-  in_review: "In review",
-  needs_revision: "Needs revision",
-  approved: "Approved",
-  prompt_review: "Image prompt review",
-  illustrating: "Illustrating",
-  illustration_review: "Illustration review",
-  illustration_ready: "Illustration ready",
-  published: "Published",
-  archived: "Archived",
-};
 
 const NEW_REVISION_ENABLED_STATUSES = new Set<StoryStatus>([
   "awaiting_review",
@@ -108,9 +76,14 @@ export default function WorkspaceHeader({
   onNewRevision,
   onStoriesClick,
 }: WorkspaceHeaderProps) {
+  const desk = useSpecialistDeskUi();
+  const briefUi = useStoryBriefUi();
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
   const base = `/${lang ?? "he"}/specialist`;
+  const statusLabels = desk.statusLabels;
+  const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
+  const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
 
   // ---- Title editing ----
   const [editing, setEditing] = useState(false);
@@ -141,7 +114,7 @@ export default function WorkspaceHeader({
   }
 
   function commitTitle() {
-    const trimmed = titleDraft.trim() || "Untitled story";
+    const trimmed = titleDraft.trim() || desk.untitledStory;
     setEditing(false);
     if (trimmed !== story.title) {
       onTitleChange(trimmed);
@@ -224,7 +197,7 @@ export default function WorkspaceHeader({
           },
         }}
       >
-        Stories
+        {desk.headerBackToStories}
       </Button>
 
       {/* Row 2: Title + status chip + actions */}
@@ -245,7 +218,7 @@ export default function WorkspaceHeader({
             variant="standard"
             inputProps={{
               maxLength: 120,
-              "aria-label": "Story title",
+              "aria-label": desk.headerStoryTitleAria,
             }}
             sx={{
               flex: 1,
@@ -263,7 +236,7 @@ export default function WorkspaceHeader({
             variant="h5"
             component="h1"
             onClick={handleTitleClick}
-            title="Click to edit title"
+            title={desk.headerClickToEditTitle}
             sx={{
               flex: 1,
               fontSize: "1.625rem",
@@ -315,11 +288,11 @@ export default function WorkspaceHeader({
                     }}
                   />
                 ) : null}
-                <span>{STATUS_LABELS[story.status]}</span>
+                <span>{statusLabels[story.status]}</span>
               </Stack>
             }
             size="small"
-            aria-label={`Status: ${STATUS_LABELS[story.status]}`}
+            aria-label={desk.headerStatusAria(statusLabels[story.status])}
             sx={{
               bgcolor: statusColors.filledBg,
               color: statusColors.filledText,
@@ -334,7 +307,7 @@ export default function WorkspaceHeader({
           <IconButton
             size="small"
             onClick={(e) => setMenuAnchor(e.currentTarget)}
-            aria-label="Story actions"
+            aria-label={desk.headerStoryActionsAria}
             aria-haspopup="true"
             aria-expanded={Boolean(menuAnchor)}
           >
@@ -350,19 +323,23 @@ export default function WorkspaceHeader({
           >
             {/* Archive — hidden when already archived */}
             {!isArchived && (
-              <MenuItem onClick={handleArchiveClick}>Archive</MenuItem>
+              <MenuItem onClick={handleArchiveClick}>
+                {desk.headerMenuArchive}
+              </MenuItem>
             )}
 
             {/* Restore — only visible when archived */}
             {isArchived && (
-              <MenuItem onClick={handleRestoreClick}>Restore</MenuItem>
+              <MenuItem onClick={handleRestoreClick}>
+                {desk.headerMenuRestore}
+              </MenuItem>
             )}
 
             {/* Open new revision — conditionally enabled */}
             <Tooltip
               title={
                 !canNewRevision
-                  ? "Only available after the brief is submitted and the story is awaiting review or later"
+                  ? desk.headerMenuNewRevisionTooltip
                   : ""
               }
               placement="left"
@@ -373,12 +350,12 @@ export default function WorkspaceHeader({
                   onClick={handleNewRevisionClick}
                   disabled={!canNewRevision}
                 >
-                  Open new revision
+                  {desk.headerMenuNewRevision}
                 </MenuItem>
               </span>
             </Tooltip>
 
-            <MenuItem onClick={handleCopyId}>Copy story ID</MenuItem>
+            <MenuItem onClick={handleCopyId}>{desk.headerMenuCopyId}</MenuItem>
           </Menu>
         </Stack>
       </Stack>
@@ -387,7 +364,9 @@ export default function WorkspaceHeader({
       <Stack direction="row" alignItems="center" spacing={0.75}>
         {story.storyType && (
           <Chip
-            label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
+            label={
+              storyTypeLabels[story.storyType as StoryType] ?? story.storyType
+            }
             size="small"
             variant="outlined"
             sx={{
@@ -403,7 +382,7 @@ export default function WorkspaceHeader({
         )}
         {story.ageRange ? (
           <Chip
-            label={`Ages ${AGE_RANGE_LABELS[story.ageRange]}`}
+            label={`${desk.agesChipPrefix} ${ageRangeLabels[story.ageRange]}`}
             size="small"
             variant="outlined"
             sx={{
@@ -430,16 +409,16 @@ export default function WorkspaceHeader({
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Archive this story?</DialogTitle>
+        <DialogTitle>{desk.headerArchiveDialogTitle}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">
-            You can restore it later from the story workspace.
-          </Typography>
+          <Typography variant="body2">{desk.headerArchiveDialogBody}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setArchiveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setArchiveDialogOpen(false)}>
+            {desk.headerCancel}
+          </Button>
           <Button onClick={handleArchiveConfirm} color="error" variant="contained">
-            Archive
+            {desk.headerArchiveConfirm}
           </Button>
         </DialogActions>
       </Dialog>
@@ -449,7 +428,7 @@ export default function WorkspaceHeader({
         open={copiedSnackbar}
         autoHideDuration={2500}
         onClose={() => setCopiedSnackbar(false)}
-        message="Copied!"
+        message={desk.headerCopiedSnackbar}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       />
     </Box>

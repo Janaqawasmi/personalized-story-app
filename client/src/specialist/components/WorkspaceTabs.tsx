@@ -12,6 +12,7 @@ import Box from "@mui/material/Box";
 import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import { DRAFT_B } from "./draftB/tokens";
@@ -41,6 +42,7 @@ export default function WorkspaceTabs({
   activeTab,
   onTabChange,
 }: WorkspaceTabsProps) {
+  const desk = useSpecialistDeskUi();
   const draftDisabled = story.agent1Result === null;
   const illustrationsEnabled = ILLUSTRATION_STATUSES.has(story.status);
 
@@ -56,7 +58,7 @@ export default function WorkspaceTabs({
       <Tabs
         value={activeTab}
         onChange={handleChange}
-        aria-label="Story workspace tabs"
+        aria-label={desk.tabsAriaLabel}
         sx={{
           "& .MuiTab-root": {
             textTransform: "none",
@@ -73,19 +75,21 @@ export default function WorkspaceTabs({
         }}
       >
         <Tab
-          label="Brief"
+          label={desk.tabBrief}
           value="brief"
           id="tab-brief"
           aria-controls="tabpanel-brief"
         />
 
         <Tab
-          label="Story"
+          label={desk.tabStory}
           value="draft"
           id="tab-draft"
           aria-controls="tabpanel-draft"
           disabled={draftDisabled}
-          title={draftDisabled ? "Open after the story is generated" : undefined}
+          title={
+            draftDisabled ? desk.tabStoryDisabledTooltip : undefined
+          }
           sx={
             draftDisabled
               ? {
@@ -96,7 +100,7 @@ export default function WorkspaceTabs({
         />
 
         <Tab
-          label="Illustrations"
+          label={desk.tabIllustrations}
           value="illustrations"
           id="tab-illustrations"
           aria-controls="tabpanel-illustrations"
@@ -105,7 +109,7 @@ export default function WorkspaceTabs({
         />
 
         <Tab
-          label="History"
+          label={desk.tabHistory}
           value="history"
           id="tab-history"
           aria-controls="tabpanel-history"

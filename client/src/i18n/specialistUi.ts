@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useLanguage } from "./context/useLanguage";
+import { SPECIALIST_UI_AR } from "./specialistUiArabic";
 import { SPECIALIST_UI_HE } from "./specialistUiHebrew";
 import type { SpecialistUi } from "./specialistUi.types";
 
@@ -101,8 +102,9 @@ const SPECIALIST_UI_EN = buildEnglishSpecialistUi();
 
 export function useSpecialistUi(): SpecialistUi {
   const { language } = useLanguage();
-  return useMemo(
-    () => (language === "en" ? SPECIALIST_UI_EN : SPECIALIST_UI_HE),
-    [language],
-  );
+  return useMemo(() => {
+    if (language === "en") return SPECIALIST_UI_EN;
+    if (language === "ar") return SPECIALIST_UI_AR;
+    return SPECIALIST_UI_HE;
+  }, [language]);
 }

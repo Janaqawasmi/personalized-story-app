@@ -13,6 +13,7 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
 import StoryRow from "./StoryRow";
@@ -20,6 +21,7 @@ import StoryRow from "./StoryRow";
 function EmptyFirstTime() {
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
+  const desk = useSpecialistDeskUi();
   const base = `/${lang ?? "he"}/specialist`;
 
   return (
@@ -43,15 +45,14 @@ function EmptyFirstTime() {
           color: COLORS.textPrimary,
         }}
       >
-        Start your first manuscript
+        {desk.emptyFirstTimeTitle}
       </Typography>
       <Typography
         variant="body1"
         color="text.secondary"
         sx={{ maxWidth: 440, lineHeight: 1.6, fontSize: "0.95rem" }}
       >
-        Start with a strong clinical brief so the AI can draft a safe,
-        therapeutic story for review before use.
+        {desk.emptyFirstTimeBody}
       </Typography>
       <Button
         variant="contained"
@@ -69,7 +70,7 @@ function EmptyFirstTime() {
           "&:hover": { bgcolor: COLORS.primaryDark },
         }}
       >
-        New story
+        {desk.newStory}
       </Button>
     </Box>
   );
@@ -80,6 +81,7 @@ interface EmptyFilteredProps {
 }
 
 function EmptyFiltered({ onClearFilters }: EmptyFilteredProps) {
+  const desk = useSpecialistDeskUi();
   return (
     <Box
       sx={{
@@ -102,7 +104,7 @@ function EmptyFiltered({ onClearFilters }: EmptyFilteredProps) {
           fontSize: "1rem",
         }}
       >
-        No manuscripts match these filters
+        {desk.emptyFiltered}
       </Typography>
       {onClearFilters && (
         <Button
@@ -118,7 +120,7 @@ function EmptyFiltered({ onClearFilters }: EmptyFilteredProps) {
             "&:hover": { borderColor: COLORS.primary, bgcolor: "transparent" },
           }}
         >
-          Clear all filters
+          {desk.clearAllFilters}
         </Button>
       )}
     </Box>
@@ -138,16 +140,6 @@ export interface StoriesTableProps {
   onViewArchived?: () => void;
 }
 
-const COLUMN_HEADERS: { label: string; width: string | number }[] = [
-  { label: "№", width: 44 },
-  { label: "Manuscript", width: "auto" },
-  { label: "Stage", width: 148 },
-  { label: "Population & age", width: 200 },
-  { label: "Status", width: 152 },
-  { label: "Last event", width: 188 },
-  { label: "", width: 48 },
-];
-
 export default function StoriesTable({
   stories,
   loading,
@@ -159,6 +151,17 @@ export default function StoriesTable({
   archivedCount,
   onViewArchived,
 }: StoriesTableProps) {
+  const desk = useSpecialistDeskUi();
+  const columnHeaders: { label: string; width: string | number }[] = [
+    { label: desk.colNumber, width: 44 },
+    { label: desk.colManuscript, width: "auto" },
+    { label: desk.colStage, width: 148 },
+    { label: desk.colPopulationAge, width: 200 },
+    { label: desk.colStatus, width: 152 },
+    { label: desk.colLastEvent, width: 188 },
+    { label: "", width: 48 },
+  ];
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" py={8}>
@@ -201,13 +204,13 @@ export default function StoriesTable({
                 "& th": { borderBottom: `1px solid ${COLORS.border}` },
               }}
             >
-              {COLUMN_HEADERS.map((col, hi) => (
+              {columnHeaders.map((col, hi) => (
                 <TableCell
                   key={`${col.label}-${hi}`}
                   width={col.width}
                   sx={{
                     py: 1.5,
-                    px: col.label === "№" ? 1.5 : 2,
+                    px: col.label === desk.colNumber ? 1.5 : 2,
                     fontWeight: 700,
                     fontSize: "0.6875rem",
                     color: COLORS.textMuted,
@@ -272,8 +275,7 @@ export default function StoriesTable({
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            View {archivedCount} archived stor
-            {archivedCount === 1 ? "y" : "ies"} →
+            {desk.viewArchivedLink(archivedCount)}
           </Link>
         )}
       </Box>

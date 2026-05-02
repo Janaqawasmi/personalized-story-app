@@ -7,8 +7,13 @@ import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
 import type { Agent1Result } from "../../../types/agent1Result";
+import { useLanguage } from "../../../i18n/context/useLanguage";
+import {
+  dateLocaleForLang,
+  formatRelativeTimeMs,
+} from "../../../i18n/specialistRelativeTime";
+import { useSpecialistDeskUi } from "../../../i18n/specialistDeskUi";
 import { COLORS } from "../../../theme";
-import { formatRelativeTime } from "../StoryRow";
 import { MAX_VERSIONS } from "./shared";
 import { DRAFT_B, FONTS } from "./tokens";
 
@@ -49,6 +54,8 @@ export default function VersionTimeline({
   wordCount,
   targetRange,
 }: VersionTimelineProps) {
+  const desk = useSpecialistDeskUi();
+  const { language } = useLanguage();
   const [min, max] = targetRange;
   const outOfRange = wordCount < min || wordCount > max;
 
@@ -85,7 +92,11 @@ export default function VersionTimeline({
         {versions.map((version, i) => {
           const isLatest = i === versions.length - 1;
           const sel = i === selectedIndex;
-          const rel = formatRelativeTime(new Date(version.generatedAt).getTime());
+          const rel = formatRelativeTimeMs(
+            new Date(version.generatedAt).getTime(),
+            desk,
+            dateLocaleForLang(language),
+          );
           const titleTop =
             i === 0 ? "First draft" : isLatest ? "Current revision" : `Revision ${i}`;
           const subtitleLine = isLatest ? `${rel} · current` : rel;

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
@@ -9,6 +9,8 @@ import Select, { SelectChangeEvent } from "@mui/material/Select";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
 import { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import { STATUS_CHIP_COLORS } from "./statusColors";
@@ -42,12 +44,17 @@ type SortValue =
   | "createdAt_asc"
   | "title_asc";
 
-const SORT_OPTIONS: { value: SortValue; label: string }[] = [
-  { value: "lastOpenedAt_desc", label: "Last activity" },
-  { value: "createdAt_desc", label: "Newest first" },
-  { value: "createdAt_asc", label: "Oldest first" },
-  { value: "title_asc", label: "Title (A–Z)" },
-];
+function buildSortOptions(desk: SpecialistDeskUi): {
+  value: SortValue;
+  label: string;
+}[] {
+  return [
+    { value: "lastOpenedAt_desc", label: desk.sortLastActivity },
+    { value: "createdAt_desc", label: desk.sortNewestFirst },
+    { value: "createdAt_asc", label: desk.sortOldestFirst },
+    { value: "title_asc", label: desk.sortTitleAZ },
+  ];
+}
 
 function encodeSortValue(
   sortBy: string,
@@ -87,64 +94,66 @@ function chipLabelWithCount(label: string, count: number): string {
 }
 
 /** Specialist-priority order: needs you now → soon → in progress → system → done → archive. */
-const CHIP_CONFIGS: ChipConfig[] = [
-  { label: "All", status: null, color: STATUS_CHIP_COLORS.all },
-  {
-    label: "Awaiting review",
-    status: "awaiting_review",
-    color: STATUS_CHIP_COLORS.awaiting_review,
-  },
-  {
-    label: "In review",
-    status: "in_review",
-    color: STATUS_CHIP_COLORS.in_review,
-  },
-  {
-    label: "Brief in progress",
-    status: "draft_brief",
-    color: STATUS_CHIP_COLORS.draft_brief,
-  },
-  {
-    label: "Generating",
-    status: "generating",
-    color: STATUS_CHIP_COLORS.generating,
-  },
-  {
-    label: "Needs revision",
-    status: "needs_revision",
-    color: STATUS_CHIP_COLORS.needs_revision,
-  },
-  {
-    label: "Approved",
-    status: "approved",
-    color: STATUS_CHIP_COLORS.approved,
-  },
-  {
-    label: "Image prompt review",
-    status: "prompt_review",
-    color: STATUS_CHIP_COLORS.prompt_review,
-  },
-  {
-    label: "Illustrating",
-    status: "illustrating",
-    color: STATUS_CHIP_COLORS.illustrating,
-  },
-  {
-    label: "Illustration review",
-    status: "illustration_review",
-    color: STATUS_CHIP_COLORS.illustration_review,
-  },
-  {
-    label: "Illustration ready",
-    status: "illustration_ready",
-    color: STATUS_CHIP_COLORS.illustration_ready,
-  },
-  {
-    label: "Archived",
-    status: "archived",
-    color: STATUS_CHIP_COLORS.archived,
-  },
-];
+function buildChipConfigs(desk: SpecialistDeskUi): ChipConfig[] {
+  return [
+    { label: desk.chipAll, status: null, color: STATUS_CHIP_COLORS.all },
+    {
+      label: desk.chipAwaitingReview,
+      status: "awaiting_review",
+      color: STATUS_CHIP_COLORS.awaiting_review,
+    },
+    {
+      label: desk.chipInReview,
+      status: "in_review",
+      color: STATUS_CHIP_COLORS.in_review,
+    },
+    {
+      label: desk.chipBriefInProgress,
+      status: "draft_brief",
+      color: STATUS_CHIP_COLORS.draft_brief,
+    },
+    {
+      label: desk.chipGenerating,
+      status: "generating",
+      color: STATUS_CHIP_COLORS.generating,
+    },
+    {
+      label: desk.chipNeedsRevision,
+      status: "needs_revision",
+      color: STATUS_CHIP_COLORS.needs_revision,
+    },
+    {
+      label: desk.chipApproved,
+      status: "approved",
+      color: STATUS_CHIP_COLORS.approved,
+    },
+    {
+      label: desk.chipPromptReview,
+      status: "prompt_review",
+      color: STATUS_CHIP_COLORS.prompt_review,
+    },
+    {
+      label: desk.chipIllustrating,
+      status: "illustrating",
+      color: STATUS_CHIP_COLORS.illustrating,
+    },
+    {
+      label: desk.chipIllustrationReview,
+      status: "illustration_review",
+      color: STATUS_CHIP_COLORS.illustration_review,
+    },
+    {
+      label: desk.chipIllustrationReady,
+      status: "illustration_ready",
+      color: STATUS_CHIP_COLORS.illustration_ready,
+    },
+    {
+      label: desk.chipArchived,
+      status: "archived",
+      color: STATUS_CHIP_COLORS.archived,
+    },
+  ];
+}
 
 const DEBOUNCE_MS = 200;
 
@@ -162,6 +171,10 @@ export default function StoriesFilterBar({
   sortDir,
   onSortChange,
 }: StoriesFilterBarProps) {
+  const desk = useSpecialistDeskUi();
+  const CHIP_CONFIGS = useMemo(() => buildChipConfigs(desk), [desk]);
+  const SORT_OPTIONS = useMemo(() => buildSortOptions(desk), [desk]);
+
   // ---- local search input value (debounced before calling onSearchChange) --
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -312,7 +325,7 @@ export default function StoriesFilterBar({
 
           return (
             <Chip
-              key={cfg.label}
+              key={cfg.status ?? "all"}
               label={label}
               variant={useFilledAppearance ? "filled" : "outlined"}
               onClick={() => handleChipClick(cfg.status)}
@@ -344,6 +357,8 @@ export default function StoriesFilterBar({
 
       {/* ---- Search + sort row ---- */}
       <Box
+        component="section"
+        aria-label={desk.filterAriaLabel}
         sx={{
           display: "flex",
           flexDirection: "row",
@@ -355,7 +370,7 @@ export default function StoriesFilterBar({
         {/* Search box */}
         <TextField
           size="small"
-          placeholder="Search title, population, trigger…"
+          placeholder={desk.searchPlaceholder}
           value={localSearch}
           onChange={handleSearchInput}
           sx={{
@@ -383,7 +398,7 @@ export default function StoriesFilterBar({
                   size="small"
                   onClick={handleClearSearch}
                   edge="end"
-                  aria-label="Clear search"
+                  aria-label={desk.clearSearchAria}
                   sx={{ color: COLORS.textSecondary }}
                 >
                   <ClearIcon fontSize="small" />
@@ -401,7 +416,7 @@ export default function StoriesFilterBar({
           displayEmpty
           renderValue={(value) => {
             const opt = SORT_OPTIONS.find((o) => o.value === value);
-            return opt ? `Sort · ${opt.label}` : "";
+            return opt ? `${desk.sortLabelPrefix}${opt.label}` : "";
           }}
           sx={{
             minWidth: 168,
@@ -423,7 +438,8 @@ export default function StoriesFilterBar({
         >
           {SORT_OPTIONS.map((opt) => (
             <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: "0.875rem" }}>
-              Sort · {opt.label}
+              {desk.sortLabelPrefix}
+              {opt.label}
             </MenuItem>
           ))}
         </Select>
