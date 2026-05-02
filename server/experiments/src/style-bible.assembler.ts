@@ -42,6 +42,12 @@ export const ENVIRONMENT_REF_INSTRUCTION =
 export const AVATAR_ENV_REF_INSTRUCTION =
   "ENVIRONMENT LAYOUT REFERENCE IMAGE ATTACHED: preserve spatial layout and furniture positions from the reference. Character appearance comes from the text description below only — do not copy any figure from the reference image.";
 
+export const COMPOSITE_REF_INSTRUCTION =
+  "COMPOSITE REFERENCE IMAGE ATTACHED — two halves, two roles: " +
+  "LEFT HALF shows the character — match face shape, hair color and length, skin tone, and clothing colors exactly from the left half. " +
+  "RIGHT HALF shows the environment layout — preserve the exact positions of the door, floor, walls, and handle from the right half. " +
+  "Do not copy the overall composition or lighting from either half.";
+
 export function assembleStyleBiblePagePrompt(
   scene: ScenePromptSections,
   bible: StyleBible,

@@ -78,6 +78,7 @@ export const sceneDIrectorVariant: ExperimentVariant = {
       `[scene-director] Call 1: generating creative scene directions for ${targetPages.length} pages (${PROMPT_MODEL})…`,
     );
     const directions = await callClaudeForSceneDirections(
+      ctx.story.pages!,
       targetPages,
       ctx.story.brief,
       bible,

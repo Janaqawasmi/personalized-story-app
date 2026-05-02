@@ -57,7 +57,8 @@ export interface SceneDirection {
 // ---------------------------------------------------------------------------
 
 function buildSceneDirectorPrompt(
-  pages: PageIllustration[],
+  allPages: PageIllustration[],
+  targetPages: PageIllustration[],
   brief: StoryBrief,
   bible: StyleBible,
 ): string {
@@ -67,7 +68,14 @@ function buildSceneDirectorPrompt(
     .map(([key, entry]) => `  ${key}: ${entry.atmosphere}`)
     .join("\n");
 
-  const pagesText = pages.map((p) => `[Page ${p.pageNumber}]\n${p.text}`).join("\n\n");
+  const fullStoryText = allPages
+    .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
+    .join("\n\n");
+
+  const targetPageNumbers = targetPages.map((p) => p.pageNumber).join(", ");
+  const targetPagesText = targetPages
+    .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
+    .join("\n\n");
 
   return `You are a children's book art director making creative decisions BEFORE the illustrator draws anything.
 
@@ -87,10 +95,13 @@ Style: ${bible.styleGuide}
 Environments:
 ${envSummary}
 
-STORY PAGES:
-${pagesText}
+FULL STORY — read all pages to understand the complete arc, emotional journey, and where each illustrated page sits in the narrative:
+${fullStoryText}
 
-For each page produce a SCENE DIRECTION. Think like a film director choosing the exact frame to freeze.
+PAGES TO ILLUSTRATE — produce one scene direction for each of these pages only (${targetPageNumbers}):
+${targetPagesText}
+
+For each page produce a SCENE DIRECTION. Read the full story first so you understand what came before and after this moment. Think like a film director choosing the exact frame to freeze.
 
 moment (1 sentence, present tense, active verb):
 The exact split-second being frozen. NOT "Jana approaches the door." INSTEAD: "Jana's hand hovers two inches from the cold handle, fingers curled but not yet touching, her whole body leaning forward while her feet stay planted." Be that specific.
@@ -126,16 +137,21 @@ OUTPUT: Reply with ONLY valid JSON (no markdown fences, no explanation):
   ]
 }
 
-The sceneDirections array must have exactly ${pages.length} elements, one per page in order.`;
+The sceneDirections array must have exactly ${targetPages.length} elements, one per page in order.`;
 }
 
+/**
+ * @param allPages   Every page of the story — gives Claude the full narrative arc.
+ * @param targetPages The subset of pages to illustrate — Claude produces one direction per entry.
+ */
 export async function callClaudeForSceneDirections(
-  pages: PageIllustration[],
+  allPages: PageIllustration[],
+  targetPages: PageIllustration[],
   brief: StoryBrief,
   bible: StyleBible,
   model = "claude-sonnet-4-6",
 ): Promise<SceneDirection[]> {
-  const prompt = buildSceneDirectorPrompt(pages, brief, bible);
+  const prompt = buildSceneDirectorPrompt(allPages, targetPages, brief, bible);
 
   const response = await client.messages.create({
     model,
@@ -159,9 +175,9 @@ export async function callClaudeForSceneDirections(
     );
   }
 
-  if (!Array.isArray(parsed.sceneDirections) || parsed.sceneDirections.length !== pages.length) {
+  if (!Array.isArray(parsed.sceneDirections) || parsed.sceneDirections.length !== targetPages.length) {
     throw new Error(
-      `callClaudeForSceneDirections: expected ${pages.length} directions, got ${parsed.sceneDirections?.length}`,
+      `callClaudeForSceneDirections: expected ${targetPages.length} directions, got ${parsed.sceneDirections?.length}`,
     );
   }
 

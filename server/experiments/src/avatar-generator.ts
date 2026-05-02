@@ -6,6 +6,7 @@
 // This file does NOT touch Firestore.
 
 import "./bootstrap";
+import sharp from "sharp";
 import { admin } from "@/config/firebase";
 import { SeedreamProvider } from "@/providers/seedream.provider";
 import type { StyleBible, EnvironmentEntry } from "./style-bible.types";
@@ -41,16 +42,13 @@ async function uploadToStorage(
 
 /**
  * Generates `count` full-body character portrait images (no background scene).
- * Each variation uses baseSeed + i so portraits are similar but not identical.
  * Uploads each to Firebase Storage and returns the public URLs.
- *
- * Variation 0 is the canonical avatar; the rest are alternatives for scoring.
  */
 export async function generateCharacterAvatars(
   bible: StyleBible,
   baseSeed: number,
   expId: string,
-  count = 3,
+  count = 1,
 ): Promise<string[]> {
   const provider = new SeedreamProvider();
 
@@ -150,6 +148,50 @@ export async function generateEnvironmentImage(
   const storagePath = `${STORAGE_BUCKET_PREFIX}/${expId}/env-${envKey}.${ext}`;
   const url = await uploadToStorage(result.imageBuffer, storagePath, result.mimeType);
   console.log(`[avatar-generator] env-${envKey} uploaded → ${url}`);
+  return url;
+}
+
+// ---------------------------------------------------------------------------
+// Composite: stitch avatar (left) + environment (right) into one 1024×1024
+// ---------------------------------------------------------------------------
+
+/**
+ * Places the avatar image on the left half and the environment image on the
+ * right half of a single 1024×1024 JPEG. Uploads to Firebase Storage and
+ * returns the public URL.
+ *
+ * Seedream only accepts one reference image. This composite lets us pass
+ * both the character identity reference and the environment layout reference
+ * in that single slot. The prompt must tell the model:
+ *   left half → character identity (face, hair, clothing)
+ *   right half → environment layout (door position, floor, walls)
+ */
+export async function stitchAvatarAndEnvironment(
+  avatarBuffer: Buffer,
+  envBuffer: Buffer,
+  expId: string,
+): Promise<string> {
+  const CANVAS = 1024;
+  const HALF = CANVAS / 2;
+
+  const [leftResized, rightResized] = await Promise.all([
+    sharp(avatarBuffer).resize(HALF, CANVAS, { fit: "cover" }).toBuffer(),
+    sharp(envBuffer).resize(HALF, CANVAS, { fit: "cover" }).toBuffer(),
+  ]);
+
+  const composite = await sharp({
+    create: { width: CANVAS, height: CANVAS, channels: 3, background: { r: 245, g: 240, b: 232 } },
+  })
+    .composite([
+      { input: leftResized, left: 0, top: 0 },
+      { input: rightResized, left: HALF, top: 0 },
+    ])
+    .jpeg({ quality: 90 })
+    .toBuffer();
+
+  const storagePath = `${STORAGE_BUCKET_PREFIX}/${expId}/composite-ref.jpg`;
+  const url = await uploadToStorage(composite, storagePath, "image/jpeg");
+  console.log(`[avatar-generator] composite reference uploaded → ${url}`);
   return url;
 }
 

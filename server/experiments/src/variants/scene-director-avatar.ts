@@ -1,34 +1,28 @@
-// scene-director-avatar variant (exp-09b) — Scene Director + Avatar Reference
+// scene-director-avatar variant (exp-09b) — Full Pipeline
 //
-// Combines the two improvements from exp-08a-v2 and exp-09:
-//   exp-09    introduced the two-stage creative director pipeline
-//             (story → scene direction → structured prompt)
-//   exp-08a-v2 introduced avatar as character reference + explicit instruction
-//             telling Seedream what role the reference plays
+// Combines everything learned so far into one variant:
 //
-// This variant stacks both:
-//   · Scene Director pipeline  — richer, emotionally specific prompts
-//   · Character avatar reference — visual anchor for identity
-//   · CHARACTER_REF_INSTRUCTION — explicit role label at position 2
+//   1. Avatar generation (1 portrait, plain background)
+//   2. Environment generation (empty setting, no character)
+//   3. Composite reference: stitch avatar (left) + environment (right)
+//      into one 1024×1024 image — Seedream's single reference slot
+//   4. Scene Director — Claude reads the FULL story for narrative context,
+//      produces creative scene directions for target pages only
+//   5. Prompt Converter — translates directions → 5-section structured prompt
+//   6. Assemble final prompt with COMPOSITE_REF_INSTRUCTION at position 2
+//   7. Seedream image-to-image with composite as reference
 //
-// Variable changed vs exp-09 (scene-director, no reference):
-//   referenceStrategy: none → avatar (character portrait)
-//   + CHARACTER_REF_INSTRUCTION prepended to assembled prompt
-//
-// Variable changed vs exp-08a-v2 (avatar-only with instruction):
-//   Prompt pipeline: 1-call (story → structured prompt)
-//                 →  2-call (story → scene direction → structured prompt)
-//
-// Hypothesis: The creative direction pipeline produces a better scene prompt
-// AND the avatar reference locks the character's physical appearance. Together
-// they should outperform either improvement alone.
+// Variables vs exp-09 (scene-director, no reference):
+//   · referenceStrategy: none → composite (avatar left + environment right)
+//   · + COMPOSITE_REF_INSTRUCTION in assembled prompt
+//   · + full story context in scene director Call 1
 //
 // Run command:
 //   npm run -w server experiment:run -- \
 //     --variant scene-director-avatar \
 //     --story jana-school-door-story-001 \
 //     --pages 1,2,3 \
-//     --out exp-09b-scene-director-avatar-jana \
+//     --out exp-09b-v2-scene-director-avatar-jana \
 //     --locked-sb experiments/locked-style-bibles/jana-school-door-story-001.json
 
 import {
@@ -39,11 +33,16 @@ import {
 import {
   assembleStyleBiblePagePrompt,
   formatScenePromptForReport,
-  CHARACTER_REF_INSTRUCTION,
+  COMPOSITE_REF_INSTRUCTION,
 } from "../style-bible.assembler";
 import { SeedreamProvider } from "@/providers/seedream.provider";
 import { ensureDir, saveImage, savePromptText } from "../helpers";
-import { generateCharacterAvatars } from "../avatar-generator";
+import {
+  generateCharacterAvatars,
+  generateEnvironmentImage,
+  stitchAvatarAndEnvironment,
+  parseEnvKeyFromSetting,
+} from "../avatar-generator";
 import {
   selectTargetPages,
   type ExperimentVariant,
@@ -56,16 +55,16 @@ import type { StyleBible } from "../style-bible.types";
 
 const SEEDREAM_MODEL = process.env.SEEDREAM_MODEL_ID ?? "seedream-4-0-250828";
 const PROMPT_MODEL = "claude-sonnet-4-6";
-const AVATAR_COUNT = 3;
 
 export const sceneDIrectorAvatarVariant: ExperimentVariant = {
   id: "scene-director-avatar",
   description:
-    "exp-09 scene director pipeline (two-stage) + avatar character reference with explicit CHARACTER_REF_INSTRUCTION. Tests whether creative direction + visual identity anchor together outperform either improvement alone.",
+    "Full pipeline: scene director (full story context) + composite reference (avatar left, environment right) + COMPOSITE_REF_INSTRUCTION.",
   async run(ctx) {
     const start = Date.now();
     const provider = new SeedreamProvider();
     const targetPages = selectTargetPages(ctx.story, ctx.targetPageNumbers);
+    const allPages = ctx.story.pages!;
 
     if (!ctx.lockedStyleBible) {
       throw new Error(
@@ -78,20 +77,12 @@ export const sceneDIrectorAvatarVariant: ExperimentVariant = {
 
     ensureDir(ctx.outDir);
 
-    // --- Generate avatar reference images ---
+    // --- Step 1: Generate scene prompts first to know which environments are needed ---
     ctx.log(
-      `[scene-director-avatar] Generating ${AVATAR_COUNT} avatar variations (seed ${seed}…${seed + AVATAR_COUNT - 1})…`,
-    );
-    const avatarUrls = await generateCharacterAvatars(bible, seed, expId, AVATAR_COUNT);
-    const chosenAvatarUrl = avatarUrls[0]!;
-    ctx.log(`[scene-director-avatar] Using avatar-0 as reference: ${chosenAvatarUrl}`);
-    writeFileSync(join(ctx.outDir, "avatar-urls.json"), JSON.stringify(avatarUrls, null, 2), "utf8");
-
-    // --- Call 1: Creative scene direction ---
-    ctx.log(
-      `[scene-director-avatar] Call 1: generating creative scene directions for ${targetPages.length} pages (${PROMPT_MODEL})…`,
+      `[scene-director-avatar] Call 1: scene directions — reading all ${allPages.length} pages for context, directing ${targetPages.length} pages…`,
     );
     const directions = await callClaudeForSceneDirections(
+      allPages,
       targetPages,
       ctx.story.brief,
       bible,
@@ -104,10 +95,7 @@ export const sceneDIrectorAvatarVariant: ExperimentVariant = {
     writeFileSync(join(ctx.outDir, "scene-directions.txt"), directionsReport, "utf8");
     ctx.log(`[scene-director-avatar] scene directions saved.`);
 
-    // --- Call 2: Convert directions → structured Seedream prompts ---
-    ctx.log(
-      `[scene-director-avatar] Call 2: converting directions → structured prompts (${PROMPT_MODEL})…`,
-    );
+    ctx.log(`[scene-director-avatar] Call 2: converting directions → structured prompts…`);
     const scenePrompts = await callClaudeForPromptsFromDirections(
       targetPages,
       directions,
@@ -115,32 +103,89 @@ export const sceneDIrectorAvatarVariant: ExperimentVariant = {
       PROMPT_MODEL,
     );
 
+    // --- Step 2: Generate 1 avatar ---
+    ctx.log(`[scene-director-avatar] Generating 1 avatar (seed ${seed})…`);
+    const avatarUrls = await generateCharacterAvatars(bible, seed, expId, 1);
+    const avatarUrl = avatarUrls[0]!;
+    ctx.log(`[scene-director-avatar] Avatar ready: ${avatarUrl}`);
+    writeFileSync(join(ctx.outDir, "avatar-url.json"), JSON.stringify({ url: avatarUrl }, null, 2), "utf8");
+
+    // --- Step 3: Generate environment image for each unique env key ---
+    const envUrlCache: Record<string, string> = {};
+    const envBufferCache: Record<string, Buffer> = {};
+
+    for (const scene of scenePrompts) {
+      const envKey = parseEnvKeyFromSetting(scene.setting);
+      if (envUrlCache[envKey] !== undefined) continue;
+
+      const envEntry = bible.environmentRegistry[envKey];
+      if (!envEntry) {
+        ctx.log(`[scene-director-avatar] WARNING: env key '${envKey}' not in registry — skipping.`);
+        continue;
+      }
+      ctx.log(`[scene-director-avatar] Generating environment '${envKey}'…`);
+      envUrlCache[envKey] = await generateEnvironmentImage(envKey, envEntry, bible, seed, expId);
+
+      // Fetch the buffer so we can stitch it — re-download from the public URL.
+      const resp = await fetch(envUrlCache[envKey]!);
+      envBufferCache[envKey] = Buffer.from(await resp.arrayBuffer());
+    }
+
+    writeFileSync(join(ctx.outDir, "env-urls.json"), JSON.stringify(envUrlCache, null, 2), "utf8");
+
+    // Fetch the avatar buffer for stitching.
+    const avatarResp = await fetch(avatarUrl);
+    const avatarBuffer = Buffer.from(await avatarResp.arrayBuffer());
+
+    // --- Step 4: Stitch composites — one per unique environment ---
+    const compositeUrlCache: Record<string, string> = {};
+    const compositeBuffersByEnv: Record<string, Buffer> = {};
+
+    for (const envKey of Object.keys(envBufferCache)) {
+      ctx.log(`[scene-director-avatar] Stitching composite for env '${envKey}'…`);
+      const envBuffer = envBufferCache[envKey]!;
+
+      // Re-import stitchAvatarAndEnvironment returns the URL; we also need the
+      // buffer for the composite. Build it inline so we can pass it to Seedream
+      // as base64 if needed — but since Seedream requires a URL, upload is fine.
+      const compositeUrl = await stitchAvatarAndEnvironment(avatarBuffer, envBuffer, `${expId}-${envKey}`);
+      compositeUrlCache[envKey] = compositeUrl;
+
+      // Fetch the composite buffer for local save.
+      const compResp = await fetch(compositeUrl);
+      compositeBuffersByEnv[envKey] = Buffer.from(await compResp.arrayBuffer());
+    }
+
+    writeFileSync(join(ctx.outDir, "composite-urls.json"), JSON.stringify(compositeUrlCache, null, 2), "utf8");
+
     ctx.log(`[scene-director-avatar] seed=${seed}, image model=${SEEDREAM_MODEL}`);
 
-    // --- Image generation ---
+    // --- Step 5: Generate each page using the composite reference ---
     const pageResults: PageRunResult[] = [];
 
     for (let i = 0; i < targetPages.length; i++) {
       const page = targetPages[i]!;
       const scene = scenePrompts[i]!;
       const direction = directions[i]!;
+      const envKey = parseEnvKeyFromSetting(scene.setting);
+      const compositeUrl = compositeUrlCache[envKey];
 
-      // CHARACTER_REF_INSTRUCTION tells Seedream to use the avatar for
-      // identity only — not for composition or background.
       const finalPrompt = assembleStyleBiblePagePrompt(
         scene,
         bible,
         page.pageNumber,
-        CHARACTER_REF_INSTRUCTION,
+        COMPOSITE_REF_INSTRUCTION,
       );
 
       const pageStart = Date.now();
       try {
-        ctx.log(`[scene-director-avatar] page ${page.pageNumber}: generating (avatar reference)…`);
+        ctx.log(
+          `[scene-director-avatar] page ${page.pageNumber}: generating (composite ref, env='${envKey}')…`,
+        );
 
         const result = await provider.generateImage({
           textPrompt: finalPrompt,
-          referenceImage: chosenAvatarUrl,
+          ...(compositeUrl ? { referenceImage: compositeUrl } : {}),
           outputWidth: 1024,
           outputHeight: 1024,
           seed,
@@ -168,7 +213,7 @@ export const sceneDIrectorAvatarVariant: ExperimentVariant = {
             `=== STRUCTURED PROMPT ===\n${formatScenePromptForReport(scene)}`,
           finalPromptToImageModel: finalPrompt,
           imageFilename: filename,
-          referenceImage: chosenAvatarUrl,
+          ...(compositeUrl ? { referenceImage: compositeUrl } : {}),
           latencyMs: Date.now() - pageStart,
         });
       } catch (err) {
@@ -182,7 +227,7 @@ export const sceneDIrectorAvatarVariant: ExperimentVariant = {
             `=== STRUCTURED PROMPT ===\n${formatScenePromptForReport(scene)}`,
           finalPromptToImageModel: finalPrompt,
           imageFilename: "",
-          referenceImage: chosenAvatarUrl,
+          ...(compositeUrl ? { referenceImage: compositeUrl } : {}),
           latencyMs: Date.now() - pageStart,
           error: message,
         });
@@ -195,11 +240,13 @@ export const sceneDIrectorAvatarVariant: ExperimentVariant = {
       storyId: ctx.story.id,
       promptModel: PROMPT_MODEL,
       imageModel: SEEDREAM_MODEL,
-      referenceStrategy: "avatar",
+      referenceStrategy: "avatar-environment",
       seed,
       pages: pageResults,
       totalLatencyMs: Date.now() - start,
-      notes: `Avatar: ${avatarUrls.join(" | ")}. Two Claude calls: scene-director + prompt-converter. See scene-directions.txt.`,
+      notes:
+        `Avatar: ${avatarUrl}. Composites: ${JSON.stringify(compositeUrlCache)}. ` +
+        `Scene director read ${allPages.length} pages, directed ${targetPages.length}.`,
     };
   },
 };
