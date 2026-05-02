@@ -10,6 +10,7 @@ import { styleBibleSonnetVariant } from "./style-bible-sonnet";
 import { avatarOnlyVariant } from "./avatar-only";
 import { environmentOnlyVariant } from "./environment-only";
 import { avatarEnvironmentVariant } from "./avatar-environment";
+import { sceneDIrectorVariant } from "./scene-director";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
   [baselineVariant.id]: baselineVariant,
@@ -22,6 +23,8 @@ export const VARIANTS: Record<string, ExperimentVariant> = {
   [avatarOnlyVariant.id]: avatarOnlyVariant,
   [environmentOnlyVariant.id]: environmentOnlyVariant,
   [avatarEnvironmentVariant.id]: avatarEnvironmentVariant,
+  // exp-09: two-stage creative director pipeline
+  [sceneDIrectorVariant.id]: sceneDIrectorVariant,
 };
 
 export function getVariant(id: string): ExperimentVariant {
