@@ -23,7 +23,11 @@
 //     --locked-sb experiments/locked-style-bibles/jana-school-door-story-001.json
 
 import { callClaudeForStructuredScenePrompts } from "../style-bible.generator";
-import { assembleStyleBiblePagePrompt, formatScenePromptForReport } from "../style-bible.assembler";
+import {
+  assembleStyleBiblePagePrompt,
+  formatScenePromptForReport,
+  CHARACTER_REF_INSTRUCTION,
+} from "../style-bible.assembler";
 import { SeedreamProvider } from "@/providers/seedream.provider";
 import { ensureDir, saveImage, savePromptText } from "../helpers";
 import { generateCharacterAvatars } from "../avatar-generator";
@@ -76,7 +80,7 @@ export const avatarOnlyVariant: ExperimentVariant = {
     for (let i = 0; i < targetPages.length; i++) {
       const page = targetPages[i]!;
       const scene = scenePrompts[i]!;
-      const finalPrompt = assembleStyleBiblePagePrompt(scene, bible, page.pageNumber);
+      const finalPrompt = assembleStyleBiblePagePrompt(scene, bible, page.pageNumber, CHARACTER_REF_INSTRUCTION);
 
       const pageStart = Date.now();
       try {

@@ -22,10 +22,31 @@ import type { StyleBible, ScenePromptSections } from "./style-bible.types";
 
 const PROMPT_WARN_CHARS = 1200;
 
+/**
+ * Optional instruction that tells Seedream exactly what role the attached
+ * reference image plays. Injected at position 2 (after the no-text hard
+ * constraint) so it receives high token weight without displacing the
+ * no-text suppression that must always be first.
+ *
+ * Examples:
+ *   CHARACTER_REF_INSTRUCTION  — use reference for character identity only
+ *   ENVIRONMENT_REF_INSTRUCTION — use reference for layout only
+ *   AVATAR_ENV_REF_INSTRUCTION  — use reference for layout; character from text
+ */
+export const CHARACTER_REF_INSTRUCTION =
+  "CHARACTER REFERENCE IMAGE ATTACHED: match this character's face shape, hair color and length, skin tone, and clothing colors exactly. Use reference for character appearance only — not for background, composition, or lighting.";
+
+export const ENVIRONMENT_REF_INSTRUCTION =
+  "ENVIRONMENT LAYOUT REFERENCE IMAGE ATTACHED: preserve the exact positions of the door, floor, walls, and handle from the reference image. Use reference for spatial layout only — not for character appearance or lighting.";
+
+export const AVATAR_ENV_REF_INSTRUCTION =
+  "ENVIRONMENT LAYOUT REFERENCE IMAGE ATTACHED: preserve spatial layout and furniture positions from the reference. Character appearance comes from the text description below only — do not copy any figure from the reference image.";
+
 export function assembleStyleBiblePagePrompt(
   scene: ScenePromptSections,
   bible: StyleBible,
   pageNumber: number,
+  referenceInstruction?: string,
 ): string {
   // Top 2 anchors only — they lock the style without burning token budget.
   const anchors = bible.consistencyAnchors.slice(0, 2).join(", ");
@@ -38,6 +59,9 @@ export function assembleStyleBiblePagePrompt(
 
   const parts = [
     "No text, no letters, no words, no captions, no labels, no speech bubbles, no logos, wordless illustration.",
+    // Reference instruction goes here — position 2, high token weight,
+    // tells the model what role the image param plays before anything else.
+    ...(referenceInstruction ? [referenceInstruction] : []),
     anchors + ".",
     `Setting: ${scene.setting}.`,
     `${bible.characterAnchor} In this scene: ${scene.character}.`,

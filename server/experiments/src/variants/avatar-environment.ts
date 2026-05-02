@@ -25,7 +25,7 @@
 //     --locked-sb experiments/locked-style-bibles/jana-school-door-story-001.json
 
 import { callClaudeForStructuredScenePrompts } from "../style-bible.generator";
-import { formatScenePromptForReport } from "../style-bible.assembler";
+import { formatScenePromptForReport, AVATAR_ENV_REF_INSTRUCTION } from "../style-bible.assembler";
 import { SeedreamProvider } from "@/providers/seedream.provider";
 import { ensureDir, saveImage, savePromptText } from "../helpers";
 import { generateEnvironmentImage, parseEnvKeyFromSetting } from "../avatar-generator";
@@ -64,6 +64,9 @@ function assembleFullCharacterPrompt(
 
   const parts = [
     "No text, no letters, no words, no captions, no labels, no speech bubbles, no logos. Wordless illustration.",
+    // Tells Seedream to use the attached env image for layout only, and to
+    // derive character appearance from the text description below.
+    AVATAR_ENV_REF_INSTRUCTION,
     anchors + ".",
     `Setting: ${scene.setting}.`,
     // Full characterSheet instead of compact anchor — supplies more detail to
