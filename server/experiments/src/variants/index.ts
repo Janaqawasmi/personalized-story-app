@@ -11,6 +11,7 @@ import { avatarOnlyVariant } from "./avatar-only";
 import { environmentOnlyVariant } from "./environment-only";
 import { avatarEnvironmentVariant } from "./avatar-environment";
 import { sceneDIrectorVariant } from "./scene-director";
+import { sceneDIrectorAvatarVariant } from "./scene-director-avatar";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
   [baselineVariant.id]: baselineVariant,
@@ -25,6 +26,8 @@ export const VARIANTS: Record<string, ExperimentVariant> = {
   [avatarEnvironmentVariant.id]: avatarEnvironmentVariant,
   // exp-09: two-stage creative director pipeline
   [sceneDIrectorVariant.id]: sceneDIrectorVariant,
+  // exp-09b: scene director + avatar reference + CHARACTER_REF_INSTRUCTION
+  [sceneDIrectorAvatarVariant.id]: sceneDIrectorAvatarVariant,
 };
 
 export function getVariant(id: string): ExperimentVariant {
