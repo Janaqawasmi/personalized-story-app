@@ -7,7 +7,7 @@
 // Deliberate divergences from the server:
 //   1. `Story.brief` is typed as `CompleteBrief` (the draft-friendly shape)
 //      instead of `StoryBrief` (the server shape). The server converts to
-//      StoryBrief internally for Agent 1.
+//      StoryBrief internally for generation.
 //   2. `createStoryForGeneration` factory is server-only and is not mirrored.
 
 import type { AgeRange, CompleteBrief, StoryType } from "./storyBrief";
@@ -128,7 +128,7 @@ export interface Story {
   // Content
   /** On the client, briefs are always CompleteBrief (the draft-friendly
    *  shape with Partial<> sections). The server converts to StoryBrief
-   *  internally for Agent 1. */
+   *  internally for generation. */
   brief: CompleteBrief;
   agent1Result: Agent1Result | null;
   agent1Versions: Agent1Result[];

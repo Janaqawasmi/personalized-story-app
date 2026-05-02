@@ -81,16 +81,9 @@ interface ChipConfig {
   };
 }
 
-/** Actionable statuses where a count badge helps prioritization (not Generating / Approved / Archived). */
-const STATUSES_WITH_COUNT_BADGE: ReadonlySet<StoryStatus> = new Set<StoryStatus>([
-  "awaiting_review",
-  "in_review",
-  "draft_brief",
-  "needs_revision",
-]);
-
-function showCountBadge(status: StoryStatus | null): boolean {
-  return status !== null && STATUSES_WITH_COUNT_BADGE.has(status);
+/** Every chip shows a live count (design: “Awaiting review 1”, “All 8”). */
+function chipLabelWithCount(label: string, count: number): string {
+  return `${label} ${count}`;
 }
 
 /** Specialist-priority order: needs you now → soon → in progress → system → done → archive. */
@@ -261,53 +254,61 @@ export default function StoriesFilterBar({
       <Box
         sx={{
           display: "flex",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           gap: 1,
-          overflowX: "auto",
           flex: { md: 1 },
-          // Hide scrollbar while still allowing scroll
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
           pb: { xs: 0.5, md: 0 },
         }}
       >
         {CHIP_CONFIGS.map((cfg) => {
           const active = isChipActive(cfg.status);
           const count = chipCount(cfg.status);
-          /** Filled blue when there is a queue and this chip is not the active filter. */
-          const awaitingReviewBlueHighlight =
+          /** Warm highlight when a queue needs attention and this chip is not selected. */
+          const awaitingGoldHighlight =
             cfg.status === "awaiting_review" && count > 0 && !active;
-          const needsRevisionBlueHighlight =
+          const needsRoseHighlight =
             cfg.status === "needs_revision" && count > 0 && !active;
-          const attentionBlueHighlight =
-            awaitingReviewBlueHighlight || needsRevisionBlueHighlight;
-          const useFilledAppearance = active || attentionBlueHighlight;
+          const attentionHighlight =
+            awaitingGoldHighlight || needsRoseHighlight;
+          const useFilledAppearance = active || attentionHighlight;
           const dimmed = count === 0 && cfg.status !== null;
           const col = cfg.color;
-          const label = showCountBadge(cfg.status)
-            ? `${cfg.label} (${count})`
-            : cfg.label;
+          const label = chipLabelWithCount(cfg.label, count);
 
-          const filledSx = attentionBlueHighlight
+          const filledSx = awaitingGoldHighlight
             ? {
-                bgcolor: "#1976d2",
-                color: "#fff",
+                bgcolor: COLORS.warningSoft,
+                color: "#7a5a1e",
                 border: "none",
                 "&:hover": {
-                  bgcolor: "#1565c0",
+                  bgcolor: COLORS.warningSoft,
+                  opacity: 0.92,
                 },
-                "& .MuiChip-label": { color: "#fff" },
+                "& .MuiChip-label": { color: "#7a5a1e" },
               }
-            : {
-                bgcolor: col.filledBg.trim(),
-                color: col.filledText.trim(),
-                border: "none",
-                "&:hover": {
+            : needsRoseHighlight
+              ? {
+                  bgcolor: STATUS_CHIP_COLORS.needs_revision.filledBg,
+                  color: STATUS_CHIP_COLORS.needs_revision.filledText,
+                  border: "none",
+                  "&:hover": {
+                    bgcolor: STATUS_CHIP_COLORS.needs_revision.filledBg,
+                    opacity: 0.92,
+                  },
+                  "& .MuiChip-label": {
+                    color: STATUS_CHIP_COLORS.needs_revision.filledText,
+                  },
+                }
+              : {
                   bgcolor: col.filledBg.trim(),
-                  opacity: 0.88,
-                },
-                "& .MuiChip-label": { color: col.filledText.trim() },
-              };
+                  color: col.filledText.trim(),
+                  border: "none",
+                  "&:hover": {
+                    bgcolor: col.filledBg.trim(),
+                    opacity: 0.88,
+                  },
+                  "& .MuiChip-label": { color: col.filledText.trim() },
+                };
 
           return (
             <Chip
@@ -354,7 +355,7 @@ export default function StoriesFilterBar({
         {/* Search box */}
         <TextField
           size="small"
-          placeholder="Search by title, population, or trigger..."
+          placeholder="Search title, population, trigger…"
           value={localSearch}
           onChange={handleSearchInput}
           sx={{
@@ -398,8 +399,12 @@ export default function StoriesFilterBar({
           value={currentSortValue}
           onChange={handleSortChange}
           displayEmpty
+          renderValue={(value) => {
+            const opt = SORT_OPTIONS.find((o) => o.value === value);
+            return opt ? `Sort · ${opt.label}` : "";
+          }}
           sx={{
-            minWidth: 150,
+            minWidth: 168,
             borderRadius: "10px",
             bgcolor: COLORS.surface,
             "& .MuiOutlinedInput-notchedOutline": {
@@ -412,11 +417,13 @@ export default function StoriesFilterBar({
               borderColor: COLORS.primary,
             },
             fontSize: "0.875rem",
+            color: COLORS.textSecondary,
+            fontWeight: 500,
           }}
         >
           {SORT_OPTIONS.map((opt) => (
             <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: "0.875rem" }}>
-              {opt.label}
+              Sort · {opt.label}
             </MenuItem>
           ))}
         </Select>

@@ -1,8 +1,8 @@
 // client/src/services/agentPayloadBuilder.ts
 //
 // Takes a completed story brief and produces the structured payload that
-// Agent 1 receives. Enriches the psychologist's selections with all
-// agent-internal context from the spec: structural parameters (§10),
+// story generation consumes. Enriches the psychologist's selections with all
+// pipeline-internal context from the spec: structural parameters (§10),
 // age adaptation rules (§11), narrative arc (§12), approach definitions
 // (§13), priority rules (§14), and obligation tiers (§15).
 
@@ -529,7 +529,7 @@ function requireSection<T>(section: Partial<T>, name: string): T {
 
 /**
  * Takes a completed CompleteBrief and produces the structured payload for
- * Agent 1, including all agent-internal context from spec §§10–15.
+ * story generation, including all pipeline-internal context from spec §§10–15.
  *
  * Throws if the brief is incomplete (missing required fields or storyType).
  */

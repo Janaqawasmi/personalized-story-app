@@ -2,6 +2,7 @@ import React from "react";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Link from "@mui/material/Link";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -15,10 +16,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
 import StoryRow from "./StoryRow";
-
-// ---------------------------------------------------------------------------
-// Empty states
-// ---------------------------------------------------------------------------
 
 function EmptyFirstTime() {
   const navigate = useNavigate();
@@ -35,18 +32,23 @@ function EmptyFirstTime() {
         py: 10,
         gap: 2,
         textAlign: "center",
+        px: 2,
       }}
     >
       <Typography
-        variant="h5"
-        sx={{ fontWeight: 700, color: COLORS.textPrimary }}
+        sx={{
+          fontFamily: "'Lora', Georgia, serif",
+          fontWeight: 600,
+          fontSize: "1.35rem",
+          color: COLORS.textPrimary,
+        }}
       >
-        Start your first story
+        Start your first manuscript
       </Typography>
       <Typography
         variant="body1"
         color="text.secondary"
-        sx={{ maxWidth: 440, lineHeight: 1.6 }}
+        sx={{ maxWidth: 440, lineHeight: 1.6, fontSize: "0.95rem" }}
       >
         Start with a strong clinical brief so the AI can draft a safe,
         therapeutic story for review before use.
@@ -59,13 +61,15 @@ function EmptyFirstTime() {
           mt: 1,
           px: 3,
           py: 1.25,
-          fontWeight: 700,
+          fontWeight: 600,
           bgcolor: COLORS.primary,
+          borderRadius: "8px",
           boxShadow: "0 8px 24px -8px rgba(97, 120, 145, 0.45)",
-          "&:hover": { bgcolor: COLORS.primary, opacity: 0.9 },
+          textTransform: "none",
+          "&:hover": { bgcolor: COLORS.primaryDark },
         }}
       >
-        New Story
+        New story
       </Button>
     </Box>
   );
@@ -86,25 +90,32 @@ function EmptyFiltered({ onClearFilters }: EmptyFilteredProps) {
         py: 10,
         gap: 1.5,
         textAlign: "center",
+        px: 2,
       }}
     >
       <Typography
-        variant="body1"
-        sx={{ color: COLORS.textSecondary, fontWeight: 500 }}
+        sx={{
+          color: COLORS.textSecondary,
+          fontWeight: 500,
+          fontFamily: "'Lora', Georgia, serif",
+          fontStyle: "italic",
+          fontSize: "1rem",
+        }}
       >
-        No stories match these filters
+        No manuscripts match these filters
       </Typography>
       {onClearFilters && (
         <Button
-          variant="text"
+          variant="outlined"
           size="small"
           onClick={onClearFilters}
           sx={{
             color: COLORS.primary,
             fontWeight: 600,
-            textDecoration: "underline",
-            textUnderlineOffset: 2,
-            "&:hover": { bgcolor: "transparent", opacity: 0.75 },
+            textTransform: "none",
+            borderColor: COLORS.border,
+            borderRadius: "8px",
+            "&:hover": { borderColor: COLORS.primary, bgcolor: "transparent" },
           }}
         >
           Clear all filters
@@ -114,31 +125,27 @@ function EmptyFiltered({ onClearFilters }: EmptyFilteredProps) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 export interface StoriesTableProps {
   stories: Story[];
   loading: boolean;
-  /** True when there are stories in the store (before filters are applied). */
   hasAnyStories: boolean;
   onArchive: (storyId: string) => void;
   onRestore: (storyId: string) => void;
   onClearFilters?: () => void;
+  /** Left footer caption, e.g. “Showing 1–6 of 8 active manuscripts”. */
+  footerLeft: string;
+  archivedCount: number;
+  onViewArchived?: () => void;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
-const COLUMN_HEADERS = [
-  { label: "Title", width: "auto" },
-  { label: "Pipeline", width: 128 },
-  { label: "Type / age", width: 200 },
-  { label: "Status", width: 150 },
-  { label: "Last event", width: 200 },
-  { label: "", width: 56 },
+const COLUMN_HEADERS: { label: string; width: string | number }[] = [
+  { label: "№", width: 44 },
+  { label: "Manuscript", width: "auto" },
+  { label: "Stage", width: 148 },
+  { label: "Population & age", width: 200 },
+  { label: "Status", width: 152 },
+  { label: "Last event", width: 188 },
+  { label: "", width: 48 },
 ];
 
 export default function StoriesTable({
@@ -148,6 +155,9 @@ export default function StoriesTable({
   onArchive,
   onRestore,
   onClearFilters,
+  footerLeft,
+  archivedCount,
+  onViewArchived,
 }: StoriesTableProps) {
   if (loading) {
     return (
@@ -166,48 +176,108 @@ export default function StoriesTable({
   }
 
   return (
-    <TableContainer
+    <Box
       sx={{
-        borderRadius: 2,
+        mt: 2.25,
+        borderRadius: "12px",
         border: `1px solid ${COLORS.border}`,
-        bgcolor: COLORS.surface,
-        overflowX: "auto",
+        overflow: "hidden",
+        boxShadow:
+          "0 1px 2px rgba(60,50,40,0.04), 0 12px 36px -22px rgba(60,50,40,0.16)",
       }}
     >
-      <Table size="small" sx={{ minWidth: 780 }}>
-        <TableHead>
-          <TableRow sx={{ bgcolor: "#F5F1EE" }}>
-            {COLUMN_HEADERS.map((col) => (
-              <TableCell
-                key={col.label}
-                width={col.width}
-                sx={{
-                  py: 1.25,
-                  fontWeight: 700,
-                  fontSize: "0.75rem",
-                  color: COLORS.textSecondary,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  borderBottom: `1px solid ${COLORS.border}`,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {col.label}
-              </TableCell>
+      <TableContainer
+        sx={{
+          bgcolor: "#fffdf9",
+          overflowX: "auto",
+          borderRadius: 0,
+        }}
+      >
+        <Table size="small" sx={{ minWidth: 920 }}>
+          <TableHead>
+            <TableRow
+              sx={{
+                bgcolor: COLORS.cream,
+                "& th": { borderBottom: `1px solid ${COLORS.border}` },
+              }}
+            >
+              {COLUMN_HEADERS.map((col, hi) => (
+                <TableCell
+                  key={`${col.label}-${hi}`}
+                  width={col.width}
+                  sx={{
+                    py: 1.5,
+                    px: col.label === "№" ? 1.5 : 2,
+                    fontWeight: 700,
+                    fontSize: "0.6875rem",
+                    color: COLORS.textMuted,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    fontFamily:
+                      "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {col.label}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {stories.map((story, index) => (
+              <StoryRow
+                key={story.id}
+                rowIndex={index}
+                story={story}
+                onArchive={onArchive}
+                onRestore={onRestore}
+              />
             ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {stories.map((story) => (
-            <StoryRow
-              key={story.id}
-              story={story}
-              onArchive={onArchive}
-              onRestore={onRestore}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", sm: "center" },
+          gap: 1.5,
+          px: 2.75,
+          py: 1.5,
+          borderTop: `1px solid ${COLORS.border}`,
+          bgcolor: COLORS.cream,
+          fontSize: "0.8125rem",
+          color: COLORS.textSecondary,
+        }}
+      >
+        <Typography component="div" sx={{ fontSize: "inherit", lineHeight: 1.45 }}>
+          {footerLeft}
+        </Typography>
+        {archivedCount > 0 && onViewArchived && (
+          <Link
+            component="button"
+            type="button"
+            onClick={onViewArchived}
+            sx={{
+              color: COLORS.primary,
+              fontWeight: 600,
+              textDecoration: "none",
+              cursor: "pointer",
+              border: "none",
+              background: "none",
+              font: "inherit",
+              p: 0,
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            View {archivedCount} archived stor
+            {archivedCount === 1 ? "y" : "ies"} →
+          </Link>
+        )}
+      </Box>
+    </Box>
   );
 }
+

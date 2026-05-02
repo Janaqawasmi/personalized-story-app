@@ -452,7 +452,7 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
   }
 
   // NOTE: transitioning to "generating" via this endpoint only updates the
-  // status — it does NOT invoke Agent 1. Use POST /:storyId/generate to
+  // status — it does NOT run story generation. Use POST /:storyId/generate to
   // trigger actual generation.
   await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
     status: to,
@@ -778,7 +778,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
         });
     } catch (revertError) {
       console.error(
-        "Failed to revert story status after Agent 1 failure:",
+        "Failed to revert story status after generation failure:",
         revertError,
       );
     }

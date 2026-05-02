@@ -64,7 +64,7 @@ export interface DraftStore {
   updateBrief(storyId: string, brief: CompleteBrief): Promise<Story>;
 
   /**
-   * Submit the brief to Agent 1 (Option C handoff).
+   * Submit the brief for generation (Option C handoff).
    * Sends the brief to the server and receives the Story back with
    * `agent1Result` populated.
    */

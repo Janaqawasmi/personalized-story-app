@@ -72,7 +72,7 @@ function wrapNetworkError(err: unknown): never {
 // Endpoints
 // ============================================================================
 
-/** POST /api/specialist/stories/:storyId/generate — submit brief and run Agent 1. */
+/** POST /api/specialist/stories/:storyId/generate — submit brief and run story generation. */
 export async function generateStory(
   storyId: string,
   brief: CompleteBrief,

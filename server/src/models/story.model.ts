@@ -235,7 +235,7 @@ export function isTransitionAllowed(
 // ============================================================================
 
 /**
- * Upgrades a plain StoryPage array (from Agent 1 output) to PageIllustration[]
+ * Upgrades a plain StoryPage array (from generated draft output) to PageIllustration[]
  * by adding default illustration fields. Call this when persisting agent1Result.pages
  * to Story.pages so the types stay in sync.
  */

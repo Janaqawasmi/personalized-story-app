@@ -27,7 +27,7 @@ function appendLogLine(entry: CallLogEntry): void {
     fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
     fs.appendFileSync(LOG_PATH, JSON.stringify(entry) + "\n", "utf8");
   } catch (err) {
-    console.error("Failed to write Agent 1 LLM call log:", err);
+    console.error("Failed to write story-generation LLM call log:", err);
   }
 }
 

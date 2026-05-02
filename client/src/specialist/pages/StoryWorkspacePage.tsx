@@ -205,7 +205,7 @@ export default function StoryWorkspacePage() {
     return unsub;
   }, [resolvedStoryId, fetchStory]);
 
-  // Opening the workspace while Agent 1 output is unread moves the story to `in_review`
+  // Opening the workspace while an unread generated draft exists moves the story to `in_review`
   // (sets lastOpenedAt server-side). Approve/regenerate require `in_review`, not `awaiting_review`.
   useEffect(() => {
     if (!story || story.status !== "awaiting_review") return;
