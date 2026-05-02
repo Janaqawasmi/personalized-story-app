@@ -9,6 +9,9 @@ function buildEnglishSpecialistUi(): SpecialistUi {
   return {
     workspaceTitle: "Specialist workspace",
     workspaceNavAriaLabel: "Specialist workspace",
+    specialistTopNavAriaLabel: "Specialist dashboard",
+    navMyStories: "My stories",
+    navVisitSite: "Visit site",
     navBriefs: "Briefs",
     navStoryBrief: "Story brief",
 

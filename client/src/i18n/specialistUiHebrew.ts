@@ -3,6 +3,9 @@ import type { SpecialistUi } from "./specialistUi.types";
 export const SPECIALIST_UI_HE: SpecialistUi = {
   workspaceTitle: "סביבת עבודה למומחים",
   workspaceNavAriaLabel: "סביבת עבודה למומחים",
+  specialistTopNavAriaLabel: "לוח בקרה למומחים",
+  navMyStories: "הסיפורים שלי",
+  navVisitSite: "לאתר",
   navBriefs: "תמציות",
   navStoryBrief: "תמצית סיפור",
 

@@ -1,11 +1,12 @@
 import { Box } from "@mui/material";
 import { useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useLanguage } from "./i18n/context/useLanguage";
 import { useTranslation } from "./i18n/useTranslation";
 import { useReader } from "./contexts/ReaderContext";
 
 import Navbar from "./components/layout/Navbar";
+import SpecialistNavbar from "./components/specialist/SpecialistNavbar";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
 import LanguageLayout from "./components/layout/LanguageLayout";
@@ -57,18 +58,23 @@ function AppContent() {
   const { direction } = useLanguage();
   const t = useTranslation();
   const { isFullScreen } = useReader();
+  const { pathname } = useLocation();
+  const isSpecialistRoute = /\/specialist(\/|$)/.test(pathname);
 
   return (
     <ThemeWrapper>
       <Box dir={direction}>
-      {!isFullScreen && (
-        <Navbar
-          currentSelection={selection}
-          onApplyFilters={(sel: MegaSelection) => {
-            setSelection(sel);
-          }}
-        />
-      )}
+      {!isFullScreen &&
+        (isSpecialistRoute ? (
+          <SpecialistNavbar />
+        ) : (
+          <Navbar
+            currentSelection={selection}
+            onApplyFilters={(sel: MegaSelection) => {
+              setSelection(sel);
+            }}
+          />
+        ))}
       {/* Match fixed Navbar AppBar height (components/layout/Navbar.tsx) — default theme spacing 7/7.5 → 56px / 60px */}
       <Box sx={{ pt: isFullScreen ? 0 : { xs: 7, md: 7.5 } }}>
         <Routes>
@@ -141,9 +147,7 @@ function AppContent() {
         </Routes>
       </Box>
 
-      {!isFullScreen && (
-        <Footer />
-      )}
+      {!isFullScreen && !isSpecialistRoute && <Footer />}
     </Box>
     </ThemeWrapper>
   );
