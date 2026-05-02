@@ -48,7 +48,7 @@ export interface RunResult {
   storyId: string;
   promptModel: string;
   imageModel: string;
-  referenceStrategy: "none" | "page1" | "rolling" | "avatar" | "other";
+  referenceStrategy: "none" | "page1" | "rolling" | "avatar" | "environment" | "avatar-environment" | "other";
   seed?: number;
   visualBible?: VisualBible;
   pages: PageRunResult[];
