@@ -27,6 +27,7 @@ import * as api from "../../api/specialistStories";
 import { draftStore } from "../storage";
 import PromptReviewPanel from "./PromptReviewPanel";
 import IllustrationReviewPanel from "./IllustrationReviewPanel";
+import SpecialistBookViewer from "./SpecialistBookViewer";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -292,7 +293,7 @@ export default function IllustrationsTab({ story, onStoryUpdate }: Illustrations
 
     case "illustration_ready":
     case "published":
-      return <IllustrationGallery story={story} />;
+      return <SpecialistBookViewer story={story} />;
 
     default:
       return (

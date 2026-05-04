@@ -1,3 +1,15 @@
+// Seeds the "Jana first day at school – Room 4" story into the `stories`
+// Firestore collection so it appears in the specialist dashboard.
+//
+// Usage:
+//   npx ts-node -r tsconfig-paths/register scripts/seedJanaStoryToStories.ts
+//
+// The script looks up the ownerUid automatically by the OWNER_EMAIL below.
+// Override with env vars:
+//   STORY_OWNER_UID=<uid>   — bypass email lookup and use this UID directly
+//   STORY_OWNER_EMAIL=<email>
+//   STORY_ID=<docId>        — Firestore document id (default: jana-school-room4)
+
 import admin from "firebase-admin";
 import fs from "fs";
 import path from "path";
@@ -7,15 +19,13 @@ const serviceAccountPath = path.resolve(__dirname, "../config/serviceAccountKey.
 
 if (!admin.apps.length) {
   const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
 const db = admin.firestore();
 
-const STORY_ID = process.env.STORY_ID ?? "jana-school-door-story-001";
-const OWNER_UID = process.env.STORY_OWNER_UID ?? "jana";
+const STORY_ID    = process.env.STORY_ID          ?? "jana-school-room4";
+const OWNER_EMAIL = process.env.STORY_OWNER_EMAIL ?? "shahdmuhtaseb96@gmail.com";
 
 const PAGE_TEXTS: string[] = [
   "Jana stopped three steps from the door. Her feet wouldn't go. The hallway smelled like pencils and floor polish, and somewhere far off a bell was ringing for someone else. Her backpack felt heavier than it was. The door to Room 4 was closed. The handle looked cold.",
@@ -39,25 +49,50 @@ function countWords(text: string): number {
   return normalized.split(/\s+/).length;
 }
 
+async function resolveOwnerUid(): Promise<string> {
+  // Explicit env override — use as-is
+  if (process.env.STORY_OWNER_UID) {
+    console.log(`Using STORY_OWNER_UID from env: ${process.env.STORY_OWNER_UID}`);
+    return process.env.STORY_OWNER_UID;
+  }
+
+  // Look up by email via Firebase Auth Admin SDK
+  console.log(`Looking up UID for email: ${OWNER_EMAIL} …`);
+  try {
+    const user = await admin.auth().getUserByEmail(OWNER_EMAIL);
+    console.log(`Found UID: ${user.uid}`);
+    return user.uid;
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Could not find Firebase user with email "${OWNER_EMAIL}".\n` +
+      `Original error: ${msg}\n\n` +
+      `Set STORY_OWNER_UID=<uid> to skip the email lookup.`,
+    );
+  }
+}
+
 async function seedStory(): Promise<void> {
+  const ownerUid = await resolveOwnerUid();
   const now = Date.now();
   const combinedBody = PAGE_TEXTS.join("\n\n");
   const totalWordCount = countWords(combinedBody);
 
   const story: Story = {
     id: STORY_ID,
-    ownerUid: OWNER_UID,
+    ownerUid,
     parentStoryId: null,
-    title: "A story for Jana",
+    title: "Jana's First Day — Room 4",
     storyType: "fear_anxiety",
     ageRange: "5-7",
     tags: ["school_anxiety", "emotional_regulation", "brave_steps"],
-    status: "approved",
+    // illustration_ready means the Illustrations tab opens the book viewer
+    status: "illustration_ready",
     briefStatus: "submitted",
     brief: {
       createdAt: now as never,
       updatedAt: now as never,
-      createdBy: OWNER_UID,
+      createdBy: ownerUid,
       status: "submitted",
       version: 1,
       storyType: "fear_anxiety",
@@ -110,34 +145,42 @@ async function seedStory(): Promise<void> {
     agent1Result: null,
     agent1Versions: [],
     currentDraft: {
-      title: "A story for Jana",
+      title: "Jana's First Day — Room 4",
       body: combinedBody,
       wordCount: totalWordCount,
       updatedAt: now,
     },
+    // Pages seeded with status=done so the book viewer shows them.
+    // illustrationUrl is null until you add images manually in Firebase console.
     pages: PAGE_TEXTS.map((text, index) => ({
       pageNumber: index + 1,
       text,
       wordCount: countWords(text),
       imagePrompt: null,
-      promptStatus: "pending",
+      promptStatus: "approved",
       promptRejectionNote: null,
       illustrationUrl: null,
-      illustrationStatus: "pending",
+      illustrationStatus: "done",
       illustrationRejectionNote: null,
     })),
     editHistory: [
       {
         id: crypto.randomUUID(),
         at: now,
-        byUid: OWNER_UID,
+        byUid: ownerUid,
         event: { kind: "brief_submitted" },
       },
       {
         id: crypto.randomUUID(),
         at: now,
-        byUid: OWNER_UID,
+        byUid: ownerUid,
         event: { kind: "status_changed", from: "draft_brief", to: "approved" },
+      },
+      {
+        id: crypto.randomUUID(),
+        at: now,
+        byUid: ownerUid,
+        event: { kind: "status_changed", from: "approved", to: "illustration_ready" },
       },
     ],
     visualBible: null,
@@ -147,22 +190,27 @@ async function seedStory(): Promise<void> {
     lastOpenedAt: now,
     submittedAt: now,
     approvedAt: now,
-    promptsGeneratedAt: null,
-    promptsApprovedAt: null,
-    illustrationCompletedAt: null,
-    illustrationReadyAt: null,
+    promptsGeneratedAt: now,
+    promptsApprovedAt: now,
+    illustrationCompletedAt: now,
+    illustrationReadyAt: now,
+    publishedAt: null,
   };
 
   await db.collection("stories").doc(STORY_ID).set(story, { merge: true });
 
-  console.log(`Saved story to stories/${STORY_ID}`);
-  console.log(`Owner UID: ${OWNER_UID}`);
-  console.log(`Pages: ${PAGE_TEXTS.length}`);
+  console.log("\n✓ Story seeded successfully");
+  console.log(`  Firestore path : stories/${STORY_ID}`);
+  console.log(`  Owner UID      : ${ownerUid}`);
+  console.log(`  Pages          : ${PAGE_TEXTS.length}`);
+  console.log(`  Status         : illustration_ready`);
+  console.log("\nNext step: open Firebase console → stories/${STORY_ID} → pages[]");
+  console.log("Set illustrationUrl on each page to add your images.");
 }
 
 seedStory()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("Failed to save story:", error);
+    console.error("Failed:", error instanceof Error ? error.message : error);
     process.exit(1);
   });

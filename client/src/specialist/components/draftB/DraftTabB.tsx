@@ -32,7 +32,7 @@ import {
   countUndismissedFlags,
   mustNeverFlaggedForIndex,
 } from "./shared";
-import { DRAFT_B, FONTS, RAIL_WIDTH_DEFAULT } from "./tokens";
+import { DRAFT_B, FONTS, MANUSCRIPT_MAX_WIDTH, RAIL_WIDTH_DEFAULT } from "./tokens";
 
 type SnackbarState = {
   message: string;
@@ -393,6 +393,44 @@ export default function DraftTabB({
   }
 
   if (!story.agent1Result) {
+    // Story was manually authored — show currentDraft in the same manuscript layout,
+    // read-only, without the version timeline or right rail.
+    if (story.currentDraft) {
+      return (
+        <Box sx={{ background: DRAFT_B.paper, minHeight: "100%", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ display: "flex", flex: 1 }}>
+            <Box sx={{ padding: "36px 48px 140px", display: "flex", justifyContent: "center", flex: 1 }}>
+              <Box sx={{ width: "100%", maxWidth: `${MANUSCRIPT_MAX_WIDTH}px`, position: "relative" }}>
+                <ManuscriptEditor
+                  title={story.currentDraft.title}
+                  body={story.currentDraft.body}
+                  onTitleChange={() => {}}
+                  onBodyChange={() => {}}
+                  textareaRef={textareaRef}
+                  readOnly={true}
+                  storyFont={storyFont}
+                  meta={{
+                    ageRange: story.ageRange != null ? AGE_RANGE_LABELS[story.ageRange] : "",
+                    storyTypeLabel: STORY_TYPE_LABELS[story.storyType] ?? "",
+                    copingToolLabel:
+                      story.brief.section3?.copingTool != null
+                        ? COPING_TOOL_LABELS[story.brief.section3.copingTool]
+                        : null,
+                  }}
+                  versionNumber={1}
+                  flags={[]}
+                  dismissedFlags={new Set()}
+                  hoveredFlagIndex={null}
+                  onFlagMarkerClick={() => {}}
+                  onParagraphHover={() => {}}
+                  mode="read"
+                />
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      );
+    }
     return (
       <Paper sx={{ p: 3, mt: 2 }}>
         <Typography variant="body2" color="text.secondary">

@@ -43,7 +43,7 @@ export default function WorkspaceTabs({
   onTabChange,
 }: WorkspaceTabsProps) {
   const desk = useSpecialistDeskUi();
-  const draftDisabled = story.agent1Result === null;
+  const draftDisabled = story.agent1Result === null && story.currentDraft === null;
   const illustrationsEnabled = ILLUSTRATION_STATUSES.has(story.status);
 
   function handleChange(
