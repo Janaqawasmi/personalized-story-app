@@ -561,9 +561,9 @@ export default function BookPreface({
       <Box
         sx={{
           position: "relative",
-          width: { xs: "100%", md: 720 },
+          width: { xs: "100%", md: 860 },
           maxWidth: "100%",
-          height: { xs: "auto", md: 440 },
+          height: { xs: "auto", md: 500 },
           display: "flex",
           flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
           filter: { xs: "none", md: BOOK_SHADOWS.bookDrop },
