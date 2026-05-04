@@ -96,6 +96,63 @@ export function assembleStyleBiblePagePrompt(
 }
 
 /**
+ * Assembles the final prompt with the full environment description from the
+ * StyleBible registry injected as text (atmosphere + spatialLayout) instead
+ * of relying on an environment reference image.
+ *
+ * Use this when passing only a character avatar reference — the environment
+ * must be locked through verbose text so Seedream reproduces the same spatial
+ * layout across every page.
+ */
+export function assembleWithDetailedEnv(
+  scene: ScenePromptSections,
+  bible: StyleBible,
+  pageNumber: number,
+  referenceInstruction?: string,
+): string {
+  const anchors = bible.consistencyAnchors.slice(0, 2).join(", ");
+  const palette = bible.palette.split(",").slice(0, 4).map((c) => c.trim()).join(", ");
+  const avoid = `Avoid: ${bible.avoidList.slice(0, 3).join("; ")}.`;
+
+  // Extract env key and any dynamic extras (light state, active props).
+  const settingParts = scene.setting.split("|").map((s) => s.trim());
+  const envKey = settingParts[0] ?? scene.setting;
+  const dynamicExtras = settingParts.slice(1).join(", ");
+
+  // Inject only atmosphere (mood, light quality, spatial feel) — NOT spatialLayout,
+  // which contains text labels like "Room 4" that Seedream would render as visible
+  // text. Specific visible props come from the scene-specific dynamic extras that
+  // Call 2 selected for this exact camera frame.
+  const envEntry = bible.environmentRegistry[envKey];
+  const settingText = envEntry
+    ? `${envEntry.atmosphere}${dynamicExtras ? ` ${dynamicExtras}.` : ""}`
+    : `${scene.setting}.`;
+
+  const parts = [
+    "No text, no letters, no words, no captions, no labels, no speech bubbles, no logos, wordless illustration.",
+    ...(referenceInstruction ? [referenceInstruction] : []),
+    anchors + ".",
+    `Setting: ${settingText}`,
+    `${bible.characterAnchor} In this scene: ${scene.character}.`,
+    `Focal point: ${scene.focalPoint}.`,
+    `Lighting: ${scene.lighting}.`,
+    `Color palette: ${palette}.`,
+    avoid,
+    "Children's book illustration.",
+  ];
+
+  const prompt = parts.join(" ");
+
+  if (prompt.length > PROMPT_WARN_CHARS) {
+    console.warn(
+      `assembleWithDetailedEnv: page ${pageNumber} prompt is ${prompt.length} chars — may be truncated by Seedream.`,
+    );
+  }
+
+  return prompt;
+}
+
+/**
  * Returns the scene prompt in a human-readable format for report.md.
  * Shows each section on its own labelled line.
  */

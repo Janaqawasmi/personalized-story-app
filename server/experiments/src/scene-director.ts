@@ -119,10 +119,17 @@ camera (under 12 words):
 Where the viewer is. Distance. Angle. Eye level or above or below.
 
 CRITICAL RULES:
+— Every page must show a VISUALLY DISTINCT moment. If page 1 is a wide shot from behind, page 2 must be a close-up or a different angle entirely. Camera, proximity, and composition must vary across pages — never repeat the same framing.
+— The camera can exclude the door, the hallway, or any fixed element when it is not relevant to this moment. A close-up of hands needs no background detail.
+— LITERAL LANGUAGE ONLY in moment, key_physical_detail, visual_hook, and camera. No metaphors, no similes, no poetic expressions. Image models interpret text literally — figurative language produces wrong images. Write only what is physically visible.
+  BAD: "the door looms like a wall of fear" → GOOD: "a closed wooden door filling the upper half of the frame"
+  BAD: "her courage gathers like a held breath" → GOOD: "her chin lifted, eyes closed, one hand flat on her chest"
+  BAD: "light falls like a spotlight on her isolation" → GOOD: "overhead fluorescent light illuminates the top of her head and her open hand"
 — Never carry story metaphors literally into your directions. "A knot in her stomach" must NOT become a knot shape.
 — Never name emotions in key_physical_detail ("tight with fear" is wrong; "fingers white at the knuckle" is right).
 — moment must be a single frozen instant, not a sequence.
 — Think about what a child looking at this page will notice first.
+— Avoid visual elements that would require text labels to read (door numbers, signs, classroom labels). The image must work without any text.
 
 OUTPUT: Reply with ONLY valid JSON (no markdown fences, no explanation):
 {
@@ -249,27 +256,31 @@ ${pageBlocks}
 For each page, produce the 5 sections. Every field has a strict word budget — stay under it.
 
 setting (under 20 words):
-"<registry key> | <light state> | <2–3 props from spatialLayout with their positions>"
-Use the EXACT registry key from the environment registry. Only reference props that appear in spatialLayout.
+"<registry key> | <light state> | <only props VISIBLE in this specific camera frame>"
+Use the EXACT registry key from the environment registry. ONLY list props that would actually be visible given this shot's camera angle and distance. A floor-level close-up on feet shows tiles and maybe a door base — not the whole hallway. A tight face shot shows nothing behind the character. NEVER include room numbers, door numbers, signs, or any element that would require text to read. Props are described by appearance, not by label ("closed wooden door" not "door to Room 4").
 
 character (under 20 words):
-"<furniture or surface the character is on/in> | <body language: translate key_physical_detail into exact limb positions, weight, gaze — NO emotion words>"
-This field must reflect the moment and key_physical_detail precisely.
+"<body position and surface contact> | <exact limb positions, weight distribution, gaze direction — NO emotion words>"
+Translate key_physical_detail directly. Do not require a named piece of furniture if the camera frame doesn't show one.
 
 focalPoint (under 10 words):
-The one element the viewer's eye reaches first. Should reflect the visual_hook.
+The one element the viewer's eye reaches first. Must reflect the visual_hook.
 
 composition (under 15 words):
-Translate the camera field: "<framing> | <angle> | <foreground/midground/background>"
+Translate the camera field exactly: "<framing> | <angle> | <foreground/midground/background>"
 
 lighting (under 25 words):
 Translate the visual_hook's lighting decision: "<source + position> | <quality> | <what it illuminates> | <what it leaves in shadow> | mood: <one word>"
 
 CRITICAL RULES:
-— Translate moment into exact body positions — not paraphrase, not emotion words.
-— setting positions must match spatialLayout exactly — do not move furniture.
-— Never use metaphors from the story text literally.
-— The character field must always place the character on/in a named piece of furniture.
+— LITERAL LANGUAGE ONLY in every output field. No metaphors, no similes, no figurative expressions. Image generation models read text literally — "a shadow of doubt" would produce a literal shadow shaped like doubt; "arms hanging like weights" would produce arms shaped like weights. Write only what is physically visible and measurable.
+  BAD: "the vast emptiness between them" → GOOD: "an empty stretch of hallway tile between the two children"
+  BAD: "light catching the only hope in the room" → GOOD: "pale light from the corridor window falling on her open hand"
+  BAD: "she stands rooted to the spot" → GOOD: "both feet flat on the floor, knees slightly bent, no forward lean"
+— Translate moment into exact body positions — never paraphrase, never emotion words.
+— setting must only describe what is VISIBLE in this specific frame — not the whole room.
+— Never mention room numbers, door numbers, signs, or any text-based identifier.
+— Each page's setting must feel like a different visual environment even if in the same room — vary what's in frame.
 
 OUTPUT: Reply with ONLY valid JSON (no markdown fences):
 {
