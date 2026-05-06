@@ -561,7 +561,7 @@ export default function BookPreface({
       <Box
         sx={{
           position: "relative",
-          width: { xs: "100%", md: 860 },
+          width: { xs: "100%", md: "calc(100vw - 176px)" },
           maxWidth: "100%",
           height: { xs: "auto", md: 500 },
           display: "flex",

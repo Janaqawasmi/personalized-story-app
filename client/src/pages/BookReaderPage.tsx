@@ -803,7 +803,7 @@ export default function BookReaderPage() {
                     py: 0,
                     boxSizing: "border-box",
                   }
-                : { pt: 4, pb: 6, px: 3, minHeight: "600px" }),
+                : { pt: 4, pb: 6, px: 0, minHeight: "600px" }),
             }}
           >
             <Box sx={{
@@ -819,7 +819,7 @@ export default function BookReaderPage() {
               {!isFullScreen && (
                 <Box
                   sx={{
-                    maxWidth: 1200, mx: "auto", mt: 2, mb: 2, px: { xs: 2, md: 0 }, py: 1,
+                    maxWidth: "calc(100vw - 176px)", mx: "auto", mt: 2, mb: 2, px: { xs: 2, md: 0 }, py: 1,
                     display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2,
                     backgroundColor: theme.palette.background.paper,
                     border: `1px solid ${theme.palette.divider}`,
@@ -849,147 +849,162 @@ export default function BookReaderPage() {
                 </Box>
               )}
 
-              {/* Wrapper for book and arrows */}
+              {/* Outer row: [left-arrow] [book+gate] [right-arrow]
+                  Arrows are flex siblings of the book — never positioned relative to it.
+                  This means the gate's position:absolute inset:0 always resolves
+                  to the book box only, never to a padded wrapper. */}
               <Box
                 dir="ltr"
                 sx={{
                   display: "flex",
-                  justifyContent: "center",
+                  flexDirection: "row",
                   alignItems: "center",
+                  justifyContent: "center",
                   width: "100%",
                   height: isFullScreen ? "100%" : "500px",
-                  mx: isFullScreen ? 0 : "auto",
-                  px: isFullScreen ? 0 : undefined,
-                  position: "relative",
-                  isolation: "isolate",
-                  overflow: isFullScreen ? "hidden" : "visible",
+                  gap: 0,
                 }}
               >
-                <BookSpread
-                  ref={bookSpreadRef}
-                  page={currentPage}
-                  title={story.title}
-                  isRTL={isRTL}
-                  totalPages={story.pages.length}
-                  onNext={handleNext}
-                  onPrev={handlePrev}
-                  canGoNext={canGoNext}
-                  canGoPrev={canGoPrev}
-                  isFullScreen={isFullScreen}
-                  nextPage={story.pages[spreadIndex + 1]}
-                />
+                {/* LEFT arrow slot — fixed width so book stays centered */}
+                <Box sx={{
+                  width: { xs: 56, md: 88 },
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                }}>
+                  {!isFullScreen && (isRTL ? canGoNext : canGoPrev) && !previewUnlockOverlayOpen && (
+                    <Box
+                      onClick={isRTL ? requestFlipNext : requestFlipPrev}
+                      sx={{
+                        width: { xs: 44, md: 56 },
+                        height: { xs: 44, md: 56 },
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundColor: "rgba(255,255,255,0.9)",
+                        border: `2px solid ${theme.palette.divider}`,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "transform 0.2s ease, background-color 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(255,255,255,1)",
+                          transform: "scale(1.05)",
+                        },
+                      }}
+                    >
+                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>
+                        {isRTL ? "←" : "←"}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
 
-                {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
-                  <ReaderPreviewGate
-                    variant="overlay"
-                    sectionRef={previewCtaSectionRef}
-                    teaserPage={
-                      hasLockedSpreadsBeyondPreview
-                        ? story.pages[lastUnlockedSpreadIndex + 1]
-                        : undefined
-                    }
-                    title={t("pages.bookReader.previewUnlockTitle")}
-                    subtitle={t("pages.bookReader.previewUnlockSubtitle")}
-                    teaserLine={t("pages.bookReader.previewTeaserLine")}
-                    addToCartLabel={t("pages.bookReader.addToCart")}
-                    onAddToCart={async () => {
-                      if (!previewId) {
-                        setPreviewUnlockOverlayOpen(false);
-                        navigate("/cart");
-                        return;
-                      }
-                      try {
-                        await addToCart(previewId);
-                      } catch (e) {
-                        if (e instanceof ApiError) {
-                          console.warn("Add to cart failed:", e.message, e.code);
-                        } else {
-                          console.warn("Add to cart failed:", e);
-                        }
-                      } finally {
-                        setPreviewUnlockOverlayOpen(false);
-                        navigate("/cart");
-                      }
-                    }}
-                    onDismiss={() => setPreviewUnlockOverlayOpen(false)}
-                    dismissLabel={t("pages.bookReader.previewEndModalClose")}
-                    ctaAnchorRef={previewCtaAnchorRef}
+                {/* Book + gate — isolated box; gate's inset:0 is relative to this */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    height: "100%",
+                    position: "relative",
+                    isolation: "isolate",
+                    overflow: isFullScreen ? "hidden" : "visible",
+                    minWidth: 0,
+                  }}
+                >
+                  <BookSpread
+                    ref={bookSpreadRef}
+                    page={currentPage}
+                    title={story.title}
                     isRTL={isRTL}
+                    totalPages={story.pages.length}
+                    onNext={handleNext}
+                    onPrev={handlePrev}
+                    canGoNext={canGoNext}
+                    canGoPrev={canGoPrev}
+                    isFullScreen={isFullScreen}
+                    nextPage={story.pages[spreadIndex + 1]}
                   />
-                ) : null}
 
-                {/* External arrows — desktop only */}
-                {isRTL ? (
-                  !isFullScreen && canGoNext && !previewUnlockOverlayOpen && (
-                    <Box onClick={requestFlipNext} sx={{
-                      position: "absolute", top: "50%", left: { xs: -56, md: -72 }, transform: "translateY(-50%)",
-                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", userSelect: "none",
-                      backgroundColor: "rgba(255, 255, 255, 0.9)",
-                      border: `2px solid ${theme.palette.divider}`,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                      zIndex: 10000,
-                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
-                    }}>
-                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>←</Typography>
-                    </Box>
-                  )
-                ) : (
-                  !isFullScreen && canGoPrev && !previewUnlockOverlayOpen && (
-                    <Box onClick={requestFlipPrev} sx={{
-                      position: "absolute", top: "50%", left: { xs: -56, md: -72 }, transform: "translateY(-50%)",
-                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", userSelect: "none",
-                      backgroundColor: "rgba(255, 255, 255, 0.9)",
-                      border: `2px solid ${theme.palette.divider}`,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                      zIndex: 10000,
-                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
-                    }}>
-                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>←</Typography>
-                    </Box>
-                  )
-                )}
+                  {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (
+                    <ReaderPreviewGate
+                      variant="overlay"
+                      sectionRef={previewCtaSectionRef}
+                      teaserPage={
+                        hasLockedSpreadsBeyondPreview
+                          ? story.pages[lastUnlockedSpreadIndex + 1]
+                          : undefined
+                      }
+                      title={t("pages.bookReader.previewUnlockTitle")}
+                      subtitle={t("pages.bookReader.previewUnlockSubtitle")}
+                      teaserLine={t("pages.bookReader.previewTeaserLine")}
+                      addToCartLabel={t("pages.bookReader.addToCart")}
+                      onAddToCart={async () => {
+                        if (!previewId) {
+                          setPreviewUnlockOverlayOpen(false);
+                          navigate("/cart");
+                          return;
+                        }
+                        try {
+                          await addToCart(previewId);
+                        } catch (e) {
+                          if (e instanceof ApiError) {
+                            console.warn("Add to cart failed:", e.message, e.code);
+                          } else {
+                            console.warn("Add to cart failed:", e);
+                          }
+                        } finally {
+                          setPreviewUnlockOverlayOpen(false);
+                          navigate("/cart");
+                        }
+                      }}
+                      onDismiss={() => setPreviewUnlockOverlayOpen(false)}
+                      dismissLabel={t("pages.bookReader.previewEndModalClose")}
+                      ctaAnchorRef={previewCtaAnchorRef}
+                      isRTL={isRTL}
+                    />
+                  ) : null}
+                </Box>
 
-                {isRTL ? (
-                  !isFullScreen && canGoPrev && !previewUnlockOverlayOpen && (
-                    <Box onClick={requestFlipPrev} sx={{
-                      position: "absolute", top: "50%", right: { xs: -56, md: -72 }, transform: "translateY(-50%)",
-                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", userSelect: "none",
-                      backgroundColor: "rgba(255, 255, 255, 0.9)",
-                      border: `2px solid ${theme.palette.divider}`,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                      zIndex: 10000,
-                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
-                    }}>
-                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>→</Typography>
+                {/* RIGHT arrow slot — fixed width mirrors left */}
+                <Box sx={{
+                  width: { xs: 56, md: 88 },
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  height: "100%",
+                }}>
+                  {!isFullScreen && (isRTL ? canGoPrev : canGoNext) && !previewUnlockOverlayOpen && (
+                    <Box
+                      onClick={isRTL ? requestFlipPrev : requestFlipNext}
+                      sx={{
+                        width: { xs: 44, md: 56 },
+                        height: { xs: 44, md: 56 },
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        userSelect: "none",
+                        backgroundColor: "rgba(255,255,255,0.9)",
+                        border: `2px solid ${theme.palette.divider}`,
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                        transition: "transform 0.2s ease, background-color 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(255,255,255,1)",
+                          transform: "scale(1.05)",
+                        },
+                      }}
+                    >
+                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>
+                        {isRTL ? "→" : "→"}
+                      </Typography>
                     </Box>
-                  )
-                ) : (
-                  !isFullScreen && canGoNext && !previewUnlockOverlayOpen && (
-                    <Box onClick={requestFlipNext} sx={{
-                      position: "absolute", top: "50%", right: { xs: -56, md: -72 }, transform: "translateY(-50%)",
-                      width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", userSelect: "none",
-                      backgroundColor: "rgba(255, 255, 255, 0.9)",
-                      border: `2px solid ${theme.palette.divider}`,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                      transition: "opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease",
-                      zIndex: 10000,
-                      "&:hover": { opacity: 1, backgroundColor: "rgba(255, 255, 255, 1)", transform: "translateY(-50%) scale(1.05)" },
-                    }}>
-                      <Typography sx={{ fontSize: { xs: "1.5rem", md: "1.8rem" }, color: "#824D5C", fontWeight: 600, lineHeight: 1 }}>→</Typography>
-                    </Box>
-                  )
-                )}
+                  )}
+                </Box>
               </Box>
             </Box>
           </Box>
