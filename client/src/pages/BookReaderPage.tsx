@@ -865,16 +865,17 @@ export default function BookReaderPage() {
                   gap: 0,
                 }}
               >
-                {/* LEFT arrow slot — fixed width so book stays centered */}
+                {/* LEFT arrow slot — collapses to zero in fullscreen */}
                 <Box sx={{
-                  width: { xs: 56, md: 88 },
+                  width: isFullScreen ? 0 : { xs: 56, md: 88 },
                   flexShrink: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   height: "100%",
+                  overflow: "hidden",
                 }}>
-                  {!isFullScreen && (isRTL ? canGoNext : canGoPrev) && !previewUnlockOverlayOpen && (
+                  {!isFullScreen && (isRTL ? canGoNext : canGoPrev) && (
                     <Box
                       onClick={isRTL ? requestFlipNext : requestFlipPrev}
                       sx={{
@@ -884,12 +885,14 @@ export default function BookReaderPage() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        cursor: "pointer",
+                        cursor: previewUnlockOverlayOpen ? "default" : "pointer",
                         userSelect: "none",
                         backgroundColor: "rgba(255,255,255,0.9)",
                         border: `2px solid ${theme.palette.divider}`,
                         boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        transition: "transform 0.2s ease, background-color 0.2s ease",
+                        opacity: previewUnlockOverlayOpen ? 0.25 : 1,
+                        pointerEvents: previewUnlockOverlayOpen ? "none" : "auto",
+                        transition: "transform 0.2s ease, background-color 0.2s ease, opacity 0.2s ease",
                         "&:hover": {
                           backgroundColor: "rgba(255,255,255,1)",
                           transform: "scale(1.05)",
@@ -968,16 +971,17 @@ export default function BookReaderPage() {
                   ) : null}
                 </Box>
 
-                {/* RIGHT arrow slot — fixed width mirrors left */}
+                {/* RIGHT arrow slot — collapses to zero in fullscreen */}
                 <Box sx={{
-                  width: { xs: 56, md: 88 },
+                  width: isFullScreen ? 0 : { xs: 56, md: 88 },
                   flexShrink: 0,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   height: "100%",
+                  overflow: "hidden",
                 }}>
-                  {!isFullScreen && (isRTL ? canGoPrev : canGoNext) && !previewUnlockOverlayOpen && (
+                  {!isFullScreen && (isRTL ? canGoPrev : canGoNext) && (
                     <Box
                       onClick={isRTL ? requestFlipPrev : requestFlipNext}
                       sx={{
@@ -987,12 +991,14 @@ export default function BookReaderPage() {
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        cursor: "pointer",
+                        cursor: previewUnlockOverlayOpen ? "default" : "pointer",
                         userSelect: "none",
                         backgroundColor: "rgba(255,255,255,0.9)",
                         border: `2px solid ${theme.palette.divider}`,
                         boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                        transition: "transform 0.2s ease, background-color 0.2s ease",
+                        opacity: previewUnlockOverlayOpen ? 0.25 : 1,
+                        pointerEvents: previewUnlockOverlayOpen ? "none" : "auto",
+                        transition: "transform 0.2s ease, background-color 0.2s ease, opacity 0.2s ease",
                         "&:hover": {
                           backgroundColor: "rgba(255,255,255,1)",
                           transform: "scale(1.05)",
