@@ -795,17 +795,26 @@ export default function BookReaderPage() {
               width: "100%",
               ...(isFullScreen
                 ? {
-                    minHeight: "calc(100vh - 64px)",
+                    height: "calc(100vh - 64px)",
+                    minHeight: "unset",
                     mt: "64px",
                     justifyContent: "center",
-                    px: 3,
-                    py: { xs: 2, md: 3 },
+                    px: 0,
+                    py: 0,
                     boxSizing: "border-box",
                   }
-                : { pt: 4, pb: 6, px: 3 }),
+                : { pt: 4, pb: 6, px: 3, minHeight: "600px" }),
             }}
           >
-            <Box sx={{ opacity: 1, transform: "translateX(0)", transition: "opacity 0.4s ease, transform 0.4s ease" }}>
+            <Box sx={{
+              opacity: 1,
+              transform: "translateX(0)",
+              transition: "opacity 0.4s ease, transform 0.4s ease",
+              width: "100%",
+              height: isFullScreen ? "calc(100vh - 64px)" : "auto",
+              display: isFullScreen ? "flex" : "block",
+              flexDirection: "column",
+            }}>
               {/* ReaderControls - Regular mode (scrolls with content) */}
               {!isFullScreen && (
                 <Box
@@ -844,8 +853,16 @@ export default function BookReaderPage() {
               <Box
                 dir="ltr"
                 sx={{
-                  display: "flex", justifyContent: "center", alignItems: "center", width: "100%",
-                  mx: "auto", position: "relative", isolation: "isolate", overflow: "visible",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  width: "100%",
+                  height: isFullScreen ? "100%" : "500px",
+                  mx: isFullScreen ? 0 : "auto",
+                  px: isFullScreen ? 0 : undefined,
+                  position: "relative",
+                  isolation: "isolate",
+                  overflow: isFullScreen ? "hidden" : "visible",
                 }}
               >
                 <BookSpread
@@ -903,7 +920,7 @@ export default function BookReaderPage() {
 
                 {/* External arrows — desktop only */}
                 {isRTL ? (
-                  canGoNext && !previewUnlockOverlayOpen && (
+                  !isFullScreen && canGoNext && !previewUnlockOverlayOpen && (
                     <Box onClick={requestFlipNext} sx={{
                       position: "absolute", top: "50%", left: { xs: -56, md: -72 }, transform: "translateY(-50%)",
                       width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
@@ -920,7 +937,7 @@ export default function BookReaderPage() {
                     </Box>
                   )
                 ) : (
-                  canGoPrev && !previewUnlockOverlayOpen && (
+                  !isFullScreen && canGoPrev && !previewUnlockOverlayOpen && (
                     <Box onClick={requestFlipPrev} sx={{
                       position: "absolute", top: "50%", left: { xs: -56, md: -72 }, transform: "translateY(-50%)",
                       width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
@@ -939,7 +956,7 @@ export default function BookReaderPage() {
                 )}
 
                 {isRTL ? (
-                  canGoPrev && !previewUnlockOverlayOpen && (
+                  !isFullScreen && canGoPrev && !previewUnlockOverlayOpen && (
                     <Box onClick={requestFlipPrev} sx={{
                       position: "absolute", top: "50%", right: { xs: -56, md: -72 }, transform: "translateY(-50%)",
                       width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",
@@ -956,7 +973,7 @@ export default function BookReaderPage() {
                     </Box>
                   )
                 ) : (
-                  canGoNext && !previewUnlockOverlayOpen && (
+                  !isFullScreen && canGoNext && !previewUnlockOverlayOpen && (
                     <Box onClick={requestFlipNext} sx={{
                       position: "absolute", top: "50%", right: { xs: -56, md: -72 }, transform: "translateY(-50%)",
                       width: { xs: 44, md: 56 }, height: { xs: 56, md: 72 }, borderRadius: "50%",

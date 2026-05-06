@@ -67,17 +67,27 @@ const DRAG_RANGE = 280;
 const MOBILE_CONTROLS_AUTO_HIDE_MS = 3500;
 
 const BOOK_CSS = `
-.bs2-scene { perspective: 2800px; position: relative; }
+.bs2-scene {
+  perspective: 2800px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 .bs2-book {
   position: relative; display: flex;
-  width: 860px; height: 500px;
+  width: 100%; height: 100%;
   transform-style: preserve-3d; border-radius: 4px 8px 8px 4px;
   filter: drop-shadow(0 24px 48px rgba(90,48,64,.38)) drop-shadow(0 4px 10px rgba(90,48,64,.2));
   --bs2-flip: 0.85s;
-  --bs2-fs: 22px;
-  --bs2-lh: 1.85;
+  --bs2-fs: clamp(18px, 1.6vw, 28px);
+  --bs2-lh: 1.9;
 }
-.bs2-book.bs2-fullscreen { width: 1040px; height: 620px; }
+.bs2-book.bs2-fullscreen { border-radius: 0; filter: none; }
+.bs2-book.bs2-fullscreen .bs2-cover-board { display: none; }
+.bs2-book.bs2-fullscreen .bs2-stack { display: none; }
+.bs2-book.bs2-fullscreen .bs2-spine { width: max(20px, 1.4vw); }
+.bs2-book.bs2-fullscreen .bs2-curl { width: 64px; height: 64px; }
+.bs2-book.bs2-fullscreen .bs2-curl-prev { width: 64px; height: 64px; }
 
 .bs2-stack { position: absolute; top: 3px; bottom: 3px; width: 20px; display: flex; flex-direction: column; z-index: 0; pointer-events: none; }
 .bs2-stack.left { left: -16px; } .bs2-stack.right { right: -16px; }
@@ -767,7 +777,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   );
 
   return (
-    <Box className={sceneClass}>
+    <Box className={sceneClass} sx={{ width: "100%", height: "100%" }}>
       <div className={bookClass}>
 
         {/* ───── Mobile controls panel (slide-down, tap-to-toggle) ───── */}
@@ -890,9 +900,11 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
           ) : (
             <div className="bs2-img-placeholder">{fallbackText || ""}</div>
           )}
-          <div className="bs2-counter">
-            {displayedPage.pageNumber} / {totalPages}
-          </div>
+          {!isFullScreen && (
+            <div className="bs2-counter">
+              {displayedPage.pageNumber} / {totalPages}
+            </div>
+          )}
         </div>
 
         {/* SPINE */}
@@ -918,6 +930,11 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
               <p className="bs2-story-text">{underText}</p>
               <div className="bs2-ornament b" />
             </div>
+            {isFullScreen && (
+              <div className="bs2-counter" style={{ left: "auto", right: 20, bottom: 18 }}>
+                {displayedPage.pageNumber} / {totalPages}
+              </div>
+            )}
           </div>
 
           {/* Flipping page */}
