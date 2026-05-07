@@ -67,28 +67,77 @@ const DRAG_RANGE = 280;
 const MOBILE_CONTROLS_AUTO_HIDE_MS = 3500;
 
 const BOOK_CSS = `
-.bs2-scene { perspective: 2800px; position: relative; }
+.bs2-scene {
+  perspective: 2800px;
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 .bs2-book {
   position: relative; display: flex;
-  width: 860px; height: 500px;
-  transform-style: preserve-3d; border-radius: 4px 8px 8px 4px;
-  filter: drop-shadow(0 24px 48px rgba(90,48,64,.38)) drop-shadow(0 4px 10px rgba(90,48,64,.2));
+  width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  border-radius: 4px 8px 8px 4px;
+  overflow: hidden;
+  /* Border IS the cover — nothing can render outside this box */
+  border-left:   5px solid #3C1C28;
+  border-right:  5px solid #3C1C28;
+  border-top:    1px solid rgba(60,28,40,.4);
+  border-bottom: 1px solid rgba(60,28,40,.4);
+  box-shadow:
+    0 24px 50px rgba(90,48,64,.38),
+    0 4px 12px rgba(90,48,64,.2),
+    inset  1px 0 0 rgba(176,122,138,.18),
+    inset -1px 0 0 rgba(176,122,138,.18);
   --bs2-flip: 0.85s;
-  --bs2-fs: 22px;
-  --bs2-lh: 1.85;
+  --bs2-fs: clamp(18px, 1.6vw, 28px);
+  --bs2-lh: 1.9;
 }
-.bs2-book.bs2-fullscreen { width: 1040px; height: 620px; }
+.bs2-book.bs2-fullscreen {
+  border-radius: 0;
+  border-left-width:  0;
+  border-right-width: 0;
+  border-top-width:   0;
+  border-bottom-width:0;
+  box-shadow: none;
+}
+.bs2-book.bs2-fullscreen .bs2-stack { display: none; }
+.bs2-book.bs2-fullscreen .bs2-spine { width: max(20px, 1.4vw); }
+.bs2-book.bs2-fullscreen .bs2-curl { width: 64px; height: 64px; }
+.bs2-book.bs2-fullscreen .bs2-curl-prev { width: 64px; height: 64px; }
 
-.bs2-stack { position: absolute; top: 3px; bottom: 3px; width: 20px; display: flex; flex-direction: column; z-index: 0; pointer-events: none; }
-.bs2-stack.left { left: -16px; } .bs2-stack.right { right: -16px; }
-.bs2-ps { flex: 1; }
-.bs2-ps:nth-child(odd) { background: #EDE4DC; border-left: 1px solid rgba(130,77,92,.12); }
-.bs2-ps:nth-child(even) { background: #E4D8CE; border-left: 1px solid rgba(130,77,92,.08); }
+/* Fan stacks — anchored to left:0 / right:0 inside the clipping border */
+.bs2-stack {
+  position: absolute; top: 0; bottom: 0; width: 18px;
+  z-index: 3; pointer-events: none; overflow: hidden;
+}
+.bs2-stack.left  { left:  0; }
+.bs2-stack.right { right: 0; }
 
-.bs2-cover-board { position: absolute; top: -5px; bottom: -5px; width: 12px;
-  background: linear-gradient(to bottom,#5A3040,#3C1C28 50%,#5A3040); z-index: 1; border-radius: 2px; }
-.bs2-cover-board.left { left: -9px; box-shadow: -2px 0 8px rgba(0,0,0,.3); }
-.bs2-cover-board.right { right: -9px; box-shadow: 2px 0 8px rgba(0,0,0,.3); border-radius: 2px 4px 4px 2px; }
+.bs2-ps { position: absolute; top: 0; bottom: 0; }
+
+/* LEFT fan: darkest at left edge (outer), lightest at right edge (inner) */
+.bs2-stack.left .bs2-ps:nth-child(1) { left:  0;    right: 0; background: #B0A098; }
+.bs2-stack.left .bs2-ps:nth-child(2) { left:  2px;  right: 0; background: #BEAEA6; }
+.bs2-stack.left .bs2-ps:nth-child(3) { left:  4px;  right: 0; background: #CABDB5; }
+.bs2-stack.left .bs2-ps:nth-child(4) { left:  6px;  right: 0; top: 1px; bottom: 1px; background: #D5C8C0; }
+.bs2-stack.left .bs2-ps:nth-child(5) { left:  8px;  right: 0; top: 2px; bottom: 2px; background: #DEDAD2; }
+.bs2-stack.left .bs2-ps:nth-child(6) { left: 10px;  right: 0; top: 2px; bottom: 2px; background: #E6DDD6; }
+.bs2-stack.left .bs2-ps:nth-child(7) { left: 12px;  right: 0; top: 3px; bottom: 3px; background: #EDE4DC; }
+.bs2-stack.left .bs2-ps:nth-child(8) { left: 14px;  right: 0; top: 4px; bottom: 4px; background: #F2EBE3; border-right: 1px solid rgba(130,77,92,.18); }
+
+/* RIGHT fan: exact mirror — darkest at right edge (outer), lightest at left edge (inner) */
+.bs2-stack.right .bs2-ps:nth-child(1) { right:  0;    left: 0; background: #B0A098; }
+.bs2-stack.right .bs2-ps:nth-child(2) { right:  2px;  left: 0; background: #BEAEA6; }
+.bs2-stack.right .bs2-ps:nth-child(3) { right:  4px;  left: 0; background: #CABDB5; }
+.bs2-stack.right .bs2-ps:nth-child(4) { right:  6px;  left: 0; top: 1px; bottom: 1px; background: #D5C8C0; }
+.bs2-stack.right .bs2-ps:nth-child(5) { right:  8px;  left: 0; top: 2px; bottom: 2px; background: #DEDAD2; }
+.bs2-stack.right .bs2-ps:nth-child(6) { right: 10px;  left: 0; top: 2px; bottom: 2px; background: #E6DDD6; }
+.bs2-stack.right .bs2-ps:nth-child(7) { right: 12px;  left: 0; top: 3px; bottom: 3px; background: #EDE4DC; }
+.bs2-stack.right .bs2-ps:nth-child(8) { right: 14px;  left: 0; top: 4px; bottom: 4px; background: #F2EBE3; border-left: 1px solid rgba(130,77,92,.18); }
+
+/* Cover boards replaced by .bs2-book border — these divs are kept in JSX but hidden */
+.bs2-cover-board { display: none; }
 
 .bs2-page-left {
   width: 50%; height: 100%; position: relative; overflow: hidden;
@@ -138,10 +187,8 @@ const BOOK_CSS = `
 .bs2-book.bs2-rtl { flex-direction: row-reverse; border-radius: 8px 4px 4px 8px; }
 .bs2-book.bs2-rtl .bs2-page-left { border-radius: 0 4px 4px 0; }
 .bs2-book.bs2-rtl .bs2-page-left::after { background: linear-gradient(to left, transparent 68%, rgba(90,48,64,.18) 85%, rgba(90,48,64,.3) 100%); }
-.bs2-book.bs2-rtl .bs2-cover-board.left { left: auto; right: -9px; box-shadow: 2px 0 8px rgba(0,0,0,.3); border-radius: 2px 4px 4px 2px; }
-.bs2-book.bs2-rtl .bs2-cover-board.right { right: auto; left: -9px; box-shadow: -2px 0 8px rgba(0,0,0,.3); border-radius: 4px 2px 2px 4px; }
-.bs2-book.bs2-rtl .bs2-stack.left { left: auto; right: -16px; }
-.bs2-book.bs2-rtl .bs2-stack.right { right: auto; left: -16px; }
+/* RTL: fan positions are symmetric so no change needed — both fans stay at left:0 / right:0.
+   Border radius flips to match RTL book orientation. */
 .bs2-book.bs2-rtl .bs2-flip { transform-origin: right center; }
 .bs2-book.bs2-rtl .bs2-flip.bs2-flipped { transform: rotateY(180deg); }
 .bs2-book.bs2-rtl .bs2-flip-back { transform: rotateY(-180deg); }
@@ -767,7 +814,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   );
 
   return (
-    <Box className={sceneClass}>
+    <Box className={sceneClass} sx={{ width: "100%", height: "100%" }}>
       <div className={bookClass}>
 
         {/* ───── Mobile controls panel (slide-down, tap-to-toggle) ───── */}
@@ -869,10 +916,10 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
         <div className="bs2-cover-board left" />
         <div className="bs2-cover-board right" />
         <div className="bs2-stack left">
-          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="bs2-ps" />)}
+          {[0,1,2,3,4,5,6,7].map((i) => <div key={i} className="bs2-ps" />)}
         </div>
         <div className="bs2-stack right">
-          {[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="bs2-ps" />)}
+          {[0,1,2,3,4,5,6,7].map((i) => <div key={i} className="bs2-ps" />)}
         </div>
 
         {/* LEFT: illustration */}
@@ -890,9 +937,12 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
           ) : (
             <div className="bs2-img-placeholder">{fallbackText || ""}</div>
           )}
-          <div className="bs2-counter">
-            {displayedPage.pageNumber} / {totalPages}
-          </div>
+          <div style={{ position:"absolute", inset:0, top:0, bottom:0, left:0, width:20, background:"linear-gradient(to right,rgba(60,28,40,.16),transparent)", zIndex:3, pointerEvents:"none" }} />
+          {!isFullScreen && (
+            <div className="bs2-counter">
+              {displayedPage.pageNumber} / {totalPages}
+            </div>
+          )}
         </div>
 
         {/* SPINE */}
@@ -918,6 +968,11 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
               <p className="bs2-story-text">{underText}</p>
               <div className="bs2-ornament b" />
             </div>
+            {isFullScreen && (
+              <div className="bs2-counter" style={{ left: "auto", right: 20, bottom: 18 }}>
+                {displayedPage.pageNumber} / {totalPages}
+              </div>
+            )}
           </div>
 
           {/* Flipping page */}
@@ -937,6 +992,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
               <CornerOrn pos="tr" />
               <CornerOrn pos="bl" />
               <CornerOrn pos="br" />
+              <div style={{ position:"absolute", inset:0, top:0, bottom:0, right:0, width:20, background:"linear-gradient(to left,rgba(60,28,40,.1),transparent)", zIndex:3, pointerEvents:"none" }} />
               <div className="bs2-text-content" ref={textRef}>
                 <div className="bs2-title-label">{title}</div>
                 <div className="bs2-ornament" />
