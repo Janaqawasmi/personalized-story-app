@@ -756,8 +756,8 @@ export default function BookReaderPage() {
             >
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
               <IconButton onClick={handleClose} sx={{ color: theme.palette.text.primary }}><CloseIcon /></IconButton>
-              <IconButton onClick={handlePrev} disabled={!canGoPrev} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowBackIosNewIcon /></IconButton>
-              <IconButton onClick={handleNext} disabled={!canGoNext} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowForwardIosIcon /></IconButton>
+              <IconButton onClick={requestFlipPrev} disabled={!canGoPrev} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowBackIosNewIcon /></IconButton>
+              <IconButton onClick={requestFlipNext} disabled={!canGoNext} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowForwardIosIcon /></IconButton>
             </Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
               <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
@@ -827,8 +827,8 @@ export default function BookReaderPage() {
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <IconButton onClick={handlePrev} disabled={!canGoPrev} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowBackIosNewIcon /></IconButton>
-                    <IconButton onClick={handleNext} disabled={!canGoNext} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowForwardIosIcon /></IconButton>
+                    <IconButton onClick={requestFlipPrev} disabled={!canGoPrev} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowBackIosNewIcon /></IconButton>
+                    <IconButton onClick={requestFlipNext} disabled={!canGoNext} sx={{ color: theme.palette.text.primary, "&:disabled": { color: theme.palette.text.secondary } }}><ArrowForwardIosIcon /></IconButton>
                     <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
                       {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
                     </Typography>
