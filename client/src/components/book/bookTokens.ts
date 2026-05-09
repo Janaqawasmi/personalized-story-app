@@ -62,3 +62,41 @@ export const BOOK_LEATHER_NOISE_SVG =
 
 // Bump version to ensure new/updated preface shows for existing users.
 export const LOCAL_STORAGE_PREFACE_SEEN_KEY = "dammah.preface.seen.v2";
+
+/** Shared outer-shell CSS for the book component.
+ *  Used by both BookSpread and BookPreface so both share identical edge styling. */
+export const BOOK_SHELL_CSS = `
+.bs2-cover-board {
+  position: absolute; top: 0; bottom: 0; width: 5px;
+  background: linear-gradient(to bottom, #6F404D 0%, #3C1C28 50%, #6F404D 100%);
+  z-index: 9; border-radius: 2px;
+}
+.bs2-cover-board.left  { left: 0;  border-radius: 4px 0 0 4px; box-shadow: -3px 0 10px rgba(0,0,0,.28), inset -1px 0 3px rgba(0,0,0,.2); }
+.bs2-cover-board.right { right: 0; border-radius: 0 4px 4px 0; box-shadow:  3px 0 10px rgba(0,0,0,.28), inset  1px 0 3px rgba(0,0,0,.2); }
+
+.bs2-stack { position: absolute; top: 0; bottom: 0; width: 18px; z-index: 3; pointer-events: none; overflow: hidden; }
+.bs2-stack.left  { left: 5px; }
+.bs2-stack.right { right: 5px; }
+
+.bs2-stack.left .bs2-ps  { position: absolute; top: 0; bottom: 0; right: 0; }
+.bs2-stack.left  .bs2-ps:nth-child(1) { left: 0px;  background: #B8A89E; }
+.bs2-stack.left  .bs2-ps:nth-child(2) { left: 2px;  background: #C4B4AA; }
+.bs2-stack.left  .bs2-ps:nth-child(3) { left: 4px;  background: #CFBFB5; }
+.bs2-stack.left  .bs2-ps:nth-child(4) { left: 6px;  background: #D8CCBF; top:1px; bottom:1px; }
+.bs2-stack.left  .bs2-ps:nth-child(5) { left: 8px;  background: #E0D4C8; top:1px; bottom:1px; }
+.bs2-stack.left  .bs2-ps:nth-child(6) { left: 10px; background: #E8DDD3; top:2px; bottom:2px; }
+.bs2-stack.left  .bs2-ps:nth-child(7) { left: 12px; background: #EDE4DC; top:2px; bottom:2px; }
+.bs2-stack.left  .bs2-ps:nth-child(8) { left: 14px; background: #F2E9E1; top:3px; bottom:3px; }
+.bs2-stack.left  .bs2-ps:nth-child(9) { left: 16px; background: #F7F2EC; top:4px; bottom:4px; border-right:1px solid rgba(130,77,92,.14); }
+
+.bs2-stack.right .bs2-ps { position: absolute; top: 0; bottom: 0; left: 0; }
+.bs2-stack.right .bs2-ps:nth-child(1) { right: 0px;  background: #B8A89E; }
+.bs2-stack.right .bs2-ps:nth-child(2) { right: 2px;  background: #C4B4AA; }
+.bs2-stack.right .bs2-ps:nth-child(3) { right: 4px;  background: #CFBFB5; }
+.bs2-stack.right .bs2-ps:nth-child(4) { right: 6px;  background: #D8CCBF; top:1px; bottom:1px; }
+.bs2-stack.right .bs2-ps:nth-child(5) { right: 8px;  background: #E0D4C8; top:1px; bottom:1px; }
+.bs2-stack.right .bs2-ps:nth-child(6) { right: 10px; background: #E8DDD3; top:2px; bottom:2px; }
+.bs2-stack.right .bs2-ps:nth-child(7) { right: 12px; background: #EDE4DC; top:2px; bottom:2px; }
+.bs2-stack.right .bs2-ps:nth-child(8) { right: 14px; background: #F2E9E1; top:3px; bottom:3px; }
+.bs2-stack.right .bs2-ps:nth-child(9) { right: 16px; background: #F7F2EC; top:4px; bottom:4px; border-left:1px solid rgba(130,77,92,.14); }
+`;
