@@ -7,6 +7,7 @@ import {
   useImperativeHandle,
 } from "react";
 import { Box } from "@mui/material";
+import { BOOK_SHELL_CSS } from "./bookTokens";
 
 type Page = {
   pageNumber: number;
@@ -67,6 +68,7 @@ const DRAG_RANGE = 280;
 const MOBILE_CONTROLS_AUTO_HIDE_MS = 3500;
 
 const BOOK_CSS = `
+${BOOK_SHELL_CSS}
 .bs2-scene {
   perspective: 2800px;
   position: relative;
@@ -105,39 +107,6 @@ const BOOK_CSS = `
 .bs2-book.bs2-fullscreen .bs2-spine { width: max(20px, 1.4vw); }
 .bs2-book.bs2-fullscreen .bs2-curl { width: 64px; height: 64px; }
 .bs2-book.bs2-fullscreen .bs2-curl-prev { width: 64px; height: 64px; }
-
-/* Fan stacks — anchored to left:0 / right:0 inside the clipping border */
-.bs2-stack {
-  position: absolute; top: 0; bottom: 0; width: 18px;
-  z-index: 3; pointer-events: none; overflow: hidden;
-}
-.bs2-stack.left  { left:  0; }
-.bs2-stack.right { right: 0; }
-
-.bs2-ps { position: absolute; top: 0; bottom: 0; }
-
-/* LEFT fan: darkest at left edge (outer), lightest at right edge (inner) */
-.bs2-stack.left .bs2-ps:nth-child(1) { left:  0;    right: 0; background: #B0A098; }
-.bs2-stack.left .bs2-ps:nth-child(2) { left:  2px;  right: 0; background: #BEAEA6; }
-.bs2-stack.left .bs2-ps:nth-child(3) { left:  4px;  right: 0; background: #CABDB5; }
-.bs2-stack.left .bs2-ps:nth-child(4) { left:  6px;  right: 0; top: 1px; bottom: 1px; background: #D5C8C0; }
-.bs2-stack.left .bs2-ps:nth-child(5) { left:  8px;  right: 0; top: 2px; bottom: 2px; background: #DEDAD2; }
-.bs2-stack.left .bs2-ps:nth-child(6) { left: 10px;  right: 0; top: 2px; bottom: 2px; background: #E6DDD6; }
-.bs2-stack.left .bs2-ps:nth-child(7) { left: 12px;  right: 0; top: 3px; bottom: 3px; background: #EDE4DC; }
-.bs2-stack.left .bs2-ps:nth-child(8) { left: 14px;  right: 0; top: 4px; bottom: 4px; background: #F2EBE3; border-right: 1px solid rgba(130,77,92,.18); }
-
-/* RIGHT fan: exact mirror — darkest at right edge (outer), lightest at left edge (inner) */
-.bs2-stack.right .bs2-ps:nth-child(1) { right:  0;    left: 0; background: #B0A098; }
-.bs2-stack.right .bs2-ps:nth-child(2) { right:  2px;  left: 0; background: #BEAEA6; }
-.bs2-stack.right .bs2-ps:nth-child(3) { right:  4px;  left: 0; background: #CABDB5; }
-.bs2-stack.right .bs2-ps:nth-child(4) { right:  6px;  left: 0; top: 1px; bottom: 1px; background: #D5C8C0; }
-.bs2-stack.right .bs2-ps:nth-child(5) { right:  8px;  left: 0; top: 2px; bottom: 2px; background: #DEDAD2; }
-.bs2-stack.right .bs2-ps:nth-child(6) { right: 10px;  left: 0; top: 2px; bottom: 2px; background: #E6DDD6; }
-.bs2-stack.right .bs2-ps:nth-child(7) { right: 12px;  left: 0; top: 3px; bottom: 3px; background: #EDE4DC; }
-.bs2-stack.right .bs2-ps:nth-child(8) { right: 14px;  left: 0; top: 4px; bottom: 4px; background: #F2EBE3; border-left: 1px solid rgba(130,77,92,.18); }
-
-/* Cover boards replaced by .bs2-book border — these divs are kept in JSX but hidden */
-.bs2-cover-board { display: none; }
 
 .bs2-page-left {
   width: 50%; height: 100%; position: relative; overflow: hidden;
@@ -187,7 +156,7 @@ const BOOK_CSS = `
 .bs2-book.bs2-rtl { flex-direction: row-reverse; border-radius: 8px 4px 4px 8px; }
 .bs2-book.bs2-rtl .bs2-page-left { border-radius: 0 4px 4px 0; }
 .bs2-book.bs2-rtl .bs2-page-left::after { background: linear-gradient(to left, transparent 68%, rgba(90,48,64,.18) 85%, rgba(90,48,64,.3) 100%); }
-/* RTL: fan positions are symmetric so no change needed — both fans stay at left:0 / right:0.
+/* RTL: fan stacks stay inset from each edge (BOOK_SHELL_CSS); layout is symmetric.
    Border radius flips to match RTL book orientation. */
 .bs2-book.bs2-rtl .bs2-flip { transform-origin: right center; }
 .bs2-book.bs2-rtl .bs2-flip.bs2-flipped { transform: rotateY(180deg); }
@@ -681,14 +650,16 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
   }, []);
 
-  // Inject styles once
+  // Inject styles once; replace partial sheet from BookPreface (shell-only) with full CSS.
   useEffect(() => {
     const id = "bs2-book-style";
-    if (document.getElementById(id)) return;
-    const el = document.createElement("style");
-    el.id = id;
+    let el = document.getElementById(id) as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement("style");
+      el.id = id;
+      document.head.appendChild(el);
+    }
     el.textContent = BOOK_CSS;
-    document.head.appendChild(el);
   }, []);
 
   // Keep displayed page in sync; animate text fade-in when it changes
@@ -916,10 +887,14 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
         <div className="bs2-cover-board left" />
         <div className="bs2-cover-board right" />
         <div className="bs2-stack left">
-          {[0,1,2,3,4,5,6,7].map((i) => <div key={i} className="bs2-ps" />)}
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div key={i} className="bs2-ps" />
+          ))}
         </div>
         <div className="bs2-stack right">
-          {[0,1,2,3,4,5,6,7].map((i) => <div key={i} className="bs2-ps" />)}
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+            <div key={i} className="bs2-ps" />
+          ))}
         </div>
 
         {/* LEFT: illustration */}

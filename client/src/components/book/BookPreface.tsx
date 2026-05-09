@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import {
   BOOK_COLORS,
@@ -6,6 +7,7 @@ import {
   BOOK_RADII,
   BOOK_SHADOWS,
   BOOK_PAPER_NOISE_SVG,
+  BOOK_SHELL_CSS,
 } from "./bookTokens";
 
 interface BookPrefaceProps {
@@ -214,6 +216,17 @@ export default function BookPreface({
 }: BookPrefaceProps) {
   const isRTL = isRtlLanguage(language);
   const copy = pickCopy(language);
+
+  // Inject the shared book shell stylesheet (same tag BookSpread uses).
+  // If BookSpread has already mounted it's a no-op due to the id guard.
+  useEffect(() => {
+    const id = "bs2-book-style";
+    if (document.getElementById(id)) return;
+    const el = document.createElement("style");
+    el.id = id;
+    el.textContent = BOOK_SHELL_CSS;
+    document.head.appendChild(el);
+  }, []);
 
   const noteLabel = childName
     ? isRTL
@@ -503,48 +516,6 @@ export default function BookPreface({
     </Box>
   );
 
-  const coverBoardLeft = (
-    <Box
-      aria-hidden
-      sx={{
-        display: { xs: "none", md: "block" },
-        position: "absolute",
-        top: -5,
-        bottom: -5,
-        left: isRTL ? "auto" : -9,
-        right: isRTL ? -9 : "auto",
-        width: 12,
-        background: BOOK_GRADIENTS.coverBoard,
-        zIndex: 1,
-        borderRadius: isRTL ? "2px 4px 4px 2px" : "2px",
-        boxShadow: isRTL
-          ? "2px 0 8px rgba(0,0,0,.3)"
-          : "-2px 0 8px rgba(0,0,0,.3)",
-      }}
-    />
-  );
-
-  const coverBoardRight = (
-    <Box
-      aria-hidden
-      sx={{
-        display: { xs: "none", md: "block" },
-        position: "absolute",
-        top: -5,
-        bottom: -5,
-        left: isRTL ? -9 : "auto",
-        right: isRTL ? "auto" : -9,
-        width: 12,
-        background: BOOK_GRADIENTS.coverBoard,
-        zIndex: 1,
-        borderRadius: isRTL ? "2px" : "2px 4px 4px 2px",
-        boxShadow: isRTL
-          ? "-2px 0 8px rgba(0,0,0,.3)"
-          : "2px 0 8px rgba(0,0,0,.3)",
-      }}
-    />
-  );
-
   return (
     <Box
       dir="ltr"
@@ -560,32 +531,52 @@ export default function BookPreface({
     >
       <Box
         sx={{
-          position: "relative",
-          width: { xs: "100%", md: "calc(100vw - 176px)" },
+          display: { xs: "flex", md: "flex" },
+          flexDirection: "row",
+          alignItems: "center",
+          width: "100%",
           maxWidth: "100%",
-          height: { xs: "auto", md: 500 },
-          display: "flex",
-          flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
-          filter: { xs: "none", md: BOOK_SHADOWS.bookDrop },
-          boxShadow: {
-            xs: "0 4px 24px rgba(90,48,64,.28)",
-            md: "none",
-          },
-          borderRadius: { xs: 0, md: BOOK_RADII.bookOuter },
+          justifyContent: "center",
         }}
       >
-        {coverBoardLeft}
-        {coverBoardRight}
-        {leftPage}
-        {spine}
-        {rightPage}
+        <Box sx={{ width: { xs: 56, md: 88 }, flexShrink: 0 }} />
+
+        <Box
+          sx={{
+            position: "relative",
+            flex: 1,
+            minWidth: 0,
+            height: { xs: "auto", md: 500 },
+            display: "flex",
+            flexDirection: { xs: "column", md: isRTL ? "row-reverse" : "row" },
+            boxShadow:
+              "0 22px 48px rgba(90,48,64,.3), 0 4px 12px rgba(90,48,64,.18)",
+            borderRadius: { xs: 0, md: BOOK_RADII.bookOuter },
+            overflow: { xs: "hidden", md: "visible" },
+          }}
+        >
+          <div className="bs2-cover-board left" />
+          <div className="bs2-cover-board right" />
+
+          <div className="bs2-stack left">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bs2-ps" />
+            ))}
+          </div>
+          <div className="bs2-stack right">
+            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="bs2-ps" />
+            ))}
+          </div>
+
+          {leftPage}
+          {spine}
+          {rightPage}
+        </Box>
+
+        <Box sx={{ width: { xs: 56, md: 88 }, flexShrink: 0 }} />
       </Box>
     </Box>
   );
 }
 
-/*
-Verify:
-1. File compiles with no TypeScript errors.
-2. Nothing imports it yet — we wire it up next.
-*/
