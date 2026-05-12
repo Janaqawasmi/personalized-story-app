@@ -1,10 +1,12 @@
-// Variant registry. Add new variants here as they are implemented.
+// Variant registry.
+//
+// Historical note: The early variants (baseline, no-reference, rolling-reference,
+// prompt-engineering) ran against the v1 specialist illustration pipeline
+// (image-prompt-generator + prompt-builder), which was removed when the v2
+// architecture was adopted. They have been deleted; their findings are encoded
+// in docs/illustration/spec.md.
 
 import type { ExperimentVariant } from "../types";
-import { baselineVariant } from "./baseline";
-import { noReferenceVariant } from "./no-reference";
-import { rollingReferenceVariant } from "./rolling-reference";
-import { promptEngineeringVariant } from "./prompt-engineering";
 import { styleBibleVariant } from "./style-bible";
 import { styleBibleSonnetVariant } from "./style-bible-sonnet";
 import { avatarOnlyVariant } from "./avatar-only";
@@ -15,10 +17,6 @@ import { sceneDIrectorAvatarVariant } from "./scene-director-avatar";
 import { sceneDIrectorAvatarOnlyVariant } from "./scene-director-avatar-only";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
-  [baselineVariant.id]: baselineVariant,
-  [noReferenceVariant.id]: noReferenceVariant,
-  [rollingReferenceVariant.id]: rollingReferenceVariant,
-  [promptEngineeringVariant.id]: promptEngineeringVariant,
   [styleBibleVariant.id]: styleBibleVariant,
   [styleBibleSonnetVariant.id]: styleBibleSonnetVariant,
   // exp-08 series: character/environment reference separation
