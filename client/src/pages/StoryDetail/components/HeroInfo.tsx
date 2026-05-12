@@ -70,32 +70,36 @@ export default function HeroInfo({
         {title}
       </Typography>
 
-      <Typography
-        sx={{
-          fontSize: "17px",
-          fontWeight: 600,
-          lineHeight: 1.55,
-          color: colorWithAlpha(COLORS.textPrimary, 0.72),
-          mb: 2.75,
-        }}
-      >
-        {subtitle}
-      </Typography>
+      {subtitle.trim() !== "" ? (
+        <Typography
+          sx={{
+            fontSize: "17px",
+            fontWeight: 600,
+            lineHeight: 1.55,
+            color: colorWithAlpha(COLORS.textPrimary, 0.72),
+            mb: 2.75,
+          }}
+        >
+          {subtitle}
+        </Typography>
+      ) : null}
 
       <ChipsRow ageRange={story.ageRange} topicLabel={topicLabel} />
 
-      <Typography
-        sx={{
-          fontSize: "15px",
-          fontWeight: 400,
-          lineHeight: 1.7,
-          color: COLORS.textSecondary,
-          mb: 2.5,
-          fontFamily: language === "he" ? "'Assistant', sans-serif" : undefined,
-        }}
-      >
-        {description}
-      </Typography>
+      {description.trim() !== "" ? (
+        <Typography
+          sx={{
+            fontSize: "15px",
+            fontWeight: 400,
+            lineHeight: 1.7,
+            color: COLORS.textSecondary,
+            mb: 2.5,
+            fontFamily: language === "he" ? "'Assistant', sans-serif" : undefined,
+          }}
+        >
+          {description}
+        </Typography>
+      ) : null}
 
       <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} />
 

@@ -23,16 +23,16 @@ function pickLang(rec: Record<string, string>, lang: string): string {
 }
 
 function formatStickyPriceLine(
-  story: StoryDetailVM,
-  t: (k: string, params?: Record<string, string | number>) => string,
+  detail: StoryDetailVM,
+  translate: (k: string, params?: Record<string, string | number>) => string,
 ): string {
-  const d = story.priceDigital;
+  const d = detail.priceDigital;
   if (typeof d === "number" && Number.isFinite(d)) {
-    const c = story.currency.toUpperCase();
+    const c = detail.currency.toUpperCase();
     const amt = c === "ILS" ? `₪${d}` : `${c} ${d}`;
-    return `${amt} · ${t("sticky.subline")}`;
+    return `${amt} · ${translate("sticky.subline")}`;
   }
-  return t("pricing.comingSoon");
+  return translate("pricing.comingSoon");
 }
 
 export default function StoryDetailPage() {
@@ -43,25 +43,25 @@ export default function StoryDetailPage() {
   const prefersReducedMotion = useReducedMotion();
   const reducedMotion = Boolean(prefersReducedMotion);
 
-  const { story, loading, error } = useStoryDetail();
-  const related = useRelatedStories(story);
+  const { story: storyVm, loading, error } = useStoryDetail();
+  const related = useRelatedStories(storyVm);
 
   const favoriteDraft = useMemo(
     () =>
-      story
+      storyVm
         ? {
-            storyId: story.id,
-            title: pickLang(story.title, language) || null,
-            coverImage: story.coverUrl || null,
+            storyId: storyVm.id,
+            title: storyVm.title || null,
+            coverImage: storyVm.coverUrl || null,
             category: null,
-            topic: story.primaryTopic ?? null,
-            ageGroup: story.ageRange ?? null,
+            topic: storyVm.primaryTopic ?? null,
+            ageGroup: storyVm.ageRange ?? null,
           }
         : undefined,
-    [story, language],
+    [storyVm],
   );
 
-  const { isFavorite, toggle: toggleFavorite, loading: favoriteLoading } = useFavorite(story?.id ?? null, favoriteDraft);
+  const { isFavorite, toggle: toggleFavorite, loading: favoriteLoading } = useFavorite(storyVm?.id ?? null, favoriteDraft);
 
   const heroRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -75,26 +75,26 @@ export default function StoryDetailPage() {
 
   useEffect(() => {
     const hero = heroRef.current;
-    if (!hero || !story) return;
+    if (!hero || !storyVm) return;
     const observer = new IntersectionObserver(([entry]) => setStickyVisible(!entry.isIntersecting), { threshold: 0 });
     observer.observe(hero);
     return () => observer.disconnect();
-  }, [story]);
+  }, [storyVm]);
 
   const handlePersonalize = () => {
-    if (!story) return;
-    if (story.status === "coming_soon") {
-      const subject = encodeURIComponent(`Notify me: ${pickLang(story.title, language)}`);
+    if (!storyVm) return;
+    if (storyVm.status === "coming_soon") {
+      const subject = encodeURIComponent(`Notify me: ${storyVm.title}`);
       window.location.href = `mailto:hello@dammah.app?subject=${subject}`;
       return;
     }
-    navigate(`/stories/${story.id}/personalize`);
+    navigate(`/stories/${storyVm.id}/personalize`);
   };
 
   const faqRows = useMemo(() => {
-    if (!story) return [];
-    if (story.faq.length > 0) {
-      return story.faq.map((f) => ({
+    if (!storyVm) return [];
+    if (storyVm.faq.length > 0) {
+      return storyVm.faq.map((f) => ({
         question: pickLang(f.question, language),
         answer: pickLang(f.answer, language),
       }));
@@ -105,7 +105,7 @@ export default function StoryDetailPage() {
       { question: t("faq.q3"), answer: t("faq.a3") },
       { question: t("faq.q4"), answer: t("faq.a4") },
     ];
-  }, [story, language, t]);
+  }, [storyVm, language, t]);
 
   if (loading) {
     return (
@@ -116,7 +116,7 @@ export default function StoryDetailPage() {
     );
   }
 
-  if (error || !story) {
+  if (error || !storyVm) {
     return (
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "60vh", gap: 2 }}>
         <Typography sx={{ fontSize: "18px", fontWeight: 600, color: COLORS.error }}>{t("states.notFound")}</Typography>
@@ -127,10 +127,11 @@ export default function StoryDetailPage() {
     );
   }
 
-  const localTitle = pickLang(story.title, language);
-  const localSubtitle = pickLang(story.subtitle, language);
-  const localDescription = pickLang(story.description, language);
-  const localTopicLabel = pickLang(story.topicLabel, language);
+  const localTitle = storyVm.title;
+  const localSubtitle = storyVm.subtitle;
+  const localDescription = storyVm.description;
+  const localTopicLabel = storyVm.topicLabel;
+  const stickyPriceLine = formatStickyPriceLine(storyVm, t);
 
   const heroGrid = (
     <Box
@@ -142,9 +143,9 @@ export default function StoryDetailPage() {
         mb: 5,
       }}
     >
-      <HeroCover coverUrl={story.coverUrl} title={localTitle} reducedMotion={reducedMotion} />
+      <HeroCover coverUrl={storyVm.coverUrl} title={localTitle} reducedMotion={reducedMotion} />
       <HeroInfo
-        story={story}
+        story={storyVm}
         title={localTitle}
         subtitle={localSubtitle}
         description={localDescription}
@@ -188,11 +189,11 @@ export default function StoryDetailPage() {
           <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
             <Box id="story-preview-section" ref={previewRef}>
               <PreviewGallery
-                spreads={story.previewSpreads}
+                spreads={storyVm.previewSpreads}
                 language={language}
                 onPersonalize={handlePersonalize}
-                templatePages={story.templatePages}
-                storyLanguage={story.storyLanguage}
+                templatePages={storyVm.templatePages}
+                storyLanguage={storyVm.storyLanguage}
                 childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
               />
             </Box>
@@ -200,11 +201,11 @@ export default function StoryDetailPage() {
         ) : (
           <Box id="story-preview-section" ref={previewRef}>
             <PreviewGallery
-              spreads={story.previewSpreads}
+              spreads={storyVm.previewSpreads}
               language={language}
               onPersonalize={handlePersonalize}
-              templatePages={story.templatePages}
-              storyLanguage={story.storyLanguage}
+              templatePages={storyVm.templatePages}
+              storyLanguage={storyVm.storyLanguage}
               childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
             />
           </Box>
@@ -218,7 +219,7 @@ export default function StoryDetailPage() {
       <StickyMobileCta
         visible={stickyVisible}
         title={localTitle}
-        price={formatStickyPriceLine(story, t)}
+        price={stickyPriceLine}
         onPersonalize={handlePersonalize}
         onPreviewClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth" })}
       />
