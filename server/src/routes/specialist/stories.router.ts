@@ -19,6 +19,14 @@ import type { Story, StoryStatus, PageIllustration } from "@/models/story.model"
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 import { generateImagePromptsForPages } from "@/specialist/specialistIllustration.service";
+import {
+  ensurePilotStyleBible,
+  generatePilotAvatarForStory,
+  generatePilotRun,
+  generatePilotRunsForBothVariants,
+  listPilotRunsForStory,
+} from "@/specialist/pilotIllustration.service";
+import type { PilotVariant } from "@/specialist/pilot/types";
 
 const router = Router();
 
@@ -1130,6 +1138,194 @@ async function handleReviewPrompt(req: Request, res: Response): Promise<void> {
     allPromptsApproved: allApproved,
     storyStatus: updatedStory.status,
   });
+}
+
+// ============================================================================
+// PILOT ILLUSTRATION FLOW (admin-only)
+// ============================================================================
+//
+// Per-scene dual-variant (C/D) generation for the developer/admin inspection
+// pipeline. Lives alongside the existing batch flow — non-admin specialists
+// continue to use the legacy /pages and /illustrations endpoints.
+//
+//   GET   /:storyId/pilot/style-bible             returns (or lazily generates) the pilot StyleBible
+//   POST  /:storyId/pilot/avatar                  generates the per-story avatar; body: { seed?: number }
+//   GET   /:storyId/pilot/runs                    lists every PilotIllustrationRun for the story
+//   POST  /:storyId/pages/:pageNumber/pilot-runs  generates a run; body: { variant: "C"|"D"|"both", seed?: number }
+//
+// All four require role=admin. Admin can operate on any story regardless of
+// ownerUid — the readAndVerifyOwnership helper is intentionally bypassed.
+
+router.get(
+  "/:storyId/pilot/style-bible",
+  requireRole("admin"),
+  handleGetPilotStyleBible,
+);
+router.post(
+  "/:storyId/pilot/avatar",
+  requireRole("admin"),
+  handleGeneratePilotAvatar,
+);
+router.get(
+  "/:storyId/pilot/runs",
+  requireRole("admin"),
+  handleListPilotRuns,
+);
+router.post(
+  "/:storyId/pages/:pageNumber/pilot-runs",
+  requireRole("admin"),
+  handleGeneratePilotRun,
+);
+
+async function handleGetPilotStyleBible(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const storyId = req.params["storyId"] ?? "";
+  if (!storyId) {
+    res
+      .status(400)
+      .json({ error: "INVALID_INPUT", message: "storyId is required." });
+    return;
+  }
+
+  try {
+    const bible = await ensurePilotStyleBible(storyId);
+    res.status(200).json({ styleBible: bible });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[pilot] GET style-bible failed for ${storyId}:`, err);
+    res
+      .status(500)
+      .json({ error: "PILOT_STYLE_BIBLE_FAILED", message });
+  }
+}
+
+async function handleGeneratePilotAvatar(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const storyId = req.params["storyId"] ?? "";
+  if (!storyId) {
+    res
+      .status(400)
+      .json({ error: "INVALID_INPUT", message: "storyId is required." });
+    return;
+  }
+
+  const body = (req.body ?? {}) as { seed?: unknown };
+  let seed: number | undefined;
+  if (typeof body.seed === "number" && Number.isFinite(body.seed)) {
+    seed = Math.floor(body.seed);
+  }
+
+  try {
+    const avatar = await generatePilotAvatarForStory(
+      storyId,
+      seed !== undefined ? { seed } : {},
+    );
+    res.status(200).json({ avatar });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[pilot] POST avatar failed for ${storyId}:`, err);
+    res.status(500).json({ error: "PILOT_AVATAR_FAILED", message });
+  }
+}
+
+async function handleListPilotRuns(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const storyId = req.params["storyId"] ?? "";
+  if (!storyId) {
+    res
+      .status(400)
+      .json({ error: "INVALID_INPUT", message: "storyId is required." });
+    return;
+  }
+
+  try {
+    const runs = await listPilotRunsForStory(storyId);
+    res.status(200).json({ runs });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[pilot] GET runs failed for ${storyId}:`, err);
+    res.status(500).json({ error: "PILOT_RUNS_LIST_FAILED", message });
+  }
+}
+
+async function handleGeneratePilotRun(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const storyId = req.params["storyId"] ?? "";
+  const pageNumberRaw = req.params["pageNumber"];
+  const pageNumber = parseInt(pageNumberRaw ?? "", 10);
+
+  if (!storyId) {
+    res
+      .status(400)
+      .json({ error: "INVALID_INPUT", message: "storyId is required." });
+    return;
+  }
+  if (isNaN(pageNumber) || pageNumber < 1) {
+    res.status(400).json({
+      error: "INVALID_INPUT",
+      message: "pageNumber must be a positive integer.",
+    });
+    return;
+  }
+
+  const body = (req.body ?? {}) as { variant?: unknown; seed?: unknown };
+  const variantRaw = body.variant;
+  if (variantRaw !== "C" && variantRaw !== "D" && variantRaw !== "both") {
+    res.status(400).json({
+      error: "INVALID_INPUT",
+      message: "body.variant must be 'C', 'D', or 'both'.",
+    });
+    return;
+  }
+
+  let seed: number | undefined;
+  if (typeof body.seed === "number" && Number.isFinite(body.seed)) {
+    seed = Math.floor(body.seed);
+  }
+
+  const createdBy = req.user?.uid ?? "";
+  if (!createdBy) {
+    res.status(401).json({
+      error: "UNAUTHENTICATED",
+      message: "Could not determine user identity.",
+    });
+    return;
+  }
+
+  try {
+    if (variantRaw === "both") {
+      const both = await generatePilotRunsForBothVariants(
+        seed !== undefined
+          ? { storyId, pageNumber, createdBy, seed }
+          : { storyId, pageNumber, createdBy },
+      );
+      res.status(200).json({ runs: [both.C, both.D] });
+      return;
+    }
+
+    const variant = variantRaw as PilotVariant;
+    const run = await generatePilotRun(
+      seed !== undefined
+        ? { storyId, pageNumber, variant, createdBy, seed }
+        : { storyId, pageNumber, variant, createdBy },
+    );
+    res.status(200).json({ runs: [run] });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(
+      `[pilot] POST run failed for ${storyId}/page-${pageNumber}/${variantRaw}:`,
+      err,
+    );
+    res.status(500).json({ error: "PILOT_RUN_FAILED", message });
+  }
 }
 
 export default router;

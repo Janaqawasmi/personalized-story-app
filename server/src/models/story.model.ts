@@ -165,6 +165,15 @@ export interface Story {
   /** Fixed seed passed to Seedream for every page so style is reproducible. */
   illustrationSeed: number | null;
 
+  // ---- Pilot per-scene illustration flow (admin-only, dual-variant C/D) --
+  // Persisted as opaque records so the Story model doesn't need to import
+  // the StyleBible / PilotAvatar shapes. Service code casts on read.
+  // Optional because pre-pilot stories don't carry these fields.
+  /** Style Bible used by the pilot pipeline. One per story, generated lazily. */
+  pilotStyleBible?: Record<string, unknown> | null;
+  /** Character avatar reference used by every (page, variant) pilot run. */
+  pilotAvatar?: Record<string, unknown> | null;
+
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
   updatedAt: number;
