@@ -25,16 +25,17 @@ export interface ImageGenerationProvider {
 
   generateImage(params: {
     textPrompt: string;
-    /** Single reference image URL. */
+    /**
+     * Single reference image URL. Used by the **caregiver-side** personalization
+     * flow (child photo → personalised illustrations). The v2 specialist-side
+     * illustration pipeline (docs/illustration/spec.md) does NOT use this —
+     * specialist consistency is anchored in structured text only.
+     */
     referenceImage?: string;
-    /** Multiple reference image URLs — provider must support multi-reference. */
-    referenceImages?: string[];
-    style?: string;
     outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
     seed?: number;
-    additionalParams?: Record<string, unknown>;
   }): Promise<ImageGenerationResult>;
 }
 

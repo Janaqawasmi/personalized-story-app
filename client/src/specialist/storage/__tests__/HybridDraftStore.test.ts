@@ -66,11 +66,6 @@ function makeStory(overrides: Partial<Story> = {}): Story {
     submittedAt: overrides.submittedAt ?? null,
     approvedAt: overrides.approvedAt ?? null,
     pages: overrides.pages ?? null,
-    visualBible: overrides.visualBible ?? null,
-    illustrationSeed: overrides.illustrationSeed ?? null,
-    promptsGeneratedAt: overrides.promptsGeneratedAt ?? null,
-    illustrationCompletedAt: overrides.illustrationCompletedAt ?? null,
-    illustrationReadyAt: overrides.illustrationReadyAt ?? null,
     publishedAt: overrides.publishedAt ?? null,
   };
 }

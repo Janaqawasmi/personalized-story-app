@@ -304,22 +304,16 @@ export default function DraftTabB({
   }
 
   async function handleGenerateImagePrompts() {
-    setPromptGenerationSubmitting(true);
-    try {
-      const updatedStory = await draftStore.transitionStatus(story.id, "prompt_review");
-      onStoryUpdate(updatedStory);
-      setSnackbar({
-        message: "Image prompt generation started.",
-        severity: "success",
-      });
-    } catch (err) {
-      setSnackbar({
-        message: err instanceof Error ? err.message : "Failed to generate image prompts.",
-        severity: "error",
-      });
-    } finally {
-      setPromptGenerationSubmitting(false);
-    }
+    // Cleanup PR 1: the v1 "Generate image prompts" action moved the story to
+    // `prompt_review`. Phase 1 of the v2 illustration redesign will replace
+    // this with a transition to `illustration_workspace`. For now this is a
+    // no-op so the draft tab keeps building.
+    setSnackbar({
+      message:
+        "Illustration workspace is being rebuilt under the v2 spec — see docs/illustration/spec.md.",
+      severity: "info",
+    });
+    setPromptGenerationSubmitting(false);
   }
 
   async function handleRestore() {
@@ -614,7 +608,7 @@ export default function DraftTabB({
               mode={isReadOnly ? "read" : editorMode}
             />
 
-            {(story.status === "approved" || story.status === "prompt_review") && (
+            {story.status === "approved" && (
               <Box sx={{ mt: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 <Box
                   sx={{

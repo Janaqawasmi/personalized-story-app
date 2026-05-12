@@ -17,8 +17,10 @@ import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import { DRAFT_B } from "./draftB/tokens";
 
+// Statuses where the Illustrations tab is enabled.
+// Phase 1 of the v2 redesign will extend this with "illustration_workspace".
 const ILLUSTRATION_STATUSES = new Set<StoryStatus>([
-  "prompt_review", "illustrating", "illustration_review", "illustration_ready", "published",
+  "approved", "illustration_ready", "published",
 ]);
 
 // ---------------------------------------------------------------------------

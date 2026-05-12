@@ -25,7 +25,8 @@ import { admin, firestore } from "./config/firebase";
 import { SeedreamProvider } from "./providers/seedream.provider";
 import { registerImageProvider } from "./services/preview.service";
 import { registerImageProviderForStory } from "./services/fullStoryGeneration.service";
-import { registerIllustrationProvider } from "./specialist/specialistIllustration.service";
+// v2 specialist illustration provider registration will be added in Phase 1
+// of the redesign (docs/illustration/spec.md). v1 registration is removed.
 
 import dammaStoryBriefRouter from "./routes/dammaStoryBrief.routes";
 import templateRoutes from "./routes/template.routes";
@@ -56,7 +57,6 @@ if (process.env.ARK_API_KEY) {
   const seedream = new SeedreamProvider();
   registerImageProvider(seedream);
   registerImageProviderForStory(seedream);
-  registerIllustrationProvider(seedream);
   console.log("Seedream image provider registered.");
 } else {
   console.warn(

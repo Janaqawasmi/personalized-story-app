@@ -127,21 +127,9 @@ function buildChipConfigs(desk: SpecialistDeskUi): ChipConfig[] {
       status: "approved",
       color: STATUS_CHIP_COLORS.approved,
     },
-    {
-      label: desk.chipPromptReview,
-      status: "prompt_review",
-      color: STATUS_CHIP_COLORS.prompt_review,
-    },
-    {
-      label: desk.chipIllustrating,
-      status: "illustrating",
-      color: STATUS_CHIP_COLORS.illustrating,
-    },
-    {
-      label: desk.chipIllustrationReview,
-      status: "illustration_review",
-      color: STATUS_CHIP_COLORS.illustration_review,
-    },
+    // Phase 1 of the v2 illustration redesign will reintroduce a chip for
+    // `illustration_workspace`. v1's transient illustration statuses are
+    // removed (cleanup PR 1).
     {
       label: desk.chipIllustrationReady,
       status: "illustration_ready",

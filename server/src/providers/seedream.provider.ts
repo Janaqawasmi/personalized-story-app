@@ -6,9 +6,10 @@
 //   ARK_API_URL         — Base URL (default: https://ark.ap-southeast.bytepluses.com/api/v3)
 //   SEEDREAM_MODEL_ID   — Model ID (default: seedream-4-0-250828)
 //
-// Text-to-image (page 1): no referenceImage.
-// Image-to-image (pages 2-N): pass page 1's public Firebase Storage URL as referenceImage.
-// A fixed numeric seed is passed on every call for style reproducibility.
+// v2 specialist pipeline (docs/illustration/spec.md §17) is text-to-image only.
+// The `referenceImage` parameter remains available for the caregiver-side
+// personalization flow (child photo → personalised illustrations), which is a
+// separate, legitimate use case.
 
 import type {
   ImageGenerationProvider,
@@ -29,7 +30,7 @@ interface SeedreamRequest {
   seed?: number;
   guidance_scale?: number;
   watermark?: boolean;
-  image?: string | string[];
+  image?: string;
 }
 
 interface SeedreamResponse {
@@ -64,13 +65,10 @@ export class SeedreamProvider implements ImageGenerationProvider {
   async generateImage(params: {
     textPrompt: string;
     referenceImage?: string;
-    referenceImages?: string[];
-    style?: string;
     outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
     seed?: number;
-    additionalParams?: Record<string, unknown>;
   }): Promise<ImageGenerationResult> {
     const startMs = Date.now();
 
@@ -80,11 +78,6 @@ export class SeedreamProvider implements ImageGenerationProvider {
       );
     }
 
-    const guidanceScale =
-      typeof params.additionalParams?.guidance_scale === "number"
-        ? params.additionalParams.guidance_scale
-        : DEFAULT_GUIDANCE_SCALE;
-
     const body: SeedreamRequest = {
       model: this.modelId,
       prompt: params.textPrompt,
@@ -92,13 +85,9 @@ export class SeedreamProvider implements ImageGenerationProvider {
       size: "2K",
       response_format: "b64_json",
       watermark: false,
-      guidance_scale: guidanceScale,
+      guidance_scale: DEFAULT_GUIDANCE_SCALE,
       ...(params.seed !== undefined ? { seed: params.seed } : {}),
-      ...(params.referenceImages !== undefined && params.referenceImages.length > 0
-        ? { image: params.referenceImages.length === 1 ? params.referenceImages[0] : params.referenceImages }
-        : params.referenceImage !== undefined
-          ? { image: params.referenceImage }
-          : {}),
+      ...(params.referenceImage !== undefined ? { image: params.referenceImage } : {}),
     };
 
     const response = await fetch(`${this.apiUrl}/images/generations`, {

@@ -23,6 +23,9 @@ export const STORIES_COLLECTION = "stories";
 // STATUS TYPES
 // ============================================================================
 
+// NOTE on illustration statuses (v2 redesign — see docs/illustration/spec.md):
+//   v1's transient statuses (`prompt_review`, `illustrating`, `illustration_review`)
+//   are removed. v2 will add `illustration_workspace` in Phase 1 of the redesign.
 export const STORY_STATUSES = [
   "draft_brief",
   "generating",
@@ -30,9 +33,6 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
-  "prompt_review",
-  "illustrating",
-  "illustration_review",
   "illustration_ready",
   "published",
   "archived",
@@ -48,30 +48,15 @@ export const BRIEF_STATUSES = [
 export type BriefStatus = (typeof BRIEF_STATUSES)[number];
 
 // ============================================================================
-// ILLUSTRATION PIPELINE TYPES
+// MANUSCRIPT PAGE TYPE
 // ============================================================================
+// Mirrors server/src/agent1/types/index.ts StoryPage. Pure manuscript shape;
+// illustration state lives in a separate Phase 1 type (IllustrationPage).
 
-export type PromptStatus = "pending" | "approved" | "rejected";
-export type IllustrationStatus = "pending" | "generating" | "done" | "failed";
-
-export interface PageIllustration {
+export interface StoryPage {
   pageNumber: number;
   text: string;
   wordCount: number;
-  imagePrompt: string | null;
-  promptStatus: PromptStatus;
-  promptRejectionNote: string | null;
-  illustrationUrl: string | null;
-  illustrationStatus: IllustrationStatus;
-  illustrationRejectionNote: string | null;
-}
-
-export interface VisualBible {
-  protagonist: string;
-  styleGuide: string;
-  environmentRegistry: Record<string, string>;
-  palette: string;
-  generatedAt: number;
 }
 
 // ============================================================================
@@ -133,12 +118,13 @@ export interface Story {
   agent1Result: Agent1Result | null;
   agent1Versions: Agent1Result[];
   currentDraft: StoryDraft | null;
+  /** Structured manuscript pages — null until first generation. v2: pure
+   *  manuscript; illustration state lives in a separate field added in Phase 1. */
+  pages: StoryPage[] | null;
   editHistory: EditHistoryEntry[];
 
-  // Illustration pipeline (null until approved)
-  pages: PageIllustration[] | null;
-  visualBible: VisualBible | null;
-  illustrationSeed: number | null;
+  // Illustration pipeline fields are introduced in Phase 1 of the v2 redesign
+  // (see docs/illustration/spec.md §10.6 / §10.7).
 
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
@@ -146,9 +132,6 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
-  promptsGeneratedAt: number | null;
-  illustrationCompletedAt: number | null;
-  illustrationReadyAt: number | null;
   publishedAt: number | null;
 }
 
@@ -172,13 +155,10 @@ export const ALLOWED_TRANSITIONS: readonly Transition[] = [
   { from: "in_review",       to: "archived" },
   { from: "needs_revision",  to: "awaiting_review" },
   { from: "needs_revision",  to: "in_review" },
-  { from: "approved",            to: "prompt_review" },
-  { from: "approved",            to: "in_review" },
-  { from: "approved",            to: "archived" },
-  { from: "prompt_review",       to: "illustrating" },
-  { from: "illustrating",        to: "illustration_review" },
-  { from: "illustration_review", to: "illustration_ready" },
-  { from: "illustration_review", to: "illustrating" },
+  { from: "approved",        to: "in_review" },
+  { from: "approved",        to: "archived" },
+  // Phase 1 of the v2 redesign will add the illustration_workspace transitions
+  // (approved → illustration_workspace, illustration_workspace → illustration_ready, ...).
   { from: "illustration_ready",  to: "published" },
   { from: "illustration_ready",  to: "archived" },
   { from: "published",           to: "archived" },

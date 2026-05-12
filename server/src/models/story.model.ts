@@ -28,6 +28,12 @@ export const STORIES_COLLECTION = "stories";
 // STATUS TYPES
 // ============================================================================
 
+// NOTE on illustration statuses (v2 redesign — see docs/illustration/spec.md):
+//   v1's transient statuses (`prompt_review`, `illustrating`, `illustration_review`)
+//   are removed. v2 collapses the illustration phase into a single workspace state
+//   plus per-page sub-status. The new `illustration_workspace` state is added in
+//   Phase 1 of the v2 implementation (next PR). `illustration_ready` is kept as
+//   the explicit pre-publish gate.
 export const STORY_STATUSES = [
   "draft_brief",
   "generating",
@@ -35,10 +41,7 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
-  "prompt_review",        // specialist reviews AI-generated image prompts before Seedream
-  "illustrating",         // Seedream generating page illustrations (async)
-  "illustration_review",  // specialist reviews generated illustrations per page
-  "illustration_ready",   // all illustrations approved; ready to publish
+  "illustration_ready",   // all illustrations approved; ready to publish (v2: explicit specialist action)
   "published",
   "archived",
 ] as const;
@@ -84,50 +87,11 @@ export interface EditHistoryEntry {
 }
 
 // ============================================================================
-// ILLUSTRATION TYPES
+// ILLUSTRATION TYPES — v2 (Phase 1)
 // ============================================================================
-
-/** Lifecycle of a single page's AI-generated image prompt through Gate 1 review. */
-export type PromptStatus = "pending" | "approved" | "rejected";
-
-/** Lifecycle of a single page's Seedream-generated illustration through Gate 2 review. */
-export type IllustrationStatus = "pending" | "generating" | "done" | "failed";
-
-/**
- * Extends StoryPage with image prompt and illustration fields.
- * `pages` on Story becomes PageIllustration[] once the illustration pipeline starts.
- */
-export interface PageIllustration extends StoryPage {
-  /** Claude-generated Seedream prompt text. Null until prompts are generated. */
-  imagePrompt: string | null;
-  /** Gate 1 specialist review decision. */
-  promptStatus: PromptStatus;
-  /** Specialist note when rejecting a prompt (feeds into regeneration). */
-  promptRejectionNote: string | null;
-  /** Firebase Storage URL of the generated illustration. Null until done. */
-  illustrationUrl: string | null;
-  /** Gate 2 specialist review decision. */
-  illustrationStatus: IllustrationStatus;
-  /** Specialist note when failing an illustration (feeds into re-generation). */
-  illustrationRejectionNote: string | null;
-}
-
-/**
- * One-time Claude artifact that anchors visual consistency across all pages.
- * Generated once per story before any page prompts are created.
- */
-export interface VisualBible {
-  /** Physical description of the protagonist for all pages. */
-  protagonist: string;
-  /** Art style directive (medium, palette, line quality). */
-  styleGuide: string;
-  /** Environment/setting descriptions keyed by scene label. */
-  environmentRegistry: Record<string, string>;
-  /** Hex palette or colour name list, comma-separated. */
-  palette: string;
-  /** ms since epoch */
-  generatedAt: number;
-}
+// The v1 illustration types (PromptStatus, IllustrationStatus, PageIllustration,
+// VisualBible) are removed. v2 types live under server/src/illustration/types/
+// and are introduced in Phase 1 per docs/illustration/spec.md §10.
 
 // ============================================================================
 // STORY INTERFACE
@@ -154,16 +118,16 @@ export interface Story {
   agent1Result: Agent1Result | null;
   agent1Versions: Agent1Result[];
   currentDraft: StoryDraft | null;
-  // Structured pages — null until first generation.
-  // Upgraded to PageIllustration[] when the illustration pipeline starts.
-  pages: PageIllustration[] | null;
+  /** Structured manuscript pages — null until first generation. v2: pure manuscript;
+   *  illustration state lives in a separate field added in Phase 1. */
+  pages: StoryPage[] | null;
   editHistory: EditHistoryEntry[];
 
-  // Illustration pipeline
-  /** Visual Bible generated once before page prompts. Null until prompt_review. */
-  visualBible: VisualBible | null;
-  /** Fixed seed passed to Seedream for every page so style is reproducible. */
-  illustrationSeed: number | null;
+  // Illustration pipeline fields are introduced in Phase 1 of the v2 redesign
+  // (see docs/illustration/spec.md §10.6 / §10.7). Cleanup PR 1 removes the v1
+  // fields (visualBible, illustrationSeed, promptsGeneratedAt, promptsApprovedAt,
+  // illustrationCompletedAt, illustrationReadyAt) and waits for the new typed
+  // artefact subcollections + IllustrationPage[] to replace them.
 
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
@@ -171,14 +135,6 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
-  /** When all page image prompts were generated (prompt_review entered). */
-  promptsGeneratedAt: number | null;
-  /** When all page prompts passed Gate 1 specialist review. */
-  promptsApprovedAt: number | null;
-  /** When Seedream finished generating all page illustrations. */
-  illustrationCompletedAt: number | null;
-  /** When all illustrations passed Gate 2 specialist review. */
-  illustrationReadyAt: number | null;
 }
 
 // ============================================================================
@@ -201,20 +157,16 @@ export const ALLOWED_TRANSITIONS: readonly Transition[] = [
   { from: "in_review",            to: "archived" },
   { from: "needs_revision",       to: "awaiting_review" },
   { from: "needs_revision",       to: "in_review" },
-  // approved → prompt_review is specialist-triggered; direct publish removed.
-  { from: "approved",             to: "prompt_review" },
   { from: "approved",             to: "in_review" },
   { from: "approved",             to: "archived" },
-  // Illustration pipeline
-  { from: "prompt_review",        to: "illustrating" },
-  { from: "prompt_review",        to: "archived" },
-  { from: "illustrating",         to: "illustration_review" },
-  { from: "illustrating",         to: "prompt_review" },  // catastrophic failure fallback
-  { from: "illustration_review",  to: "illustrating" },   // re-trigger failed pages
-  { from: "illustration_review",  to: "illustration_ready" },
-  { from: "illustration_review",  to: "archived" },
+  // Illustration pipeline (Phase 1 of the v2 redesign will add:
+  //   approved → illustration_workspace
+  //   illustration_workspace → illustration_ready
+  //   illustration_workspace → in_review
+  //   illustration_workspace → archived
+  //   illustration_ready → illustration_workspace
+  // See docs/illustration/spec.md §9.3.)
   { from: "illustration_ready",   to: "published" },
-  { from: "illustration_ready",   to: "illustration_review" },  // reopen review
   { from: "illustration_ready",   to: "archived" },
   { from: "published",            to: "archived" },
   { from: "archived",             to: "draft_brief" },
@@ -228,27 +180,6 @@ export function isTransitionAllowed(
   return ALLOWED_TRANSITIONS.some(
     (t) => t.from === from && t.to === to,
   );
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-/**
- * Upgrades a plain StoryPage array (from generated draft output) to PageIllustration[]
- * by adding default illustration fields. Call this when persisting agent1Result.pages
- * to Story.pages so the types stay in sync.
- */
-export function toPageIllustrations(pages: StoryPage[]): PageIllustration[] {
-  return pages.map((p) => ({
-    ...p,
-    imagePrompt: null,
-    promptStatus: "pending" as PromptStatus,
-    promptRejectionNote: null,
-    illustrationUrl: null,
-    illustrationStatus: "pending" as IllustrationStatus,
-    illustrationRejectionNote: null,
-  }));
 }
 
 // ============================================================================
@@ -294,17 +225,10 @@ export function createStoryForGeneration(params: {
       },
     ],
 
-    visualBible: null,
-    illustrationSeed: null,
-
     createdAt: now,
     updatedAt: now,
     lastOpenedAt: now,
     submittedAt: now,
     approvedAt: null,
-    promptsGeneratedAt: null,
-    promptsApprovedAt: null,
-    illustrationCompletedAt: null,
-    illustrationReadyAt: null,
   };
 }

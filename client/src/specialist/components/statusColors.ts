@@ -64,27 +64,8 @@ export const STATUS_CHIP_COLORS: Record<StoryStatus | "all", StatusColor> = {
     outlinedText: "#4a5f3f",
     dot: COLORS.success,
   },
-  prompt_review: {
-    filledBg: "#e4eaf0",
-    filledText: "#3a5268",
-    outlinedBorder: "#6a9bbf",
-    outlinedText: "#3a5268",
-    dot: "#6a9bbf",
-  },
-  illustrating: {
-    filledBg: "#ede4f0",
-    filledText: "#5a3a6e",
-    outlinedBorder: "#9b6abf",
-    outlinedText: "#5a3a6e",
-    dot: "#9b6abf",
-  },
-  illustration_review: {
-    filledBg: "#e4eaf0",
-    filledText: "#3a5268",
-    outlinedBorder: "#6a9bbf",
-    outlinedText: "#3a5268",
-    dot: "#6a9bbf",
-  },
+  // Phase 1 of the v2 illustration redesign adds an `illustration_workspace`
+  // entry here.
   illustration_ready: {
     filledBg: "#eaf0e4",
     filledText: "#4a5f3f",

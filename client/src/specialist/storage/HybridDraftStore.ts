@@ -78,11 +78,6 @@ export class HybridDraftStore implements DraftStore {
       submittedAt: null,
       approvedAt: null,
       pages: null,
-      visualBible: null,
-      illustrationSeed: null,
-      promptsGeneratedAt: null,
-      illustrationCompletedAt: null,
-      illustrationReadyAt: null,
       publishedAt: null,
     };
 

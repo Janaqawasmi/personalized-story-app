@@ -423,7 +423,6 @@ async function generatePreviewPages(
         imageResult = await imageProvider.generateImage({
           textPrompt: imagePrompt,
           ...(photoSignedUrl ? { referenceImage: photoSignedUrl } : {}),
-          style: page.emotionalTone,
           outputWidth: 1024,
           outputHeight: 1024,
         });

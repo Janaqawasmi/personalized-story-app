@@ -3,6 +3,14 @@
 **Audience:** Developers debugging or extending Agent 1 right now.  
 **Scope:** What is implemented in code today, where data is built/stored, and how generation flows end-to-end.
 
+> **⚠ Illustration sections are stale (cleanup PR 1 of the v2 redesign).**
+> The v1 illustration pipeline described below (`prompt_review → illustrating →
+> illustration_review`, `toPageIllustrations`, `triggerIllustrationGeneration`,
+> `generateImagePromptsForPages`, `VisualBible`, page-1 reference image, etc.)
+> has been removed from the codebase. The canonical illustration design now
+> lives in [`docs/illustration/spec.md`](../../../../../docs/illustration/spec.md).
+> The Agent 1 sections (Steps 1–3, model files, brief flow) remain accurate.
+
 ---
 
 ## 1) High-level flow

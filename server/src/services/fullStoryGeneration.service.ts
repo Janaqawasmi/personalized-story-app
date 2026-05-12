@@ -265,7 +265,6 @@ async function runFullStoryGeneration(
             const imageResult: ImageGenerationResult = await imageProvider.generateImage({
               textPrompt: imagePrompt,
               referenceImage: photoSignedUrl,
-              style: templatePage.emotionalTone,
               outputWidth: 1024,
               outputHeight: 1024,
             });
@@ -339,7 +338,6 @@ async function runFullStoryGeneration(
           const imageResult = await imageProvider.generateImage({
             textPrompt: imagePrompt,
             referenceImage: photoSignedUrl,
-            style: templatePage.emotionalTone,
             outputWidth: 1024,
             outputHeight: 1024,
           });

@@ -124,12 +124,7 @@ const PIPELINE_HINTS_EN = {
   in_review:
     "Finish reviewing the generated story, then approve, edit, or request changes.",
   approved:
-    "This story is approved. Generate image prompts when you are ready.",
-  prompt_review:
-    "Review the AI-generated image prompts before illustration begins.",
-  illustrating: "Illustrations are being generated — check back shortly.",
-  illustration_review:
-    "Review the generated illustrations and approve or request changes.",
+    "This story is approved. The illustration workspace will be available shortly.",
   illustration_ready: "All illustrations are approved. Publish when you are ready.",
   published: "This story has been published.",
 } as const;
@@ -144,10 +139,7 @@ const PIPELINE_HINTS_HE = {
     "פתחו את לשונית הסיפור כדי לקרוא את הטקסט שהופק ולהשלים את הביקורת.",
   in_review:
     "סיימו לבדוק את הסיפור, ואז אשרו, ערכו או בקשו שינויים.",
-  approved: "הסיפור אושר. צרו הנחיות תמונה כשאתם מוכנים.",
-  prompt_review: "בדקו את הנחיות התמונה לפני תחילת האיורים.",
-  illustrating: "יוצרים איורים — בדקו שוב בעוד רגע.",
-  illustration_review: "בדקו את האיורים ואשרו או בקשו שינויים.",
+  approved: "הסיפור אושר. סביבת האיורים תיפתח בקרוב.",
   illustration_ready: "כל האיורים אושרו. פרסמו כשאתם מוכנים.",
   published: "הסיפור פורסם.",
 } as const;
@@ -163,9 +155,6 @@ const PIPELINE_HINTS_AR = {
   in_review:
     "أكملوا مراجعة القصة ثم وافقوا أو عدّلوا أو اطلبوا تغييرات.",
   approved: "القصة معتمدة. ولّدوا أوصاف الصور عند الجاهزية.",
-  prompt_review: "راجعوا أوصاف الصور المُولَّدة قبل بدء التوضيح.",
-  illustrating: "جاري إنشاء التوضيحات — تحققوا قريبًا.",
-  illustration_review: "راجعوا التوضيحات ووافقوا أو اطلبوا تعديلات.",
   illustration_ready: "اعتُمدت كل التوضيحات. انشروا عند الجاهزية.",
   published: "نُشرت هذه القصة.",
 } as const;
@@ -177,9 +166,6 @@ const STATUS_EN: SpecialistDeskUi["statusLabels"] = {
   in_review: "In review",
   needs_revision: "Needs revision",
   approved: "Approved",
-  prompt_review: "Image prompt review",
-  illustrating: "Illustrating",
-  illustration_review: "Illustration review",
   illustration_ready: "Illustration ready",
   published: "Published",
   archived: "Archived",
@@ -192,9 +178,6 @@ const STATUS_HE: SpecialistDeskUi["statusLabels"] = {
   in_review: "בביקורת",
   needs_revision: "דורש תיקון",
   approved: "אושר",
-  prompt_review: "ביקורת הנחיות תמונה",
-  illustrating: "באיור",
-  illustration_review: "ביקורת איורים",
   illustration_ready: "איורים מוכנים",
   published: "פורסם",
   archived: "בארכיון",
@@ -207,9 +190,6 @@ const STATUS_AR: SpecialistDeskUi["statusLabels"] = {
   in_review: "قيد المراجعة",
   needs_revision: "بحاجة إلى مراجعة",
   approved: "معتمدة",
-  prompt_review: "مراجعة أوصاف الصور",
-  illustrating: "قيد التوضيح",
-  illustration_review: "مراجعة التوضيحات",
   illustration_ready: "التوضيحات جاهزة",
   published: "منشورة",
   archived: "مؤرشفة",

@@ -141,18 +141,21 @@ describe("SeedreamProvider — generateImage", () => {
     expect(body.seed).toBeUndefined();
   });
 
-  test("sends reference image as URL in image field when string provided", async () => {
+  // The `referenceImage` parameter remains on the provider for the
+  // caregiver-side personalization flow (child photo). The v2 specialist
+  // pipeline (docs/illustration/spec.md) does not use it.
+
+  test("sends referenceImage as URL in the image field when provided", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    const refUrl = "https://storage.googleapis.com/bucket/page1.jpeg";
-    await provider.generateImage({ textPrompt: "Page 2.", referenceImage: refUrl });
+    const refUrl = "https://storage.googleapis.com/bucket/child-photo.jpeg";
+    await provider.generateImage({ textPrompt: "A child.", referenceImage: refUrl });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.image).toBe(refUrl);
-    expect(body.reference_image).toBeUndefined();
   });
 
-  test("omits image field when no referenceImage provided (page 1 case)", async () => {
+  test("omits image field when referenceImage is not provided", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "Page 1." });
+    await provider.generateImage({ textPrompt: "A scene." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.image).toBeUndefined();
   });
@@ -197,15 +200,8 @@ describe("SeedreamProvider — generateImage", () => {
     expect(body.guidance_scale).toBe(7.5);
   });
 
-  test("respects guidance_scale override via additionalParams", async () => {
-    mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({
-      textPrompt: "A rabbit.",
-      additionalParams: { guidance_scale: 9 },
-    });
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
-    expect(body.guidance_scale).toBe(9);
-  });
+  // v2: additionalParams is removed from the ImageGenerationProvider contract.
+  // Per-call guidance_scale override is dropped; the default (7.5) applies.
 
   test("sends size: 2K", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));

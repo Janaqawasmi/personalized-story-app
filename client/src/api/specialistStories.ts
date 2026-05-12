@@ -4,7 +4,7 @@
 // /api/specialist/stories/. Pure HTTP — no localStorage, no retry.
 
 import type { CompleteBrief } from "../types/storyBrief";
-import type { Story, StoryStatus, PageIllustration } from "../types/story";
+import type { Story, StoryStatus } from "../types/story";
 import { normalizeStoryFromApi } from "../utils/storyBriefFromApi";
 import { API_BASE, getAuthHeaders } from "./api";
 
@@ -172,71 +172,10 @@ export async function updateBrief(
   }
 }
 
-/** GET /api/specialist/stories/:storyId/pages — list pages with image prompts (Gate 1). */
-export async function listPages(storyId: string): Promise<PageIllustration[]> {
-  try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${BASE}/${encodeURIComponent(storyId)}/pages`, { headers });
-    return handleResponse<PageIllustration[]>(res, "pages");
-  } catch (err) {
-    return wrapNetworkError(err);
-  }
-}
-
-/** PATCH /api/specialist/stories/:storyId/pages/:pageNumber/prompt — approve or reject a prompt (Gate 1). */
-export async function reviewPrompt(
-  storyId: string,
-  pageNumber: number,
-  action: "approve" | "reject",
-  rejectionNote?: string,
-): Promise<PageIllustration> {
-  try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(
-      `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/prompt`,
-      { method: "PATCH", headers, body: JSON.stringify({ action, rejectionNote }) },
-    );
-    return handleResponse<PageIllustration>(res, "page");
-  } catch (err) {
-    return wrapNetworkError(err);
-  }
-}
-
-/** GET /api/specialist/stories/:storyId/illustrations — list pages with illustration results (Gate 2). */
-export async function listIllustrations(storyId: string): Promise<PageIllustration[]> {
-  try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(`${BASE}/${encodeURIComponent(storyId)}/illustrations`, { headers });
-    return handleResponse<PageIllustration[]>(res, "pages");
-  } catch (err) {
-    return wrapNetworkError(err);
-  }
-}
-
-/** PATCH /api/specialist/stories/:storyId/pages/:pageNumber/illustration — approve or reject an illustration (Gate 2). */
-export async function reviewIllustration(
-  storyId: string,
-  pageNumber: number,
-  action: "approve" | "reject",
-  rejectionNote?: string,
-): Promise<{ page: PageIllustration; allApproved: boolean; storyStatus: StoryStatus }> {
-  try {
-    const headers = await getAuthHeaders();
-    const res = await fetch(
-      `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/illustration`,
-      { method: "PATCH", headers, body: JSON.stringify({ action, rejectionNote }) },
-    );
-    const body = await res.json() as {
-      page: PageIllustration;
-      allIllustrationsApproved: boolean;
-      storyStatus: StoryStatus;
-    };
-    if (!res.ok) throw new Error((body as any).message || `Request failed (${res.status})`);
-    return { page: body.page, allApproved: body.allIllustrationsApproved, storyStatus: body.storyStatus };
-  } catch (err) {
-    return wrapNetworkError(err);
-  }
-}
+// v1 illustration API client (listPages, reviewPrompt, listIllustrations,
+// reviewIllustration) is removed in cleanup PR 1 of the v2 redesign.
+// Phase 1 of v2 (see docs/illustration/spec.md §14) introduces the new
+// per-stage endpoints (visual-bible, scene-plan, image, transitions).
 
 /** POST /api/specialist/stories/:storyId/transitions — change status via the state machine. */
 export async function transitionStory(

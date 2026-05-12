@@ -44,13 +44,7 @@ function nextHintForStatus(status: StoryStatus): string {
     case "in_review":
       return "Finish reviewing the generated story, then approve, edit, or request changes.";
     case "approved":
-      return "This story is approved. Generate image prompts when you are ready.";
-    case "prompt_review":
-      return "Review the AI-generated image prompts before illustration begins.";
-    case "illustrating":
-      return "Illustrations are being generated — check back shortly.";
-    case "illustration_review":
-      return "Review the generated illustrations and approve or request changes.";
+      return "This story is approved. The illustration workspace will be available shortly.";
     case "illustration_ready":
       return "All illustrations are approved. Publish when you are ready.";
     case "published":
@@ -93,24 +87,11 @@ export function getStoryPipelineUiState(status: StoryStatus): StoryPipelineUiSta
       return {
         kind: "active",
         stepsCompleted: 3,
-        emphasisStepIndex: 3,
-        nextHint,
-      };
-    case "prompt_review":
-      return {
-        kind: "active",
-        stepsCompleted: 4,
         emphasisStepIndex: 4,
         nextHint,
       };
-    case "illustrating":
-    case "illustration_review":
-      return {
-        kind: "active",
-        stepsCompleted: 5,
-        emphasisStepIndex: 4,
-        nextHint,
-      };
+    // Phase 1 of the v2 illustration redesign adds the `illustration_workspace`
+    // case here (emphasis on step 4, the Illustration column).
     case "illustration_ready":
       return {
         kind: "active",
