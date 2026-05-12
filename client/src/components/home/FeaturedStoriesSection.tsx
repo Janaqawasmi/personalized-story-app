@@ -249,7 +249,7 @@ export default function FeaturedStoriesSection() {
                     price: story.price,
                     isNew: story.isNew,
                     coverGradient: story.coverGradient,
-                    coverImage: story.coverImage ?? undefined,
+                    coverImage: story.coverImage,
                     ageRange: story.ageRange,
                     topicKey: story.topic,
                     topicLabel: t(`home.featured.filter_${story.topic}`),

@@ -23,7 +23,9 @@ import StarField from "./home/StarField";
 import type { Story } from "../api/stories";
 
 /** Data shape accepted by both catalog (API Story) and featured (FeaturedStory) callers. */
-export type StoryGridCardStory = Story & {
+export type StoryGridCardStory = Omit<Story, "coverImage"> & {
+  /** Catalog may omit; featured hook uses `null` when no cover. */
+  coverImage?: string | null;
   coverImageUrl?: string;
   primaryTopic?: string;
   specificSituation?: string;
@@ -86,8 +88,11 @@ function getCoverGradient(story: StoryGridCardStory): string {
 }
 
 function getCoverUrl(story: StoryGridCardStory): string | undefined {
-  const url = story.coverImageUrl || story.coverImage;
-  return url?.trim() ? url : undefined;
+  const fromUrl = story.coverImageUrl?.trim();
+  if (fromUrl) return fromUrl;
+  const fromCover = story.coverImage?.trim();
+  if (fromCover) return fromCover;
+  return undefined;
 }
 
 function getAgeDisplay(story: StoryGridCardStory): string {
