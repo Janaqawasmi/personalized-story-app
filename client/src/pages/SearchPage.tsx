@@ -8,6 +8,7 @@ import { resolveLocalizedField } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import { formatAgeGroupLabel } from "../data/categories";
 import { useTranslation } from "../i18n/useTranslation";
+import { storyCatalogGridLooseSx } from "../components/catalog/catalogStyles";
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
@@ -138,17 +139,7 @@ export default function SearchPage() {
       {!isLoading && !error && query && (
         <>
           {results.length > 0 ? (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "1fr 1fr",
-                  md: "repeat(3, 1fr)",
-                },
-                gap: 4,
-              }}
-            >
+            <Box sx={storyCatalogGridLooseSx}>
               {results.map((story) => {
                 const ageGroup = getStoryAgeGroup(story);
                 return (

@@ -5,6 +5,7 @@ import { useLanguage } from "../i18n/context/useLanguage";
 import { useAuth } from "../contexts/AuthContext";
 import { listFavorites, type FavoriteStory } from "../api/favorites";
 import StoryGridCard from "../components/StoryGridCard";
+import { storyCatalogGridLooseSx } from "../components/catalog/catalogStyles";
 
 export default function FavoritesPage() {
   const t = useTranslation();
@@ -74,13 +75,7 @@ export default function FavoritesPage() {
       )}
 
       {!loading && !error && favorites.length > 0 && (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", md: "repeat(3, 1fr)" },
-            gap: 4,
-          }}
-        >
+        <Box sx={storyCatalogGridLooseSx}>
           {favorites.map((fav) => (
             <StoryGridCard
               key={fav.storyId}

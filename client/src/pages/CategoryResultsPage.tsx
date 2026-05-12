@@ -15,45 +15,12 @@ import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup, LockedFilter } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
 import SuggestStoryBanner from "../components/SuggestStoryBanner";
-
-const storyGridSx = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "1fr",
-    sm: "repeat(2, 1fr)",
-    md: "repeat(3, 1fr)",
-    lg: "repeat(4, 1fr)",
-  },
-  gap: 2.5,
-};
-
-const pageHeaderTitleSx = {
-  fontFamily: "'Playfair Display', serif",
-  fontSize: { xs: "24px", md: "28px" },
-  fontWeight: 600,
-  color: "#1a1a1a",
-  mb: 0.5,
-};
-
-const countBadgeSx = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "2px 10px",
-  borderRadius: "20px",
-  backgroundColor: "#f5ece9",
-  color: "#824D5C",
-  fontSize: "12px",
-  fontWeight: 600,
-};
-
-const breadcrumbBoxSx = {
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  mb: 1.5,
-  fontSize: "13px",
-  color: "#888888",
-};
+import {
+  storyCatalogGridSx,
+  catalogPageHeaderTitleSx,
+  catalogCountBadgeSx,
+  catalogBreadcrumbSx,
+} from "../components/catalog/catalogStyles";
 
 export default function CategoryResultsPage() {
   const { categoryId } = useParams<{ categoryId: string }>();
@@ -175,7 +142,7 @@ export default function CategoryResultsPage() {
 
   return (
     <Container maxWidth="xl" sx={containerSx}>
-      <Box sx={breadcrumbBoxSx}>
+      <Box sx={catalogBreadcrumbSx}>
         <Link
           component={RouterLink}
           to={withLang("/books", language)}
@@ -189,14 +156,14 @@ export default function CategoryResultsPage() {
       </Box>
 
       <Box sx={{ mb: 2.5 }}>
-        <Typography component="h1" sx={pageHeaderTitleSx}>
+        <Typography component="h1" sx={catalogPageHeaderTitleSx}>
           {categoryTitleDisplay}
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Typography sx={{ fontSize: "14px", color: "#4A4A4A" }}>
             {t("pages.categoryResults.storiesFound", { count: stories.length })}
           </Typography>
-          <Box component="span" sx={countBadgeSx}>
+          <Box component="span" sx={catalogCountBadgeSx}>
             {stories.length} {t("catalog.stories")}
           </Box>
         </Box>
@@ -205,7 +172,7 @@ export default function CategoryResultsPage() {
       <FilterBar lockedFilters={lockedFilters} groups={groups} />
 
       {stories.length > 0 ? (
-        <Box sx={storyGridSx}>
+        <Box sx={storyCatalogGridSx}>
           {stories.map((story) => (
             <StoryGridCard
               key={story.id}

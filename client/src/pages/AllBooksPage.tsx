@@ -11,6 +11,11 @@ import type { FilterGroup } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
 import { filterBarSx } from "../components/FilterBar/FilterBar.styles";
 import SuggestStoryBanner from "../components/SuggestStoryBanner";
+import {
+  storyCatalogGridSx,
+  catalogPageHeaderTitleSx,
+  catalogCountBadgeSx,
+} from "../components/catalog/catalogStyles";
 
 function normalizeAgeGroup(value?: string): string | null {
   if (!value) return null;
@@ -20,37 +25,6 @@ function normalizeAgeGroup(value?: string): string | null {
     .replace(/\s+/g, "")
     .replace(/[–-]/g, "_");
 }
-
-const storyGridSx = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "1fr",
-    sm: "repeat(2, 1fr)",
-    md: "repeat(3, 1fr)",
-    lg: "repeat(4, 1fr)",
-  },
-  gap: 2.5,
-  mt: 1,
-};
-
-const pageHeaderTitleSx = {
-  fontFamily: "'Playfair Display', serif",
-  fontSize: { xs: "24px", md: "28px" },
-  fontWeight: 600,
-  color: "#1a1a1a",
-  mb: 0.5,
-};
-
-const countBadgeSx = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "2px 10px",
-  borderRadius: "20px",
-  backgroundColor: "#f5ece9",
-  color: "#824D5C",
-  fontSize: "12px",
-  fontWeight: 600,
-};
 
 function CatalogHeader({
   t,
@@ -76,7 +50,7 @@ function CatalogHeader({
         {t("pages.allBooks.eyebrow")}
       </Typography>
 
-      <Typography component="h1" sx={pageHeaderTitleSx}>
+      <Typography component="h1" sx={catalogPageHeaderTitleSx}>
         {t("pages.allBooks.title")}
       </Typography>
 
@@ -85,7 +59,7 @@ function CatalogHeader({
           {t("pages.allBooks.subtitle")}
         </Typography>
         {showCountBadge ? (
-          <Box component="span" sx={countBadgeSx}>
+          <Box component="span" sx={catalogCountBadgeSx}>
             {count} {t("catalog.stories")}
           </Box>
         ) : null}
@@ -296,7 +270,7 @@ export default function AllBooksPage() {
           <Skeleton variant="rounded" width={140} height={32} sx={{ borderRadius: "20px" }} />
         </Box>
 
-        <Box sx={{ ...storyGridSx, mt: 2 }}>
+        <Box sx={{ ...storyCatalogGridSx, mt: 2 }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <Box
               key={i}
@@ -345,7 +319,7 @@ export default function AllBooksPage() {
       <FilterBar groups={filterGroups} onClearAll={handleClearAll} />
 
       {filteredBooks.length > 0 ? (
-        <Box sx={storyGridSx}>
+        <Box sx={{ ...storyCatalogGridSx, mt: 1 }}>
           {filteredBooks.map((story) => (
             <StoryGridCard
               key={story.id}
