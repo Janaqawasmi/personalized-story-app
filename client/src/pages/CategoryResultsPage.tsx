@@ -44,20 +44,25 @@ export default function CategoryResultsPage() {
     }
   }, [location.key, location.pathname, location.search, location.state?.age, location.state?.fromMegaMenu]);
 
-  const situationIds =
-    data?.situations
-      .filter((s) => s.topicKey === categoryId && s.active)
-      .map((s) => s.id) || [];
-
+  // `t` omitted from deps (not stable). `situationIds` computed inside so its array ref does not retrigger.
   useEffect(() => {
-    if (!categoryId) return;
+    if (!categoryId || !data) return;
+    let cancelled = false;
 
-    fetchStoriesWithFilters({
-      categoryId,
-      ageGroup: selectedAge || undefined,
-      topicId: selectedTopic || undefined,
-      situationIds: !selectedTopic ? situationIds : undefined,
-    }, language).then((results) => {
+    const currentSituationIds = data.situations
+      .filter((s) => s.topicKey === categoryId && s.active)
+      .map((s) => s.id);
+
+    void fetchStoriesWithFilters(
+      {
+        categoryId,
+        ageGroup: selectedAge || undefined,
+        topicId: selectedTopic || undefined,
+        situationIds: !selectedTopic ? currentSituationIds : undefined,
+      },
+      language,
+    ).then((results) => {
+      if (cancelled) return;
       setStories(
         results.map((s) => ({
           ...s,
@@ -65,7 +70,11 @@ export default function CategoryResultsPage() {
         })),
       );
     });
-  }, [categoryId, selectedAge, selectedTopic, situationIds, data, t, language]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [categoryId, selectedAge, selectedTopic, language, data]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 

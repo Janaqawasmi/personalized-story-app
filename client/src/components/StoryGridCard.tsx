@@ -105,6 +105,13 @@ function getAgeDisplay(story: StoryGridCardStory): string {
   );
 }
 
+/** `mapDocToStory` already resolves locale; only plain strings should be shown. */
+function getDescriptionPlainText(story: StoryGridCardStory): string {
+  const sd = story.shortDescription as unknown;
+  if (typeof sd === "string") return sd;
+  return "";
+}
+
 function getTopicBadgeLabel(story: StoryGridCardStory): string {
   return (
     (story.topicLabel && story.topicLabel.trim()) ||
@@ -155,6 +162,7 @@ export default function StoryGridCard({
   const coverUrl = getCoverUrl(story);
   const ageDisplay = getAgeDisplay(story);
   const topicBadgeLabel = getTopicBadgeLabel(story);
+  const descriptionPlain = getDescriptionPlainText(story);
   const showPrice =
     variant === "featured" && typeof story.price === "number" && Number.isFinite(story.price);
   const starCount = coverUrl ? 10 : 22;
@@ -348,7 +356,7 @@ export default function StoryGridCard({
           </Box>
         ) : null}
 
-        {story.shortDescription ? (
+        {descriptionPlain ? (
           <Typography
             sx={{
               fontSize: "13px",
@@ -362,7 +370,7 @@ export default function StoryGridCard({
               overflow: "hidden",
             }}
           >
-            {story.shortDescription}
+            {descriptionPlain}
           </Typography>
         ) : null}
 

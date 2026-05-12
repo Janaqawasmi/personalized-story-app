@@ -44,20 +44,25 @@ export default function AgeResultsPage() {
   }, [location.key, location.pathname, location.state?.category, location.state?.fromMegaMenu]);
 
   useEffect(() => {
-    if (!ageId) return;
+    if (!ageId || !data) return;
+    let cancelled = false;
 
     const situationIds = selectedCategory
-      ? data?.situations
+      ? data.situations
           .filter((s) => s.topicKey === selectedCategory && s.active)
-          .map((s) => s.id) || []
+          .map((s) => s.id)
       : undefined;
 
-    fetchStoriesWithFilters({
-      ageGroup: ageId,
-      categoryId: selectedCategory || undefined,
-      topicId: selectedTopic || undefined,
-      situationIds: selectedCategory && !selectedTopic ? situationIds : undefined,
-    }, language).then((results) => {
+    void fetchStoriesWithFilters(
+      {
+        ageGroup: ageId,
+        categoryId: selectedCategory || undefined,
+        topicId: selectedTopic || undefined,
+        situationIds: selectedCategory && !selectedTopic ? situationIds : undefined,
+      },
+      language,
+    ).then((results) => {
+      if (cancelled) return;
       setStories(
         results.map((s) => ({
           ...s,
@@ -65,7 +70,11 @@ export default function AgeResultsPage() {
         })),
       );
     });
-  }, [ageId, selectedCategory, selectedTopic, data, t, language]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ageId, selectedCategory, selectedTopic, data, language]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 

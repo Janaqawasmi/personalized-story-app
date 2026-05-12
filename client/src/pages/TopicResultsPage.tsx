@@ -41,14 +41,16 @@ export default function TopicResultsPage() {
 
   useEffect(() => {
     if (!topicId) return;
+    let cancelled = false;
 
-    fetchStoriesWithFilters(
+    void fetchStoriesWithFilters(
       {
         topicId,
         ageGroup: selectedAge || undefined,
       },
       language,
     ).then((results) => {
+      if (cancelled) return;
       setStories(
         results.map((s) => ({
           ...s,
@@ -56,7 +58,11 @@ export default function TopicResultsPage() {
         })),
       );
     });
-  }, [topicId, selectedAge, t, language]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [topicId, selectedAge, language]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 

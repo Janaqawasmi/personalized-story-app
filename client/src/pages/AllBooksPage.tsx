@@ -93,22 +93,27 @@ export default function AllBooksPage() {
     }
   }, [searchParams, allBooks]);
 
+  // Only `language` refetches catalog. `t` from useTranslation is not referentially stable.
   useEffect(() => {
+    let cancelled = false;
     const loadStories = async () => {
       try {
         setLoading(true);
         setError(null);
         const results = await fetchStoriesWithFilters({}, language);
-        setAllBooks(results);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : t("pages.allBooks.error"));
+        if (!cancelled) setAllBooks(results);
+      } catch {
+        if (!cancelled) setError(t("pages.allBooks.error"));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
-    loadStories();
-  }, [language, t]);
+    void loadStories();
+    return () => {
+      cancelled = true;
+    };
+  }, [language]);
 
   useEffect(() => {
     if (!hash) return;
