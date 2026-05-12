@@ -5,6 +5,12 @@
 //   illustrating       → Seedream running (progress + polling)
 //   illustration_review → Gate 2: IllustrationReviewPanel
 //   illustration_ready / published → read-only gallery
+//
+// Admin override: when the signed-in user has role="admin", the per-scene
+// dual-variant pilot panel replaces the entire pipeline UI for the
+// illustration-pipeline statuses (approved through illustration_review).
+// Read-only states (illustration_ready, published) still render the legacy
+// SpecialistBookViewer regardless of role.
 
 import React, { useEffect, useRef, useState } from "react";
 import Box from "@mui/material/Box";
@@ -25,9 +31,11 @@ import type { Story } from "../../types/story";
 import { COLORS, DESIGN_TOKENS } from "../../theme";
 import * as api from "../../api/specialistStories";
 import { draftStore } from "../storage";
+import { useIsAdmin } from "../../hooks/useIsAdmin";
 import PromptReviewPanel from "./PromptReviewPanel";
 import IllustrationReviewPanel from "./IllustrationReviewPanel";
 import SpecialistBookViewer from "./SpecialistBookViewer";
+import PilotIllustrationPanel from "./PilotIllustrationPanel";
 
 const POLL_INTERVAL_MS = 5000;
 
@@ -262,8 +270,33 @@ function ApprovedPanel({
 }
 
 export default function IllustrationsTab({ story, onStoryUpdate }: IllustrationsTabProps) {
+  const { isAdmin, loading: adminLoading } = useIsAdmin();
+
   function handleStatusChange(status: Story["status"]) {
     onStoryUpdate({ ...story, status });
+  }
+
+  // Wait for the admin claim before rendering — otherwise the legacy panel
+  // flashes for an admin user, fires its own data load, and gets immediately
+  // unmounted when isAdmin flips to true.
+  if (adminLoading) {
+    return (
+      <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 5, pb: 6, textAlign: "center" }}>
+        <CircularProgress size={22} sx={{ color: COLORS.primary }} />
+      </Box>
+    );
+  }
+
+  // Admin override: per-scene dual-variant pilot panel for every status that
+  // would otherwise be handled by the legacy pipeline (approved → review).
+  const PILOT_STATUSES: Story["status"][] = [
+    "approved",
+    "prompt_review",
+    "illustrating",
+    "illustration_review",
+  ];
+  if (isAdmin && PILOT_STATUSES.includes(story.status)) {
+    return <PilotIllustrationPanel story={story} />;
   }
 
   switch (story.status) {

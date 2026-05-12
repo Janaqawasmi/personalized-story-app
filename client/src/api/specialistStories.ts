@@ -255,3 +255,161 @@ export async function transitionStory(
     return wrapNetworkError(err);
   }
 }
+
+// ============================================================================
+// Pilot illustration flow (admin-only)
+// ============================================================================
+//
+// Mirrors the routes added to server/src/routes/specialist/stories.router.ts
+// under "PILOT ILLUSTRATION FLOW". The server returns plain JSON envelopes
+// (no { success, data } wrapper), so these helpers parse them directly.
+
+export type PilotVariant = "C" | "D";
+export type PilotRunStatus = "pending" | "generating" | "done" | "failed";
+
+export interface PilotStyleBibleEnvironmentEntry {
+  atmosphere: string;
+  spatialLayout: string;
+}
+
+export interface PilotStyleBible {
+  characterSheet: string;
+  characterAnchor: string;
+  styleGuide: string;
+  consistencyAnchors: string[];
+  environmentRegistry: Record<string, PilotStyleBibleEnvironmentEntry>;
+  palette: string;
+  avoidList: string[];
+  generatedAt: number;
+}
+
+export interface PilotAvatar {
+  url: string;
+  seed: number;
+  generatedAt: number;
+  prompt: string;
+}
+
+export interface PilotIllustrationRun {
+  id: string;
+  storyId: string;
+  pageNumber: number;
+  variant: PilotVariant;
+  runIndex: number;
+  sceneDirection: string;
+  scenePromptStructured: string;
+  finalPromptToImageModel: string;
+  imageStatus: PilotRunStatus;
+  imageUrl: string | null;
+  errorMessage: string | null;
+  referenceImage: string;
+  seed: number;
+  promptModel: string;
+  imageModel: string;
+  createdAt: number;
+  createdBy: string;
+  completedAt: number | null;
+}
+
+async function pilotResponseJson<T>(res: Response): Promise<T> {
+  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) {
+    const message =
+      typeof body.message === "string"
+        ? body.message
+        : typeof body.error === "string"
+          ? body.error
+          : `Request failed (${res.status})`;
+    throw new Error(message);
+  }
+  return body as T;
+}
+
+/** GET /api/specialist/stories/:storyId/pilot/style-bible — generates lazily on first call. */
+export async function getPilotStyleBible(
+  storyId: string,
+): Promise<PilotStyleBible> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${BASE}/${encodeURIComponent(storyId)}/pilot/style-bible`,
+      { headers },
+    );
+    const body = await pilotResponseJson<{ styleBible: PilotStyleBible }>(res);
+    return body.styleBible;
+  } catch (err) {
+    return wrapNetworkError(err);
+  }
+}
+
+/**
+ * POST /api/specialist/stories/:storyId/pilot/avatar — generates a fresh
+ * avatar for the story. Pass a seed to reproduce an earlier roll, or omit it
+ * for a random new one.
+ */
+export async function generatePilotAvatar(
+  storyId: string,
+  options: { seed?: number } = {},
+): Promise<PilotAvatar> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${BASE}/${encodeURIComponent(storyId)}/pilot/avatar`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(options),
+      },
+    );
+    const body = await pilotResponseJson<{ avatar: PilotAvatar }>(res);
+    return body.avatar;
+  } catch (err) {
+    return wrapNetworkError(err);
+  }
+}
+
+/** GET /api/specialist/stories/:storyId/pilot/runs — every run, all pages, both variants. */
+export async function listPilotRuns(
+  storyId: string,
+): Promise<PilotIllustrationRun[]> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${BASE}/${encodeURIComponent(storyId)}/pilot/runs`,
+      { headers },
+    );
+    const body = await pilotResponseJson<{ runs: PilotIllustrationRun[] }>(res);
+    return body.runs;
+  } catch (err) {
+    return wrapNetworkError(err);
+  }
+}
+
+/**
+ * POST /api/specialist/stories/:storyId/pages/:pageNumber/pilot-runs
+ *
+ * Returns an array of runs (length 1 for variant "C" or "D", length 2 for
+ * variant "both" with C then D).
+ */
+export async function generatePilotRun(
+  storyId: string,
+  pageNumber: number,
+  variant: PilotVariant | "both",
+  options: { seed?: number } = {},
+): Promise<PilotIllustrationRun[]> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/pilot-runs`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ variant, ...options }),
+      },
+    );
+    const body = await pilotResponseJson<{ runs: PilotIllustrationRun[] }>(res);
+    return body.runs;
+  } catch (err) {
+    return wrapNetworkError(err);
+  }
+}
