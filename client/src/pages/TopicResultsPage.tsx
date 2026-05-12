@@ -42,18 +42,21 @@ export default function TopicResultsPage() {
   useEffect(() => {
     if (!topicId) return;
 
-    fetchStoriesWithFilters({
-      topicId,
-      ageGroup: selectedAge || undefined,
-    }).then((results) => {
+    fetchStoriesWithFilters(
+      {
+        topicId,
+        ageGroup: selectedAge || undefined,
+      },
+      language,
+    ).then((results) => {
       setStories(
         results.map((s) => ({
-          id: s.id,
+          ...s,
           title: s.title ?? t("search.storyWithoutName"),
-        }))
+        })),
       );
     });
-  }, [topicId, selectedAge, t]);
+  }, [topicId, selectedAge, t, language]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 

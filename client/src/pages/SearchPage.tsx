@@ -8,6 +8,7 @@ import { resolveLocalizedField } from "../api/stories";
 import StoryGridCard from "../components/StoryGridCard";
 import { formatAgeGroupLabel } from "../data/categories";
 import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 import { storyCatalogGridLooseSx } from "../components/catalog/catalogStyles";
 
 export default function SearchPage() {
@@ -15,6 +16,7 @@ export default function SearchPage() {
   const navigate = useLangNavigate();
   const query = searchParams.get("q") ?? "";
   const t = useTranslation();
+  const { language } = useLanguage();
   
   const [searchText, setSearchText] = useState(query);
   const [results, setResults] = useState<StorySearchResult[]>([]);
@@ -150,7 +152,7 @@ export default function SearchPage() {
                       title: story.title || t("search.storyWithoutName"),
                       shortDescription: ageGroup
                         ? `${t("filters.age")}: ${formatAgeGroupLabel(ageGroup)}`
-                        : resolveLocalizedField(story.shortDescription) || story.shortDescription,
+                        : resolveLocalizedField(story.shortDescription, language) || story.shortDescription,
                       ageGroup: story.ageGroup || ageGroup,
                       targetAgeGroup: story.targetAgeGroup,
                       generationConfig: story.generationConfig,

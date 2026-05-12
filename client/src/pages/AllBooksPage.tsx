@@ -6,6 +6,7 @@ import StoryGridCard from "../components/StoryGridCard";
 import type { Story } from "../api/stories";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
 import { useTranslation } from "../i18n/useTranslation";
+import { useLanguage } from "../i18n/context/useLanguage";
 import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
@@ -78,6 +79,7 @@ export default function AllBooksPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   const t = useTranslation();
+  const { language } = useLanguage();
 
   useEffect(() => {
     const topic = searchParams.get("topic");
@@ -96,7 +98,7 @@ export default function AllBooksPage() {
       try {
         setLoading(true);
         setError(null);
-        const results = await fetchStoriesWithFilters({});
+        const results = await fetchStoriesWithFilters({}, language);
         setAllBooks(results);
       } catch (err) {
         setError(err instanceof Error ? err.message : t("pages.allBooks.error"));
@@ -106,8 +108,7 @@ export default function AllBooksPage() {
     };
 
     loadStories();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch once on mount; t() only used for error fallback
-  }, []);
+  }, [language, t]);
 
   useEffect(() => {
     if (!hash) return;

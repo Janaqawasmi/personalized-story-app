@@ -57,15 +57,15 @@ export default function CategoryResultsPage() {
       ageGroup: selectedAge || undefined,
       topicId: selectedTopic || undefined,
       situationIds: !selectedTopic ? situationIds : undefined,
-    }).then((results) => {
+    }, language).then((results) => {
       setStories(
         results.map((s) => ({
-          id: s.id,
+          ...s,
           title: s.title ?? t("search.storyWithoutName"),
-        }))
+        })),
       );
     });
-  }, [categoryId, selectedAge, selectedTopic, situationIds, data, t]);
+  }, [categoryId, selectedAge, selectedTopic, situationIds, data, t, language]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 

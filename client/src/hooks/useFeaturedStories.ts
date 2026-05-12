@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { fetchStoriesWithFilters } from "../api/stories";
 import type { Story } from "../api/stories";
 import type { StoryTopic } from "../constants/topicColors";
+import { useLanguage } from "../i18n/context/useLanguage";
 
 export interface FeaturedStory {
   id: string;
@@ -46,6 +47,7 @@ function resolveTopic(story: Story): StoryTopic {
 }
 
 export function useFeaturedStories() {
+  const { language } = useLanguage();
   const [stories, setStories] = useState<FeaturedStory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function useFeaturedStories() {
 
     const load = async () => {
       try {
-        const results = await fetchStoriesWithFilters({});
+        const results = await fetchStoriesWithFilters({}, language);
 
         if (cancelled) return;
 
@@ -96,7 +98,7 @@ export function useFeaturedStories() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [language]);
 
   return { stories, loading, error };
 }

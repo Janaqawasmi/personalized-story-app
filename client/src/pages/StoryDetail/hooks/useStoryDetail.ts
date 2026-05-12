@@ -52,6 +52,7 @@ export function useStoryDetail() {
     };
   }, [storyId]);
 
+  // Re-map when `language` changes — VM fields are locale-resolved strings; no second Firestore read.
   const story = useMemo<StoryDetailVM | null>(
     () => (raw ? mapFirestoreToStoryDetailVM(raw.id, raw.data, language) : null),
     [raw, language],
