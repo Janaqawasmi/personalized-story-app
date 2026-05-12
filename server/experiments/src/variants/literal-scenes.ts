@@ -1,34 +1,20 @@
-// scene-director-avatar-only variant (exp-09c)
+// literal-scenes variant (exp-09d)
 //
-// FIGURATIVE-mode scene director — allows cinematic / atmospheric language
-// in the creative directions. The literal-scenes variant (exp-09d) is the
-// sibling that uses literal mode. Both share the same downstream pipeline.
+// LITERAL-mode scene director — forbids metaphor and simile in every output
+// field, pushing Claude to write only what is physically visible and
+// measurable. Sibling of scene-director-avatar-only (exp-09c, figurative).
 //
-// Pipeline:
-//   1. Scene Director (figurative mode) — Claude reads the FULL story (all
-//      pages) for narrative context, then produces creative scene directions
-//      for target pages only
-//   2. Prompt Converter (figurative mode) — translates directions → 5-section
-//      structured prompt
-//   3. Assemble final prompt using assembleWithDetailedEnv:
-//        - CHARACTER_REF_INSTRUCTION at position 2
-//        - Full atmosphere + spatialLayout from registry injected as text
-//          (replaces the brief scene.setting key) — this locks the environment
-//          across all pages without needing an environment reference image
-//   4. Seedream image-to-image with ONE reference: the character avatar
-//
-// Variable vs exp-09b-v3 (scene-director-avatar, dual reference):
-//   · referenceStrategy: avatar-environment → avatar only
-//   · Environment locked via verbose text description, not a reference image
-//   · DUAL_REF_INSTRUCTION → CHARACTER_REF_INSTRUCTION
-//   · No environment image generation step
+// One change from exp-09c: the scene director and prompt converter are both
+// run with mode="literal", which injects the LITERAL LANGUAGE rule blocks
+// described in scene-director.ts. Everything else (avatar reference, env
+// locked via verbose text, downstream assembly) is identical.
 //
 // Run command:
 //   cd server && npm run experiment:run -- \
-//     --variant scene-director-avatar-only \
+//     --variant literal-scenes \
 //     --story jana-school-door-story-001 \
 //     --pages 1,2,3 \
-//     --out exp-09c-scene-director-avatar-only-jana \
+//     --out exp-09d-literal-scenes-jana \
 //     --locked-sb experiments/locked-style-bibles/jana-school-door-story-001.json
 
 import {
@@ -56,10 +42,10 @@ import type { StyleBible } from "../style-bible.types";
 const SEEDREAM_MODEL = process.env.SEEDREAM_MODEL_ID ?? "seedream-4-0-250828";
 const PROMPT_MODEL = "claude-sonnet-4-6";
 
-export const sceneDIrectorAvatarOnlyVariant: ExperimentVariant = {
-  id: "scene-director-avatar-only",
+export const literalScenesVariant: ExperimentVariant = {
+  id: "literal-scenes",
   description:
-    "Scene director (full story context) + avatar reference only. Environment locked via full atmosphere+spatialLayout text description instead of a reference image.",
+    "Scene director (literal-mode, full story context) + avatar reference only. Forbids metaphor/simile in every output field; environment locked via full atmosphere+spatialLayout text description.",
   async run(ctx) {
     const start = Date.now();
     const provider = new SeedreamProvider();
@@ -68,18 +54,18 @@ export const sceneDIrectorAvatarOnlyVariant: ExperimentVariant = {
 
     if (!ctx.lockedStyleBible) {
       throw new Error(
-        "scene-director-avatar-only requires --locked-sb (Style Bible must be locked for one-variable isolation).",
+        "literal-scenes requires --locked-sb (Style Bible must be locked for one-variable isolation).",
       );
     }
     const bible: StyleBible = ctx.lockedStyleBible;
     const seed = ctx.story.illustrationSeed ?? Math.floor(Math.random() * 2 ** 31);
-    const expId = ctx.outDir.split(/[\\/]/).pop() ?? "scene-director-avatar-only";
+    const expId = ctx.outDir.split(/[\\/]/).pop() ?? "literal-scenes";
 
     ensureDir(ctx.outDir);
 
-    // --- Step 1: Scene directions — Claude reads ALL pages for narrative context ---
+    // --- Step 1: Scene directions in LITERAL mode ---
     ctx.log(
-      `[scene-director-avatar-only] Call 1: scene directions — reading all ${allPages.length} pages for context, directing ${targetPages.length} pages…`,
+      `[literal-scenes] Call 1: scene directions (literal) — reading all ${allPages.length} pages for context, directing ${targetPages.length} pages…`,
     );
     const directions = await callClaudeForSceneDirections(
       allPages,
@@ -87,38 +73,35 @@ export const sceneDIrectorAvatarOnlyVariant: ExperimentVariant = {
       ctx.story.brief,
       bible,
       PROMPT_MODEL,
-      "figurative",
+      "literal",
     );
 
     const directionsReport = directions
       .map((d, i) => `=== Page ${targetPages[i]!.pageNumber} ===\n${formatSceneDirectionForReport(d)}`)
       .join("\n\n");
     writeFileSync(join(ctx.outDir, "scene-directions.txt"), directionsReport, "utf8");
-    ctx.log(`[scene-director-avatar-only] scene directions saved.`);
+    ctx.log(`[literal-scenes] scene directions saved.`);
 
-    // --- Step 2: Convert directions → structured prompts ---
-    ctx.log(`[scene-director-avatar-only] Call 2: converting directions → structured prompts…`);
+    // --- Step 2: Convert directions → structured prompts, still LITERAL mode ---
+    ctx.log(`[literal-scenes] Call 2: converting directions → structured prompts (literal)…`);
     const scenePrompts = await callClaudeForPromptsFromDirections(
       targetPages,
       directions,
       bible,
       PROMPT_MODEL,
-      "figurative",
+      "literal",
     );
 
     // --- Step 3: Generate 1 avatar (character reference only) ---
-    ctx.log(`[scene-director-avatar-only] Generating 1 avatar (seed ${seed})…`);
+    ctx.log(`[literal-scenes] Generating 1 avatar (seed ${seed})…`);
     const avatarUrls = await generateCharacterAvatars(bible, seed, expId, 1);
     const avatarUrl = avatarUrls[0]!;
-    ctx.log(`[scene-director-avatar-only] Avatar ready: ${avatarUrl}`);
+    ctx.log(`[literal-scenes] Avatar ready: ${avatarUrl}`);
     writeFileSync(join(ctx.outDir, "avatar-url.json"), JSON.stringify({ url: avatarUrl }, null, 2), "utf8");
 
-    ctx.log(`[scene-director-avatar-only] seed=${seed}, image model=${SEEDREAM_MODEL}`);
+    ctx.log(`[literal-scenes] seed=${seed}, image model=${SEEDREAM_MODEL}`);
 
     // --- Step 4: Generate each page ---
-    // Environment consistency is achieved via verbose text: assembleWithDetailedEnv
-    // injects the full atmosphere + spatialLayout from the registry so Seedream
-    // receives the complete spatial contract in text on every page.
     const pageResults: PageRunResult[] = [];
 
     for (let i = 0; i < targetPages.length; i++) {
@@ -135,7 +118,7 @@ export const sceneDIrectorAvatarOnlyVariant: ExperimentVariant = {
 
       const pageStart = Date.now();
       try {
-        ctx.log(`[scene-director-avatar-only] page ${page.pageNumber}: generating…`);
+        ctx.log(`[literal-scenes] page ${page.pageNumber}: generating…`);
 
         const result = await provider.generateImage({
           textPrompt: finalPrompt,
@@ -172,7 +155,7 @@ export const sceneDIrectorAvatarOnlyVariant: ExperimentVariant = {
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        ctx.log(`[scene-director-avatar-only] page ${page.pageNumber} FAILED: ${message}`);
+        ctx.log(`[literal-scenes] page ${page.pageNumber} FAILED: ${message}`);
         pageResults.push({
           pageNumber: page.pageNumber,
           pageText: page.text,
@@ -200,7 +183,7 @@ export const sceneDIrectorAvatarOnlyVariant: ExperimentVariant = {
       totalLatencyMs: Date.now() - start,
       notes:
         `Avatar: ${avatarUrl}. ` +
-        `Scene director read ${allPages.length} pages, directed ${targetPages.length}. ` +
+        `Scene director (literal mode) read ${allPages.length} pages, directed ${targetPages.length}. ` +
         `Environment locked via verbose text (atmosphere+spatialLayout), no env reference image.`,
     };
   },

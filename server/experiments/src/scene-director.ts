@@ -35,6 +35,19 @@ import type { StyleBible, ScenePromptSections } from "./style-bible.types";
 
 const client = new Anthropic({ maxRetries: 0 });
 
+/**
+ * Prompt-style mode used by both scene-director and prompt-converter calls.
+ *
+ *   "literal"     — pushes Claude to describe only what is physically visible
+ *                   and measurable; forbids metaphor/simile. Matches exp-09d.
+ *   "figurative"  — allows cinematic / atmospheric language in the scene
+ *                   directions. Matches the original exp-09c behaviour.
+ *
+ * Both modes share the same JSON output shape so the rest of the pipeline
+ * (assembler, Seedream) doesn't care which mode produced the input.
+ */
+export type SceneDirectorMode = "literal" | "figurative";
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -61,6 +74,7 @@ function buildSceneDirectorPrompt(
   targetPages: PageIllustration[],
   brief: StoryBrief,
   bible: StyleBible,
+  mode: SceneDirectorMode,
 ): string {
   const ageLabel = AGE_RANGE_LABELS[brief.ageAndScope.ageRange];
 
@@ -76,6 +90,27 @@ function buildSceneDirectorPrompt(
   const targetPagesText = targetPages
     .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
     .join("\n\n");
+
+  // Literal mode adds four extra rules at the top of CRITICAL RULES that push
+  // Claude to write only what is physically visible (no metaphor / simile),
+  // require visually-distinct framing across pages, and forbid text-bearing
+  // visual elements. Figurative mode omits them, allowing cinematic language.
+  const literalRulesBlock =
+    mode === "literal"
+      ? `— Every page must show a VISUALLY DISTINCT moment. If page 1 is a wide shot from behind, page 2 must be a close-up or a different angle entirely. Camera, proximity, and composition must vary across pages — never repeat the same framing.
+— The camera can exclude the door, the hallway, or any fixed element when it is not relevant to this moment. A close-up of hands needs no background detail.
+— LITERAL LANGUAGE ONLY in moment, key_physical_detail, visual_hook, and camera. No metaphors, no similes, no poetic expressions. Image models interpret text literally — figurative language produces wrong images. Write only what is physically visible.
+  BAD: "the door looms like a wall of fear" → GOOD: "a closed wooden door filling the upper half of the frame"
+  BAD: "her courage gathers like a held breath" → GOOD: "her chin lifted, eyes closed, one hand flat on her chest"
+  BAD: "light falls like a spotlight on her isolation" → GOOD: "overhead fluorescent light illuminates the top of her head and her open hand"
+`
+      : "";
+
+  const textLabelsRule =
+    mode === "literal"
+      ? `— Avoid visual elements that would require text labels to read (door numbers, signs, classroom labels). The image must work without any text.
+`
+      : "";
 
   return `You are a children's book art director making creative decisions BEFORE the illustrator draws anything.
 
@@ -119,17 +154,11 @@ camera (under 12 words):
 Where the viewer is. Distance. Angle. Eye level or above or below.
 
 CRITICAL RULES:
-— Every page must show a VISUALLY DISTINCT moment. If page 1 is a wide shot from behind, page 2 must be a close-up or a different angle entirely. Camera, proximity, and composition must vary across pages — never repeat the same framing.
-— The camera can exclude the door, the hallway, or any fixed element when it is not relevant to this moment. A close-up of hands needs no background detail.
-— LITERAL LANGUAGE ONLY in moment, key_physical_detail, visual_hook, and camera. No metaphors, no similes, no poetic expressions. Image models interpret text literally — figurative language produces wrong images. Write only what is physically visible.
-  BAD: "the door looms like a wall of fear" → GOOD: "a closed wooden door filling the upper half of the frame"
-  BAD: "her courage gathers like a held breath" → GOOD: "her chin lifted, eyes closed, one hand flat on her chest"
-  BAD: "light falls like a spotlight on her isolation" → GOOD: "overhead fluorescent light illuminates the top of her head and her open hand"
-— Never carry story metaphors literally into your directions. "A knot in her stomach" must NOT become a knot shape.
+${literalRulesBlock}— Never carry story metaphors literally into your directions. "A knot in her stomach" must NOT become a knot shape.
 — Never name emotions in key_physical_detail ("tight with fear" is wrong; "fingers white at the knuckle" is right).
 — moment must be a single frozen instant, not a sequence.
 — Think about what a child looking at this page will notice first.
-— Avoid visual elements that would require text labels to read (door numbers, signs, classroom labels). The image must work without any text.
+${textLabelsRule}
 
 OUTPUT: Reply with ONLY valid JSON (no markdown fences, no explanation):
 {
@@ -150,6 +179,7 @@ The sceneDirections array must have exactly ${targetPages.length} elements, one 
 /**
  * @param allPages   Every page of the story — gives Claude the full narrative arc.
  * @param targetPages The subset of pages to illustrate — Claude produces one direction per entry.
+ * @param mode       "literal" (default — exp-09d behaviour) or "figurative" (exp-09c).
  */
 export async function callClaudeForSceneDirections(
   allPages: PageIllustration[],
@@ -157,8 +187,9 @@ export async function callClaudeForSceneDirections(
   brief: StoryBrief,
   bible: StyleBible,
   model = "claude-sonnet-4-6",
+  mode: SceneDirectorMode = "literal",
 ): Promise<SceneDirection[]> {
-  const prompt = buildSceneDirectorPrompt(allPages, targetPages, brief, bible);
+  const prompt = buildSceneDirectorPrompt(allPages, targetPages, brief, bible, mode);
 
   const response = await client.messages.create({
     model,
@@ -214,6 +245,7 @@ function buildPromptConverterPrompt(
   pages: PageIllustration[],
   directions: SceneDirection[],
   bible: StyleBible,
+  mode: SceneDirectorMode,
 ): string {
   const envJson = Object.entries(bible.environmentRegistry)
     .map(
@@ -237,6 +269,50 @@ Art direction:
     })
     .join("\n\n---\n\n");
 
+  // Literal mode pushes Claude to write only what is physically visible in the
+  // current camera frame and removes the requirement that the character be on
+  // a named piece of furniture (close-ups don't need backgrounds). Figurative
+  // mode keeps the older rules which require spatialLayout props and furniture
+  // anchoring — this matches exp-09c output before the literal-language fix.
+  const settingDescription =
+    mode === "literal"
+      ? `"<registry key> | <light state> | <only props VISIBLE in this specific camera frame>"
+Use the EXACT registry key from the environment registry. ONLY list props that would actually be visible given this shot's camera angle and distance. A floor-level close-up on feet shows tiles and maybe a door base — not the whole hallway. A tight face shot shows nothing behind the character. NEVER include room numbers, door numbers, signs, or any element that would require text to read. Props are described by appearance, not by label ("closed wooden door" not "door to Room 4").`
+      : `"<registry key> | <light state> | <2–3 props from spatialLayout with their positions>"
+Use the EXACT registry key from the environment registry. Only reference props that appear in spatialLayout.`;
+
+  const characterDescription =
+    mode === "literal"
+      ? `"<body position and surface contact> | <exact limb positions, weight distribution, gaze direction — NO emotion words>"
+Translate key_physical_detail directly. Do not require a named piece of furniture if the camera frame doesn't show one.`
+      : `"<furniture or surface the character is on/in> | <body language: translate key_physical_detail into exact limb positions, weight, gaze — NO emotion words>"
+This field must reflect the moment and key_physical_detail precisely.`;
+
+  const focalPointDescription =
+    mode === "literal"
+      ? `The one element the viewer's eye reaches first. Must reflect the visual_hook.`
+      : `The one element the viewer's eye reaches first. Should reflect the visual_hook.`;
+
+  const compositionDescription =
+    mode === "literal"
+      ? `Translate the camera field exactly: "<framing> | <angle> | <foreground/midground/background>"`
+      : `Translate the camera field: "<framing> | <angle> | <foreground/midground/background>"`;
+
+  const criticalRules =
+    mode === "literal"
+      ? `— LITERAL LANGUAGE ONLY in every output field. No metaphors, no similes, no figurative expressions. Image generation models read text literally — "a shadow of doubt" would produce a literal shadow shaped like doubt; "arms hanging like weights" would produce arms shaped like weights. Write only what is physically visible and measurable.
+  BAD: "the vast emptiness between them" → GOOD: "an empty stretch of hallway tile between the two children"
+  BAD: "light catching the only hope in the room" → GOOD: "pale light from the corridor window falling on her open hand"
+  BAD: "she stands rooted to the spot" → GOOD: "both feet flat on the floor, knees slightly bent, no forward lean"
+— Translate moment into exact body positions — never paraphrase, never emotion words.
+— setting must only describe what is VISIBLE in this specific frame — not the whole room.
+— Never mention room numbers, door numbers, signs, or any text-based identifier.
+— Each page's setting must feel like a different visual environment even if in the same room — vary what's in frame.`
+      : `— Translate moment into exact body positions — not paraphrase, not emotion words.
+— setting positions must match spatialLayout exactly — do not move furniture.
+— Never use metaphors from the story text literally.
+— The character field must always place the character on/in a named piece of furniture.`;
+
   return `You are a technical image-prompt writer for an AI illustration system (Seedream 4.0).
 
 You receive a creative SCENE DIRECTION from an art director and convert it into a precise 5-section SCENE PROMPT.
@@ -256,31 +332,22 @@ ${pageBlocks}
 For each page, produce the 5 sections. Every field has a strict word budget — stay under it.
 
 setting (under 20 words):
-"<registry key> | <light state> | <only props VISIBLE in this specific camera frame>"
-Use the EXACT registry key from the environment registry. ONLY list props that would actually be visible given this shot's camera angle and distance. A floor-level close-up on feet shows tiles and maybe a door base — not the whole hallway. A tight face shot shows nothing behind the character. NEVER include room numbers, door numbers, signs, or any element that would require text to read. Props are described by appearance, not by label ("closed wooden door" not "door to Room 4").
+${settingDescription}
 
 character (under 20 words):
-"<body position and surface contact> | <exact limb positions, weight distribution, gaze direction — NO emotion words>"
-Translate key_physical_detail directly. Do not require a named piece of furniture if the camera frame doesn't show one.
+${characterDescription}
 
 focalPoint (under 10 words):
-The one element the viewer's eye reaches first. Must reflect the visual_hook.
+${focalPointDescription}
 
 composition (under 15 words):
-Translate the camera field exactly: "<framing> | <angle> | <foreground/midground/background>"
+${compositionDescription}
 
 lighting (under 25 words):
 Translate the visual_hook's lighting decision: "<source + position> | <quality> | <what it illuminates> | <what it leaves in shadow> | mood: <one word>"
 
 CRITICAL RULES:
-— LITERAL LANGUAGE ONLY in every output field. No metaphors, no similes, no figurative expressions. Image generation models read text literally — "a shadow of doubt" would produce a literal shadow shaped like doubt; "arms hanging like weights" would produce arms shaped like weights. Write only what is physically visible and measurable.
-  BAD: "the vast emptiness between them" → GOOD: "an empty stretch of hallway tile between the two children"
-  BAD: "light catching the only hope in the room" → GOOD: "pale light from the corridor window falling on her open hand"
-  BAD: "she stands rooted to the spot" → GOOD: "both feet flat on the floor, knees slightly bent, no forward lean"
-— Translate moment into exact body positions — never paraphrase, never emotion words.
-— setting must only describe what is VISIBLE in this specific frame — not the whole room.
-— Never mention room numbers, door numbers, signs, or any text-based identifier.
-— Each page's setting must feel like a different visual environment even if in the same room — vary what's in frame.
+${criticalRules}
 
 OUTPUT: Reply with ONLY valid JSON (no markdown fences):
 {
@@ -303,8 +370,9 @@ export async function callClaudeForPromptsFromDirections(
   directions: SceneDirection[],
   bible: StyleBible,
   model = "claude-sonnet-4-6",
+  mode: SceneDirectorMode = "literal",
 ): Promise<ScenePromptSections[]> {
-  const prompt = buildPromptConverterPrompt(pages, directions, bible);
+  const prompt = buildPromptConverterPrompt(pages, directions, bible, mode);
 
   const response = await client.messages.create({
     model,

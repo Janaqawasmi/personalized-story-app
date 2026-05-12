@@ -13,6 +13,7 @@ import { avatarEnvironmentVariant } from "./avatar-environment";
 import { sceneDIrectorVariant } from "./scene-director";
 import { sceneDIrectorAvatarVariant } from "./scene-director-avatar";
 import { sceneDIrectorAvatarOnlyVariant } from "./scene-director-avatar-only";
+import { literalScenesVariant } from "./literal-scenes";
 
 export const VARIANTS: Record<string, ExperimentVariant> = {
   [baselineVariant.id]: baselineVariant,
@@ -29,8 +30,10 @@ export const VARIANTS: Record<string, ExperimentVariant> = {
   [sceneDIrectorVariant.id]: sceneDIrectorVariant,
   // exp-09b: scene director + dual reference (avatar + environment images)
   [sceneDIrectorAvatarVariant.id]: sceneDIrectorAvatarVariant,
-  // exp-09c: scene director + avatar reference only, env locked via verbose text
+  // exp-09c: scene director + avatar reference only, env locked via verbose text (figurative mode)
   [sceneDIrectorAvatarOnlyVariant.id]: sceneDIrectorAvatarOnlyVariant,
+  // exp-09d: same pipeline as 09c but scene-director runs in literal mode (no metaphor / simile)
+  [literalScenesVariant.id]: literalScenesVariant,
 };
 
 export function getVariant(id: string): ExperimentVariant {
