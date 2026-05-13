@@ -16,6 +16,7 @@ import type {
 } from "../../types/illustration";
 import type { EditHistoryEntry, Story } from "../../types/story";
 import { STORIES_COLLECTION } from "../../types/story";
+import { useAuth } from "../../contexts/AuthContext";
 import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
 
 const JOBS = "illustrationJobs";
@@ -217,6 +218,7 @@ function latestVisualBibleRegenJob(jobs: IllustrationJob[]): IllustrationJob | n
 }
 
 export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewModel {
+  const { currentUser, loading: authLoading } = useAuth();
   const [story, setStory] = useState<Story | null>(null);
   const [jobs, setJobs] = useState<IllustrationJob[]>([]);
   const [images, setImages] = useState<ImageArtefact[]>([]);
@@ -224,76 +226,91 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
   const [visualBibles, setVisualBibles] = useState<VisualBibleArtefact[]>([]);
 
   useEffect(() => {
-    const unsubStory = onSnapshot(doc(db, STORIES_COLLECTION, storyId), (snap) => {
-      if (!snap.exists()) {
-        setStory(null);
-        return;
-      }
-      const raw = { id: storyId, ...snap.data() } as Story;
-      const withDefaults: Story = {
-        ...raw,
-        illustrationPages: raw.illustrationPages ?? null,
-        currentVisualBibleVersion: raw.currentVisualBibleVersion ?? null,
-        illustrationWorkspaceOpenedAt: raw.illustrationWorkspaceOpenedAt ?? null,
-      };
-      setStory(normalizeStoryFromApi(withDefaults));
-    });
+    if (authLoading || !currentUser) {
+      return undefined;
+    }
 
-    const q = query(
-      collection(db, STORIES_COLLECTION, storyId, JOBS),
-      orderBy("enqueuedAt", "desc"),
-      limit(25),
-    );
-    const unsubJobs = onSnapshot(q, (snap) => {
-      const list: IllustrationJob[] = [];
-      snap.forEach((d) => {
-        const data = d.data() as Omit<IllustrationJob, "id">;
-        list.push({ ...data, id: d.id });
+    let active = true;
+    const unsubs: Array<() => void> = [];
+
+    void (async () => {
+      // Firestore rules require custom claims (specialist/admin). Refresh so claims
+      // set via Admin SDK are present before listeners attach (matches caregiver flow).
+      await currentUser.getIdToken(true).catch(() => undefined);
+      if (!active) return;
+
+      const unsubStory = onSnapshot(doc(db, STORIES_COLLECTION, storyId), (snap) => {
+        if (!snap.exists()) {
+          setStory(null);
+          return;
+        }
+        const raw = { id: storyId, ...snap.data() } as Story;
+        const withDefaults: Story = {
+          ...raw,
+          illustrationPages: raw.illustrationPages ?? null,
+          currentVisualBibleVersion: raw.currentVisualBibleVersion ?? null,
+          illustrationWorkspaceOpenedAt: raw.illustrationWorkspaceOpenedAt ?? null,
+        };
+        setStory(normalizeStoryFromApi(withDefaults));
       });
-      setJobs(list);
-    });
 
-    const unsubImages = onSnapshot(
-      collection(db, STORIES_COLLECTION, storyId, IMAGES),
-      (snap) => {
-        const list: ImageArtefact[] = [];
+      const q = query(
+        collection(db, STORIES_COLLECTION, storyId, JOBS),
+        orderBy("enqueuedAt", "desc"),
+        limit(25),
+      );
+      const unsubJobs = onSnapshot(q, (snap) => {
+        const list: IllustrationJob[] = [];
         snap.forEach((d) => {
-          list.push(d.data() as ImageArtefact);
+          const data = d.data() as Omit<IllustrationJob, "id">;
+          list.push({ ...data, id: d.id });
         });
-        setImages(list);
-      },
-    );
+        setJobs(list);
+      });
 
-    const unsubScenePlans = onSnapshot(
-      collection(db, STORIES_COLLECTION, storyId, SCENE_PLANS),
-      (snap) => {
-        const list: ScenePlanArtefact[] = [];
-        snap.forEach((d) => {
-          list.push(d.data() as ScenePlanArtefact);
-        });
-        setScenePlans(list);
-      },
-    );
+      const unsubImages = onSnapshot(
+        collection(db, STORIES_COLLECTION, storyId, IMAGES),
+        (snap) => {
+          const list: ImageArtefact[] = [];
+          snap.forEach((d) => {
+            list.push(d.data() as ImageArtefact);
+          });
+          setImages(list);
+        },
+      );
 
-    const unsubVb = onSnapshot(
-      collection(db, STORIES_COLLECTION, storyId, VISUAL_BIBLES),
-      (snap) => {
-        const list: VisualBibleArtefact[] = [];
-        snap.forEach((d) => {
-          list.push(d.data() as VisualBibleArtefact);
-        });
-        setVisualBibles(list);
-      },
-    );
+      const unsubScenePlans = onSnapshot(
+        collection(db, STORIES_COLLECTION, storyId, SCENE_PLANS),
+        (snap) => {
+          const list: ScenePlanArtefact[] = [];
+          snap.forEach((d) => {
+            list.push(d.data() as ScenePlanArtefact);
+          });
+          setScenePlans(list);
+        },
+      );
+
+      const unsubVb = onSnapshot(
+        collection(db, STORIES_COLLECTION, storyId, VISUAL_BIBLES),
+        (snap) => {
+          const list: VisualBibleArtefact[] = [];
+          snap.forEach((d) => {
+            list.push(d.data() as VisualBibleArtefact);
+          });
+          setVisualBibles(list);
+        },
+      );
+
+      unsubs.push(unsubStory, unsubJobs, unsubImages, unsubScenePlans, unsubVb);
+    })();
 
     return () => {
-      unsubStory();
-      unsubJobs();
-      unsubImages();
-      unsubScenePlans();
-      unsubVb();
+      active = false;
+      unsubs.forEach((u) => {
+        u();
+      });
     };
-  }, [storyId]);
+  }, [storyId, authLoading, currentUser]);
 
   return useMemo((): WorkspaceViewModel => {
     if (!story) return { kind: "loading" };
