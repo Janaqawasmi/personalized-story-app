@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, type Dispatch, type SetStateAction } from "react";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Typography from "@mui/material/Typography";
@@ -10,20 +10,42 @@ import BookSpread, { type BookSpreadHandle } from "./BookSpread";
 import type { BookReaderModel } from "./BookReaderModel";
 import { useLanguage } from "../../i18n/context/LanguageContext";
 
+/** Parent-managed navigation (e.g. specialist approval dialog footer). */
+export interface BookReaderChromelessNav {
+  showCover: boolean;
+  spreadIndex: number;
+  setShowCover: Dispatch<SetStateAction<boolean>>;
+  setSpreadIndex: Dispatch<SetStateAction<number>>;
+}
+
 interface Props {
   model: BookReaderModel;
-  onClose: () => void;
+  onClose?: () => void;
+  /** When set, navigation is controlled by the parent instead of internal state. */
+  nav?: BookReaderChromelessNav;
+  /** Hide sticky close row and internal prev/next strip (parent supplies chrome). */
+  chromeless?: boolean;
 }
 
 /**
  * Read-only book spread experience for specialist approval preview.
  * Reuses {@link BookCover} + {@link BookSpread} without personalization or commerce gates.
  */
-export default function BookReaderCore({ model, onClose }: Props) {
+export default function BookReaderCore({
+  model,
+  onClose,
+  nav,
+  chromeless = false,
+}: Props) {
   const { language: uiLanguage } = useLanguage();
-  const [showCover, setShowCover] = useState(true);
-  const [spreadIndex, setSpreadIndex] = useState(0);
+  const [internalShowCover, setInternalShowCover] = useState(true);
+  const [internalSpreadIndex, setInternalSpreadIndex] = useState(0);
   const bookSpreadRef = useRef<BookSpreadHandle | null>(null);
+
+  const showCover = nav ? nav.showCover : internalShowCover;
+  const setShowCover = nav ? nav.setShowCover : setInternalShowCover;
+  const spreadIndex = nav ? nav.spreadIndex : internalSpreadIndex;
+  const setSpreadIndex = nav ? nav.setSpreadIndex : setInternalSpreadIndex;
 
   const isRTL = model.language === "he" || model.language === "ar";
 
@@ -49,31 +71,33 @@ export default function BookReaderCore({ model, onClose }: Props) {
   return (
     <Box
       sx={{
-        minHeight: "70vh",
-        maxHeight: "90vh",
-        overflow: "auto",
-        bgcolor: "background.default",
+        minHeight: chromeless ? 0 : "70vh",
+        maxHeight: chromeless ? "none" : "90vh",
+        overflow: chromeless ? "visible" : "auto",
+        bgcolor: chromeless ? "transparent" : "background.default",
         direction: isRTL ? "rtl" : "ltr",
         position: "relative",
       }}
     >
-      <Box
-        sx={{
-          position: "sticky",
-          top: 0,
-          zIndex: 2,
-          display: "flex",
-          justifyContent: "flex-end",
-          p: 1,
-          bgcolor: "background.paper",
-          borderBottom: 1,
-          borderColor: "divider",
-        }}
-      >
-        <IconButton onClick={onClose} aria-label="Close preview">
-          <CloseIcon />
-        </IconButton>
-      </Box>
+      {!chromeless && onClose ? (
+        <Box
+          sx={{
+            position: "sticky",
+            top: 0,
+            zIndex: 2,
+            display: "flex",
+            justifyContent: "flex-end",
+            p: 1,
+            bgcolor: "background.paper",
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          <IconButton onClick={onClose} aria-label="Close preview">
+            <CloseIcon />
+          </IconButton>
+        </Box>
+      ) : null}
 
       {showCover ? (
         <BookCover
@@ -88,36 +112,38 @@ export default function BookReaderCore({ model, onClose }: Props) {
           childName={model.childDisplayName ?? undefined}
         />
       ) : (
-        <Box sx={{ px: 2, pb: 4, pt: 2 }}>
-          <Box
-            sx={{
-              maxWidth: 1200,
-              mx: "auto",
-              mb: 2,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 2,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <IconButton onClick={() => setSpreadIndex((i) => Math.max(0, i - 1))} disabled={!canGoPrev}>
-                <ArrowBackIosNewIcon />
-              </IconButton>
-              <IconButton
-                onClick={() => setSpreadIndex((i) => Math.min(model.pages.length - 1, i + 1))}
-                disabled={!canGoNext}
-              >
-                <ArrowForwardIosIcon />
-              </IconButton>
-              <Typography variant="body2" color="text.secondary">
-                {spreadIndex + 1} / {model.pages.length}
+        <Box sx={{ px: chromeless ? 0 : 2, pb: chromeless ? 2 : 4, pt: chromeless ? 0 : 2 }}>
+          {!chromeless ? (
+            <Box
+              sx={{
+                maxWidth: 1200,
+                mx: "auto",
+                mb: 2,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <IconButton onClick={() => setSpreadIndex((i) => Math.max(0, i - 1))} disabled={!canGoPrev}>
+                  <ArrowBackIosNewIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => setSpreadIndex((i) => Math.min(model.pages.length - 1, i + 1))}
+                  disabled={!canGoNext}
+                >
+                  <ArrowForwardIosIcon />
+                </IconButton>
+                <Typography variant="body2" color="text.secondary">
+                  {spreadIndex + 1} / {model.pages.length}
+                </Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                Approval preview (read-only)
               </Typography>
             </Box>
-            <Typography variant="caption" color="text.secondary">
-              Approval preview (read-only)
-            </Typography>
-          </Box>
+          ) : null}
 
           <Box
             dir="ltr"

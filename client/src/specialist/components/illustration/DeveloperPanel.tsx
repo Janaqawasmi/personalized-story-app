@@ -19,6 +19,8 @@ interface Props {
   scenePlanVersion: number;
   imageVersion: number | null;
   currentVisualBibleVersion: number;
+  /** Dark-shell layout for {@link TechnicalPanel}; omits outer “Developer” chrome. */
+  embedded?: boolean;
 }
 
 export default function DeveloperPanel({
@@ -27,6 +29,7 @@ export default function DeveloperPanel({
   scenePlanVersion,
   imageVersion,
   currentVisualBibleVersion,
+  embedded = false,
 }: Props) {
   const [sp, setSp] = useState<ScenePlanArtefact | null>(null);
   const [finalPrompts, setFinalPrompts] = useState<FinalPromptArtefact[]>([]);
@@ -87,72 +90,120 @@ export default function DeveloperPanel({
     }
   };
 
+  const accSx = embedded
+    ? {
+        border: "1px solid rgba(255,255,255,0.12)",
+        bgcolor: "rgba(255,255,255,0.04)",
+        color: "#e9dfd2",
+        "&:before": { display: "none" },
+      }
+    : { border: 1, borderColor: "divider" as const };
+
+  const sumSx = embedded
+    ? { color: "#e9dfd2", minHeight: 44, "& .MuiAccordionSummary-content": { my: 1 } }
+    : undefined;
+
+  const expandIc = <ExpandMoreIcon fontSize="small" sx={{ color: embedded ? "#e9dfd2" : undefined }} />;
+
+  const capMutedSx = embedded ? { color: "rgba(233,223,210,0.65)" } : undefined;
+  const bodyInkSx = embedded ? { color: "#e9dfd2" } : undefined;
+
   return (
-    <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider" }}>
-      <Typography variant="overline" color="text.secondary" display="block" sx={{ mb: 1 }}>
-        Developer
-      </Typography>
+    <Box
+      sx={
+        embedded
+          ? { mt: 0, pt: 0, borderTop: "none" }
+          : { mt: 2, pt: 2, borderTop: 1, borderColor: "divider" }
+      }
+    >
+      {!embedded ? (
+        <Typography variant="overline" color="text.secondary" display="block" sx={{ mb: 1 }}>
+          Developer
+        </Typography>
+      ) : null}
       <Stack spacing={1}>
-        <Accordion disableGutters elevation={0} sx={{ border: 1, borderColor: "divider" }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />}>
-            <Typography variant="subtitle2">Scene Plan</Typography>
+        <Accordion disableGutters elevation={0} sx={accSx}>
+          <AccordionSummary expandIcon={expandIc} sx={sumSx}>
+            <Typography variant="subtitle2" sx={bodyInkSx}>
+              Scene Plan
+            </Typography>
           </AccordionSummary>
           <AccordionDetails>
             {sp ? (
               <Stack spacing={1}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color={embedded ? undefined : "text.secondary"}
+                  sx={capMutedSx}
+                >
                   v{sp.version} · {sp.llmCall.model} · in {sp.llmCall.latencyMs}ms · tokens{" "}
                   {sp.llmCall.inputTokens}/{sp.llmCall.outputTokens} · scene VB v
                   {sp.visualBibleVersion} (current story VB v{currentVisualBibleVersion})
                 </Typography>
-                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
+                <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", ...bodyInkSx }}>
                   {sp.prose}
                 </Typography>
-                <Accordion>
-                  <AccordionSummary>Raw LLM prompt / response</AccordionSummary>
+                <Accordion sx={embedded ? accSx : undefined}>
+                  <AccordionSummary expandIcon={expandIc} sx={sumSx}>
+                    <Typography variant="subtitle2" sx={bodyInkSx}>
+                      Raw LLM prompt / response
+                    </Typography>
+                  </AccordionSummary>
                   <AccordionDetails>
-                    <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
+                    <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", ...capMutedSx }}>
                       {sp.llmCall.prompt}
                     </Typography>
-                    <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", mt: 1 }}>
+                    <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", mt: 1, ...capMutedSx }}>
                       {sp.llmCall.response}
                     </Typography>
                   </AccordionDetails>
                 </Accordion>
               </Stack>
             ) : (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color={embedded ? undefined : "text.secondary"} sx={bodyInkSx}>
                 No scene plan loaded.
               </Typography>
             )}
           </AccordionDetails>
         </Accordion>
 
-        <Accordion disableGutters elevation={0} sx={{ border: 1, borderColor: "divider" }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />}>
-            <Typography variant="subtitle2">Structured Prompt</Typography>
+        <Accordion disableGutters elevation={0} sx={accSx}>
+          <AccordionSummary expandIcon={expandIc} sx={sumSx}>
+            <Typography variant="subtitle2" sx={bodyInkSx}>
+              Structured Prompt
+            </Typography>
           </AccordionSummary>
           <AccordionDetails>
             {sp?.structuredPrompt ? (
               <Stack spacing={1}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color={embedded ? undefined : "text.secondary"}
+                  sx={capMutedSx}
+                >
                   Stage 2 · {sp.stage2LLMCall?.model ?? "—"} · {sp.stage2LLMCall?.latencyMs ?? "—"}ms
                 </Typography>
                 {(["setting", "character", "focalPoint", "composition", "lighting"] as const).map(
                   (k) => (
                     <Box key={k}>
-                      <Typography variant="caption" fontWeight={600}>
+                      <Typography variant="caption" fontWeight={600} sx={capMutedSx}>
                         {k}
                       </Typography>
-                      <Typography variant="body2">{sp.structuredPrompt![k]}</Typography>
+                      <Typography variant="body2" sx={bodyInkSx}>
+                        {sp.structuredPrompt![k]}
+                      </Typography>
                     </Box>
                   ),
                 )}
                 {sp.stage2LLMCall ? (
-                  <Accordion>
-                    <AccordionSummary>Raw Stage 2 prompt</AccordionSummary>
+                  <Accordion sx={embedded ? accSx : undefined}>
+                    <AccordionSummary expandIcon={expandIc} sx={sumSx}>
+                      <Typography variant="subtitle2" sx={bodyInkSx}>
+                        Raw Stage 2 prompt
+                      </Typography>
+                    </AccordionSummary>
                     <AccordionDetails>
-                      <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
+                      <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", ...capMutedSx }}>
                         {sp.stage2LLMCall.prompt}
                       </Typography>
                     </AccordionDetails>
@@ -160,7 +211,7 @@ export default function DeveloperPanel({
                 ) : null}
               </Stack>
             ) : (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color={embedded ? undefined : "text.secondary"} sx={bodyInkSx}>
                 Not written yet. The structured prompt is created when you click Generate and Stage 2
                 (prompt engineer) finishes successfully.
               </Typography>
@@ -168,27 +219,39 @@ export default function DeveloperPanel({
           </AccordionDetails>
         </Accordion>
 
-        <Accordion disableGutters elevation={0} sx={{ border: 1, borderColor: "divider" }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />}>
-            <Typography variant="subtitle2">Final Image-Model Prompt</Typography>
+        <Accordion disableGutters elevation={0} sx={accSx}>
+          <AccordionSummary expandIcon={expandIc} sx={sumSx}>
+            <Typography variant="subtitle2" sx={bodyInkSx}>
+              Final Image-Model Prompt
+            </Typography>
           </AccordionSummary>
           <AccordionDetails>
             {fp ? (
               <Stack spacing={1}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color={embedded ? undefined : "text.secondary"}
+                  sx={capMutedSx}
+                >
                   v{fp.version} · {fp.charCount} chars · order: {fp.promptOrder.join(" → ")}
                 </Typography>
                 <Stack direction="row" gap={1}>
-                  <Button size="small" startIcon={<ContentCopyIcon />} onClick={() => copy(fp.finalPromptString)}>
+                  <Button
+                    size="small"
+                    startIcon={<ContentCopyIcon />}
+                    onClick={() => copy(fp.finalPromptString)}
+                    sx={embedded ? { color: "#e9dfd2", borderColor: "rgba(255,255,255,0.35)" } : undefined}
+                    variant={embedded ? "outlined" : "text"}
+                  >
                     Copy
                   </Button>
                 </Stack>
-                <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
+                <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", ...capMutedSx }}>
                   {fp.finalPromptString}
                 </Typography>
               </Stack>
             ) : (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color={embedded ? undefined : "text.secondary"} sx={bodyInkSx}>
                 {fpsForPage.length > 0 ? (
                   <>
                     No final prompt for scene plan v{scenePlanVersion} yet (older prompts may exist
@@ -202,30 +265,36 @@ export default function DeveloperPanel({
           </AccordionDetails>
         </Accordion>
 
-        <Accordion disableGutters elevation={0} sx={{ border: 1, borderColor: "divider" }}>
-          <AccordionSummary expandIcon={<ExpandMoreIcon fontSize="small" />}>
-            <Typography variant="subtitle2">Image</Typography>
+        <Accordion disableGutters elevation={0} sx={accSx}>
+          <AccordionSummary expandIcon={expandIc} sx={sumSx}>
+            <Typography variant="subtitle2" sx={bodyInkSx}>
+              Image
+            </Typography>
           </AccordionSummary>
           <AccordionDetails>
             {img ? (
               <Stack spacing={0.5}>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color={embedded ? undefined : "text.secondary"}
+                  sx={capMutedSx}
+                >
                   {img.providerId} · {img.modelId} · {img.latencyMs}ms · {img.mimeType} · {img.bytes}{" "}
                   bytes
                 </Typography>
-                <Typography variant="caption" component="div">
+                <Typography variant="caption" component="div" sx={bodyInkSx}>
                   review: {img.reviewStatus}
                 </Typography>
-                <Typography variant="caption" component="div" sx={{ fontWeight: 600 }}>
+                <Typography variant="caption" component="div" sx={{ fontWeight: 600, ...bodyInkSx }}>
                   Safety checks:{" "}
                   {(img.safetyFlags?.length ?? 0) === 0 ? "No flags raised" : img.safetyFlags!.join(", ")}
                 </Typography>
-                <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
+                <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", ...capMutedSx }}>
                   {img.storagePath}
                 </Typography>
               </Stack>
             ) : (
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant="body2" color={embedded ? undefined : "text.secondary"} sx={bodyInkSx}>
                 {imageVersion === null
                   ? "No image on this page yet — click Generate to run the image step (Stage 4)."
                   : `No image document for page ${pageNumber} image v${imageVersion} (still generating, failed, or not written).`}

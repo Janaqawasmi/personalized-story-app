@@ -1,11 +1,5 @@
 import { useState } from "react";
 import { Link as RouterLink, useParams } from "react-router-dom";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
@@ -14,10 +8,10 @@ import type { Story } from "../../../types/story";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
 import type { BookReaderModel } from "../../../components/book/BookReaderModel";
 import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
-import PageCard from "./PageCard";
-import VisualBibleCard from "./VisualBibleCard";
 import ApprovalPreviewDialog from "./ApprovalPreviewDialog";
 import PublishDialog from "./PublishDialog";
+import GalleryPanel from "./panels/GalleryPanel";
+import WorkspacePanel from "./WorkspacePanel";
 
 interface Props {
   story: Story;
@@ -34,6 +28,8 @@ interface Props {
   onApprovePage: (pageNumber: number) => Promise<void>;
   onRejectPage: (pageNumber: number, note: string) => Promise<void>;
   onRegenerateScenePlan: (pageNumber: number, feedbackNote?: string) => Promise<void>;
+  onRegenerateAllScenePlans: () => Promise<void>;
+  onGenerateAllPageImages: () => Promise<void>;
   onMarkReady: () => Promise<void>;
 }
 
@@ -52,21 +48,16 @@ export default function WorkspacePreview({
   onApprovePage,
   onRejectPage,
   onRegenerateScenePlan,
+  onRegenerateAllScenePlans,
+  onGenerateAllPageImages,
   onMarkReady,
 }: Props) {
   const { lang } = useParams<{ lang: string }>();
   const devGate = useIllustrationDevPanelsGate();
   const showDebugLink = devGate.ready && devGate.allowed;
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [markBusy, setMarkBusy] = useState(false);
-  const [markErr, setMarkErr] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-
-  const vbRegenBusy =
-    visualBibleRegenJob !== null &&
-    (visualBibleRegenJob.status === "pending" || visualBibleRegenJob.status === "running");
 
   const canPreview =
     !!previewModel &&
@@ -81,6 +72,11 @@ export default function WorkspacePreview({
     lang && story.publishedTemplateId
       ? `/${lang}/stories/${encodeURIComponent(story.publishedTemplateId)}`
       : null;
+
+  const panelReadOnly = readOnly || showPublishedBanner;
+
+  const showGalleryHero =
+    story.status === "illustration_ready" || story.status === "published";
 
   return (
     <Stack spacing={3}>
@@ -102,16 +98,6 @@ export default function WorkspacePreview({
         </Typography>
       ) : null}
 
-      <VisualBibleCard
-        storyId={storyId}
-        readOnly={readOnly || showPublishedBanner}
-        currentVersion={visualBibleVersion}
-        visualBible={visualBible}
-        visualBibleVersionsDesc={visualBibleVersionsDesc}
-        visualBibleRegenBusy={vbRegenBusy}
-        visualBibleRegenJobId={visualBibleRegenJob?.id ?? null}
-      />
-
       {showDebugLink && lang ? (
         <Typography variant="body2">
           <RouterLink to={`/${lang}/specialist/stories/${storyId}/illustration/debug`}>
@@ -120,75 +106,54 @@ export default function WorkspacePreview({
         </Typography>
       ) : null}
 
-      <Typography variant="subtitle1" fontWeight={700} sx={{ pt: 1 }}>
-        Pages
-      </Typography>
+      {showGalleryHero && lang ? (
+        <GalleryPanel
+          published={story.status === "published"}
+          storyTitle={story.title?.trim() ?? ""}
+          storyId={storyId}
+          lang={lang}
+          pages={pages}
+          canPreview={canPreview}
+          onPreviewClick={() => setPreviewOpen(true)}
+          onPublishClick={() => setPublishOpen(true)}
+        />
+      ) : null}
 
-      <Stack spacing={3}>
-        {pages.map((page) => (
-          <PageCard
-            key={page.pageNumber}
-            storyId={storyId}
-            page={page}
-            readOnly={readOnly || showPublishedBanner}
-            currentVisualBibleVersion={visualBibleVersion}
-            onGenerate={() => onGeneratePage(page.pageNumber)}
-            onApprove={() => onApprovePage(page.pageNumber)}
-            onReject={(note) => onRejectPage(page.pageNumber, note)}
-            onRegenerateScenePlan={(feedbackNote) =>
-              onRegenerateScenePlan(page.pageNumber, feedbackNote)
-            }
-          />
-        ))}
-      </Stack>
-
-      <Box
-        sx={{
-          position: "sticky",
-          bottom: 0,
-          py: 2,
-          mt: 2,
-          borderTop: 1,
-          borderColor: "divider",
-          bgcolor: "background.paper",
-        }}
-      >
-        <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
-          {canPreview ? (
-            <Button variant="outlined" onClick={() => setPreviewOpen(true)}>
-              Preview as published book
-            </Button>
-          ) : null}
-          {showMarkReady ? (
-            <Button
-              variant="contained"
-              color="primary"
-              disabled={markBusy}
-              onClick={() => {
-                setMarkErr(null);
-                setConfirmOpen(true);
-              }}
-            >
-              Mark as ready to publish
-            </Button>
-          ) : null}
-          {showPublish ? (
-            <Button variant="contained" color="primary" onClick={() => setPublishOpen(true)}>
-              Publish to library
-            </Button>
-          ) : null}
-          {markErr ? (
-            <Typography variant="body2" color="error">
-              {markErr}
-            </Typography>
-          ) : null}
-        </Stack>
-      </Box>
+      <WorkspacePanel
+        storyId={storyId}
+        visualBibleVersion={visualBibleVersion}
+        visualBible={visualBible}
+        visualBibleVersionsDesc={visualBibleVersionsDesc}
+        visualBibleRegenJob={visualBibleRegenJob}
+        pages={pages}
+        readOnly={panelReadOnly}
+        allApproved={allApproved}
+        canPreview={canPreview}
+        showMarkReady={showMarkReady}
+        showPublish={showPublish}
+        onGeneratePage={onGeneratePage}
+        onApprovePage={onApprovePage}
+        onRejectPage={onRejectPage}
+        onRegenerateScenePlan={onRegenerateScenePlan}
+        onRegenerateAllScenePlans={onRegenerateAllScenePlans}
+        onGenerateAllPageImages={onGenerateAllPageImages}
+        onMarkReady={onMarkReady}
+        onPreviewClick={() => setPreviewOpen(true)}
+        onPublishClick={() => setPublishOpen(true)}
+      />
 
       <ApprovalPreviewDialog
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         model={previewModel}
+        onPublishFromPreview={
+          showPublish
+            ? () => {
+                setPreviewOpen(false);
+                setPublishOpen(true);
+              }
+            : undefined
+        }
       />
 
       <PublishDialog
@@ -206,35 +171,6 @@ export default function WorkspacePreview({
         onClose={() => setToast(null)}
         message={toast ?? ""}
       />
-
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Mark ready to publish?</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            All {pages.length} pages are approved. Mark this story ready to publish?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={async () => {
-              setMarkBusy(true);
-              setMarkErr(null);
-              try {
-                await onMarkReady();
-                setConfirmOpen(false);
-              } catch (e) {
-                setMarkErr(e instanceof Error ? e.message : String(e));
-              } finally {
-                setMarkBusy(false);
-              }
-            }}
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 }

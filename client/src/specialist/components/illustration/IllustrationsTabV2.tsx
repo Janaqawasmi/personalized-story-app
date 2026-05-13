@@ -14,9 +14,9 @@ import {
 import type { Story } from "../../../types/story";
 import { useSpecialistDeskUi } from "../../../i18n/specialistDeskUi";
 import { useIllustrationWorkspaceState } from "../../hooks/useIllustrationWorkspaceState";
-import ErrorPanel from "./ErrorPanel";
 import LoadingPanel from "./LoadingPanel";
-import PanelACta from "./PanelACta";
+import CtaPanel from "./panels/CtaPanel";
+import PendingPanel from "./panels/PendingPanel";
 import WorkspacePreview from "./WorkspacePreview";
 import CancelJobButton from "./CancelJobButton";
 
@@ -92,6 +92,39 @@ export default function IllustrationsTabV2({ story }: Props) {
     await markIllustrationReadyToPublish(story.id);
   }, [story.id]);
 
+  const handleRegenerateAllScenePlans = useCallback(async () => {
+    if (vm.kind !== "ready") return;
+    setActionError(null);
+    try {
+      for (const p of vm.pages) {
+        await regenerateScenePlan(story.id, p.pageNumber);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setActionError(msg);
+      throw e;
+    }
+  }, [story.id, vm]);
+
+  const handleGenerateAllPageImages = useCallback(async () => {
+    if (vm.kind !== "ready") return;
+    setActionError(null);
+    const targets = vm.pages.filter(
+      (p) =>
+        p.subStatus === "plan_only" ||
+        p.subStatus === "needs_revision" ||
+        p.subStatus === "awaiting_review",
+    );
+    try {
+      for (const p of targets) {
+        await generatePageImage(story.id, p.pageNumber);
+      }
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+      throw e;
+    }
+  }, [story.id, vm]);
+
   if (
     story.status !== "approved" &&
     story.status !== "illustration_workspace" &&
@@ -117,7 +150,7 @@ export default function IllustrationsTabV2({ story }: Props) {
         ) : null}
 
         {vm.kind === "loading" ? (
-          <LoadingPanel message="Loading…" />
+          <LoadingPanel message={desk.workspaceStillLoading} />
         ) : null}
 
         {vm.kind === "illustration_metadata_incomplete" ? (
@@ -125,27 +158,29 @@ export default function IllustrationsTabV2({ story }: Props) {
         ) : null}
 
         {vm.kind === "cta" ? (
-          <PanelACta disabled={false} onOpen={runOpen} />
+          <CtaPanel
+            pageCount={story.pages?.length ?? 0}
+            disabled={false}
+            onOpen={() => void runOpen()}
+          />
         ) : null}
 
         {vm.kind === "pending" ? (
           <Stack spacing={1}>
-            <LoadingPanel message="Queued — starting illustration workspace…" />
+            <PendingPanel variant="pending" />
             <CancelJobButton storyId={story.id} jobId={vm.jobId} />
           </Stack>
         ) : null}
 
         {vm.kind === "running" ? (
           <Stack spacing={1}>
-            <LoadingPanel
-              message={vm.progressHint ?? "Generating illustration workspace…"}
-            />
+            <PendingPanel variant="running" progressHint={vm.progressHint} />
             <CancelJobButton storyId={story.id} jobId={vm.jobId} />
           </Stack>
         ) : null}
 
         {vm.kind === "failed" ? (
-          <ErrorPanel error={vm.error} onRetry={runOpen} />
+          <PendingPanel variant="failed" error={vm.error} onRetry={() => void runOpen()} />
         ) : null}
 
         {vm.kind === "ready" ? (
@@ -164,6 +199,8 @@ export default function IllustrationsTabV2({ story }: Props) {
             onApprovePage={handleApprovePage}
             onRejectPage={handleRejectPage}
             onRegenerateScenePlan={handleRegenerateScenePlan}
+            onRegenerateAllScenePlans={handleRegenerateAllScenePlans}
+            onGenerateAllPageImages={handleGenerateAllPageImages}
             onMarkReady={handleMarkReady}
           />
         ) : null}
