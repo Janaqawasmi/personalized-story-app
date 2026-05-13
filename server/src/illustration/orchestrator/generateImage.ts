@@ -1,3 +1,4 @@
+import type { ScenePlanArtefact, VisualBibleArtefact } from "@/illustration/types";
 import { firestore } from "@/config/firebase";
 import { fillIllustrationV2DocDefaults } from "@/models/story.model";
 import type { Story } from "@/models/story.model";
@@ -55,42 +56,16 @@ export async function markImageGenerationFailedOnStory(params: {
   });
 }
 
-export async function generateImage(params: {
+export async function runStage2Through4(params: {
   storyId: string;
   pageNumber: number;
   uid: string;
+  scenePlan: ScenePlanArtefact;
+  visualBible: VisualBibleArtefact;
+  visualBibleVersion: number;
 }): Promise<{ imageId: string; storagePath: string; publicUrl: string }> {
-  const { storyId, pageNumber, uid } = params;
-  const storyRef = firestore.collection(COLLECTIONS.STORIES).doc(storyId);
-  const snap = await storyRef.get();
-  if (!snap.exists) {
-    throw new IllegalStateGenerateImageError("Story not found");
-  }
-  const story = hydrateStory(storyId, snap.data() as Record<string, unknown>);
-  if (story.status !== "illustration_workspace") {
-    throw new IllegalStateGenerateImageError(
-      `generateImage requires illustration_workspace (got ${story.status})`,
-    );
-  }
-  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
-  if (!row || row.currentScenePlanVersion === null) {
-    throw new IllegalStateGenerateImageError("Missing illustration page or scene plan version");
-  }
-
-  const vbv = story.currentVisualBibleVersion;
-  if (vbv === null) {
-    throw new IllegalStateGenerateImageError("Missing Visual Bible version");
-  }
-
-  let scenePlan = await readScenePlan(storyId, pageNumber, row.currentScenePlanVersion);
-  if (!scenePlan) {
-    throw new IllegalStateGenerateImageError("Scene plan artefact missing");
-  }
-
-  const visualBible = await readVisualBible(storyId, vbv);
-  if (!visualBible) {
-    throw new IllegalStateGenerateImageError("Visual Bible artefact missing");
-  }
+  const { storyId, pageNumber, uid, visualBible, visualBibleVersion } = params;
+  let scenePlan = params.scenePlan;
 
   if (!scenePlan.structuredPrompt) {
     const { structuredPrompt, stage2LLMCall } = await runPromptEngineer({
@@ -113,7 +88,7 @@ export async function generateImage(params: {
     visualBible,
     version: fpVersion,
     parentScenePlanVersion: scenePlan.version,
-    parentVisualBibleVersion: vbv,
+    parentVisualBibleVersion: visualBibleVersion,
   });
   await writeFinalPrompt(storyId, finalPrompt);
 
@@ -155,4 +130,51 @@ export async function generateImage(params: {
     storagePath: imageArtefact.storagePath,
     publicUrl: imageArtefact.publicUrl,
   };
+}
+
+export async function generateImage(params: {
+  storyId: string;
+  pageNumber: number;
+  uid: string;
+}): Promise<{ imageId: string; storagePath: string; publicUrl: string }> {
+  const { storyId, pageNumber, uid } = params;
+  const storyRef = firestore.collection(COLLECTIONS.STORIES).doc(storyId);
+  const snap = await storyRef.get();
+  if (!snap.exists) {
+    throw new IllegalStateGenerateImageError("Story not found");
+  }
+  const story = hydrateStory(storyId, snap.data() as Record<string, unknown>);
+  if (story.status !== "illustration_workspace") {
+    throw new IllegalStateGenerateImageError(
+      `generateImage requires illustration_workspace (got ${story.status})`,
+    );
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentScenePlanVersion === null) {
+    throw new IllegalStateGenerateImageError("Missing illustration page or scene plan version");
+  }
+
+  const vbv = story.currentVisualBibleVersion;
+  if (vbv === null) {
+    throw new IllegalStateGenerateImageError("Missing Visual Bible version");
+  }
+
+  const scenePlan = await readScenePlan(storyId, pageNumber, row.currentScenePlanVersion);
+  if (!scenePlan) {
+    throw new IllegalStateGenerateImageError("Scene plan artefact missing");
+  }
+
+  const visualBible = await readVisualBible(storyId, vbv);
+  if (!visualBible) {
+    throw new IllegalStateGenerateImageError("Visual Bible artefact missing");
+  }
+
+  return runStage2Through4({
+    storyId,
+    pageNumber,
+    uid,
+    scenePlan,
+    visualBible,
+    visualBibleVersion: vbv,
+  });
 }

@@ -17,10 +17,10 @@ interface Props {
   pages: PageCardViewModel[];
   readOnly: boolean;
   allApproved: boolean;
-  imageGenHint?: string;
   onGeneratePage: (pageNumber: number) => Promise<void>;
   onApprovePage: (pageNumber: number) => Promise<void>;
   onRejectPage: (pageNumber: number, note: string) => Promise<void>;
+  onRegenerateScenePlan: (pageNumber: number, feedbackNote?: string) => Promise<void>;
   onMarkReady: () => Promise<void>;
 }
 
@@ -30,10 +30,10 @@ export default function WorkspacePreview({
   pages,
   readOnly,
   allApproved,
-  imageGenHint,
   onGeneratePage,
   onApprovePage,
   onRejectPage,
+  onRegenerateScenePlan,
   onMarkReady,
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -61,12 +61,12 @@ export default function WorkspacePreview({
             storyId={storyId}
             page={page}
             readOnly={readOnly}
-            activeImageJobHint={
-              page.subStatus === "generating_image" ? imageGenHint : undefined
-            }
             onGenerate={() => onGeneratePage(page.pageNumber)}
             onApprove={() => onApprovePage(page.pageNumber)}
             onReject={(note) => onRejectPage(page.pageNumber, note)}
+            onRegenerateScenePlan={(feedbackNote) =>
+              onRegenerateScenePlan(page.pageNumber, feedbackNote)
+            }
           />
         ))}
       </Stack>

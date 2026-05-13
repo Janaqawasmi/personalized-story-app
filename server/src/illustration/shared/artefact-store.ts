@@ -197,3 +197,27 @@ export async function readLatestImage(
   if (!doc) return null;
   return doc.data() as ImageArtefact;
 }
+
+export async function listScenePlansForPage(
+  storyId: string,
+  pageNumber: number,
+): Promise<ScenePlanArtefact[]> {
+  const snap = await storyRef(storyId)
+    .collection(COLLECTIONS.STORY_SCENE_PLANS)
+    .where("pageNumber", "==", pageNumber)
+    .orderBy("version", "desc")
+    .get();
+  return snap.docs.map((d) => d.data() as ScenePlanArtefact);
+}
+
+export async function listImagesForPage(
+  storyId: string,
+  pageNumber: number,
+): Promise<ImageArtefact[]> {
+  const snap = await storyRef(storyId)
+    .collection(COLLECTIONS.STORY_IMAGES)
+    .where("pageNumber", "==", pageNumber)
+    .orderBy("version", "desc")
+    .get();
+  return snap.docs.map((d) => d.data() as ImageArtefact);
+}

@@ -1,4 +1,5 @@
 import { API_BASE, getAuthHeaders } from "./api";
+import type { ImageArtefact, ScenePlanArtefact } from "../types/illustration";
 
 const BASE = `${API_BASE}/api/specialist/stories`;
 
@@ -72,7 +73,7 @@ export async function rejectPageImage(
   storyId: string,
   pageNumber: number,
   feedbackNote?: string,
-): Promise<void> {
+): Promise<{ jobId: string; status: "pending" }> {
   const headers = await getAuthHeaders();
   const res = await fetch(
     `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/image/reject`,
@@ -82,10 +83,71 @@ export async function rejectPageImage(
       body: JSON.stringify({ feedbackNote: feedbackNote ?? "" }),
     },
   );
-  const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+  const body = (await res.json().catch(() => ({}))) as {
+    jobId?: string;
+    status?: string;
+    error?: string;
+    message?: string;
+  };
   if (!res.ok) {
     throw new Error(body.message || body.error || `Request failed (${res.status})`);
   }
+  if (!body.jobId || body.status !== "pending") {
+    throw new Error("Invalid server response for reject illustration");
+  }
+  return { jobId: body.jobId, status: "pending" };
+}
+
+export async function regenerateScenePlan(
+  storyId: string,
+  pageNumber: number,
+  feedbackNote?: string,
+): Promise<{ jobId: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/scene-plan/regenerate`,
+    {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        feedbackNote: feedbackNote !== undefined ? feedbackNote : "",
+      }),
+    },
+  );
+  const body = (await res.json().catch(() => ({}))) as {
+    jobId?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  if (!body.jobId) throw new Error("Invalid server response for scene plan regen");
+  return { jobId: body.jobId };
+}
+
+export async function fetchPageIllustrationHistory(
+  storyId: string,
+  pageNumber: number,
+): Promise<{ scenePlans: ScenePlanArtefact[]; images: ImageArtefact[] }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/history`,
+    { headers },
+  );
+  const body = (await res.json().catch(() => ({}))) as {
+    scenePlans?: ScenePlanArtefact[];
+    images?: ImageArtefact[];
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  return {
+    scenePlans: body.scenePlans ?? [],
+    images: body.images ?? [],
+  };
 }
 
 export async function markIllustrationReadyToPublish(storyId: string): Promise<void> {

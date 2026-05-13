@@ -20,7 +20,7 @@ import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 import { enqueueJob } from "@/illustration/shared/job-enqueue";
 import { appendIllustrationEvent } from "@/illustration/shared/history-events";
-import { readLatestImage } from "@/illustration/shared/artefact-store";
+import { readLatestImage, listImagesForPage, listScenePlansForPage } from "@/illustration/shared/artefact-store";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 
 const router = Router();
@@ -724,7 +724,7 @@ async function handleRejectPageImage(req: Request, res: Response): Promise<void>
     return;
   }
   const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
-  if (!row || row.currentImageVersion === null) {
+  if (!row || row.currentImageVersion === null || row.currentScenePlanVersion === null) {
     res.status(409).json({ error: "INVALID_STATE", message: "No image to reject for this page." });
     return;
   }
@@ -738,6 +738,16 @@ async function handleRejectPageImage(req: Request, res: Response): Promise<void>
   const body = req.body as { feedbackNote?: unknown };
   const feedbackNote =
     typeof body.feedbackNote === "string" ? body.feedbackNote.trim() : "";
+
+  const idempotencyKey = `${storyId}:image_regen:${pageNumber}:sp${row.currentScenePlanVersion}:img${row.currentImageVersion}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "image_regen",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: { feedbackNote },
+    idempotencyKey,
+  });
 
   const now = Date.now();
   const storyRef = firestore.collection(STORIES_COLLECTION).doc(storyId);
@@ -754,9 +764,8 @@ async function handleRejectPageImage(req: Request, res: Response): Promise<void>
     if (r.currentImageVersion !== img.version) return;
     pages[idx] = {
       ...r,
-      status: "plan_only",
-      pendingJobId: null,
-      currentImageVersion: null,
+      status: "generating_image",
+      pendingJobId: jobId,
       lastError: null,
     };
     tx.update(imageRef, {
@@ -777,7 +786,84 @@ async function handleRejectPageImage(req: Request, res: Response): Promise<void>
     ownerUid,
   );
 
-  res.status(200).json({ ok: true as const });
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handleRegenerateScenePlan(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Scene plan regeneration is only available in the illustration workspace.",
+    });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentScenePlanVersion === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Illustration page not found." });
+    return;
+  }
+
+  const body = req.body as { feedbackNote?: unknown };
+  const feedbackNote =
+    typeof body.feedbackNote === "string" ? body.feedbackNote.trim() : "";
+
+  const idempotencyKey = `${storyId}:scene_plan_regen:${pageNumber}:sp${row.currentScenePlanVersion}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "scene_plan_regen",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: { feedbackNote },
+    idempotencyKey,
+  });
+
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handleGetPageIllustrationHistory(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+
+  const [scenePlans, images] = await Promise.all([
+    listScenePlansForPage(storyId, pageNumber),
+    listImagesForPage(storyId, pageNumber),
+  ]);
+
+  res.status(200).json({ scenePlans, images });
 }
 
 // ============================================================================
@@ -799,6 +885,8 @@ router.post("/:storyId/transitions", handleTransition);
 router.post("/:storyId/pages/:pageNumber/image", handleEnqueuePageImage);
 router.post("/:storyId/pages/:pageNumber/image/approve", handleApprovePageImage);
 router.post("/:storyId/pages/:pageNumber/image/reject", handleRejectPageImage);
+router.post("/:storyId/pages/:pageNumber/scene-plan/regenerate", handleRegenerateScenePlan);
+router.get("/:storyId/pages/:pageNumber/history", handleGetPageIllustrationHistory);
 router.post("/:storyId/generate", handleGenerate); // from R2
 
 async function handleGenerate(req: Request, res: Response): Promise<void> {

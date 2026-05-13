@@ -7,32 +7,53 @@ import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceStat
 import PageCardImage from "./PageCardImage";
 import PageCardManuscript from "./PageCardManuscript";
 import PageCardScenePlan from "./PageCardScenePlan";
+import PageCardVersionPicker from "./PageCardVersionPicker";
 
 interface Props {
   storyId: string;
   page: PageCardViewModel;
   readOnly: boolean;
-  activeImageJobHint?: string;
   onGenerate: () => void;
   onApprove: () => void;
   onReject: (feedbackNote: string) => void;
+  onRegenerateScenePlan: (feedbackNote?: string) => Promise<void>;
 }
 
 export default function PageCard({
   storyId,
   page,
   readOnly,
-  activeImageJobHint,
   onGenerate,
   onApprove,
   onReject,
+  onRegenerateScenePlan,
 }: Props) {
   const spv = page.scenePlanVersion;
+  const imageGenHint =
+    page.subStatus === "generating_image"
+      ? `Generating illustration for page ${page.pageNumber}…`
+      : undefined;
+
   return (
     <Card variant="outlined">
       <CardContent>
         <Stack spacing={2} divider={<Divider flexItem />}>
-          <Typography variant="overline">Page {page.pageNumber}</Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            flexWrap="wrap"
+            gap={1}
+          >
+            <Typography variant="overline">Page {page.pageNumber}</Typography>
+            <PageCardVersionPicker
+              storyId={storyId}
+              pageNumber={page.pageNumber}
+              currentImageVersion={page.imageVersion}
+              currentScenePlanVersion={page.scenePlanVersion}
+              imageVersionsDesc={page.imageVersionsDesc}
+            />
+          </Stack>
           <PageCardManuscript text={page.text} />
           {spv === null ? (
             <Typography variant="body2" color="text.secondary">
@@ -43,12 +64,15 @@ export default function PageCard({
               storyId={storyId}
               pageNumber={page.pageNumber}
               scenePlanVersion={spv}
+              readOnly={readOnly}
+              scenePlanRegenBusy={page.scenePlanRegenBusy}
+              onRegenerateScenePlan={onRegenerateScenePlan}
             />
           )}
           <PageCardImage
             page={page}
             readOnly={readOnly}
-            activeImageJobHint={activeImageJobHint}
+            activeImageJobHint={imageGenHint}
             onGenerate={onGenerate}
             onApprove={onApprove}
             onReject={onReject}

@@ -36,11 +36,53 @@ export default function PageCardImage({
 
   if (page.subStatus === "generating_image") {
     return (
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ py: 2 }}>
-        <CircularProgress size={28} />
-        <Typography variant="body2" color="text.secondary">
-          {activeImageJobHint ?? "Generating illustration…"}
-        </Typography>
+      <Stack spacing={2} sx={{ py: page.imageUrl ? 1 : 2 }}>
+        {page.imageUrl ? (
+          <Box sx={{ position: "relative" }}>
+            <Box
+              component="img"
+              src={page.imageUrl}
+              alt={`Page ${page.pageNumber} previous illustration`}
+              sx={{
+                maxWidth: "100%",
+                borderRadius: 1,
+                border: 1,
+                borderColor: "divider",
+                display: "block",
+                opacity: 0.85,
+              }}
+            />
+            <Stack
+              direction="row"
+              spacing={1.5}
+              alignItems="center"
+              sx={{
+                position: "absolute",
+                inset: 0,
+                justifyContent: "center",
+                bgcolor: "rgba(0,0,0,0.35)",
+                borderRadius: 1,
+              }}
+            >
+              <CircularProgress size={28} sx={{ color: "common.white" }} />
+              <Typography variant="body2" sx={{ color: "common.white", fontWeight: 600 }}>
+                {activeImageJobHint ?? "Generating illustration…"}
+              </Typography>
+            </Stack>
+          </Box>
+        ) : (
+          <Stack direction="row" spacing={2} alignItems="center">
+            <CircularProgress size={28} />
+            <Typography variant="body2" color="text.secondary">
+              {activeImageJobHint ?? "Generating illustration…"}
+            </Typography>
+          </Stack>
+        )}
+        {page.rejectionNote ? (
+          <Typography variant="caption" color="text.secondary">
+            <strong>Feedback:</strong> {page.rejectionNote}
+          </Typography>
+        ) : null}
       </Stack>
     );
   }
@@ -54,6 +96,13 @@ export default function PageCardImage({
           alt={`Page ${page.pageNumber} illustration`}
           sx={{ maxWidth: "100%", borderRadius: 1, border: 1, borderColor: "divider" }}
         />
+        {page.imageVersion !== null ? (
+          <Typography variant="caption" color="text.secondary">
+            {page.versionCount.images > 1
+              ? `v${page.imageVersion} of ${page.versionCount.images}`
+              : `v${page.imageVersion}`}
+          </Typography>
+        ) : null}
         {!readOnly ? (
           <Stack direction="row" spacing={1}>
             <Button

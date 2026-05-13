@@ -8,13 +8,14 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import type { ImageArtefact, IllustrationJob } from "../../types/illustration";
+import type { ImageArtefact, IllustrationJob, ScenePlanArtefact } from "../../types/illustration";
 import type { EditHistoryEntry, Story } from "../../types/story";
 import { STORIES_COLLECTION } from "../../types/story";
 import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
 
 const JOBS = "illustrationJobs";
 const IMAGES = "images";
+const SCENE_PLANS = "scenePlans";
 
 export type PageCardViewModel = {
   pageNumber: number;
@@ -26,6 +27,9 @@ export type PageCardViewModel = {
   lastError: string | null;
   pendingJobId: string | null;
   rejectionNote: string | null;
+  scenePlanRegenBusy: boolean;
+  versionCount: { scenePlans: number; images: number };
+  imageVersionsDesc: number[];
 };
 
 export type WorkspaceViewModel =
@@ -39,7 +43,6 @@ export type WorkspaceViewModel =
       pages: PageCardViewModel[];
       allApproved: boolean;
       readOnly: boolean;
-      imageGenHint?: string;
     }
   | { kind: "failed"; jobId: string; error: string };
 
@@ -89,7 +92,7 @@ function deriveSubStatus(
   if (
     row.pendingJobId &&
     pendingJob &&
-    pendingJob.type === "image_generation" &&
+    (pendingJob.type === "image_generation" || pendingJob.type === "image_regen") &&
     (pendingJob.status === "pending" || pendingJob.status === "running")
   ) {
     return "generating_image";
@@ -97,27 +100,63 @@ function deriveSubStatus(
   return row.status;
 }
 
+function scenePlanRegenBusyForPage(jobs: IllustrationJob[], pageNumber: number): boolean {
+  return jobs.some(
+    (j) =>
+      j.pageNumber === pageNumber &&
+      j.type === "scene_plan_regen" &&
+      (j.status === "pending" || j.status === "running"),
+  );
+}
+
+function versionCountsForPage(
+  scenePlans: ScenePlanArtefact[],
+  images: ImageArtefact[],
+  pageNumber: number,
+): { scenePlans: number; images: number } {
+  const sp = scenePlans.filter((s) => s.pageNumber === pageNumber).length;
+  const im = images.filter((i) => i.pageNumber === pageNumber).length;
+  return { scenePlans: sp, images: im };
+}
+
+function imageVersionsDescForPage(images: ImageArtefact[], pageNumber: number): number[] {
+  return images
+    .filter((i) => i.pageNumber === pageNumber)
+    .map((i) => i.version)
+    .sort((a, b) => b - a);
+}
+
 function buildPageCards(
   illustrationPages: NonNullable<Story["illustrationPages"]>,
   jobs: IllustrationJob[],
   images: ImageArtefact[],
+  scenePlans: ScenePlanArtefact[],
 ): PageCardViewModel[] {
   const byPage = latestImageByPage(images);
   return [...illustrationPages]
     .sort((a, b) => a.pageNumber - b.pageNumber)
     .map((row) => {
       const latest = byPage.get(row.pageNumber);
+      const thumbForRejected =
+        latest &&
+        row.currentImageVersion !== null &&
+        latest.version === row.currentImageVersion &&
+        latest.reviewStatus === "needs_revision";
       const imageUrl =
         latest &&
         row.currentImageVersion !== null &&
         latest.version === row.currentImageVersion &&
-        (latest.reviewStatus === "awaiting_review" || latest.reviewStatus === "approved")
+        (latest.reviewStatus === "awaiting_review" ||
+          latest.reviewStatus === "approved" ||
+          thumbForRejected)
           ? latest.publicUrl
           : null;
       const imageVersion = row.currentImageVersion;
       const subStatus = deriveSubStatus(row, jobs);
       const rejectionNote =
-        subStatus === "plan_only" || subStatus === "needs_revision"
+        subStatus === "plan_only" ||
+        subStatus === "needs_revision" ||
+        subStatus === "generating_image"
           ? latestRejectionNoteForPage(images, row.pageNumber)
           : null;
       return {
@@ -130,6 +169,9 @@ function buildPageCards(
         lastError: row.lastError,
         pendingJobId: row.pendingJobId,
         rejectionNote,
+        scenePlanRegenBusy: scenePlanRegenBusyForPage(jobs, row.pageNumber),
+        versionCount: versionCountsForPage(scenePlans, images, row.pageNumber),
+        imageVersionsDesc: imageVersionsDescForPage(images, row.pageNumber),
       };
     });
 }
@@ -138,6 +180,7 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
   const [story, setStory] = useState<Story | null>(null);
   const [jobs, setJobs] = useState<IllustrationJob[]>([]);
   const [images, setImages] = useState<ImageArtefact[]>([]);
+  const [scenePlans, setScenePlans] = useState<ScenePlanArtefact[]>([]);
 
   useEffect(() => {
     const unsubStory = onSnapshot(doc(db, STORIES_COLLECTION, storyId), (snap) => {
@@ -180,10 +223,22 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
       },
     );
 
+    const unsubScenePlans = onSnapshot(
+      collection(db, STORIES_COLLECTION, storyId, SCENE_PLANS),
+      (snap) => {
+        const list: ScenePlanArtefact[] = [];
+        snap.forEach((d) => {
+          list.push(d.data() as ScenePlanArtefact);
+        });
+        setScenePlans(list);
+      },
+    );
+
     return () => {
       unsubStory();
       unsubJobs();
       unsubImages();
+      unsubScenePlans();
     };
   }, [storyId]);
 
@@ -195,26 +250,14 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
       const vbv = story.currentVisualBibleVersion;
       if (vbv === null) return { kind: "loading" };
       const readOnly = story.status === "illustration_ready";
-      const cards = buildPageCards(pages, jobs, images);
+      const cards = buildPageCards(pages, jobs, images, scenePlans);
       const allApproved = cards.length > 0 && cards.every((p) => p.subStatus === "approved");
-      const runningImg = jobs.find(
-        (j) => j.type === "image_generation" && j.status === "running",
-      );
-      const pendingImg = jobs.find(
-        (j) => j.type === "image_generation" && j.status === "pending",
-      );
-      const imgJob = runningImg ?? pendingImg;
-      const imageGenHint =
-        imgJob && imgJob.pageNumber !== null && imgJob.pageNumber !== undefined
-          ? `Generating illustration for page ${imgJob.pageNumber}…`
-          : undefined;
       return {
         kind: "ready",
         visualBibleVersion: vbv,
         pages: cards,
         allApproved,
         readOnly,
-        imageGenHint,
       };
     }
 
@@ -246,5 +289,5 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
     }
 
     return { kind: "cta" };
-  }, [story, jobs, images]);
+  }, [story, jobs, images, scenePlans]);
 }

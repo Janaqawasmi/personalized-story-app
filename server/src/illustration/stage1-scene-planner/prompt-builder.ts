@@ -1,4 +1,4 @@
-import type { ScenePlannerInput } from "./types";
+import type { ScenePlannerInput, ScenePlannerRegenInput } from "./types";
 
 export function buildScenePlannerPrompt(
   input: ScenePlannerInput,
@@ -82,4 +82,38 @@ Next page text: ${next ? next.text : "(none — last page)"}
 - The protagonist appearance MUST match characterAnchor verbatim — do not redescribe.`;
 
   return { systemPrompt, userPrompt };
+}
+
+export function buildScenePlannerRegenPrompt(
+  input: ScenePlannerRegenInput,
+): { systemPrompt: string; userPrompt: string } {
+  const { systemPrompt, userPrompt: userPromptBase } = buildScenePlannerPrompt(
+    input,
+    input.pageNumber,
+  );
+  const prev = input.previousScenePlan;
+  const feedbackBlock =
+    input.feedbackNote !== null && input.feedbackNote.trim().length > 0
+      ? `SPECIALIST FEEDBACK (interpret as direction for the new plan):\n"${input.feedbackNote.trim()}"`
+      : `SPECIALIST DIRECTION: The previous scene plan was rejected without a written note.
+Produce a meaningfully different framing — change the camera distance OR angle OR
+character body position OR the visible focal detail. Do NOT replicate the previous
+composition.`;
+
+  const regenAppend = `
+
+PREVIOUS SCENE PLAN FOR THIS PAGE (do not repeat — produce a different one):
+- Title: ${JSON.stringify(prev.title)}
+- Prose: ${JSON.stringify(prev.prose)}
+- Emotional intent: ${JSON.stringify(prev.emotionalIntent)}
+- Camera: ${JSON.stringify(prev.director.cameraSpec)}
+- Lighting: ${JSON.stringify(prev.director.lightingChoice)}
+- Moment: ${JSON.stringify(prev.director.moment)}
+
+${feedbackBlock}
+
+## Output schema (JSON)
+Same as above — return a fresh scene plan JSON object for this page only.`;
+
+  return { systemPrompt, userPrompt: userPromptBase + regenAppend };
 }

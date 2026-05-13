@@ -1,6 +1,11 @@
 import type { DocumentReference } from "firebase-admin/firestore";
-import { generateImage, markImageGenerationFailedOnStory } from "@/illustration/orchestrator/generateImage";
+import { cascadeAfterReject } from "@/illustration/orchestrator/cascadeAfterReject";
+import {
+  generateImage,
+  markImageGenerationFailedOnStory,
+} from "@/illustration/orchestrator/generateImage";
 import { openWorkspace } from "@/illustration/orchestrator/openWorkspace";
+import { regenerateScenePlan } from "@/illustration/orchestrator/regenerateScenePlan";
 import type { IllustrationJob, IllustrationJobType } from "@/illustration/types";
 
 export class UnsupportedJobTypeError extends Error {
@@ -11,6 +16,14 @@ export class UnsupportedJobTypeError extends Error {
 }
 
 export type JobHandler = (job: IllustrationJob, jobRef: DocumentReference) => Promise<void>;
+
+function requirePageNumber(job: IllustrationJob): number {
+  const pageNumber = job.pageNumber;
+  if (pageNumber === null || pageNumber === undefined) {
+    throw new Error(`${job.type} job missing pageNumber`);
+  }
+  return pageNumber;
+}
 
 async function handleWorkspaceOpen(
   job: IllustrationJob,
@@ -34,10 +47,7 @@ async function handleImageGeneration(
   job: IllustrationJob,
   jobRef: DocumentReference,
 ): Promise<void> {
-  const pageNumber = job.pageNumber;
-  if (pageNumber === null || pageNumber === undefined) {
-    throw new Error("image_generation job missing pageNumber");
-  }
+  const pageNumber = requirePageNumber(job);
   try {
     const result = await generateImage({
       storyId: job.storyId,
@@ -67,13 +77,71 @@ async function handleImageGeneration(
   }
 }
 
+async function handleScenePlanRegen(
+  job: IllustrationJob,
+  jobRef: DocumentReference,
+): Promise<void> {
+  const pageNumber = requirePageNumber(job);
+  const rawNote = job.inputRefs.feedbackNote;
+  const feedbackNote =
+    typeof rawNote === "string" && rawNote.trim().length > 0 ? rawNote.trim() : null;
+  const result = await regenerateScenePlan({
+    storyId: job.storyId,
+    pageNumber,
+    uid: job.enqueuedBy,
+    feedbackNote,
+  });
+  await jobRef.update({
+    status: "succeeded",
+    completedAt: Date.now(),
+    lastHeartbeatAt: Date.now(),
+    outputRefs: { scenePlanId: result.scenePlanId, version: String(result.version) },
+    error: null,
+  });
+}
+
+async function handleImageRegen(
+  job: IllustrationJob,
+  jobRef: DocumentReference,
+): Promise<void> {
+  const pageNumber = requirePageNumber(job);
+  const rawNote = job.inputRefs.feedbackNote;
+  const feedbackNote =
+    typeof rawNote === "string" && rawNote.trim().length > 0 ? rawNote.trim() : null;
+  try {
+    const result = await cascadeAfterReject({
+      storyId: job.storyId,
+      pageNumber,
+      uid: job.enqueuedBy,
+      feedbackNote,
+      expectedPendingJobId: job.id,
+    });
+    await jobRef.update({
+      status: "succeeded",
+      completedAt: Date.now(),
+      lastHeartbeatAt: Date.now(),
+      outputRefs: {
+        imageId: result.imageId,
+        storagePath: result.storagePath,
+        publicUrl: result.publicUrl,
+      },
+      error: null,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    await markImageGenerationFailedOnStory({
+      storyId: job.storyId,
+      pageNumber,
+      jobId: job.id,
+      message,
+    }).catch((e) => console.warn("[illustration/worker] markImageGenerationFailedOnStory", e));
+    throw err;
+  }
+}
+
 export const handlers: Record<IllustrationJobType, JobHandler> = {
   workspace_open: handleWorkspaceOpen,
-  scene_plan_regen: async () => {
-    throw new UnsupportedJobTypeError("scene_plan_regen");
-  },
+  scene_plan_regen: handleScenePlanRegen,
   image_generation: handleImageGeneration,
-  image_regen: async () => {
-    throw new UnsupportedJobTypeError("image_regen");
-  },
+  image_regen: handleImageRegen,
 };

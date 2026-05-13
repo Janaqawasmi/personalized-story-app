@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import type { Story } from "../../types/story";
 import IllustrationsTabV2 from "../components/illustration/IllustrationsTabV2";
 import { useIllustrationWorkspaceState } from "../hooks/useIllustrationWorkspaceState";
 
@@ -6,9 +7,11 @@ jest.mock("../hooks/useIllustrationWorkspaceState", () => ({
   useIllustrationWorkspaceState: jest.fn(),
 }));
 
-const mockUseVm = useIllustrationWorkspaceState;
+const mockUseVm = useIllustrationWorkspaceState as jest.MockedFunction<
+  typeof useIllustrationWorkspaceState
+>;
 
-function approvedStory() {
+function approvedStory(): Story {
   return {
     id: "s1",
     ownerUid: "u1",
@@ -34,7 +37,7 @@ function approvedStory() {
     submittedAt: 1,
     approvedAt: 1,
     publishedAt: null,
-  };
+  } as unknown as Story;
 }
 
 describe("IllustrationsTabV2", () => {
@@ -79,6 +82,9 @@ describe("IllustrationsTabV2", () => {
           lastError: null,
           pendingJobId: null,
           rejectionNote: null,
+          scenePlanRegenBusy: false,
+          versionCount: { scenePlans: 1, images: 0 },
+          imageVersionsDesc: [],
         },
       ],
       allApproved: false,
@@ -103,6 +109,9 @@ describe("IllustrationsTabV2", () => {
           lastError: null,
           pendingJobId: null,
           rejectionNote: null,
+          scenePlanRegenBusy: false,
+          versionCount: { scenePlans: 1, images: 0 },
+          imageVersionsDesc: [],
         },
       ],
       allApproved: false,

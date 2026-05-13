@@ -7,6 +7,7 @@ import {
   generatePageImage,
   markIllustrationReadyToPublish,
   openIllustrationWorkspace,
+  regenerateScenePlan,
   rejectPageImage,
 } from "../../../api/illustrationApi";
 import type { Story } from "../../../types/story";
@@ -52,6 +53,20 @@ export default function IllustrationsTabV2({ story }: Props) {
         await approvePageImage(story.id, pageNumber);
       } catch (e) {
         setActionError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [story.id],
+  );
+
+  const handleRegenerateScenePlan = useCallback(
+    async (pageNumber: number, feedbackNote?: string) => {
+      setActionError(null);
+      try {
+        await regenerateScenePlan(story.id, pageNumber, feedbackNote);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setActionError(msg);
+        throw e;
       }
     },
     [story.id],
@@ -125,10 +140,10 @@ export default function IllustrationsTabV2({ story }: Props) {
             pages={vm.pages}
             readOnly={vm.readOnly}
             allApproved={vm.allApproved}
-            imageGenHint={vm.imageGenHint}
             onGeneratePage={handleGeneratePage}
             onApprovePage={handleApprovePage}
             onRejectPage={handleRejectPage}
+            onRegenerateScenePlan={handleRegenerateScenePlan}
             onMarkReady={handleMarkReady}
           />
         ) : null}
