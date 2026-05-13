@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import type { FinalPromptArtefact, ImageArtefact } from "@/illustration/types";
+import { CHILDRENS_BOOK_PAGE_ILLUSTRATION } from "@/shared/seedreamImageSize";
 import { requireImageProvider } from "@/services/preview.service";
 import { uploadImageToStorage } from "./storage";
 
@@ -28,8 +29,8 @@ export async function runImageGeneration(input: {
       const result = await provider.generateImage({
         textPrompt: finalPrompt.finalPromptString,
         seed,
-        outputWidth: 1024,
-        outputHeight: 1024,
+        outputWidth: CHILDRENS_BOOK_PAGE_ILLUSTRATION.width,
+        outputHeight: CHILDRENS_BOOK_PAGE_ILLUSTRATION.height,
       });
 
       const upload = await uploadImageToStorage({
@@ -51,8 +52,8 @@ export async function runImageGeneration(input: {
         modelId: result.modelId,
         modelParams: {
           seed: result.seed,
-          outputWidth: 1024,
-          outputHeight: 1024,
+          outputWidth: CHILDRENS_BOOK_PAGE_ILLUSTRATION.width,
+          outputHeight: CHILDRENS_BOOK_PAGE_ILLUSTRATION.height,
         },
         latencyMs: result.latencyMs,
         storagePath: upload.storagePath,

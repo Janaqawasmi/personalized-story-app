@@ -7,7 +7,7 @@ import {
   TypeMismatchError,
   Step1IncoherentError,
 } from "@/agent1";
-import type { Agent1Result } from "@/agent1";
+import type { Agent1Result, ApprovedPart, GenerateOptions } from "@/agent1/types";
 import { firestore } from "@/config/firebase";
 import {
   STORIES_COLLECTION,
@@ -1146,9 +1146,46 @@ router.post("/:storyId/pages/:pageNumber/scene-plan/regenerate", handleRegenerat
 router.get("/:storyId/pages/:pageNumber/history", handleGetPageIllustrationHistory);
 router.post("/:storyId/generate", handleGenerate); // from R2
 
+const AGENT1_APPROVED_PART_CODES = new Set<string>([
+  "emotionalTruth",
+  "blueprint",
+  "approachInstruction",
+  "story",
+]);
+
+function parseAgent1Rerun(raw: unknown): {
+  feedbackText: string;
+  approvedParts: ApprovedPart[];
+} | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const feedbackText =
+    typeof o.feedbackText === "string" ? o.feedbackText.trim() : "";
+  if (!feedbackText) return null;
+
+  const approvedParts: ApprovedPart[] = [];
+  if (Array.isArray(o.approvedParts)) {
+    for (const p of o.approvedParts) {
+      if (typeof p === "string" && AGENT1_APPROVED_PART_CODES.has(p)) {
+        approvedParts.push(p as ApprovedPart);
+      }
+    }
+  }
+
+  return { feedbackText, approvedParts };
+}
+
 async function handleGenerate(req: Request, res: Response): Promise<void> {
   const { storyId } = req.params;
-  const { story: clientStory } = req.body;
+  const body = req.body as {
+    story?: {
+      brief?: unknown;
+      parentStoryId?: string | null;
+      title?: string;
+    };
+    agent1Rerun?: unknown;
+  };
+  const clientStory = body.story;
 
   if (!storyId || typeof storyId !== "string") {
     res.status(400).json({
@@ -1194,9 +1231,13 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     brief.status = "submitted";
   }
 
+  let preGenStory: Story | undefined;
+  let generateOptions: GenerateOptions | undefined;
   let story: Story;
+
   if (existingDoc.exists) {
     const existingStory = hydrateStoryFromFirestore(storyId, existingDoc.data() as Record<string, unknown>);
+    preGenStory = existingStory;
 
     if (existingStory.ownerUid !== ownerUid) {
       res.status(409).json({
@@ -1225,6 +1266,45 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
           "Only draft_brief or needs_revision can be generated.",
       });
       return;
+    }
+
+    if (existingStory.status === "needs_revision") {
+      if (existingStory.agent1Versions.length >= 3) {
+        res.status(409).json({
+          error: "REGEN_LIMIT",
+          message:
+            "This story already has the maximum number of Agent 1 versions. Open a new revision from the brief.",
+        });
+        return;
+      }
+
+      const rerunPayload = parseAgent1Rerun(body.agent1Rerun);
+      if (!rerunPayload) {
+        res.status(400).json({
+          error: "INVALID_INPUT",
+          message:
+            "Regeneration requires agent1Rerun.feedbackText in the request body (and optional agent1Rerun.approvedParts).",
+        });
+        return;
+      }
+
+      const previousOutput = existingStory.agent1Result;
+      if (!previousOutput) {
+        res.status(400).json({
+          error: "INVALID_INPUT",
+          message: "Cannot regenerate: story has no agent1Result.",
+        });
+        return;
+      }
+
+      generateOptions = {
+        feedback: {
+          rerunOf: previousOutput.generationId,
+          approvedParts: rerunPayload.approvedParts,
+          feedbackText: rerunPayload.feedbackText,
+          previousOutput,
+        },
+      };
     }
 
     const now = Date.now();
@@ -1268,10 +1348,14 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       id: storyId,
       ownerUid,
       brief,
-      parentStoryId: clientStory.parentStoryId ?? undefined,
-      title: clientStory.title ?? undefined,
+      ...(typeof clientStory.parentStoryId === "string"
+        ? { parentStoryId: clientStory.parentStoryId }
+        : {}),
+      ...(typeof clientStory.title === "string" ? { title: clientStory.title } : {}),
     });
   }
+
+  const isRegeneration = preGenStory !== undefined && preGenStory.status === "needs_revision";
 
   await firestore.collection(STORIES_COLLECTION).doc(storyId).set(story);
 
@@ -1283,7 +1367,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     });
 
     const agent1Result: Agent1Result = await Promise.race([
-      generateStoryDraftFromBrief(brief),
+      generateStoryDraftFromBrief(brief, generateOptions),
       timeoutPromise,
     ]);
 
@@ -1355,6 +1439,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       },
     };
 
+    const revertTo: StoryStatus = isRegeneration ? "in_review" : "draft_brief";
     const revertEvent = {
       id: crypto.randomUUID(),
       at: now,
@@ -1362,20 +1447,39 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       event: {
         kind: "status_changed" as const,
         from: "generating" as const,
-        to: "draft_brief" as const,
+        to: revertTo,
       },
     };
 
     try {
-      await firestore
-        .collection(STORIES_COLLECTION)
-        .doc(storyId)
-        .update({
-          status: "draft_brief",
-          briefStatus: "draft",
-          updatedAt: now,
-          editHistory: [...story.editHistory, failedEvent, revertEvent],
-        });
+      if (isRegeneration && preGenStory) {
+        await firestore
+          .collection(STORIES_COLLECTION)
+          .doc(storyId)
+          .update({
+            status: "in_review",
+            briefStatus: preGenStory.briefStatus,
+            brief: preGenStory.brief,
+            agent1Result: preGenStory.agent1Result,
+            agent1Versions: preGenStory.agent1Versions,
+            currentDraft: preGenStory.currentDraft,
+            pages: preGenStory.pages ?? null,
+            title: preGenStory.title,
+            parentStoryId: preGenStory.parentStoryId,
+            updatedAt: now,
+            editHistory: [...story.editHistory, failedEvent, revertEvent],
+          });
+      } else {
+        await firestore
+          .collection(STORIES_COLLECTION)
+          .doc(storyId)
+          .update({
+            status: "draft_brief",
+            briefStatus: "draft",
+            updatedAt: now,
+            editHistory: [...story.editHistory, failedEvent, revertEvent],
+          });
+      }
     } catch (revertError) {
       console.error(
         "Failed to revert story status after generation failure:",

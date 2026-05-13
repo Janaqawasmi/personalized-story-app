@@ -197,11 +197,38 @@ describe("SeedreamProvider — generateImage", () => {
   // v2: additionalParams is removed from the ImageGenerationProvider contract.
   // Per-call guidance_scale override is dropped; the default (7.5) applies.
 
-  test("sends size: 2K", async () => {
+  test("sends default children's-book 3:4 size when dimensions omitted", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
     await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
-    expect(body.size).toBe("2K");
+    expect(body.size).toBe("1728x2304");
+  });
+
+  test("sends explicit WxH when caller passes a supported preset", async () => {
+    mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
+    await provider.generateImage({
+      seed: 1,
+      textPrompt: "A rabbit.",
+      outputWidth: 2048,
+      outputHeight: 2048,
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.size).toBe("2048x2048");
+  });
+
+  test("falls back to default size and warns when WxH is not supported", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
+    await provider.generateImage({
+      seed: 1,
+      textPrompt: "A rabbit.",
+      outputWidth: 1024,
+      outputHeight: 1024,
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
+    expect(body.size).toBe("1728x2304");
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   test("does not send image_format field", async () => {

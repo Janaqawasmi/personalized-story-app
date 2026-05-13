@@ -13,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CheckIcon from "@mui/icons-material/Check";
 
+import type { Agent1ApprovedPartToken } from "../../../api/specialistStories";
 import type { StoryDraft } from "../../../types/story";
 import type { Agent1Result } from "../../../types/agent1Result";
 import type { StoryType } from "../../../types/storyBrief";
@@ -258,12 +259,26 @@ export default function DraftTabB({
         const opened = await draftStore.transitionStatus(story.id, "in_review");
         onStoryUpdate(opened);
       }
-      const updatedStory = await draftStore.transitionStatus(
+      const approvedParts: Agent1ApprovedPartToken[] = [];
+      if (!feedback.emotionalTruth?.trim()) {
+        approvedParts.push("emotionalTruth");
+      }
+      if (!feedback.blueprint?.trim()) {
+        approvedParts.push("blueprint");
+      }
+
+      const afterRevision = await draftStore.transitionStatus(
         story.id,
         "needs_revision",
         { feedback: trimmed },
       );
-      onStoryUpdate(updatedStory);
+      onStoryUpdate(afterRevision);
+
+      const finalStory = await draftStore.runAgent1Regeneration(story.id, {
+        feedbackText: trimmed,
+        approvedParts,
+      });
+      onStoryUpdate(finalStory);
       handleRegenDialogClose();
     } catch (err) {
       setSnackbar({

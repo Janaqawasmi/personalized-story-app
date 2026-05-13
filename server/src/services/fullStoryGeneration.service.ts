@@ -5,6 +5,7 @@ import { StoryPreview, PreviewPage } from "../shared/types/storyPreview";
 import { StoryTemplate } from "../shared/types/storyTemplate";
 import { Purchase } from "../shared/types/purchase";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
+import { CHILDRENS_BOOK_PAGE_ILLUSTRATION } from "../shared/seedreamImageSize";
 import {
   personalizeText,
   selectTextVariant,
@@ -266,8 +267,8 @@ async function runFullStoryGeneration(
               textPrompt: imagePrompt,
               seed: Math.floor(Math.random() * 2 ** 31),
               referenceImage: photoSignedUrl,
-              outputWidth: 1024,
-              outputHeight: 1024,
+              outputWidth: CHILDRENS_BOOK_PAGE_ILLUSTRATION.width,
+              outputHeight: CHILDRENS_BOOK_PAGE_ILLUSTRATION.height,
             });
 
             const ext = imageResult.mimeType.split("/")[1] ?? "webp";
@@ -340,8 +341,8 @@ async function runFullStoryGeneration(
             textPrompt: imagePrompt,
             seed: Math.floor(Math.random() * 2 ** 31),
             referenceImage: photoSignedUrl,
-            outputWidth: 1024,
-            outputHeight: 1024,
+            outputWidth: CHILDRENS_BOOK_PAGE_ILLUSTRATION.width,
+            outputHeight: CHILDRENS_BOOK_PAGE_ILLUSTRATION.height,
           });
 
           const ext = imageResult.mimeType.split("/")[1] ?? "webp";

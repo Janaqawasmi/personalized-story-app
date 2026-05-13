@@ -11,6 +11,7 @@ import { isTransitionAllowed } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import { createEmptyBrief } from "../../types/storyBrief";
 import * as apiClient from "../../api/specialistStories";
+import type { Agent1RegenerationPayload } from "../../api/specialistStories";
 import { buildSpecialistSnapshotFields } from "../utils/specialistVersionSnapshot";
 import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
 
@@ -291,6 +292,35 @@ export class HybridDraftStore implements DraftStore {
       storyId,
       serverDraft.brief,
       serverDraft.parentStoryId ?? undefined,
+    );
+    this.notifyStoryListeners(storyId, serverStory);
+    this.notifyListListeners();
+    return serverStory;
+  }
+
+  async runAgent1Regeneration(
+    storyId: string,
+    payload: Agent1RegenerationPayload,
+  ): Promise<Story> {
+    const registry = loadRegistry();
+    if (registry.stories[storyId]) {
+      throw new Error(
+        "Agent 1 regeneration runs on the server. Submit the brief first.",
+      );
+    }
+
+    const current = await apiClient.getStory(storyId);
+    if (current.status !== "needs_revision") {
+      throw new Error(
+        `Cannot run regeneration: story status is '${current.status}', expected needs_revision.`,
+      );
+    }
+
+    const serverStory = await apiClient.generateStory(
+      storyId,
+      current.brief,
+      current.parentStoryId ?? undefined,
+      payload,
     );
     this.notifyStoryListeners(storyId, serverStory);
     this.notifyListListeners();

@@ -59,7 +59,7 @@ export async function executePipelineWithBrief(
   const preCheckResult = runPreCheck(brief);
 
   const { step1Output, exampleBankStatus: step1ExampleStatus } =
-    await runStoryArchitect(brief, preCheckResult);
+    await runStoryArchitect(brief, preCheckResult, options);
 
   const { step2Output, exampleBankStatus: step2ExampleStatus } =
     await runAuthor(brief, step1Output);

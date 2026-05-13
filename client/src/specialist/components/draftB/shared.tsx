@@ -158,7 +158,8 @@ export function GeneratingState({
         <CircularProgress />
         <Typography variant="h6">AI is generating your story…</Typography>
         <Typography variant="body2" color="text.secondary">
-          This usually takes 30–60 seconds.
+          This often takes about one to two minutes (three model steps plus validation). The server
+          stops waiting after about two minutes; if that happens, try again.
         </Typography>
 
         {hasPrevVersion && (

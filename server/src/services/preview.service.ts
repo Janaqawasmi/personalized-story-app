@@ -5,6 +5,7 @@ import { storyTemplateConverter } from "../shared/firestore/converters";
 import { StoryPreview, PreviewPage, PreviewStatus, PreviewKind } from "../shared/types/storyPreview";
 import { StoryTemplate } from "../shared/types/storyTemplate";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
+import { CHILDRENS_BOOK_PAGE_ILLUSTRATION } from "../shared/seedreamImageSize";
 import {
   ChildData,
   personalizeText,
@@ -424,8 +425,8 @@ async function generatePreviewPages(
           textPrompt: imagePrompt,
           seed: Math.floor(Math.random() * 2 ** 31),
           ...(photoSignedUrl ? { referenceImage: photoSignedUrl } : {}),
-          outputWidth: 1024,
-          outputHeight: 1024,
+          outputWidth: CHILDRENS_BOOK_PAGE_ILLUSTRATION.width,
+          outputHeight: CHILDRENS_BOOK_PAGE_ILLUSTRATION.height,
         });
 
         const ext = imageResult.mimeType.split("/")[1] ?? "webp";

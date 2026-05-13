@@ -1,6 +1,8 @@
 // server/src/providers/seedream.provider.ts
 //
 // Implements ImageGenerationProvider for BytePlus ModelArk Seedream 4.0.
+// `size` is sent as "WxH" pixels (see `shared/seedreamImageSize.ts`); unsupported
+// dimensions fall back to the default children's-book preset.
 // Env vars required:
 //   ARK_API_KEY         — API key for BytePlus ModelArk
 //   ARK_API_URL         — Base URL (default: https://ark.ap-southeast.bytepluses.com/api/v3)
@@ -15,6 +17,7 @@ import type {
   ImageGenerationProvider,
   ImageGenerationResult,
 } from "@/shared/types/aiProvider";
+import { buildSeedreamSizeParam } from "@/shared/seedreamImageSize";
 
 const DEFAULT_API_URL = "https://ark.ap-southeast.bytepluses.com/api/v3";
 const DEFAULT_MODEL_ID = "seedream-4-0-250828";
@@ -79,11 +82,19 @@ export class SeedreamProvider implements ImageGenerationProvider {
       );
     }
 
+    const sizeParams: { outputWidth?: number; outputHeight?: number } = {};
+    if (params.outputWidth !== undefined) {
+      sizeParams.outputWidth = params.outputWidth;
+    }
+    if (params.outputHeight !== undefined) {
+      sizeParams.outputHeight = params.outputHeight;
+    }
+
     const body: SeedreamRequest = {
       model: this.modelId,
       prompt: params.textPrompt,
       n: 1,
-      size: "2K",
+      size: buildSeedreamSizeParam(sizeParams),
       response_format: "b64_json",
       watermark: false,
       guidance_scale: DEFAULT_GUIDANCE_SCALE,

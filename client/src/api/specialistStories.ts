@@ -10,6 +10,18 @@ import { API_BASE, getAuthHeaders } from "./api";
 
 const BASE = `${API_BASE}/api/specialist/stories`;
 
+/** Subset of Agent 1 approved-part tokens for reruns (matches server `ApprovedPart`). */
+export type Agent1ApprovedPartToken =
+  | "emotionalTruth"
+  | "blueprint"
+  | "approachInstruction"
+  | "story";
+
+export type Agent1RegenerationPayload = {
+  feedbackText: string;
+  approvedParts: Agent1ApprovedPartToken[];
+};
+
 const NETWORK_ERROR =
   "Unable to reach the server. Check your connection and that the API is running.";
 
@@ -72,11 +84,12 @@ function wrapNetworkError(err: unknown): never {
 // Endpoints
 // ============================================================================
 
-/** POST /api/specialist/stories/:storyId/generate — submit brief and run story generation. */
+/** POST /api/specialist/stories/:storyId/generate — submit brief and run story generation (or rerun from needs_revision with agent1Rerun). */
 export async function generateStory(
   storyId: string,
   brief: CompleteBrief,
   parentStoryId?: string,
+  agent1Rerun?: Agent1RegenerationPayload,
 ): Promise<Story> {
   try {
     const headers = await getAuthHeaders();
@@ -84,23 +97,30 @@ export async function generateStory(
     if (parentStoryId !== undefined) {
       storyPayload.parentStoryId = parentStoryId;
     }
+    const requestBody: {
+      story: typeof storyPayload;
+      agent1Rerun?: Agent1RegenerationPayload;
+    } = { story: storyPayload };
+    if (agent1Rerun !== undefined) {
+      requestBody.agent1Rerun = agent1Rerun;
+    }
     const res = await fetch(
       `${BASE}/${encodeURIComponent(storyId)}/generate`,
-      { method: "POST", headers, body: JSON.stringify({ story: storyPayload }) },
+      { method: "POST", headers, body: JSON.stringify(requestBody) },
     );
-    const body = (await res.json().catch(() => ({}))) as {
+    const json = (await res.json().catch(() => ({}))) as {
       story?: Story;
       error?: string;
       details?: string;
       message?: string;
     };
     if (!res.ok) {
-      throw new Error(errorMessage(body, `Request failed (${res.status})`));
+      throw new Error(errorMessage(json, `Request failed (${res.status})`));
     }
-    if (!body.story) {
-      throw new Error(errorMessage(body, "Invalid server response"));
+    if (!json.story) {
+      throw new Error(errorMessage(json, "Invalid server response"));
     }
-    return normalizeStoryFromApi(body.story);
+    return normalizeStoryFromApi(json.story);
   } catch (err) {
     return wrapNetworkError(err);
   }
