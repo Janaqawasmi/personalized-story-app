@@ -117,23 +117,35 @@ export function GeneratingState({
     onStoryUpdateRef.current = onStoryUpdate;
   });
 
+  const storyRef = useRef(story);
   useEffect(() => {
-    const interval = setInterval(async () => {
+    storyRef.current = story;
+  }, [story]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function tick() {
+      if (cancelled) return;
       try {
         const updated = await draftStore.getStory(story.id);
-        if (
-          updated &&
-          updated.status !== "generating" &&
-          updated.status !== "needs_revision"
-        ) {
+        if (!updated || cancelled) return;
+        const cur = storyRef.current;
+        if (updated.status !== cur.status || updated.updatedAt !== cur.updatedAt) {
           onStoryUpdateRef.current(updated);
         }
       } catch {
         // Ignore transient poll errors — next tick will retry.
       }
-    }, 5000);
+    }
 
-    return () => clearInterval(interval);
+    void tick();
+    const interval = setInterval(() => void tick(), 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [story.id]);
 
   return (
