@@ -25,6 +25,7 @@ import { admin, firestore } from "./config/firebase";
 import { SeedreamProvider } from "./providers/seedream.provider";
 import { registerImageProvider } from "./services/preview.service";
 import { registerImageProviderForStory } from "./services/fullStoryGeneration.service";
+import { startIllustrationWorker } from "./illustration/worker";
 // v2 specialist illustration provider registration will be added in Phase 1
 // of the redesign (docs/illustration/spec.md). v1 registration is removed.
 
@@ -63,6 +64,8 @@ if (process.env.ARK_API_KEY) {
     "SEEDREAM_API_KEY not set — image generation will be unavailable.",
   );
 }
+
+startIllustrationWorker();
 
 // ---------- APP ----------
 const app = express();

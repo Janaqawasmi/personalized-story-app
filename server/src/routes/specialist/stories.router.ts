@@ -18,6 +18,7 @@ import {
 import type { Story, StoryStatus } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
+import { enqueueJob } from "@/illustration/shared/job-enqueue";
 
 const router = Router();
 
@@ -416,6 +417,19 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  if (to === "illustration_workspace") {
+    const jobId = await enqueueJob({
+      storyId,
+      type: "workspace_open",
+      pageNumber: null,
+      enqueuedBy: ownerUid,
+      inputRefs: {},
+      idempotencyKey: `${storyId}:workspace_open:v1`,
+    });
+    res.status(200).json({ jobId, status: "pending" });
+    return;
+  }
+
   const now = Date.now();
   const extraFields: Partial<Story> = {};
 
@@ -469,8 +483,7 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     editHistory: updatedHistory,
   });
 
-  // Phase 1 of the v2 illustration redesign will enqueue the workspace-open
-  // job here when `to === "illustration_workspace"`. See docs/illustration/spec.md §14.1.
+  // Phase 2: `illustration_workspace` is enqueued above; the worker flips status when done.
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
   const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);

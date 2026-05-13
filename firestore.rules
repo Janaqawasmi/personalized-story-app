@@ -204,6 +204,34 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────
+    // Specialist stories + v2 illustration artefacts (client read-only subcollections)
+    // ────────────────────────────────────────────────────
+
+    match /stories/{storyId} {
+      allow read: if isSpecialistOrAdmin()
+        && (isAdmin() || resource.data.ownerUid == request.auth.uid);
+      allow write: if false;
+
+      match /visualBibles/{vbId} {
+        allow read: if isSpecialistOrAdmin()
+          && (isAdmin() || get(/databases/$(database)/documents/stories/$(storyId)).data.ownerUid == request.auth.uid);
+        allow write: if false;
+      }
+
+      match /scenePlans/{spId} {
+        allow read: if isSpecialistOrAdmin()
+          && (isAdmin() || get(/databases/$(database)/documents/stories/$(storyId)).data.ownerUid == request.auth.uid);
+        allow write: if false;
+      }
+
+      match /illustrationJobs/{jobId} {
+        allow read: if isSpecialistOrAdmin()
+          && (isAdmin() || get(/databases/$(database)/documents/stories/$(storyId)).data.ownerUid == request.auth.uid);
+        allow write: if false;
+      }
+    }
+
+    // ────────────────────────────────────────────────────
     // Default: deny everything else
     // ────────────────────────────────────────────────────
 

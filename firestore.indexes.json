@@ -183,6 +183,38 @@
         { "fieldPath": "submittedByUid", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "illustrationJobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "enqueuedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "illustrationJobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "idempotencyKey", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "illustrationJobs",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "lastHeartbeatAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "scenePlans",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "pageNumber", "order": "ASCENDING" },
+        { "fieldPath": "version", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

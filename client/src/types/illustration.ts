@@ -127,6 +127,7 @@ export interface IllustrationJob {
   enqueuedAt: number;
   startedAt: number | null;
   completedAt: number | null;
+  lastHeartbeatAt?: number | null;
   status: IllustrationJobStatus;
   attempt: number;
   idempotencyKey: string;

@@ -11,5 +11,7 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
+      - key: ILLUSTRATION_WORKER_ENABLED
+        value: "true"
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false

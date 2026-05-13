@@ -171,6 +171,7 @@ describe("Illustration type shapes", () => {
       enqueuedAt: 1,
       startedAt: null as number | null,
       completedAt: null as number | null,
+      lastHeartbeatAt: null as number | null,
       status: "pending" as const,
       attempt: 0,
       idempotencyKey: "k",

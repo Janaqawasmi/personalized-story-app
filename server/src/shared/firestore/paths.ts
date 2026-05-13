@@ -1,4 +1,5 @@
 export const COLLECTIONS = {
+  STORIES: "stories",
   STORY_TEMPLATES: "story_templates",
   CAREGIVERS: "caregivers",
   STORY_PREVIEWS: "storyPreviews",

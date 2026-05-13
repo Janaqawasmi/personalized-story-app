@@ -1,0 +1,90 @@
+import { useCallback, useMemo, useState } from "react";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import { openIllustrationWorkspace } from "../../../api/illustrationApi";
+import type { Story } from "../../../types/story";
+import { useIllustrationWorkspaceState } from "../../hooks/useIllustrationWorkspaceState";
+import ErrorPanel from "./ErrorPanel";
+import LoadingPanel from "./LoadingPanel";
+import PanelACta from "./PanelACta";
+import WorkspacePreview from "./WorkspacePreview";
+
+interface Props {
+  story: Story;
+}
+
+export default function IllustrationsTabV2({ story }: Props) {
+  const vm = useIllustrationWorkspaceState(story.id);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const manuscriptByPage = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const p of story.pages ?? []) {
+      m.set(p.pageNumber, p.text);
+    }
+    return m;
+  }, [story.pages]);
+
+  const runOpen = useCallback(async () => {
+    setActionError(null);
+    try {
+      await openIllustrationWorkspace(story.id);
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : String(e));
+    }
+  }, [story.id]);
+
+  if (story.status !== "approved" && story.status !== "illustration_workspace") {
+    return (
+      <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 4, pb: 8 }}>
+        <Typography variant="body2" color="text.secondary">
+          Open this tab when the story is approved to start illustrations.
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 4, pb: 8 }}>
+      <Stack spacing={3}>
+        {actionError ? (
+          <Typography variant="body2" color="error">
+            {actionError}
+          </Typography>
+        ) : null}
+
+        {vm.kind === "loading" ? (
+          <LoadingPanel message="Loading…" />
+        ) : null}
+
+        {vm.kind === "cta" ? (
+          <PanelACta disabled={false} onOpen={runOpen} />
+        ) : null}
+
+        {vm.kind === "pending" ? (
+          <LoadingPanel message="Queued — starting illustration workspace…" />
+        ) : null}
+
+        {vm.kind === "running" ? (
+          <LoadingPanel
+            message={vm.progressHint ?? "Generating illustration workspace…"}
+          />
+        ) : null}
+
+        {vm.kind === "failed" ? (
+          <ErrorPanel error={vm.error} onRetry={runOpen} />
+        ) : null}
+
+        {vm.kind === "ready" ? (
+          <WorkspacePreview
+            storyId={story.id}
+            visualBibleVersion={vm.visualBibleVersion}
+            pages={vm.pages}
+            manuscriptByPage={manuscriptByPage}
+          />
+        ) : null}
+      </Stack>
+    </Box>
+  );
+}

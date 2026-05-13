@@ -15,6 +15,8 @@ export interface IllustrationJob {
   enqueuedAt: number;
   startedAt: number | null;
   completedAt: number | null;
+  /** Updated by the worker while status is `running` (staleness recovery). */
+  lastHeartbeatAt: number | null;
   status: IllustrationJobStatus;
   attempt: number;
   idempotencyKey: string;
