@@ -73,10 +73,13 @@ export default function BookReaderCore({
       sx={{
         minHeight: chromeless ? 0 : "70vh",
         maxHeight: chromeless ? "none" : "90vh",
-        overflow: chromeless ? "visible" : "auto",
+        height: chromeless ? "100%" : "auto",
+        overflow: chromeless ? "hidden" : "auto",
         bgcolor: chromeless ? "transparent" : "background.default",
         direction: isRTL ? "rtl" : "ltr",
         position: "relative",
+        display: chromeless ? "flex" : "block",
+        flexDirection: chromeless ? "column" : undefined,
       }}
     >
       {!chromeless && onClose ? (
@@ -112,7 +115,17 @@ export default function BookReaderCore({
           childName={model.childDisplayName ?? undefined}
         />
       ) : (
-        <Box sx={{ px: chromeless ? 0 : 2, pb: chromeless ? 2 : 4, pt: chromeless ? 0 : 2 }}>
+        <Box
+          sx={{
+            px: chromeless ? 0 : 2,
+            pb: chromeless ? 0 : 4,
+            pt: chromeless ? 0 : 2,
+            flex: chromeless ? 1 : undefined,
+            minHeight: chromeless ? 0 : undefined,
+            display: chromeless ? "flex" : "block",
+            flexDirection: chromeless ? "column" : undefined,
+          }}
+        >
           {!chromeless ? (
             <Box
               sx={{
@@ -150,9 +163,21 @@ export default function BookReaderCore({
             sx={{
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
+              alignItems: chromeless ? "stretch" : "center",
               width: "100%",
               mx: "auto",
+              flex: chromeless ? 1 : undefined,
+              minHeight: chromeless ? 0 : undefined,
+              ...(chromeless
+                ? {
+                    "& > *": {
+                      minHeight: 0,
+                      width: "100%",
+                      height: "100%",
+                      alignSelf: "stretch",
+                    },
+                  }
+                : {}),
             }}
           >
             <BookSpread

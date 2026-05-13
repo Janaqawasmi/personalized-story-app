@@ -169,8 +169,10 @@ ${BOOK_SHELL_CSS}
   position: absolute; inset: 0;
   background: linear-gradient(135deg,#F7F2EC 0%,#EFE7DE 100%);
   border-radius: 0 8px 8px 0; z-index: 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 44px 40px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 44px 40px 48px;
+  overflow-x: hidden; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .bs2-under::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .6;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.038'/%3E%3C/svg%3E"); }
@@ -186,9 +188,11 @@ ${BOOK_SHELL_CSS}
 .bs2-flip-front {
   position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   background: linear-gradient(135deg,#F7F2EC 0%,#EFE7DE 100%);
-  border-radius: 0 8px 8px 0; overflow: hidden;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 44px 40px;
+  border-radius: 0 8px 8px 0;
+  overflow-x: hidden; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 44px 40px 48px;
 }
 .bs2-flip-front::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .6;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.038'/%3E%3C/svg%3E"); }
