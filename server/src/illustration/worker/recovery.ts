@@ -1,5 +1,6 @@
 import { firestore } from "@/config/firebase";
 import { COLLECTIONS } from "@/shared/firestore/paths";
+import { isFirestoreCompositeIndexBuilding, warnThrottledIndexBuilding } from "./firestore-index-errors";
 
 const STALE_MS = 60_000;
 const MAX_ATTEMPTS = 3;
@@ -7,11 +8,20 @@ const MAX_ATTEMPTS = 3;
 export async function reclaimStaleJobs(): Promise<void> {
   const now = Date.now();
   const threshold = now - STALE_MS;
-  const snap = await firestore
-    .collectionGroup(COLLECTIONS.STORY_ILLUSTRATION_JOBS)
-    .where("status", "==", "running")
-    .where("lastHeartbeatAt", "<", threshold)
-    .get();
+  let snap: FirebaseFirestore.QuerySnapshot;
+  try {
+    snap = await firestore
+      .collectionGroup(COLLECTIONS.STORY_ILLUSTRATION_JOBS)
+      .where("status", "==", "running")
+      .where("lastHeartbeatAt", "<", threshold)
+      .get();
+  } catch (err) {
+    if (isFirestoreCompositeIndexBuilding(err)) {
+      warnThrottledIndexBuilding("recovery");
+      return;
+    }
+    throw err;
+  }
 
   for (const doc of snap.docs) {
     try {

@@ -3,6 +3,7 @@ import { firestore } from "@/config/firebase";
 import type { IllustrationJob } from "@/illustration/types";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { claimJob } from "./claim";
+import { isFirestoreCompositeIndexBuilding, warnThrottledIndexBuilding } from "./firestore-index-errors";
 import { handlers, UnsupportedJobTypeError } from "./handlers";
 import { reclaimStaleJobs } from "./recovery";
 
@@ -114,7 +115,11 @@ export function startIllustrationWorker(
           });
       }
     } catch (err) {
-      console.error("[illustration/worker] pollLoop", err);
+      if (isFirestoreCompositeIndexBuilding(err)) {
+        warnThrottledIndexBuilding("pollLoop");
+      } else {
+        console.error("[illustration/worker] pollLoop", err);
+      }
     }
     setTimeout(poll, cfg.pollIntervalMs).unref?.();
   };
