@@ -17,7 +17,6 @@ import { useTheme } from "@mui/material/styles";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
-import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import BookOutlined from "@mui/icons-material/BookOutlined";
 import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
@@ -231,22 +230,7 @@ export default function Navbar({
               <CircularProgress size={22} />
             ) : currentUser ? (
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                {/* 1) Favorites */}
-                <IconButton
-                  onClick={() => {
-                    navigate("/favorites");
-                    setSearchOpen(false);
-                  }}
-                  aria-label={t("navbar.labels.favorites")}
-                >
-                  <Tooltip title={t("navbar.labels.favorites")}>
-                    <Badge color="error" badgeContent={0} invisible>
-                      <FavoriteBorderIcon />
-                    </Badge>
-                  </Tooltip>
-                </IconButton>
-
-                {/* 2) Cart */}
+                {/* 1) Cart */}
                 <IconButton
                   onClick={() => {
                     navigate("/cart");
@@ -261,7 +245,7 @@ export default function Navbar({
                   </Tooltip>
                 </IconButton>
 
-                {/* 3) User menu trigger */}
+                {/* 2) User menu trigger */}
                 <Button
                   size="small"
                   variant="text"
@@ -294,7 +278,7 @@ export default function Navbar({
                   <KeyboardArrowDownIcon fontSize="small" />
                 </Button>
 
-                {/* 4) Search */}
+                {/* 3) Search */}
                 <IconButton onClick={() => setSearchOpen(true)} aria-label={t("navbar.labels.search")}>
                   <Tooltip title={t("navbar.labels.search")}>
                     <SearchOutlinedIcon />
@@ -379,7 +363,7 @@ export default function Navbar({
 
                   <MenuItem
                     onClick={() => {
-                      navigate("/favorites");
+                      navigate("/my-stories?tab=favorites");
                       handleUserMenuClose();
                     }}
                     sx={{ gap: 1.5, py: 1 }}
