@@ -103,17 +103,42 @@ export default function BookReaderCore({
       ) : null}
 
       {showCover ? (
-        <BookCover
-          title={model.title}
-          onStart={() => {
-            setShowCover(false);
-            setSpreadIndex(0);
-          }}
-          language={storyLanguage}
-          uiLanguage={uiLanguage}
-          coverImage={model.coverImageUrl ?? undefined}
-          childName={model.childDisplayName ?? undefined}
-        />
+        chromeless ? (
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: "auto",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <BookCover
+              embedded
+              title={model.title}
+              onStart={() => {
+                setShowCover(false);
+                setSpreadIndex(0);
+              }}
+              language={storyLanguage}
+              uiLanguage={uiLanguage}
+              coverImage={model.coverImageUrl ?? undefined}
+              childName={model.childDisplayName ?? undefined}
+            />
+          </Box>
+        ) : (
+          <BookCover
+            title={model.title}
+            onStart={() => {
+              setShowCover(false);
+              setSpreadIndex(0);
+            }}
+            language={storyLanguage}
+            uiLanguage={uiLanguage}
+            coverImage={model.coverImageUrl ?? undefined}
+            childName={model.childDisplayName ?? undefined}
+          />
+        )
       ) : (
         <Box
           sx={{

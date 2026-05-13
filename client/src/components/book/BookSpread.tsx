@@ -137,8 +137,6 @@ ${BOOK_SHELL_CSS}
   padding: 4px 14px; font-family: 'Playfair Display', serif; font-size: 11px;
   letter-spacing: .14em; color: #824D5C; pointer-events: none;
 }
-.bs2-book.bs2-rtl .bs2-counter { left: auto; right: 20px; }
-
 .bs2-spine { width: 20px; height: 100%; flex-shrink: 0; z-index: 10; position: relative;
   background: linear-gradient(to right,#6F404D 0%,#5A3040 30%,#7A4858 50%,#5A3040 70%,#6F404D 100%);
   box-shadow: 2px 0 6px rgba(0,0,0,.22), -2px 0 6px rgba(0,0,0,.22); }
@@ -153,16 +151,8 @@ ${BOOK_SHELL_CSS}
 
 .bs2-right { width: 50%; height: 100%; position: relative; flex-shrink: 0; transform-style: preserve-3d; }
 
-.bs2-book.bs2-rtl { flex-direction: row-reverse; border-radius: 8px 4px 4px 8px; }
-.bs2-book.bs2-rtl .bs2-page-left { border-radius: 0 4px 4px 0; }
-.bs2-book.bs2-rtl .bs2-page-left::after { background: linear-gradient(to left, transparent 68%, rgba(90,48,64,.18) 85%, rgba(90,48,64,.3) 100%); }
-/* RTL: fan stacks stay inset from each edge (BOOK_SHELL_CSS); layout is symmetric.
-   Border radius flips to match RTL book orientation. */
-.bs2-book.bs2-rtl .bs2-flip { transform-origin: right center; }
-.bs2-book.bs2-rtl .bs2-flip.bs2-flipped { transform: rotateY(180deg); }
-.bs2-book.bs2-rtl .bs2-flip-back { transform: rotateY(-180deg); }
-.bs2-book.bs2-rtl .bs2-flip-front::after { background: linear-gradient(to left, rgba(30,15,5,.14) 0%, transparent 20%); }
-.bs2-book.bs2-rtl .bs2-fold-shadow { left: auto; right: 0; background: linear-gradient(to left, rgba(0,0,0,.2), transparent); }
+/* Hebrew/Arabic stories: keep spread layout image-left / text-right (same as LTR shell);
+   only the story body runs RTL. */
 .bs2-book.bs2-rtl .bs2-story-text { direction: rtl; font-family: 'Frank Ruhl Libre', serif; font-style: normal; }
 
 .bs2-under {
@@ -282,8 +272,6 @@ ${BOOK_SHELL_CSS}
     box-shadow: none;
     overflow: hidden;
   }
-  .bs2-book.bs2-rtl { flex-direction: row; }
-
   /* Illustration fills the entire screen */
   .bs2-page-left {
     position: absolute;
@@ -731,7 +719,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     if (dragStartRef.current === null || isFlipping) return;
     const flipEl = flipRef.current;
     if (!flipEl) return;
-    const dx = isRTL ? dragStartRef.current - e.clientX : e.clientX - dragStartRef.current;
+    const dx = e.clientX - dragStartRef.current;
     const r = Math.max(0, Math.min(1, -dx / DRAG_RANGE));
     if (r > 0.02) {
       flipEl.style.transition = "none";
@@ -741,7 +729,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragStartRef.current === null) return;
     const flipEl = flipRef.current;
-    const dx = isRTL ? dragStartRef.current - e.clientX : e.clientX - dragStartRef.current;
+    const dx = e.clientX - dragStartRef.current;
     if (flipEl) {
       flipEl.style.transform = "";
       flipEl.style.transition = `transform ${FLIP_DURATION_MS}ms cubic-bezier(0.645,0.045,0.355,1)`;
@@ -756,7 +744,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     triggerFlip("next");
   };
 
-  // Mobile swipe-to-turn (RTL-aware)
+  // Mobile swipe-to-turn (spread is always image-left / text-right)
   const onMobileTouchStart = (e: React.TouchEvent) => {
     if (window.innerWidth > 768) return;
     swipeTouchRef.current = e.touches[0].clientX;
@@ -765,8 +753,8 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     if (window.innerWidth > 768 || swipeTouchRef.current === null) return;
     const dx = swipeTouchRef.current - e.changedTouches[0].clientX;
     if (Math.abs(dx) > 44) {
-      if (dx > 0) triggerFlip(isRTL ? "prev" : "next");
-      else        triggerFlip(isRTL ? "next" : "prev");
+      if (dx > 0) triggerFlip("next");
+      else triggerFlip("prev");
     }
     swipeTouchRef.current = null;
   };

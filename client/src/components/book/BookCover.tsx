@@ -17,6 +17,8 @@ interface BookCoverProps {
   coverImage?: string;
   childName?: string;
   startLabel?: string;
+  /** Use inside dialogs / flex panes: avoid 100vh so the CTA stays scrollable or visible. */
+  embedded?: boolean;
 }
 
 const RTL_LANGUAGES = ["he", "ar", "iw", "he-il", "ar-sa", "ar-il"];
@@ -34,6 +36,7 @@ export default function BookCover({
   coverImage,
   childName,
   startLabel,
+  embedded = false,
 }: BookCoverProps) {
   // Story language — affects body text direction, Hebrew/Arabic body font
   const isStoryRTL = isRtlLanguage(language);
@@ -86,13 +89,16 @@ export default function BookCover({
     <Box
       dir="ltr"
       sx={{
-        minHeight: "100vh",
+        minHeight: embedded ? "auto" : "100vh",
         background: BOOK_COLORS.pageBgRadial,
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        padding: { xs: "48px 20px 32px", md: "72px 24px 48px" },
+        padding: embedded
+          ? { xs: "24px 20px 28px", md: "32px 24px 36px" }
+          : { xs: "48px 20px 32px", md: "72px 24px 48px" },
+        boxSizing: "border-box",
       }}
     >
       <Box
