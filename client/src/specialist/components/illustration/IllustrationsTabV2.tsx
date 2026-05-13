@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -11,6 +12,7 @@ import {
   rejectPageImage,
 } from "../../../api/illustrationApi";
 import type { Story } from "../../../types/story";
+import { useSpecialistDeskUi } from "../../../i18n/specialistDeskUi";
 import { useIllustrationWorkspaceState } from "../../hooks/useIllustrationWorkspaceState";
 import ErrorPanel from "./ErrorPanel";
 import LoadingPanel from "./LoadingPanel";
@@ -23,6 +25,7 @@ interface Props {
 }
 
 export default function IllustrationsTabV2({ story }: Props) {
+  const desk = useSpecialistDeskUi();
   const vm = useIllustrationWorkspaceState(story.id);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -115,6 +118,10 @@ export default function IllustrationsTabV2({ story }: Props) {
 
         {vm.kind === "loading" ? (
           <LoadingPanel message="Loading…" />
+        ) : null}
+
+        {vm.kind === "illustration_metadata_incomplete" ? (
+          <Alert severity="warning">{desk.illustrationsTabIncompleteMetadata}</Alert>
         ) : null}
 
         {vm.kind === "cta" ? (

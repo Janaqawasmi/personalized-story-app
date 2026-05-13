@@ -45,6 +45,7 @@ export type PageCardViewModel = {
 
 export type WorkspaceViewModel =
   | { kind: "loading" }
+  | { kind: "illustration_metadata_incomplete" }
   | { kind: "cta" }
   | { kind: "pending"; jobId: string }
   | { kind: "running"; jobId: string; progressHint?: string }
@@ -220,6 +221,28 @@ function latestVisualBibleRegenJob(jobs: IllustrationJob[]): IllustrationJob | n
   return candidates[0] ?? null;
 }
 
+/**
+ * Older or hand-seeded Firestore docs may omit `currentVisualBibleVersion` while
+ * still having `illustrationPages` + subcollection artefacts. Prefer the explicit
+ * story field, then artefacts, so the tab does not spin forever.
+ */
+function resolveEffectiveVisualBibleVersion(
+  story: Story,
+  visualBibles: VisualBibleArtefact[],
+  scenePlans: ScenePlanArtefact[],
+): number | null {
+  if (story.currentVisualBibleVersion !== null && story.currentVisualBibleVersion !== undefined) {
+    return story.currentVisualBibleVersion;
+  }
+  if (visualBibles.length > 0) {
+    return Math.max(...visualBibles.map((v) => v.version));
+  }
+  if (scenePlans.length > 0) {
+    return Math.max(...scenePlans.map((s) => s.visualBibleVersion));
+  }
+  return null;
+}
+
 export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewModel {
   const { currentUser, loading: authLoading } = useAuth();
   const [story, setStory] = useState<Story | null>(null);
@@ -322,8 +345,13 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
 
     if (story.status === "illustration_workspace" || story.status === "illustration_ready" || story.status === "published") {
       const pages = story.illustrationPages ?? [];
-      const vbv = story.currentVisualBibleVersion;
-      if (vbv === null) return { kind: "loading" };
+      const vbv = resolveEffectiveVisualBibleVersion(story, visualBibles, scenePlans);
+      if (vbv === null) {
+        if (pages.length > 0) {
+          return { kind: "illustration_metadata_incomplete" };
+        }
+        return { kind: "loading" };
+      }
       const readOnly = story.status === "illustration_ready" || story.status === "published";
       const cards = buildPageCards(pages, jobs, images, scenePlans, vbv);
       const allApproved = cards.length > 0 && cards.every((p) => p.subStatus === "approved");

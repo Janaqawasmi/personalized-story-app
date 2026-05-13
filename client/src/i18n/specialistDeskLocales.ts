@@ -332,6 +332,8 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   workspaceCouldNotOpenReview: "Could not open story for review.",
   workspaceErrorBanner: "We had trouble loading this story.",
   workspaceTryAgain: "Try again",
+  illustrationsTabIncompleteMetadata:
+    "Could not load the illustration workspace: this story is missing illustration metadata (Visual Bible version). Refresh the page. If it keeps happening, a maintainer should set `currentVisualBibleVersion` on the Firestore story to match the latest document under `visualBibles`, or repair the story data.",
 
   unsavedDialogTitle: "Unsaved changes",
   unsavedDialogBody:
@@ -499,6 +501,8 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   workspaceCouldNotOpenReview: "לא ניתן לפתוח את הסיפור לביקורת.",
   workspaceErrorBanner: "אירעה בעיה בטעינת הסיפור.",
   workspaceTryAgain: "נסו שוב",
+  illustrationsTabIncompleteMetadata:
+    "לא ניתן לטעון את מרחב האיור: חסרים במסמך הסיפור נתוני איור (גרסת התנ\"ך הוויזואלי). נסו לרענן. אם זה נמשך, יש לעדכן ב-Firestore את השדה `currentVisualBibleVersion` כך שיתאים למסמך האחרון תחת `visualBibles`, או לתקן את נתוני הסיפור.",
 
   unsavedDialogTitle: "שינויים שלא נשמרו",
   unsavedDialogBody:
@@ -668,6 +672,8 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   workspaceCouldNotOpenReview: "تعذّر فتح القصة للمراجعة.",
   workspaceErrorBanner: "واجهنا مشكلة في تحميل هذه القصة.",
   workspaceTryAgain: "إعادة المحاولة",
+  illustrationsTabIncompleteMetadata:
+    "تعذّر تحميل مساحة التوضيح: يفتقد مستند القصة بيانات التوضيح (إصدار المرجع البصري). حدّثوا الصفحة. إن استمرّ ذلك، يجب على المشرف ضبط الحقل `currentVisualBibleVersion` في Firestore ليطابق آخر مستند تحت `visualBibles`، أو إصلاح بيانات القصة.",
 
   unsavedDialogTitle: "تغييرات غير محفوظة",
   unsavedDialogBody:

@@ -11,6 +11,12 @@ jest.mock("../hooks/useIsAdminOrDevPanelEnabled", () => ({
   useIsAdminOrDevPanelEnabled: () => false,
 }));
 
+jest.mock("../../i18n/specialistDeskUi", () => ({
+  useSpecialistDeskUi: () => ({
+    illustrationsTabIncompleteMetadata: "Illustration metadata on this story is incomplete.",
+  }),
+}));
+
 const mockUseVm = useIllustrationWorkspaceState as unknown as jest.Mock;
 
 function approvedStory() {
@@ -148,5 +154,12 @@ describe("IllustrationsTabV2", () => {
     render(<IllustrationsTabV2 story={approvedStory()} />);
     expect(screen.getByText(/boom/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /Try again/i })).toBeTruthy();
+  });
+
+  it("renders incomplete-metadata warning", () => {
+    mockUseVm.mockReturnValue({ kind: "illustration_metadata_incomplete" });
+    const story = { ...approvedStory(), status: "illustration_ready" as const };
+    render(<IllustrationsTabV2 story={story} />);
+    expect(screen.getByText(/Illustration metadata on this story is incomplete/i)).toBeTruthy();
   });
 });

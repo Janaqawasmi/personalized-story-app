@@ -9,6 +9,7 @@
     "seed:rag": "ts-node scripts/seedRag.ts",
     "seed:reference": "ts-node scripts/seedReferenceData.ts",
     "seed:jana-story": "ts-node -r tsconfig-paths/register scripts/seedJanaStoryToStories.ts",
+    "backfill:story-visual-bible-version": "ts-node -r tsconfig-paths/register scripts/backfillStoryVisualBibleVersion.ts",
     "get-user-role": "ts-node scripts/getUserRole.ts",
     "complexity:parity": "ts-node scripts/complexityWireParity.ts",
     "smoke:agent1": "ts-node -r tsconfig-paths/register scripts/smoke-test-agent1.ts",

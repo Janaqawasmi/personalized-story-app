@@ -129,6 +129,8 @@ export interface SpecialistDeskUi {
   workspaceCouldNotOpenReview: string;
   workspaceErrorBanner: string;
   workspaceTryAgain: string;
+  /** Illustrations tab when Firestore story lacks `currentVisualBibleVersion` and no VB/scene-plan artefacts were found. */
+  illustrationsTabIncompleteMetadata: string;
 
   unsavedDialogTitle: string;
   unsavedDialogBody: string;
