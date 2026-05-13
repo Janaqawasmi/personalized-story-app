@@ -27,6 +27,7 @@ import { COLORS } from "../../theme";
 import {
   getPipelineListLabelTranslated,
   getStoryPipelineUiState,
+  normalizeStoryStatusForDisplay,
 } from "../utils/storyPipeline";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
@@ -220,7 +221,8 @@ export default function StoryRow({
   const displayTitle =
     story.title.trim() === "" ? null : story.title;
 
-  const col = STATUS_CHIP_COLORS[story.status];
+  const statusForUi = normalizeStoryStatusForDisplay(story.status);
+  const col = STATUS_CHIP_COLORS[statusForUi];
   const pipelineLabel = getPipelineListLabelTranslated(story.status, desk);
   const evt = lastEventLines(story, desk, dateLocale);
   const statusLabels = desk.statusLabels;
@@ -468,7 +470,7 @@ export default function StoryRow({
                   thickness={5}
                   sx={{ color: col.filledText }}
                 />
-                {statusLabels[story.status]}
+                {statusLabels[statusForUi]}
               </span>
             ) : (
               <Box
@@ -485,7 +487,7 @@ export default function StoryRow({
                     flexShrink: 0,
                   }}
                 />
-                {statusLabels[story.status]}
+                {statusLabels[statusForUi]}
               </Box>
             )
           }

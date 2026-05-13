@@ -3,7 +3,7 @@
 // shared by StoryPipelineStepper and the stories list column.
 
 import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
-import type { StoryStatus } from "../../types/story";
+import { STORY_STATUSES, type StoryStatus } from "../../types/story";
 
 export const PIPELINE_STEP_LABELS = [
   "Brief",
@@ -31,6 +31,26 @@ export interface StoryPipelineArchived {
 
 export type StoryPipelineUiState = StoryPipelineActive | StoryPipelineArchived;
 
+/** v1 illustration statuses still present on some Firestore docs; map to v2 workspace UX. */
+const LEGACY_ILLUSTRATION_STATUSES = new Set([
+  "prompt_review",
+  "illustrating",
+  "illustration_review",
+]);
+
+/** True when Firestore still has a v1 illustration macro-status (removed from `StoryStatus`). */
+export function isLegacyIllustrationStoryStatus(status: string | undefined): boolean {
+  return status !== undefined && LEGACY_ILLUSTRATION_STATUSES.has(status);
+}
+
+/** Map runtime / legacy `status` strings to a known `StoryStatus` for labels and chips. */
+export function normalizeStoryStatusForDisplay(status: string | undefined): StoryStatus {
+  if (status === undefined || status === "") return "draft_brief";
+  if (LEGACY_ILLUSTRATION_STATUSES.has(status)) return "illustration_workspace";
+  if ((STORY_STATUSES as readonly string[]).includes(status)) return status as StoryStatus;
+  return "draft_brief";
+}
+
 function nextHintForStatus(status: StoryStatus): string {
   switch (status) {
     case "draft_brief":
@@ -56,12 +76,34 @@ function nextHintForStatus(status: StoryStatus): string {
   }
 }
 
-export function getStoryPipelineUiState(status: StoryStatus): StoryPipelineUiState {
+/**
+ * Runtime strings may include legacy statuses or bad data; never return undefined
+ * (StoryRow / stepper read `.kind`).
+ */
+export function getStoryPipelineUiState(status: StoryStatus | string | undefined): StoryPipelineUiState {
   if (status === "archived") {
     return { kind: "archived" };
   }
-  const nextHint = nextHintForStatus(status);
-  switch (status) {
+  if (status === undefined || status === "") {
+    const nextHint = "";
+    return {
+      kind: "active",
+      stepsCompleted: 0,
+      emphasisStepIndex: 0,
+      nextHint,
+    };
+  }
+  if (LEGACY_ILLUSTRATION_STATUSES.has(status)) {
+    const nextHint = nextHintForStatus("illustration_workspace");
+    return {
+      kind: "active",
+      stepsCompleted: 4,
+      emphasisStepIndex: 4,
+      nextHint,
+    };
+  }
+  const nextHint = nextHintForStatus(status as StoryStatus);
+  switch (status as StoryStatus) {
     case "draft_brief":
       return {
         kind: "active",
@@ -113,11 +155,18 @@ export function getStoryPipelineUiState(status: StoryStatus): StoryPipelineUiSta
         emphasisStepIndex: 5,
         nextHint,
       };
+    default:
+      return {
+        kind: "active",
+        stepsCompleted: 0,
+        emphasisStepIndex: 0,
+        nextHint: "",
+      };
   }
 }
 
 /** Short label for the list column — matches pipeline step names. */
-export function getPipelineListLabel(status: StoryStatus): string {
+export function getPipelineListLabel(status: StoryStatus | string | undefined): string {
   if (status === "archived") return "Archived";
   const s = getStoryPipelineUiState(status);
   if (s.kind === "archived") return "Archived";
@@ -127,7 +176,7 @@ export function getPipelineListLabel(status: StoryStatus): string {
 
 /** Localized short label for the stories table “Stage” column. */
 export function getPipelineListLabelTranslated(
-  status: StoryStatus,
+  status: StoryStatus | string | undefined,
   desk: Pick<
     SpecialistDeskUi,
     "pipelineSteps" | "pipelineListPublish" | "pipelineListArchived"
@@ -141,7 +190,9 @@ export function getPipelineListLabelTranslated(
 }
 
 /** Which pipeline step (0–5) the list icon should reflect. */
-export function getPipelineListStepIndex(status: StoryStatus): PipelineStepIndex | null {
+export function getPipelineListStepIndex(
+  status: StoryStatus | string | undefined,
+): PipelineStepIndex | null {
   if (status === "archived") return null;
   const s = getStoryPipelineUiState(status);
   if (s.kind === "archived") return null;

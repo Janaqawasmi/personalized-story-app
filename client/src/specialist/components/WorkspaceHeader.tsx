@@ -30,7 +30,7 @@ import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 import type { Story, StoryStatus } from "../../types/story";
 import type { StoryType } from "../../types/storyBrief";
-import { COLORS } from "../../theme";
+import { normalizeStoryStatusForDisplay } from "../utils/storyPipeline";
 import { DRAFT_B, FONTS } from "./draftB/tokens";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
@@ -99,7 +99,8 @@ export default function WorkspaceHeader({
   const [copiedSnackbar, setCopiedSnackbar] = useState(false);
 
   // ---- Derived ----
-  const statusColors = STATUS_CHIP_COLORS[story.status];
+  const statusForUi = normalizeStoryStatusForDisplay(story.status);
+  const statusColors = STATUS_CHIP_COLORS[statusForUi];
   const showSpinner =
     story.status === "generating" || story.status === "needs_revision";
   const isArchived = story.status === "archived";
@@ -288,11 +289,11 @@ export default function WorkspaceHeader({
                     }}
                   />
                 ) : null}
-                <span>{statusLabels[story.status]}</span>
+                <span>{statusLabels[statusForUi]}</span>
               </Stack>
             }
             size="small"
-            aria-label={desk.headerStatusAria(statusLabels[story.status])}
+            aria-label={desk.headerStatusAria(statusLabels[statusForUi])}
             sx={{
               bgcolor: statusColors.filledBg,
               color: statusColors.filledText,
