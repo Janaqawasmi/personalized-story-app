@@ -56,7 +56,7 @@ export function registerImageProvider(provider: ImageGenerationProvider): void {
   _imageProvider = provider;
 }
 
-function requireImageProvider(): ImageGenerationProvider {
+export function requireImageProvider(): ImageGenerationProvider {
   if (!_imageProvider) {
     return getImageProvider();
   }
@@ -422,6 +422,7 @@ async function generatePreviewPages(
         }
         imageResult = await imageProvider.generateImage({
           textPrompt: imagePrompt,
+          seed: Math.floor(Math.random() * 2 ** 31),
           ...(photoSignedUrl ? { referenceImage: photoSignedUrl } : {}),
           outputWidth: 1024,
           outputHeight: 1024,
@@ -448,6 +449,7 @@ async function generatePreviewPages(
           providerId: "failed",
           modelId: "failed",
           latencyMs: Date.now() - startTime,
+          seed: 0,
         };
       }
 

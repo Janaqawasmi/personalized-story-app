@@ -264,6 +264,7 @@ async function runFullStoryGeneration(
           if (photoSignedUrl) {
             const imageResult: ImageGenerationResult = await imageProvider.generateImage({
               textPrompt: imagePrompt,
+              seed: Math.floor(Math.random() * 2 ** 31),
               referenceImage: photoSignedUrl,
               outputWidth: 1024,
               outputHeight: 1024,
@@ -337,6 +338,7 @@ async function runFullStoryGeneration(
 
           const imageResult = await imageProvider.generateImage({
             textPrompt: imagePrompt,
+            seed: Math.floor(Math.random() * 2 ** 31),
             referenceImage: photoSignedUrl,
             outputWidth: 1024,
             outputHeight: 1024,

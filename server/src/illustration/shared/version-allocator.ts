@@ -31,3 +31,38 @@ export async function nextScenePlanVersion(
   if (!doc) return 1;
   return Number(doc.data()["version"] ?? 0) + 1;
 }
+
+export async function nextFinalPromptVersion(
+  storyId: string,
+  pageNumber: number,
+): Promise<number> {
+  const coll = firestore
+    .collection(COLLECTIONS.STORIES)
+    .doc(storyId)
+    .collection(COLLECTIONS.STORY_FINAL_PROMPTS);
+  const snap = await coll
+    .where("pageNumber", "==", pageNumber)
+    .orderBy("version", "desc")
+    .limit(1)
+    .get();
+  if (snap.empty) return 1;
+  const doc = snap.docs[0];
+  if (!doc) return 1;
+  return Number(doc.data()["version"] ?? 0) + 1;
+}
+
+export async function nextImageVersion(storyId: string, pageNumber: number): Promise<number> {
+  const coll = firestore
+    .collection(COLLECTIONS.STORIES)
+    .doc(storyId)
+    .collection(COLLECTIONS.STORY_IMAGES);
+  const snap = await coll
+    .where("pageNumber", "==", pageNumber)
+    .orderBy("version", "desc")
+    .limit(1)
+    .get();
+  if (snap.empty) return 1;
+  const doc = snap.docs[0];
+  if (!doc) return 1;
+  return Number(doc.data()["version"] ?? 0) + 1;
+}

@@ -215,6 +215,22 @@
         { "fieldPath": "pageNumber", "order": "ASCENDING" },
         { "fieldPath": "version", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "finalPrompts",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "pageNumber", "order": "ASCENDING" },
+        { "fieldPath": "version", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "images",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "pageNumber", "order": "ASCENDING" },
+        { "fieldPath": "version", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [

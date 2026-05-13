@@ -1,17 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import IllustrationsTabV2 from "../components/illustration/IllustrationsTabV2";
-import type { Story } from "../../types/story";
 import { useIllustrationWorkspaceState } from "../hooks/useIllustrationWorkspaceState";
 
 jest.mock("../hooks/useIllustrationWorkspaceState", () => ({
   useIllustrationWorkspaceState: jest.fn(),
 }));
 
-const mockUseVm = useIllustrationWorkspaceState as jest.MockedFunction<
-  typeof useIllustrationWorkspaceState
->;
+const mockUseVm = useIllustrationWorkspaceState;
 
-function approvedStory(): Story {
+function approvedStory() {
   return {
     id: "s1",
     ownerUid: "u1",
@@ -22,7 +19,7 @@ function approvedStory(): Story {
     tags: [],
     status: "approved",
     briefStatus: "submitted",
-    brief: {} as Story["brief"],
+    brief: {},
     agent1Result: null,
     agent1Versions: [],
     currentDraft: null,
@@ -67,7 +64,7 @@ describe("IllustrationsTabV2", () => {
     expect(screen.getByText(/Generating Visual Bible/i)).toBeTruthy();
   });
 
-  it("renders ready state with scene section", () => {
+  it("renders ready state with pages section", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
       visualBibleVersion: 1,
@@ -75,16 +72,44 @@ describe("IllustrationsTabV2", () => {
         {
           pageNumber: 1,
           text: "Hi.",
-          currentScenePlanVersion: 1,
-          currentImageVersion: null,
-          status: "plan_only",
-          pendingJobId: null,
+          scenePlanVersion: 1,
+          imageVersion: null,
+          imageUrl: null,
+          subStatus: "plan_only",
           lastError: null,
+          pendingJobId: null,
+          rejectionNote: null,
         },
       ],
+      allApproved: false,
+      readOnly: false,
     });
     render(<IllustrationsTabV2 story={approvedStory()} />);
-    expect(screen.getByText(/Scene plans/i)).toBeTruthy();
+    expect(screen.getByText(/^Pages$/i)).toBeTruthy();
+  });
+
+  it("disables mark ready when not all approved", () => {
+    mockUseVm.mockReturnValue({
+      kind: "ready",
+      visualBibleVersion: 1,
+      pages: [
+        {
+          pageNumber: 1,
+          text: "Hi.",
+          scenePlanVersion: 1,
+          imageVersion: null,
+          imageUrl: null,
+          subStatus: "plan_only",
+          lastError: null,
+          pendingJobId: null,
+          rejectionNote: null,
+        },
+      ],
+      allApproved: false,
+      readOnly: false,
+    });
+    render(<IllustrationsTabV2 story={approvedStory()} />);
+    expect(screen.getByRole("button", { name: /Mark as ready to publish/i })).toBeDisabled();
   });
 
   it("renders failed state", () => {

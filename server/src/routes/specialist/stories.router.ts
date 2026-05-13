@@ -19,6 +19,9 @@ import type { Story, StoryStatus } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 import { enqueueJob } from "@/illustration/shared/job-enqueue";
+import { appendIllustrationEvent } from "@/illustration/shared/history-events";
+import { readLatestImage } from "@/illustration/shared/artefact-store";
+import { COLLECTIONS } from "@/shared/firestore/paths";
 
 const router = Router();
 
@@ -417,6 +420,19 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  if (to === "illustration_ready") {
+    const pages = story.illustrationPages ?? [];
+    const unapproved = pages.filter((p) => p.status !== "approved").map((p) => p.pageNumber);
+    if (unapproved.length > 0) {
+      res.status(409).json({
+        error: "NOT_ALL_PAGES_APPROVED",
+        message: "Every page must have an approved illustration before marking ready to publish.",
+        unapprovedPageNumbers: unapproved,
+      });
+      return;
+    }
+  }
+
   if (to === "illustration_workspace") {
     const jobId = await enqueueJob({
       storyId,
@@ -471,6 +487,15 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
       },
     };
     updatedHistory.push(feedbackEvent);
+  }
+
+  if (to === "illustration_ready") {
+    updatedHistory.push({
+      id: crypto.randomUUID(),
+      at: now,
+      byUid: ownerUid,
+      event: { kind: "illustration_ready_marked" as const },
+    });
   }
 
   // NOTE: transitioning to "generating" via this endpoint only updates the
@@ -541,6 +566,220 @@ async function handleUpdateBrief(req: Request, res: Response): Promise<void> {
   res.status(200).json({ story: finalStory });
 }
 
+async function setIllustrationPagePendingImageJob(
+  storyId: string,
+  pageNumber: number,
+  jobId: string,
+): Promise<void> {
+  await firestore.runTransaction(async (tx) => {
+    const ref = firestore.collection(STORIES_COLLECTION).doc(storyId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+    const st = hydrateStoryFromFirestore(storyId, snap.data() as Record<string, unknown>);
+    if (st.status !== "illustration_workspace") return;
+    const pages = [...(st.illustrationPages ?? [])];
+    const idx = pages.findIndex((p) => p.pageNumber === pageNumber);
+    if (idx < 0) return;
+    const row = pages[idx]!;
+    pages[idx] = {
+      ...row,
+      pendingJobId: jobId,
+      status: "generating_image",
+      lastError: null,
+    };
+    tx.update(ref, { illustrationPages: pages, updatedAt: Date.now() });
+  });
+}
+
+async function handleEnqueuePageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Image generation is only available in the illustration workspace.",
+    });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentScenePlanVersion === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Illustration page not found." });
+    return;
+  }
+
+  const idempotencyKey = `${storyId}:image:${pageNumber}:sp${row.currentScenePlanVersion}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "image_generation",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: {},
+    idempotencyKey,
+  });
+
+  await setIllustrationPagePendingImageJob(storyId, pageNumber, jobId);
+
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handleApprovePageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Approvals only apply in illustration_workspace." });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentImageVersion === null) {
+    res.status(409).json({ error: "INVALID_STATE", message: "No image to approve for this page." });
+    return;
+  }
+
+  const img = await readLatestImage(storyId, pageNumber);
+  if (!img || img.version !== row.currentImageVersion || img.reviewStatus !== "awaiting_review") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Latest image is not awaiting review." });
+    return;
+  }
+
+  const now = Date.now();
+  const storyRef = firestore.collection(STORIES_COLLECTION).doc(storyId);
+  const imageRef = storyRef.collection(COLLECTIONS.STORY_IMAGES).doc(`${pageNumber}-${img.version}`);
+
+  await firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(storyRef);
+    if (!snap.exists) return;
+    const st = hydrateStoryFromFirestore(storyId, snap.data() as Record<string, unknown>);
+    const pages = [...(st.illustrationPages ?? [])];
+    const idx = pages.findIndex((p) => p.pageNumber === pageNumber);
+    if (idx < 0) return;
+    const r = pages[idx]!;
+    if (r.currentImageVersion !== img.version) return;
+    pages[idx] = { ...r, status: "approved" };
+    tx.update(imageRef, { reviewStatus: "approved", approvedAt: now });
+    tx.update(storyRef, { illustrationPages: pages, updatedAt: now });
+  });
+
+  await appendIllustrationEvent(
+    storyId,
+    { kind: "image_approved", pageNumber, version: img.version },
+    ownerUid,
+  );
+
+  res.status(200).json({ ok: true as const });
+}
+
+async function handleRejectPageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Rejections only apply in illustration_workspace." });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentImageVersion === null) {
+    res.status(409).json({ error: "INVALID_STATE", message: "No image to reject for this page." });
+    return;
+  }
+
+  const img = await readLatestImage(storyId, pageNumber);
+  if (!img || img.version !== row.currentImageVersion || img.reviewStatus !== "awaiting_review") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Latest image is not awaiting review." });
+    return;
+  }
+
+  const body = req.body as { feedbackNote?: unknown };
+  const feedbackNote =
+    typeof body.feedbackNote === "string" ? body.feedbackNote.trim() : "";
+
+  const now = Date.now();
+  const storyRef = firestore.collection(STORIES_COLLECTION).doc(storyId);
+  const imageRef = storyRef.collection(COLLECTIONS.STORY_IMAGES).doc(`${pageNumber}-${img.version}`);
+
+  await firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(storyRef);
+    if (!snap.exists) return;
+    const st = hydrateStoryFromFirestore(storyId, snap.data() as Record<string, unknown>);
+    const pages = [...(st.illustrationPages ?? [])];
+    const idx = pages.findIndex((p) => p.pageNumber === pageNumber);
+    if (idx < 0) return;
+    const r = pages[idx]!;
+    if (r.currentImageVersion !== img.version) return;
+    pages[idx] = {
+      ...r,
+      status: "plan_only",
+      pendingJobId: null,
+      currentImageVersion: null,
+      lastError: null,
+    };
+    tx.update(imageRef, {
+      reviewStatus: "needs_revision",
+      rejectionNote: feedbackNote.length > 0 ? feedbackNote : null,
+    });
+    tx.update(storyRef, { illustrationPages: pages, updatedAt: now });
+  });
+
+  await appendIllustrationEvent(
+    storyId,
+    {
+      kind: "image_rejected",
+      pageNumber,
+      version: img.version,
+      feedbackNote,
+    },
+    ownerUid,
+  );
+
+  res.status(200).json({ ok: true as const });
+}
+
 // ============================================================================
 // ROUTE REGISTRATION
 // ============================================================================
@@ -557,6 +796,9 @@ router.put("/:storyId/brief", handleUpdateBrief);
 
 // POST
 router.post("/:storyId/transitions", handleTransition);
+router.post("/:storyId/pages/:pageNumber/image", handleEnqueuePageImage);
+router.post("/:storyId/pages/:pageNumber/image/approve", handleApprovePageImage);
+router.post("/:storyId/pages/:pageNumber/image/reject", handleRejectPageImage);
 router.post("/:storyId/generate", handleGenerate); // from R2
 
 async function handleGenerate(req: Request, res: Response): Promise<void> {

@@ -1,8 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { openIllustrationWorkspace } from "../../../api/illustrationApi";
+import {
+  approvePageImage,
+  generatePageImage,
+  markIllustrationReadyToPublish,
+  openIllustrationWorkspace,
+  rejectPageImage,
+} from "../../../api/illustrationApi";
 import type { Story } from "../../../types/story";
 import { useIllustrationWorkspaceState } from "../../hooks/useIllustrationWorkspaceState";
 import ErrorPanel from "./ErrorPanel";
@@ -18,14 +24,6 @@ export default function IllustrationsTabV2({ story }: Props) {
   const vm = useIllustrationWorkspaceState(story.id);
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const manuscriptByPage = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const p of story.pages ?? []) {
-      m.set(p.pageNumber, p.text);
-    }
-    return m;
-  }, [story.pages]);
-
   const runOpen = useCallback(async () => {
     setActionError(null);
     try {
@@ -35,7 +33,51 @@ export default function IllustrationsTabV2({ story }: Props) {
     }
   }, [story.id]);
 
-  if (story.status !== "approved" && story.status !== "illustration_workspace") {
+  const handleGeneratePage = useCallback(
+    async (pageNumber: number) => {
+      setActionError(null);
+      try {
+        await generatePageImage(story.id, pageNumber);
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [story.id],
+  );
+
+  const handleApprovePage = useCallback(
+    async (pageNumber: number) => {
+      setActionError(null);
+      try {
+        await approvePageImage(story.id, pageNumber);
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [story.id],
+  );
+
+  const handleRejectPage = useCallback(
+    async (pageNumber: number, note: string) => {
+      setActionError(null);
+      try {
+        await rejectPageImage(story.id, pageNumber, note);
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [story.id],
+  );
+
+  const handleMarkReady = useCallback(async () => {
+    await markIllustrationReadyToPublish(story.id);
+  }, [story.id]);
+
+  if (
+    story.status !== "approved" &&
+    story.status !== "illustration_workspace" &&
+    story.status !== "illustration_ready"
+  ) {
     return (
       <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 4, pb: 8 }}>
         <Typography variant="body2" color="text.secondary">
@@ -81,7 +123,13 @@ export default function IllustrationsTabV2({ story }: Props) {
             storyId={story.id}
             visualBibleVersion={vm.visualBibleVersion}
             pages={vm.pages}
-            manuscriptByPage={manuscriptByPage}
+            readOnly={vm.readOnly}
+            allApproved={vm.allApproved}
+            imageGenHint={vm.imageGenHint}
+            onGeneratePage={handleGeneratePage}
+            onApprovePage={handleApprovePage}
+            onRejectPage={handleRejectPage}
+            onMarkReady={handleMarkReady}
           />
         ) : null}
       </Stack>

@@ -64,13 +64,14 @@ export class SeedreamProvider implements ImageGenerationProvider {
 
   async generateImage(params: {
     textPrompt: string;
+    seed: number;
     referenceImage?: string;
     outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
-    seed?: number;
   }): Promise<ImageGenerationResult> {
     const startMs = Date.now();
+    const seed = params.seed;
 
     if (params.textPrompt.length > PROMPT_WARN_CHARS) {
       console.warn(
@@ -86,7 +87,7 @@ export class SeedreamProvider implements ImageGenerationProvider {
       response_format: "b64_json",
       watermark: false,
       guidance_scale: DEFAULT_GUIDANCE_SCALE,
-      ...(params.seed !== undefined ? { seed: params.seed } : {}),
+      seed,
       ...(params.referenceImage !== undefined ? { image: params.referenceImage } : {}),
     };
 
@@ -133,6 +134,7 @@ export class SeedreamProvider implements ImageGenerationProvider {
       providerId: this.providerId,
       modelId: this.modelId,
       latencyMs: Date.now() - startMs,
+      seed,
       ...(item.revised_prompt
         ? { providerMetadata: { revised_prompt: item.revised_prompt } }
         : {}),

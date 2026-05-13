@@ -88,20 +88,21 @@ describe("SeedreamProvider — generateImage", () => {
 
   test("returns ImageGenerationResult on b64_json response", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response("ZmFrZQ==")));
-    const result = await provider.generateImage({ textPrompt: "A rabbit in moonlight." });
+    const result = await provider.generateImage({ seed: 1, textPrompt: "A rabbit in moonlight." });
     expect(result.providerId).toBe("seedream");
     expect(result.modelId).toBe("seedream-4-0-250828");
     expect(Buffer.isBuffer(result.imageBuffer)).toBe(true);
     expect(result.imageBuffer.length).toBeGreaterThan(0);
     expect(result.mimeType).toBe("image/jpeg");
     expect(typeof result.latencyMs).toBe("number");
+    expect(result.seed).toBe(1);
   });
 
   test("downloads image from URL when b64_json absent", async () => {
     mockFetch
       .mockResolvedValueOnce(makeOkResponse(makeSeedreamUrlResponse()))
       .mockResolvedValueOnce(makeOkResponse({}, "image/jpeg"));
-    const result = await provider.generateImage({ textPrompt: "A rabbit." });
+    const result = await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     expect(Buffer.isBuffer(result.imageBuffer)).toBe(true);
     expect(mockFetch).toHaveBeenCalledTimes(2);
   });
@@ -109,36 +110,29 @@ describe("SeedreamProvider — generateImage", () => {
   test("throws on non-2xx response", async () => {
     mockFetch.mockResolvedValueOnce(makeErrorResponse(429, "rate limited"));
     await expect(
-      provider.generateImage({ textPrompt: "A rabbit." }),
+      provider.generateImage({ seed: 1, textPrompt: "A rabbit." }),
     ).rejects.toThrow("HTTP 429");
   });
 
   test("throws when response data array is empty", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse({ data: [] }));
     await expect(
-      provider.generateImage({ textPrompt: "A rabbit." }),
+      provider.generateImage({ seed: 1, textPrompt: "A rabbit." }),
     ).rejects.toThrow("no image data");
   });
 
   test("throws when item has neither b64_json nor url", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse({ data: [{}] }));
     await expect(
-      provider.generateImage({ textPrompt: "A rabbit." }),
+      provider.generateImage({ seed: 1, textPrompt: "A rabbit." }),
     ).rejects.toThrow("neither b64_json nor url");
   });
 
   test("sends seed in request body when provided", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit.", seed: 42 });
+    await provider.generateImage({ seed: 42, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.seed).toBe(42);
-  });
-
-  test("omits seed when not provided", async () => {
-    mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
-    const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
-    expect(body.seed).toBeUndefined();
   });
 
   // The `referenceImage` parameter remains on the provider for the
@@ -148,21 +142,21 @@ describe("SeedreamProvider — generateImage", () => {
   test("sends referenceImage as URL in the image field when provided", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
     const refUrl = "https://storage.googleapis.com/bucket/child-photo.jpeg";
-    await provider.generateImage({ textPrompt: "A child.", referenceImage: refUrl });
+    await provider.generateImage({ seed: 1, textPrompt: "A child.", referenceImage: refUrl });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.image).toBe(refUrl);
   });
 
   test("omits image field when referenceImage is not provided", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A scene." });
+    await provider.generateImage({ seed: 1, textPrompt: "A scene." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.image).toBeUndefined();
   });
 
   test("sends Authorization header with Bearer token", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const headers = mockFetch.mock.calls[0][1].headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer test-key");
   });
@@ -173,7 +167,7 @@ describe("SeedreamProvider — generateImage", () => {
       apiUrl: "https://custom.example.com/v3",
     });
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await custom.generateImage({ textPrompt: "A rabbit." });
+    await custom.generateImage({ seed: 1, textPrompt: "A rabbit." });
     expect(mockFetch.mock.calls[0][0]).toBe(
       "https://custom.example.com/v3/images/generations",
     );
@@ -181,21 +175,21 @@ describe("SeedreamProvider — generateImage", () => {
 
   test("always sends watermark: false", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.watermark).toBe(false);
   });
 
   test("always sends response_format: b64_json", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.response_format).toBe("b64_json");
   });
 
   test("sends default guidance_scale of 7.5", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.guidance_scale).toBe(7.5);
   });
@@ -205,21 +199,21 @@ describe("SeedreamProvider — generateImage", () => {
 
   test("sends size: 2K", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.size).toBe("2K");
   });
 
   test("does not send image_format field", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     const body = JSON.parse(mockFetch.mock.calls[0][1].body as string);
     expect(body.image_format).toBeUndefined();
   });
 
   test("uses default base URL pointing to BytePlus ModelArk", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    await provider.generateImage({ textPrompt: "A rabbit." });
+    await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     expect(mockFetch.mock.calls[0][0]).toBe(
       "https://ark.ap-southeast.bytepluses.com/api/v3/images/generations",
     );
@@ -227,19 +221,19 @@ describe("SeedreamProvider — generateImage", () => {
 
   test("captures revised_prompt in providerMetadata", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamRevisedPromptResponse()));
-    const result = await provider.generateImage({ textPrompt: "A rabbit." });
+    const result = await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     expect(result.providerMetadata?.revised_prompt).toBe("enhanced prompt text");
   });
 
   test("providerMetadata is undefined when no revised_prompt returned", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    const result = await provider.generateImage({ textPrompt: "A rabbit." });
+    const result = await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     expect(result.providerMetadata).toBeUndefined();
   });
 
   test("always returns mimeType image/jpeg", async () => {
     mockFetch.mockResolvedValueOnce(makeOkResponse(makeSeedreamB64Response()));
-    const result = await provider.generateImage({ textPrompt: "A rabbit." });
+    const result = await provider.generateImage({ seed: 1, textPrompt: "A rabbit." });
     expect(result.mimeType).toBe("image/jpeg");
   });
 });

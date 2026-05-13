@@ -25,4 +25,6 @@ export interface ScenePlanArtefact {
   keyVisibleDetail: string;
   director: SceneDirection;
   structuredPrompt: StructuredPrompt | null;
+  /** Populated after Stage 2 (Prompt Engineer) runs on this scene plan version. */
+  stage2LLMCall?: LLMCallRecord | null;
 }

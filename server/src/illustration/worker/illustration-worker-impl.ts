@@ -22,7 +22,13 @@ let started = false;
 let stopRequested = false;
 
 function touchHeartbeat(jobRef: DocumentReference): void {
-  void jobRef.update({ lastHeartbeatAt: Date.now() });
+  void (async () => {
+    try {
+      await jobRef.update({ lastHeartbeatAt: Date.now() });
+    } catch (err) {
+      console.warn("[illustration/worker] heartbeat update failed", err);
+    }
+  })();
 }
 
 async function runJob(

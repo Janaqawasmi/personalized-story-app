@@ -224,6 +224,18 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      match /finalPrompts/{fpId} {
+        allow read: if isSpecialistOrAdmin()
+          && (isAdmin() || get(/databases/$(database)/documents/stories/$(storyId)).data.ownerUid == request.auth.uid);
+        allow write: if false;
+      }
+
+      match /images/{imageId} {
+        allow read: if isSpecialistOrAdmin()
+          && (isAdmin() || get(/databases/$(database)/documents/stories/$(storyId)).data.ownerUid == request.auth.uid);
+        allow write: if false;
+      }
+
       match /illustrationJobs/{jobId} {
         allow read: if isSpecialistOrAdmin()
           && (isAdmin() || get(/databases/$(database)/documents/stories/$(storyId)).data.ownerUid == request.auth.uid);

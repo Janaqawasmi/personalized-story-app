@@ -4,3 +4,6 @@ export const MANDATED_VISUAL_BIBLE_NO_TEXT_AVOID =
 
 export const VISUAL_DIRECTOR_MODEL = "claude-sonnet-4-6";
 export const SCENE_PLANNER_MODEL = "claude-sonnet-4-6";
+
+/** Stage 2 — Prompt Engineer (per-page structured prompt). */
+export const PROMPT_ENGINEER_MODEL = "claude-haiku-4-5-20251001" as const;

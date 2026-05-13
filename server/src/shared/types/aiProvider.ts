@@ -25,6 +25,8 @@ export interface ImageGenerationProvider {
 
   generateImage(params: {
     textPrompt: string;
+    /** Required for deterministic audit; specialist v2 always passes an integer seed. */
+    seed: number;
     /**
      * Single reference image URL. Used by the **caregiver-side** personalization
      * flow (child photo → personalised illustrations). The v2 specialist-side
@@ -35,7 +37,6 @@ export interface ImageGenerationProvider {
     outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
-    seed?: number;
   }): Promise<ImageGenerationResult>;
 }
 
@@ -45,5 +46,7 @@ export interface ImageGenerationResult {
   providerId: string;
   modelId: string;
   latencyMs: number;
+  /** Echo of the seed used for this generation (audit). */
+  seed: number;
   providerMetadata?: Record<string, unknown>;
 }
