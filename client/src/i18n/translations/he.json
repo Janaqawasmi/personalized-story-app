@@ -9,7 +9,9 @@
       "search": "חיפוש"
     },
     "userMenu": {
+      "sectionLibrary": "הספרייה שלי",
       "myStories": "הסיפורים שלי",
+      "myPreviews": "התצוגות שלי",
       "favorites": "מועדפים",
       "adminPanel": "פאנל ניהול",
       "logout": "התנתקות"
@@ -341,9 +343,34 @@
       "fallbackStoryTitle": "סיפור"
     },
     "myStories": {
-      "title": "הסיפורים שלי",
-      "message": "כאן תופיע ספריית הסיפורים שרכשתם ויצרתם.",
-      "browseStoriesLink": "לעיון בסיפורים"
+      "title": "הספרייה שלי",
+      "subtitle": "הסיפורים שרכשת, התצוגות האישיות והמועדפים שלך.",
+      "tabs": {
+        "purchased": "רכישות",
+        "previews": "תצוגות שלי",
+        "favorites": "מועדפים"
+      },
+      "purchased": {
+        "emptyTitle": "אין סיפורים שנרכשו עדיין",
+        "emptyBody": "כשתרכוש סיפור מלא, הוא יופיע כאן.",
+        "browseCta": "עיין בסיפורים"
+      },
+      "previews": {
+        "emptyTitle": "אין תצוגות שמורות עדיין",
+        "emptyBody": "התאם אישית כל סיפור ליצירת תצוגה חינמית — היא תישמר כאן.",
+        "browseCta": "גלה סיפורים",
+        "savedBadge": "תצוגה שמורה",
+        "untitledStory": "סיפור מותאם אישית",
+        "personalizedFor": "הותאם עבור {name}",
+        "readCta": "קרא תצוגה",
+        "buyCta": "קנה סיפור מלא",
+        "opening": "פותח..."
+      },
+      "favorites": {
+        "emptyTitle": "אין מועדפים עדיין",
+        "emptyBody": "לחץ על לב בכל סיפור כדי לשמור אותו כאן.",
+        "browseCta": "עיין בסיפורים"
+      }
     }
   },
   "book": {

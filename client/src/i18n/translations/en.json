@@ -9,7 +9,9 @@
       "search": "Search"
     },
     "userMenu": {
+      "sectionLibrary": "My library",
       "myStories": "My Stories",
+      "myPreviews": "My previews",
       "favorites": "Favorites",
       "adminPanel": "Admin Panel",
       "logout": "Logout"
@@ -341,9 +343,34 @@
       "fallbackStoryTitle": "Story"
     },
     "myStories": {
-      "title": "My Stories",
-      "message": "Your purchased and generated stories library will appear here.",
-      "browseStoriesLink": "Browse stories"
+      "title": "My library",
+      "subtitle": "Your purchased stories, personalized previews, and saved favorites.",
+      "tabs": {
+        "purchased": "Purchased",
+        "previews": "My previews",
+        "favorites": "Favorites"
+      },
+      "purchased": {
+        "emptyTitle": "No purchased stories yet",
+        "emptyBody": "When you buy a full story it will appear here.",
+        "browseCta": "Browse stories"
+      },
+      "previews": {
+        "emptyTitle": "No saved previews yet",
+        "emptyBody": "Personalize any story to create your free preview — it will be saved here.",
+        "browseCta": "Explore stories",
+        "savedBadge": "Preview saved",
+        "untitledStory": "Personalized story",
+        "personalizedFor": "Personalized for {name}",
+        "readCta": "Read preview",
+        "buyCta": "Buy full story",
+        "opening": "Opening..."
+      },
+      "favorites": {
+        "emptyTitle": "No favorites yet",
+        "emptyBody": "Heart any story to save it here for later.",
+        "browseCta": "Browse stories"
+      }
     }
   },
   "book": {

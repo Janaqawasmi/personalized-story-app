@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   CircularProgress,
+  Divider,
   IconButton,
   Typography,
   Menu,
@@ -10,20 +11,27 @@ import {
   Badge,
   Tooltip,
 } from "@mui/material";
+import ListSubheader from "@mui/material/ListSubheader";
 import dammahLogo from "../../assets/brand/dammah-logo.png";
 import { useTheme } from "@mui/material/styles";
 import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import SearchOutlinedIcon from "@mui/icons-material/SearchOutlined";
 import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+import BookOutlined from "@mui/icons-material/BookOutlined";
+import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
+import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
+import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import { useRef, useState } from "react";
+import AutoAwesomeOutlined from "@mui/icons-material/AutoAwesomeOutlined";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
 import { useAuth } from "../../contexts/AuthContext";
+import { usePreviewQuota } from "../../hooks/usePreviewQuota";
 import { Z_INDEX_NAVBAR } from "../../constants/zIndex";
 
 import { MegaMenu } from "../MegaMenu/MegaMenu";
@@ -46,6 +54,9 @@ export default function Navbar({
   const { language, setLanguage, isRTL } = useLanguage();
   const t = useTranslation();
   const { currentUser, logout, loading: authLoading } = useAuth();
+  const { quota } = usePreviewQuota();
+  const previewBadgeCount = quota?.hasUsedPreview ? 1 : 0;
+  const [isAdmin, setIsAdmin] = useState(false);
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
@@ -97,6 +108,25 @@ export default function Navbar({
       console.error("[Navbar] logout failed:", err);
     }
   };
+
+  useEffect(() => {
+    if (!currentUser) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    currentUser
+      .getIdTokenResult()
+      .then((tokenResult) => {
+        if (!cancelled) setIsAdmin(tokenResult.claims.role === "admin");
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
 
   return (
     <>
@@ -289,33 +319,95 @@ export default function Navbar({
                     horizontal: isRTL ? "left" : "right",
                   }}
                 >
+                  {/* ── My Library section ── */}
+                  <ListSubheader
+                    sx={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#9a8a92",
+                      lineHeight: "32px",
+                      px: 2,
+                      background: "transparent",
+                    }}
+                  >
+                    {t("navbar.userMenu.sectionLibrary")}
+                  </ListSubheader>
+
                   <MenuItem
                     onClick={() => {
                       navigate("/my-stories");
                       handleUserMenuClose();
                     }}
+                    sx={{ gap: 1.5, py: 1 }}
                   >
-                    {t("navbar.userMenu.myStories")}
+                    <BookOutlined sx={{ fontSize: 18, color: "#9a8a92" }} />
+                    <Typography sx={{ fontSize: 14 }}>{t("navbar.userMenu.myStories")}</Typography>
                   </MenuItem>
+
+                  <MenuItem
+                    onClick={() => {
+                      navigate("/my-stories?tab=previews");
+                      handleUserMenuClose();
+                    }}
+                    sx={{ gap: 1.5, py: 1 }}
+                  >
+                    <AutoAwesomeOutlined sx={{ fontSize: 18, color: "#824D5C" }} />
+                    <Typography sx={{ fontSize: 14, color: "#824D5C" }}>
+                      {t("navbar.userMenu.myPreviews")}
+                    </Typography>
+                    {previewBadgeCount > 0 && (
+                      <Box
+                        sx={{
+                          marginInlineStart: "auto",
+                          fontSize: 10,
+                          fontWeight: 600,
+                          px: "7px",
+                          py: "2px",
+                          borderRadius: "999px",
+                          background: "#FBEAF0",
+                          color: "#72243E",
+                          border: "0.5px solid #ED93B1",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {previewBadgeCount}
+                      </Box>
+                    )}
+                  </MenuItem>
+
                   <MenuItem
                     onClick={() => {
                       navigate("/favorites");
                       handleUserMenuClose();
                     }}
+                    sx={{ gap: 1.5, py: 1 }}
                   >
-                    {t("navbar.userMenu.favorites")}
+                    <FavoriteBorderOutlined sx={{ fontSize: 18, color: "#9a8a92" }} />
+                    <Typography sx={{ fontSize: 14 }}>{t("navbar.userMenu.favorites")}</Typography>
                   </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      const prefix = lang || language;
-                      navigateDirect(`/${prefix}/admin/overview`);
-                      handleUserMenuClose();
-                      setSearchOpen(false);
-                    }}
-                  >
-                    {t("navbar.userMenu.adminPanel")}
+
+                  <Divider sx={{ my: 0.5 }} />
+
+                  {/* ── Account actions ── */}
+                  {isAdmin && (
+                    <MenuItem
+                      onClick={() => {
+                        navigateDirect(`/${language}/admin/overview`);
+                        handleUserMenuClose();
+                      }}
+                      sx={{ gap: 1.5, py: 1 }}
+                    >
+                      <AdminPanelSettingsOutlined sx={{ fontSize: 18, color: "#9a8a92" }} />
+                      <Typography sx={{ fontSize: 14 }}>{t("navbar.userMenu.adminPanel")}</Typography>
+                    </MenuItem>
+                  )}
+
+                  <MenuItem onClick={handleLogout} sx={{ gap: 1.5, py: 1, color: "error.main" }}>
+                    <LogoutOutlined sx={{ fontSize: 18, color: "error.main" }} />
+                    <Typography sx={{ fontSize: 14 }}>{t("navbar.userMenu.logout")}</Typography>
                   </MenuItem>
-                  <MenuItem onClick={handleLogout}>{t("navbar.userMenu.logout")}</MenuItem>
                 </Menu>
               </Box>
             ) : (
