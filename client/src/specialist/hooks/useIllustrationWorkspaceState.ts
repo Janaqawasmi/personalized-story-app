@@ -8,7 +8,12 @@ import {
   query,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import type { ImageArtefact, IllustrationJob, ScenePlanArtefact } from "../../types/illustration";
+import type {
+  ImageArtefact,
+  IllustrationJob,
+  ScenePlanArtefact,
+  VisualBibleArtefact,
+} from "../../types/illustration";
 import type { EditHistoryEntry, Story } from "../../types/story";
 import { STORIES_COLLECTION } from "../../types/story";
 import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
@@ -16,11 +21,14 @@ import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
 const JOBS = "illustrationJobs";
 const IMAGES = "images";
 const SCENE_PLANS = "scenePlans";
+const VISUAL_BIBLES = "visualBibles";
 
 export type PageCardViewModel = {
   pageNumber: number;
   text: string;
   scenePlanVersion: number | null;
+  scenePlanVisualBibleVersion: number | null;
+  visualBibleIsStale: boolean;
   imageVersion: number | null;
   imageUrl: string | null;
   subStatus: "plan_only" | "generating_image" | "awaiting_review" | "approved" | "needs_revision";
@@ -40,6 +48,9 @@ export type WorkspaceViewModel =
   | {
       kind: "ready";
       visualBibleVersion: number;
+      visualBible: VisualBibleArtefact | null;
+      visualBibleVersionsDesc: VisualBibleArtefact[];
+      visualBibleRegenJob: IllustrationJob | null;
       pages: PageCardViewModel[];
       allApproved: boolean;
       readOnly: boolean;
@@ -126,11 +137,24 @@ function imageVersionsDescForPage(images: ImageArtefact[], pageNumber: number): 
     .sort((a, b) => b - a);
 }
 
+function scenePlanVbForPage(
+  scenePlans: ScenePlanArtefact[],
+  pageNumber: number,
+  scenePlanVersion: number | null,
+): number | null {
+  if (scenePlanVersion === null) return null;
+  const sp = scenePlans.find(
+    (s) => s.pageNumber === pageNumber && s.version === scenePlanVersion,
+  );
+  return sp?.visualBibleVersion ?? null;
+}
+
 function buildPageCards(
   illustrationPages: NonNullable<Story["illustrationPages"]>,
   jobs: IllustrationJob[],
   images: ImageArtefact[],
   scenePlans: ScenePlanArtefact[],
+  currentVisualBibleVersion: number,
 ): PageCardViewModel[] {
   const byPage = latestImageByPage(images);
   return [...illustrationPages]
@@ -159,10 +183,15 @@ function buildPageCards(
         subStatus === "generating_image"
           ? latestRejectionNoteForPage(images, row.pageNumber)
           : null;
+      const spVbv = scenePlanVbForPage(scenePlans, row.pageNumber, row.currentScenePlanVersion);
+      const visualBibleIsStale =
+        spVbv !== null && spVbv < currentVisualBibleVersion;
       return {
         pageNumber: row.pageNumber,
         text: row.text,
         scenePlanVersion: row.currentScenePlanVersion,
+        scenePlanVisualBibleVersion: spVbv,
+        visualBibleIsStale,
         imageVersion,
         imageUrl,
         subStatus,
@@ -176,11 +205,23 @@ function buildPageCards(
     });
 }
 
+function latestVisualBibleRegenJob(jobs: IllustrationJob[]): IllustrationJob | null {
+  const candidates = jobs.filter(
+    (j) =>
+      j.type === "visual_bible_regen" &&
+      (j.status === "pending" || j.status === "running"),
+  );
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.enqueuedAt - a.enqueuedAt);
+  return candidates[0] ?? null;
+}
+
 export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewModel {
   const [story, setStory] = useState<Story | null>(null);
   const [jobs, setJobs] = useState<IllustrationJob[]>([]);
   const [images, setImages] = useState<ImageArtefact[]>([]);
   const [scenePlans, setScenePlans] = useState<ScenePlanArtefact[]>([]);
+  const [visualBibles, setVisualBibles] = useState<VisualBibleArtefact[]>([]);
 
   useEffect(() => {
     const unsubStory = onSnapshot(doc(db, STORIES_COLLECTION, storyId), (snap) => {
@@ -234,11 +275,23 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
       },
     );
 
+    const unsubVb = onSnapshot(
+      collection(db, STORIES_COLLECTION, storyId, VISUAL_BIBLES),
+      (snap) => {
+        const list: VisualBibleArtefact[] = [];
+        snap.forEach((d) => {
+          list.push(d.data() as VisualBibleArtefact);
+        });
+        setVisualBibles(list);
+      },
+    );
+
     return () => {
       unsubStory();
       unsubJobs();
       unsubImages();
       unsubScenePlans();
+      unsubVb();
     };
   }, [storyId]);
 
@@ -250,11 +303,18 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
       const vbv = story.currentVisualBibleVersion;
       if (vbv === null) return { kind: "loading" };
       const readOnly = story.status === "illustration_ready";
-      const cards = buildPageCards(pages, jobs, images, scenePlans);
+      const cards = buildPageCards(pages, jobs, images, scenePlans, vbv);
       const allApproved = cards.length > 0 && cards.every((p) => p.subStatus === "approved");
+      const visualBible =
+        visualBibles.find((v) => v.version === vbv) ?? null;
+      const visualBibleVersionsDesc = [...visualBibles].sort((a, b) => b.version - a.version);
+      const visualBibleRegenJob = latestVisualBibleRegenJob(jobs);
       return {
         kind: "ready",
         visualBibleVersion: vbv,
+        visualBible,
+        visualBibleVersionsDesc,
+        visualBibleRegenJob,
         pages: cards,
         allApproved,
         readOnly,
@@ -289,5 +349,5 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
     }
 
     return { kind: "cta" };
-  }, [story, jobs, images, scenePlans]);
+  }, [story, jobs, images, scenePlans, visualBibles]);
 }

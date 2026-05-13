@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
-import Accordion from "@mui/material/Accordion";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import AccordionSummary from "@mui/material/AccordionSummary";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
@@ -26,6 +24,7 @@ interface Props {
   scenePlanVersion: number;
   readOnly: boolean;
   scenePlanRegenBusy: boolean;
+  visualBibleIsStale: boolean;
   onRegenerateScenePlan: (feedbackNote?: string) => Promise<void>;
 }
 
@@ -35,6 +34,7 @@ export default function PageCardScenePlan({
   scenePlanVersion,
   readOnly,
   scenePlanRegenBusy,
+  visualBibleIsStale,
   onRegenerateScenePlan,
 }: Props) {
   const [sp, setSp] = useState<ScenePlanArtefact | null>(null);
@@ -99,6 +99,23 @@ export default function PageCardScenePlan({
       <Typography variant="subtitle2" fontWeight={700}>
         Scene plan
       </Typography>
+      {visualBibleIsStale && !readOnly ? (
+        <Alert
+          severity="warning"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              disabled={busy || scenePlanRegenBusy}
+              onClick={() => runRegen(undefined)}
+            >
+              Regenerate scene plan
+            </Button>
+          }
+        >
+          Visual Bible has changed since this scene plan was generated.
+        </Alert>
+      ) : null}
       <Typography variant="subtitle1" fontWeight={600}>
         {sp.title}
       </Typography>
@@ -180,29 +197,6 @@ export default function PageCardScenePlan({
           </Dialog>
         </Box>
       ) : null}
-      <Accordion disableGutters elevation={0} sx={{ border: 1, borderColor: "divider" }}>
-        <AccordionSummary>
-          <Typography variant="caption" color="text.secondary">
-            Developer view
-          </Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <Stack spacing={1}>
-            <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
-              {JSON.stringify(sp.director, null, 2)}
-            </Typography>
-            {sp.structuredPrompt ? (
-              <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
-                {JSON.stringify(sp.structuredPrompt, null, 2)}
-              </Typography>
-            ) : (
-              <Typography variant="caption" color="text.secondary">
-                Structured prompt not generated yet.
-              </Typography>
-            )}
-          </Stack>
-        </AccordionDetails>
-      </Accordion>
     </Stack>
   );
 }

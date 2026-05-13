@@ -33,6 +33,8 @@ function labelJobType(t: IllustrationJobType): string {
       return "image_generation";
     case "image_regen":
       return "image_regen";
+    case "visual_bible_regen":
+      return "visual_bible_regen";
   }
 }
 
@@ -55,6 +57,10 @@ function labelEditHistoryKind(e: EditHistoryEvent): string {
     case "restored":
       return e.kind;
     case "visual_bible_generated":
+      return e.kind;
+    case "visual_bible_edited":
+      return e.kind;
+    case "visual_bible_regenerated":
       return e.kind;
     case "scene_plan_generated":
       return e.kind;
@@ -184,8 +190,9 @@ describe("Illustration type shapes", () => {
       { ...base, id: "j2", type: "scene_plan_regen", pageNumber: 1 },
       { ...base, id: "j3", type: "image_generation", pageNumber: 2 },
       { ...base, id: "j4", type: "image_regen", pageNumber: 3 },
+      { ...base, id: "j5", type: "visual_bible_regen" },
     ];
-    expect(jobs.map((j) => j.type).map(labelJobType)).toHaveLength(4);
+    expect(jobs.map((j) => j.type).map(labelJobType)).toHaveLength(5);
   });
 
   test("IllustrationPageStatus union is exhaustive", () => {
@@ -205,6 +212,7 @@ describe("Illustration type shapes", () => {
       "scene_plan_regen",
       "image_generation",
       "image_regen",
+      "visual_bible_regen",
     ];
     expect(all.map(labelJobType)).toEqual(all);
   });
@@ -212,11 +220,14 @@ describe("Illustration type shapes", () => {
   test("EditHistoryEvent includes all seven new kinds (exhaustive switch)", () => {
     const samples: EditHistoryEvent[] = [
       { kind: "visual_bible_generated", version: 1, source: "llm" },
+      { kind: "visual_bible_edited", version: 2, fields: ["characterAnchor"] },
+      { kind: "visual_bible_regenerated", version: 3 },
       {
         kind: "scene_plan_generated",
         pageNumber: 1,
         version: 1,
         withFeedback: false,
+        visualBibleVersion: 1,
       },
       { kind: "image_generated", pageNumber: 1, version: 1 },
       { kind: "image_approved", pageNumber: 1, version: 1 },
@@ -231,6 +242,8 @@ describe("Illustration type shapes", () => {
     ];
     expect(samples.map(labelEditHistoryKind)).toEqual([
       "visual_bible_generated",
+      "visual_bible_edited",
+      "visual_bible_regenerated",
       "scene_plan_generated",
       "image_generated",
       "image_approved",

@@ -113,9 +113,22 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       mainLabel = `Visual Bible generated (v${event.version})`;
       break;
 
-    case "scene_plan_generated":
-      mainLabel = `Scene plan generated for page ${event.pageNumber} (v${event.version})`;
+    case "visual_bible_edited":
+      mainLabel = `Visual Bible edited (v${event.version}) — changed: ${event.fields.join(", ")}`;
       break;
+
+    case "visual_bible_regenerated":
+      mainLabel = `Visual Bible regenerated (v${event.version})`;
+      break;
+
+    case "scene_plan_generated": {
+      const vbPart =
+        event.visualBibleVersion !== undefined
+          ? ` (VB v${event.visualBibleVersion})`
+          : "";
+      mainLabel = `Scene plan generated for page ${event.pageNumber} (v${event.version})${vbPart}`;
+      break;
+    }
 
     case "image_generated":
       mainLabel = `Image generated for page ${event.pageNumber} (v${event.version})`;

@@ -71,11 +71,16 @@ describe("IllustrationsTabV2", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
       visualBibleVersion: 1,
+      visualBible: null,
+      visualBibleVersionsDesc: [],
+      visualBibleRegenJob: null,
       pages: [
         {
           pageNumber: 1,
           text: "Hi.",
           scenePlanVersion: 1,
+          scenePlanVisualBibleVersion: 1,
+          visualBibleIsStale: false,
           imageVersion: null,
           imageUrl: null,
           subStatus: "plan_only",
@@ -98,11 +103,16 @@ describe("IllustrationsTabV2", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
       visualBibleVersion: 1,
+      visualBible: null,
+      visualBibleVersionsDesc: [],
+      visualBibleRegenJob: null,
       pages: [
         {
           pageNumber: 1,
           text: "Hi.",
           scenePlanVersion: 1,
+          scenePlanVisualBibleVersion: 1,
+          visualBibleIsStale: false,
           imageVersion: null,
           imageUrl: null,
           subStatus: "plan_only",

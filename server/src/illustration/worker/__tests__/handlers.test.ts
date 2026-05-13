@@ -8,6 +8,7 @@ import {
 } from "@/illustration/orchestrator/generateImage";
 import { openWorkspace } from "@/illustration/orchestrator/openWorkspace";
 import { regenerateScenePlan } from "@/illustration/orchestrator/regenerateScenePlan";
+import { regenerateVisualBible } from "@/illustration/orchestrator/regenerateVisualBible";
 import { handlers } from "../handlers";
 
 jest.mock("@/illustration/orchestrator/generateImage", () => ({
@@ -27,6 +28,10 @@ jest.mock("@/illustration/orchestrator/cascadeAfterReject", () => ({
   cascadeAfterReject: jest.fn(),
 }));
 
+jest.mock("@/illustration/orchestrator/regenerateVisualBible", () => ({
+  regenerateVisualBible: jest.fn(),
+}));
+
 const generateImageMock = generateImage as jest.MockedFunction<typeof generateImage>;
 const markFailedMock = markImageGenerationFailedOnStory as jest.MockedFunction<
   typeof markImageGenerationFailedOnStory
@@ -35,6 +40,9 @@ const regenerateScenePlanMock = regenerateScenePlan as jest.MockedFunction<
   typeof regenerateScenePlan
 >;
 const cascadeAfterRejectMock = cascadeAfterReject as jest.MockedFunction<typeof cascadeAfterReject>;
+const regenerateVisualBibleMock = regenerateVisualBible as jest.MockedFunction<
+  typeof regenerateVisualBible
+>;
 
 describe("illustration worker handlers — image_generation", () => {
   beforeEach(() => {
@@ -43,6 +51,7 @@ describe("illustration worker handlers — image_generation", () => {
     markFailedMock.mockResolvedValue(undefined);
     regenerateScenePlanMock.mockReset();
     cascadeAfterRejectMock.mockReset();
+    regenerateVisualBibleMock.mockReset();
   });
 
   test("marks job succeeded with output refs", async () => {
@@ -237,5 +246,42 @@ describe("illustration worker handlers — image_regen", () => {
       jobId: "job-rg2",
       message: "fail",
     });
+  });
+});
+
+describe("illustration worker handlers — visual_bible_regen", () => {
+  beforeEach(() => {
+    regenerateVisualBibleMock.mockReset();
+    regenerateVisualBibleMock.mockResolvedValue({ vbId: "vb-x", version: 3 });
+  });
+
+  test("marks job succeeded", async () => {
+    const update = jest.fn().mockResolvedValue(undefined);
+    const jobRef = { update } as unknown as DocumentReference;
+    const job = {
+      id: "job-vb",
+      storyId: "s1",
+      type: "visual_bible_regen" as const,
+      pageNumber: null,
+      enqueuedBy: "uid",
+      enqueuedAt: 1,
+      startedAt: null,
+      completedAt: null,
+      lastHeartbeatAt: null,
+      status: "running" as const,
+      attempt: 1,
+      idempotencyKey: "k",
+      inputRefs: {},
+      outputRefs: {},
+      error: null,
+    };
+    await handlers.visual_bible_regen(job, jobRef);
+    expect(regenerateVisualBibleMock).toHaveBeenCalledWith({ storyId: "s1", uid: "uid" });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "succeeded",
+        outputRefs: expect.objectContaining({ vbId: "vb-x", version: "3" }),
+      }),
+    );
   });
 });

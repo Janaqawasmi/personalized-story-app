@@ -2,7 +2,8 @@ export type IllustrationJobType =
   | "workspace_open"
   | "scene_plan_regen"
   | "image_generation"
-  | "image_regen";
+  | "image_regen"
+  | "visual_bible_regen";
 
 export type IllustrationJobStatus = "pending" | "running" | "succeeded" | "failed";
 

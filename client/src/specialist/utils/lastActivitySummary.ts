@@ -36,6 +36,10 @@ function verbFromEvent(event: EditHistoryEvent): string {
       return STATUS_TO_ACTIVITY_VERB[event.to] ?? "Updated";
     case "visual_bible_generated":
       return "Visual Bible generated";
+    case "visual_bible_edited":
+      return "Visual Bible edited";
+    case "visual_bible_regenerated":
+      return "Visual Bible regenerated";
     case "scene_plan_generated":
       return "Scene plan generated";
     case "image_generated":

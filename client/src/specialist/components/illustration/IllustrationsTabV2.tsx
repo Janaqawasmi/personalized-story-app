@@ -137,6 +137,9 @@ export default function IllustrationsTabV2({ story }: Props) {
           <WorkspacePreview
             storyId={story.id}
             visualBibleVersion={vm.visualBibleVersion}
+            visualBible={vm.visualBible}
+            visualBibleVersionsDesc={vm.visualBibleVersionsDesc}
+            visualBibleRegenJob={vm.visualBibleRegenJob}
             pages={vm.pages}
             readOnly={vm.readOnly}
             allApproved={vm.allApproved}

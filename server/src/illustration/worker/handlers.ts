@@ -6,6 +6,7 @@ import {
 } from "@/illustration/orchestrator/generateImage";
 import { openWorkspace } from "@/illustration/orchestrator/openWorkspace";
 import { regenerateScenePlan } from "@/illustration/orchestrator/regenerateScenePlan";
+import { regenerateVisualBible } from "@/illustration/orchestrator/regenerateVisualBible";
 import type { IllustrationJob, IllustrationJobType } from "@/illustration/types";
 
 export class UnsupportedJobTypeError extends Error {
@@ -139,9 +140,24 @@ async function handleImageRegen(
   }
 }
 
+async function handleVisualBibleRegen(
+  job: IllustrationJob,
+  jobRef: DocumentReference,
+): Promise<void> {
+  const result = await regenerateVisualBible({ storyId: job.storyId, uid: job.enqueuedBy });
+  await jobRef.update({
+    status: "succeeded",
+    completedAt: Date.now(),
+    lastHeartbeatAt: Date.now(),
+    outputRefs: { vbId: result.vbId, version: String(result.version) },
+    error: null,
+  });
+}
+
 export const handlers: Record<IllustrationJobType, JobHandler> = {
   workspace_open: handleWorkspaceOpen,
   scene_plan_regen: handleScenePlanRegen,
   image_generation: handleImageGeneration,
   image_regen: handleImageRegen,
+  visual_bible_regen: handleVisualBibleRegen,
 };

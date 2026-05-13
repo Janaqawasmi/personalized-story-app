@@ -1,5 +1,9 @@
 import { API_BASE, getAuthHeaders } from "./api";
-import type { ImageArtefact, ScenePlanArtefact } from "../types/illustration";
+import type {
+  ImageArtefact,
+  ScenePlanArtefact,
+  VisualBibleArtefact,
+} from "../types/illustration";
 
 const BASE = `${API_BASE}/api/specialist/stories`;
 
@@ -148,6 +152,104 @@ export async function fetchPageIllustrationHistory(
     scenePlans: body.scenePlans ?? [],
     images: body.images ?? [],
   };
+}
+
+export type VisualBiblePatchFields = Partial<
+  Pick<
+    VisualBibleArtefact,
+    | "characterAnchor"
+    | "characterSheet"
+    | "styleGuide"
+    | "palette"
+    | "consistencyAnchors"
+    | "avoidList"
+    | "environmentRegistry"
+  >
+>;
+
+export async function fetchVisualBible(
+  storyId: string,
+): Promise<{ artefact: VisualBibleArtefact; version: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/visual-bible`,
+    { headers },
+  );
+  const body = (await res.json().catch(() => ({}))) as {
+    artefact?: VisualBibleArtefact;
+    version?: number;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  if (!body.artefact || body.version === undefined) {
+    throw new Error("Invalid server response for Visual Bible");
+  }
+  return { artefact: body.artefact, version: body.version };
+}
+
+export async function fetchVisualBibleVersions(
+  storyId: string,
+): Promise<{ versions: VisualBibleArtefact[] }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/visual-bible/versions`,
+    { headers },
+  );
+  const body = (await res.json().catch(() => ({}))) as {
+    versions?: VisualBibleArtefact[];
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  return { versions: body.versions ?? [] };
+}
+
+export async function patchVisualBible(
+  storyId: string,
+  fields: VisualBiblePatchFields,
+): Promise<{ artefact: VisualBibleArtefact; version: number }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE}/${encodeURIComponent(storyId)}/visual-bible`, {
+    method: "PATCH",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(fields),
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    artefact?: VisualBibleArtefact;
+    version?: number;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  if (!body.artefact || body.version === undefined) {
+    throw new Error("Invalid server response for Visual Bible patch");
+  }
+  return { artefact: body.artefact, version: body.version };
+}
+
+export async function regenerateVisualBible(storyId: string): Promise<{ jobId: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/visual-bible/regenerate`,
+    { method: "POST", headers },
+  );
+  const body = (await res.json().catch(() => ({}))) as {
+    jobId?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  if (!body.jobId) throw new Error("Invalid server response for Visual Bible regenerate");
+  return { jobId: body.jobId };
 }
 
 export async function markIllustrationReadyToPublish(storyId: string): Promise<void> {

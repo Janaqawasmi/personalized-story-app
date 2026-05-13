@@ -20,6 +20,7 @@ import SpecialistLayout from "./components/specialist/SpecialistLayout";
 import SpecialistStoriesPage from "./specialist/pages/SpecialistStoriesPage";
 import NewStoryRedirect from "./specialist/pages/NewStoryRedirect";
 import StoryWorkspacePage from "./specialist/pages/StoryWorkspacePage";
+import IllustrationDebugPage from "./specialist/pages/IllustrationDebugPage";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
 
@@ -138,6 +139,7 @@ function AppContent() {
               <Route index element={<Navigate to="stories" replace />} />
               <Route path="stories" element={<SpecialistStoriesPage />} />
               <Route path="stories/new" element={<NewStoryRedirect />} />
+              <Route path="stories/:storyId/illustration/debug" element={<IllustrationDebugPage />} />
               <Route path="stories/:storyId" element={<StoryWorkspacePage />} />
               <Route path="stories/:storyId/:tab" element={<StoryWorkspacePage />} />
             </Route>

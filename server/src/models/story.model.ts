@@ -78,7 +78,16 @@ export type EditHistoryEvent =
   | { kind: "archived" }
   | { kind: "restored" }
   | { kind: "visual_bible_generated"; version: number; source: "llm" | "edit" }
-  | { kind: "scene_plan_generated"; pageNumber: number; version: number; withFeedback: boolean }
+  | { kind: "visual_bible_edited"; version: number; fields: string[] }
+  | { kind: "visual_bible_regenerated"; version: number }
+  | {
+      kind: "scene_plan_generated";
+      pageNumber: number;
+      version: number;
+      withFeedback: boolean;
+      /** Present for events emitted after Phase 5; older log entries may omit. */
+      visualBibleVersion?: number;
+    }
   | { kind: "image_generated"; pageNumber: number; version: number }
   | { kind: "image_approved"; pageNumber: number; version: number }
   | { kind: "image_rejected"; pageNumber: number; version: number; feedbackNote: string }

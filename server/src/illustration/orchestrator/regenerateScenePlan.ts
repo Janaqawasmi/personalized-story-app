@@ -100,6 +100,7 @@ export async function regenerateScenePlan(params: {
       pageNumber,
       version: newPlan.version,
       withFeedback,
+      visualBibleVersion: visualBible.version,
     },
     uid,
   );

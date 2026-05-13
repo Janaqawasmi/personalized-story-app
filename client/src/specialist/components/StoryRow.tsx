@@ -55,6 +55,10 @@ function editEventVerb(event: EditHistoryEvent, desk: SpecialistDeskUi): string 
       return desk.editEventRestored;
     case "visual_bible_generated":
       return "Visual Bible generated";
+    case "visual_bible_edited":
+      return "Visual Bible edited";
+    case "visual_bible_regenerated":
+      return "Visual Bible regenerated";
     case "scene_plan_generated":
       return "Scene plan generated";
     case "image_generated":

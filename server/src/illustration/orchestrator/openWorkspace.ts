@@ -118,6 +118,7 @@ export async function openWorkspace(params: {
         pageNumber: sp.pageNumber,
         version: sp.version,
         withFeedback: false,
+        visualBibleVersion: vb.version,
       },
       uid,
     );

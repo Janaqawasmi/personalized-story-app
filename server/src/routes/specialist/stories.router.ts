@@ -20,7 +20,19 @@ import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 import { enqueueJob } from "@/illustration/shared/job-enqueue";
 import { appendIllustrationEvent } from "@/illustration/shared/history-events";
-import { readLatestImage, listImagesForPage, listScenePlansForPage } from "@/illustration/shared/artefact-store";
+import {
+  readLatestImage,
+  listImagesForPage,
+  listScenePlansForPage,
+  readVisualBible,
+  listVisualBibleVersions,
+} from "@/illustration/shared/artefact-store";
+import {
+  patchVisualBible,
+  PatchVisualBibleValidationError,
+  type VisualBiblePatchBody,
+} from "@/illustration/orchestrator/patchVisualBible";
+import type { EnvironmentEntry } from "@/illustration/types";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 
 const router = Router();
@@ -866,15 +878,153 @@ async function handleGetPageIllustrationHistory(req: Request, res: Response): Pr
   res.status(200).json({ scenePlans, images });
 }
 
+async function handleGetVisualBible(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace" && story.status !== "illustration_ready") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Visual Bible is only available in illustration workspace states.",
+    });
+    return;
+  }
+  const v = story.currentVisualBibleVersion;
+  if (v === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "No Visual Bible version on story." });
+    return;
+  }
+  const artefact = await readVisualBible(storyId, v);
+  if (!artefact) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Visual Bible artefact missing." });
+    return;
+  }
+  res.status(200).json({ artefact, version: v });
+}
+
+async function handleListVisualBibleVersions(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace" && story.status !== "illustration_ready") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Visual Bible history is only available in illustration workspace states.",
+    });
+    return;
+  }
+  const versions = await listVisualBibleVersions(storyId);
+  res.status(200).json({ versions });
+}
+
+async function handlePatchVisualBible(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  const body = req.body as Record<string, unknown>;
+  const patch: VisualBiblePatchBody = {};
+  if (typeof body.characterAnchor === "string") patch.characterAnchor = body.characterAnchor;
+  if (typeof body.characterSheet === "string") patch.characterSheet = body.characterSheet;
+  if (typeof body.styleGuide === "string") patch.styleGuide = body.styleGuide;
+  if (typeof body.palette === "string") patch.palette = body.palette;
+  if (Array.isArray(body.consistencyAnchors)) {
+    patch.consistencyAnchors = body.consistencyAnchors.filter((x): x is string => typeof x === "string");
+  }
+  if (Array.isArray(body.avoidList)) {
+    patch.avoidList = body.avoidList.filter((x): x is string => typeof x === "string");
+  }
+  if (body.environmentRegistry && typeof body.environmentRegistry === "object" && body.environmentRegistry !== null) {
+    patch.environmentRegistry = body.environmentRegistry as Record<string, EnvironmentEntry>;
+  }
+
+  try {
+    const result = await patchVisualBible({ storyId, uid: ownerUid, body: patch });
+    res.status(200).json(result);
+  } catch (e) {
+    if (e instanceof PatchVisualBibleValidationError) {
+      const notFound = e.message === "Story not found.";
+      res.status(notFound ? 404 : 400).json({
+        error: notFound ? "NOT_FOUND" : "INVALID_INPUT",
+        message: e.message,
+      });
+      return;
+    }
+    throw e;
+  }
+}
+
+async function handlePostVisualBibleRegenerate(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Visual Bible regeneration is only available in illustration_workspace.",
+    });
+    return;
+  }
+  const vbv = story.currentVisualBibleVersion;
+  if (vbv === null) {
+    res.status(409).json({ error: "INVALID_STATE", message: "Missing Visual Bible version." });
+    return;
+  }
+  const idempotencyKey = `${storyId}:visual_bible_regen:vb${vbv}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "visual_bible_regen",
+    pageNumber: null,
+    enqueuedBy: ownerUid,
+    inputRefs: {},
+    idempotencyKey,
+  });
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
 // ============================================================================
 // ROUTE REGISTRATION
 // ============================================================================
 
 // GET
 router.get("/", handleListStories);
+router.get("/:storyId/visual-bible/versions", handleListVisualBibleVersions);
+router.get("/:storyId/visual-bible", handleGetVisualBible);
 router.get("/:storyId", handleGetStory);
 
 // PATCH
+router.patch("/:storyId/visual-bible", handlePatchVisualBible);
 router.patch("/:storyId", handlePatchStory);
 
 // PUT
@@ -882,6 +1032,7 @@ router.put("/:storyId/brief", handleUpdateBrief);
 
 // POST
 router.post("/:storyId/transitions", handleTransition);
+router.post("/:storyId/visual-bible/regenerate", handlePostVisualBibleRegenerate);
 router.post("/:storyId/pages/:pageNumber/image", handleEnqueuePageImage);
 router.post("/:storyId/pages/:pageNumber/image/approve", handleApprovePageImage);
 router.post("/:storyId/pages/:pageNumber/image/reject", handleRejectPageImage);

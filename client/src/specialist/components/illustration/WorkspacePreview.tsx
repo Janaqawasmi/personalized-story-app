@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link as RouterLink, useParams } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
@@ -7,13 +8,18 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import type { IllustrationJob, VisualBibleArtefact } from "../../../types/illustration";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
+import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
 import PageCard from "./PageCard";
 import VisualBibleCard from "./VisualBibleCard";
 
 interface Props {
   storyId: string;
   visualBibleVersion: number;
+  visualBible: VisualBibleArtefact | null;
+  visualBibleVersionsDesc: VisualBibleArtefact[];
+  visualBibleRegenJob: IllustrationJob | null;
   pages: PageCardViewModel[];
   readOnly: boolean;
   allApproved: boolean;
@@ -27,6 +33,9 @@ interface Props {
 export default function WorkspacePreview({
   storyId,
   visualBibleVersion,
+  visualBible,
+  visualBibleVersionsDesc,
+  visualBibleRegenJob,
   pages,
   readOnly,
   allApproved,
@@ -36,9 +45,16 @@ export default function WorkspacePreview({
   onRegenerateScenePlan,
   onMarkReady,
 }: Props) {
+  const { lang } = useParams<{ lang: string }>();
+  const devGate = useIllustrationDevPanelsGate();
+  const showDebugLink = devGate.ready && devGate.allowed;
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [markBusy, setMarkBusy] = useState(false);
   const [markErr, setMarkErr] = useState<string | null>(null);
+
+  const vbRegenBusy =
+    visualBibleRegenJob !== null &&
+    (visualBibleRegenJob.status === "pending" || visualBibleRegenJob.status === "running");
 
   return (
     <Stack spacing={3}>
@@ -48,7 +64,22 @@ export default function WorkspacePreview({
         </Typography>
       ) : null}
 
-      <VisualBibleCard storyId={storyId} version={visualBibleVersion} />
+      <VisualBibleCard
+        storyId={storyId}
+        readOnly={readOnly}
+        currentVersion={visualBibleVersion}
+        visualBible={visualBible}
+        visualBibleVersionsDesc={visualBibleVersionsDesc}
+        visualBibleRegenBusy={vbRegenBusy}
+      />
+
+      {showDebugLink && lang ? (
+        <Typography variant="body2">
+          <RouterLink to={`/${lang}/specialist/stories/${storyId}/illustration/debug`}>
+            Open illustration debug table
+          </RouterLink>
+        </Typography>
+      ) : null}
 
       <Typography variant="subtitle1" fontWeight={700} sx={{ pt: 1 }}>
         Pages
@@ -61,6 +92,7 @@ export default function WorkspacePreview({
             storyId={storyId}
             page={page}
             readOnly={readOnly}
+            currentVisualBibleVersion={visualBibleVersion}
             onGenerate={() => onGeneratePage(page.pageNumber)}
             onApprove={() => onApprovePage(page.pageNumber)}
             onReject={(note) => onRejectPage(page.pageNumber, note)}

@@ -69,6 +69,14 @@ export async function readLatestVisualBible(
   return doc.data() as VisualBibleArtefact;
 }
 
+export async function listVisualBibleVersions(storyId: string): Promise<VisualBibleArtefact[]> {
+  const snap = await storyRef(storyId)
+    .collection(COLLECTIONS.STORY_VISUAL_BIBLES)
+    .orderBy("version", "desc")
+    .get();
+  return snap.docs.map((d) => d.data() as VisualBibleArtefact);
+}
+
 export async function readScenePlan(
   storyId: string,
   pageNumber: number,

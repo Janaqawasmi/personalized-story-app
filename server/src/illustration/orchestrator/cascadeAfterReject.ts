@@ -101,6 +101,7 @@ export async function cascadeAfterReject(params: {
       pageNumber,
       version: newPlan.version,
       withFeedback,
+      visualBibleVersion: vbv,
     },
     uid,
   );

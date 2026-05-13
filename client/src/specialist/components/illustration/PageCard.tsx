@@ -4,6 +4,8 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
+import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
+import DeveloperPanel from "./DeveloperPanel";
 import PageCardImage from "./PageCardImage";
 import PageCardManuscript from "./PageCardManuscript";
 import PageCardScenePlan from "./PageCardScenePlan";
@@ -13,6 +15,7 @@ interface Props {
   storyId: string;
   page: PageCardViewModel;
   readOnly: boolean;
+  currentVisualBibleVersion: number;
   onGenerate: () => void;
   onApprove: () => void;
   onReject: (feedbackNote: string) => void;
@@ -23,11 +26,14 @@ export default function PageCard({
   storyId,
   page,
   readOnly,
+  currentVisualBibleVersion,
   onGenerate,
   onApprove,
   onReject,
   onRegenerateScenePlan,
 }: Props) {
+  const devGate = useIllustrationDevPanelsGate();
+  const showDevPanel = devGate.ready && devGate.allowed;
   const spv = page.scenePlanVersion;
   const imageGenHint =
     page.subStatus === "generating_image"
@@ -66,6 +72,7 @@ export default function PageCard({
               scenePlanVersion={spv}
               readOnly={readOnly}
               scenePlanRegenBusy={page.scenePlanRegenBusy}
+              visualBibleIsStale={page.visualBibleIsStale}
               onRegenerateScenePlan={onRegenerateScenePlan}
             />
           )}
@@ -77,6 +84,15 @@ export default function PageCard({
             onApprove={onApprove}
             onReject={onReject}
           />
+          {showDevPanel && spv !== null ? (
+            <DeveloperPanel
+              storyId={storyId}
+              pageNumber={page.pageNumber}
+              scenePlanVersion={spv}
+              imageVersion={page.imageVersion}
+              currentVisualBibleVersion={currentVisualBibleVersion}
+            />
+          ) : null}
         </Stack>
       </CardContent>
     </Card>
