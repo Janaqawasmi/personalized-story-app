@@ -12,6 +12,7 @@
 
 import type { AgeRange, StoryBrief, StoryType } from "@/models/storyBrief.model";
 import type { Agent1Result, StoryPage } from "@/agent1/types";
+import type { IllustrationPage } from "@/illustration/types";
 
 // Re-export so downstream modules can import StoryPage from here rather than
 // reaching into agent1/types directly. Step 1.3 will extend this type with
@@ -28,12 +29,11 @@ export const STORIES_COLLECTION = "stories";
 // STATUS TYPES
 // ============================================================================
 
-// NOTE on illustration statuses (v2 redesign — see docs/illustration/spec.md):
-//   v1's transient statuses (`prompt_review`, `illustrating`, `illustration_review`)
-//   are removed. v2 collapses the illustration phase into a single workspace state
-//   plus per-page sub-status. The new `illustration_workspace` state is added in
-//   Phase 1 of the v2 implementation (next PR). `illustration_ready` is kept as
-//   the explicit pre-publish gate.
+// v2 illustration pipeline (docs/illustration/spec.md §9):
+//   approved → illustration_workspace → illustration_ready → published
+// v1's transient statuses (prompt_review, illustrating, illustration_review)
+// are removed; v2 collapses the illustration phase into a single workspace
+// state plus per-page sub-status.
 export const STORY_STATUSES = [
   "draft_brief",
   "generating",
@@ -41,7 +41,8 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
-  "illustration_ready",   // all illustrations approved; ready to publish (v2: explicit specialist action)
+  "illustration_workspace", // v2 illustration workspace (Visual Bible + per-page plans)
+  "illustration_ready",     // all illustrations approved; ready to publish
   "published",
   "archived",
 ] as const;
@@ -75,7 +76,14 @@ export type EditHistoryEvent =
   | { kind: "agent1_generated"; version: number; succeeded: boolean }
   | { kind: "regeneration_requested"; feedback: string }
   | { kind: "archived" }
-  | { kind: "restored" };
+  | { kind: "restored" }
+  | { kind: "visual_bible_generated"; version: number; source: "llm" | "edit" }
+  | { kind: "scene_plan_generated"; pageNumber: number; version: number; withFeedback: boolean }
+  | { kind: "image_generated"; pageNumber: number; version: number }
+  | { kind: "image_approved"; pageNumber: number; version: number }
+  | { kind: "image_rejected"; pageNumber: number; version: number; feedbackNote: string }
+  | { kind: "illustration_workspace_opened" }
+  | { kind: "illustration_ready_marked" };
 
 export interface EditHistoryEntry {
   /** UUID */
@@ -123,18 +131,20 @@ export interface Story {
   pages: StoryPage[] | null;
   editHistory: EditHistoryEntry[];
 
-  // Illustration pipeline fields are introduced in Phase 1 of the v2 redesign
-  // (see docs/illustration/spec.md §10.6 / §10.7). Cleanup PR 1 removes the v1
-  // fields (visualBible, illustrationSeed, promptsGeneratedAt, promptsApprovedAt,
-  // illustrationCompletedAt, illustrationReadyAt) and waits for the new typed
-  // artefact subcollections + IllustrationPage[] to replace them.
-
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
   updatedAt: number;
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
+
+  // v2 illustration workspace (spec §10.6 / §10.7)
+  /** Per-page illustration state; null until workspace opens. */
+  illustrationPages: IllustrationPage[] | null;
+  /** Monotonic Visual Bible version on Story; null until first artefact. */
+  currentVisualBibleVersion: number | null;
+  /** ms since epoch when specialist opened illustration workspace. */
+  illustrationWorkspaceOpenedAt: number | null;
 }
 
 // ============================================================================
@@ -147,30 +157,28 @@ interface Transition {
 }
 
 export const ALLOWED_TRANSITIONS: readonly Transition[] = [
-  { from: "draft_brief",          to: "generating" },
-  { from: "draft_brief",          to: "archived" },
-  { from: "generating",           to: "awaiting_review" },
-  { from: "generating",           to: "draft_brief" },
-  { from: "awaiting_review",      to: "in_review" },
-  { from: "in_review",            to: "needs_revision" },
-  { from: "in_review",            to: "approved" },
-  { from: "in_review",            to: "archived" },
-  { from: "needs_revision",       to: "awaiting_review" },
-  { from: "needs_revision",       to: "in_review" },
-  { from: "approved",             to: "in_review" },
-  { from: "approved",             to: "archived" },
-  // Illustration pipeline (Phase 1 of the v2 redesign will add:
-  //   approved → illustration_workspace
-  //   illustration_workspace → illustration_ready
-  //   illustration_workspace → in_review
-  //   illustration_workspace → archived
-  //   illustration_ready → illustration_workspace
-  // See docs/illustration/spec.md §9.3.)
-  { from: "illustration_ready",   to: "published" },
-  { from: "illustration_ready",   to: "archived" },
-  { from: "published",            to: "archived" },
-  { from: "archived",             to: "draft_brief" },
-  { from: "archived",             to: "in_review" },
+  { from: "draft_brief",            to: "generating" },
+  { from: "draft_brief",            to: "archived" },
+  { from: "generating",             to: "awaiting_review" },
+  { from: "generating",             to: "draft_brief" },
+  { from: "awaiting_review",        to: "in_review" },
+  { from: "in_review",              to: "needs_revision" },
+  { from: "in_review",              to: "approved" },
+  { from: "in_review",              to: "archived" },
+  { from: "needs_revision",         to: "awaiting_review" },
+  { from: "needs_revision",         to: "in_review" },
+  { from: "approved",               to: "illustration_workspace" },
+  { from: "approved",               to: "in_review" },
+  { from: "approved",               to: "archived" },
+  { from: "illustration_workspace", to: "illustration_ready" },
+  { from: "illustration_workspace", to: "in_review" },
+  { from: "illustration_workspace", to: "archived" },
+  { from: "illustration_ready",     to: "illustration_workspace" },
+  { from: "illustration_ready",     to: "published" },
+  { from: "illustration_ready",     to: "archived" },
+  { from: "published",              to: "archived" },
+  { from: "archived",               to: "draft_brief" },
+  { from: "archived",               to: "in_review" },
 ];
 
 export function isTransitionAllowed(
@@ -180,6 +188,22 @@ export function isTransitionAllowed(
   return ALLOWED_TRANSITIONS.some(
     (t) => t.from === from && t.to === to,
   );
+}
+
+/** Firestore docs created before v2 illustration fields may omit these keys. */
+export function fillIllustrationV2DocDefaults(story: Story): void {
+  const s = story as Story & {
+    illustrationPages?: Story["illustrationPages"];
+    currentVisualBibleVersion?: Story["currentVisualBibleVersion"];
+    illustrationWorkspaceOpenedAt?: Story["illustrationWorkspaceOpenedAt"];
+  };
+  if (s.illustrationPages === undefined) s.illustrationPages = null;
+  if (s.currentVisualBibleVersion === undefined) {
+    s.currentVisualBibleVersion = null;
+  }
+  if (s.illustrationWorkspaceOpenedAt === undefined) {
+    s.illustrationWorkspaceOpenedAt = null;
+  }
 }
 
 // ============================================================================
@@ -230,5 +254,9 @@ export function createStoryForGeneration(params: {
     lastOpenedAt: now,
     submittedAt: now,
     approvedAt: null,
+
+    illustrationPages: null,
+    currentVisualBibleVersion: null,
+    illustrationWorkspaceOpenedAt: null,
   };
 }

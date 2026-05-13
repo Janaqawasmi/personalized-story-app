@@ -170,10 +170,12 @@ describe("createStoryForGeneration", () => {
     expect(story.ageRange).toBe("7-9");
   });
 
-  // v1 illustration fields (visualBible, illustrationSeed, promptsGeneratedAt,
-  // etc.) were removed in cleanup PR 1. Phase 1 of the v2 redesign adds typed
-  // artefact subcollections and an IllustrationPage[] shape — tests for those
-  // land alongside that implementation.
+  test("v2 illustration workspace fields are null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.illustrationPages).toBeNull();
+    expect(story.currentVisualBibleVersion).toBeNull();
+    expect(story.illustrationWorkspaceOpenedAt).toBeNull();
+  });
 });
 
 // v1 toPageIllustrations helper and its tests were removed in cleanup PR 1.

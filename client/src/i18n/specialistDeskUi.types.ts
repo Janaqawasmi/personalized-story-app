@@ -56,6 +56,7 @@ export interface SpecialistDeskUi {
   chipGenerating: string;
   chipNeedsRevision: string;
   chipApproved: string;
+  chipIllustrationWorkspace: string;
   chipPromptReview: string;
   chipIllustrating: string;
   chipIllustrationReview: string;

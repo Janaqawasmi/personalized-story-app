@@ -12,6 +12,7 @@ import { firestore } from "@/config/firebase";
 import {
   STORIES_COLLECTION,
   createStoryForGeneration,
+  fillIllustrationV2DocDefaults,
   isTransitionAllowed,
 } from "@/models/story.model";
 import type { Story, StoryStatus } from "@/models/story.model";
@@ -67,6 +68,15 @@ router.use(requireRole("specialist", "admin"));
 // SHARED HELPER
 // ============================================================================
 
+function hydrateStoryFromFirestore(
+  storyId: string,
+  data: Record<string, unknown> | undefined,
+): Story {
+  const story = { id: storyId, ...data } as Story;
+  fillIllustrationV2DocDefaults(story);
+  return story;
+}
+
 async function readAndVerifyOwnership(
   storyId: string,
   ownerUid: string,
@@ -76,7 +86,7 @@ async function readAndVerifyOwnership(
     .doc(storyId)
     .get();
   if (!doc.exists) return null;
-  const story = { id: storyId, ...doc.data() } as Story;
+  const story = hydrateStoryFromFirestore(storyId, doc.data() as Record<string, unknown>);
   if (story.ownerUid !== ownerUid) return null; // 404, not 403
   return story;
 }
@@ -223,8 +233,8 @@ async function handleListStories(req: Request, res: Response): Promise<void> {
     .where("ownerUid", "==", ownerUid)
     .get();
 
-  let stories = snapshot.docs.map(
-    (doc) => ({ id: doc.id, ...doc.data() }) as Story,
+  let stories = snapshot.docs.map((doc) =>
+    hydrateStoryFromFirestore(doc.id, doc.data() as Record<string, unknown>),
   );
 
   // Filter by statuses (optional — no filter returns all stories including archived)
@@ -361,7 +371,7 @@ async function handlePatchStory(req: Request, res: Response): Promise<void> {
   });
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
-  const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+  const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
   res.status(200).json({ story: finalStory });
 }
@@ -463,7 +473,7 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
   // job here when `to === "illustration_workspace"`. See docs/illustration/spec.md §14.1.
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
-  const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+  const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
   res.status(200).json({ story: finalStory });
 }
@@ -513,7 +523,7 @@ async function handleUpdateBrief(req: Request, res: Response): Promise<void> {
   await firestore.collection(STORIES_COLLECTION).doc(storyId).update(updateFields);
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
-  const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+  const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
   res.status(200).json({ story: finalStory });
 }
@@ -586,7 +596,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
 
   let story: Story;
   if (existingDoc.exists) {
-    const existingStory = { id: storyId, ...existingDoc.data() } as Story;
+    const existingStory = hydrateStoryFromFirestore(storyId, existingDoc.data() as Record<string, unknown>);
 
     if (existingStory.ownerUid !== ownerUid) {
       res.status(409).json({
@@ -729,7 +739,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       .doc(storyId)
       .get();
 
-    const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+    const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
     res.status(200).json({ story: finalStory });
   } catch (error: unknown) {

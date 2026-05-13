@@ -124,7 +124,9 @@ const PIPELINE_HINTS_EN = {
   in_review:
     "Finish reviewing the generated story, then approve, edit, or request changes.",
   approved:
-    "This story is approved. The illustration workspace will be available shortly.",
+    "This story is approved. Open the illustration workspace to generate a Visual Bible and per-page scene plans.",
+  illustration_workspace:
+    "The illustration workspace is open — work through each page, then mark illustration ready.",
   illustration_ready: "All illustrations are approved. Publish when you are ready.",
   published: "This story has been published.",
 } as const;
@@ -139,7 +141,9 @@ const PIPELINE_HINTS_HE = {
     "פתחו את לשונית הסיפור כדי לקרוא את הטקסט שהופק ולהשלים את הביקורת.",
   in_review:
     "סיימו לבדוק את הסיפור, ואז אשרו, ערכו או בקשו שינויים.",
-  approved: "הסיפור אושר. סביבת האיורים תיפתח בקרוב.",
+  approved: "הסיפור אושר. פתחו את סביבת האיור כדי ליצור Visual Bible ותכניות סצנה לכל עמוד.",
+  illustration_workspace:
+    "מרחב האיור פתוח — עברו על כל עמוד ואז סמנו שהאיורים מוכנים.",
   illustration_ready: "כל האיורים אושרו. פרסמו כשאתם מוכנים.",
   published: "הסיפור פורסם.",
 } as const;
@@ -155,6 +159,8 @@ const PIPELINE_HINTS_AR = {
   in_review:
     "أكملوا مراجعة القصة ثم وافقوا أو عدّلوا أو اطلبوا تغييرات.",
   approved: "القصة معتمدة. ولّدوا أوصاف الصور عند الجاهزية.",
+  illustration_workspace:
+    "مساحة التوضيح مفتوحة — أكملوا كل صفحة ثم علّموا جاهزية التوضيح.",
   illustration_ready: "اعتُمدت كل التوضيحات. انشروا عند الجاهزية.",
   published: "نُشرت هذه القصة.",
 } as const;
@@ -166,6 +172,7 @@ const STATUS_EN: SpecialistDeskUi["statusLabels"] = {
   in_review: "In review",
   needs_revision: "Needs revision",
   approved: "Approved",
+  illustration_workspace: "Illustration workspace",
   illustration_ready: "Illustration ready",
   published: "Published",
   archived: "Archived",
@@ -178,6 +185,7 @@ const STATUS_HE: SpecialistDeskUi["statusLabels"] = {
   in_review: "בביקורת",
   needs_revision: "דורש תיקון",
   approved: "אושר",
+  illustration_workspace: "מרחב איור",
   illustration_ready: "איורים מוכנים",
   published: "פורסם",
   archived: "בארכיון",
@@ -190,6 +198,7 @@ const STATUS_AR: SpecialistDeskUi["statusLabels"] = {
   in_review: "قيد المراجعة",
   needs_revision: "بحاجة إلى مراجعة",
   approved: "معتمدة",
+  illustration_workspace: "مساحة التوضيح",
   illustration_ready: "التوضيحات جاهزة",
   published: "منشورة",
   archived: "مؤرشفة",
@@ -248,6 +257,7 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   chipGenerating: "Generating",
   chipNeedsRevision: "Needs revision",
   chipApproved: "Approved",
+  chipIllustrationWorkspace: "Illustration workspace",
   chipPromptReview: "Image prompt review",
   chipIllustrating: "Illustrating",
   chipIllustrationReview: "Illustration review",
@@ -415,6 +425,7 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   chipGenerating: "נוצר",
   chipNeedsRevision: "דורש תיקון",
   chipApproved: "אושר",
+  chipIllustrationWorkspace: "מרחב איור",
   chipPromptReview: "ביקורת הנחיות תמונה",
   chipIllustrating: "באיור",
   chipIllustrationReview: "ביקורת איורים",
@@ -582,6 +593,7 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   chipGenerating: "قيد التوليد",
   chipNeedsRevision: "بحاجة إلى مراجعة",
   chipApproved: "معتمدة",
+  chipIllustrationWorkspace: "مساحة التوضيح",
   chipPromptReview: "مراجعة أوصاف الصور",
   chipIllustrating: "قيد التوضيح",
   chipIllustrationReview: "مراجعة التوضيحات",

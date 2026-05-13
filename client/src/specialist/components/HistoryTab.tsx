@@ -31,6 +31,7 @@ const STATUS_LABELS: Record<StoryStatus, string> = {
   needs_revision: "Needs revision",
   approved: "Approved",
   illustration_ready: "Illustration ready",
+  illustration_workspace: "Illustration workspace",
   published: "Published",
   archived: "Archived",
 };
@@ -108,8 +109,40 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       mainLabel = "Story restored";
       break;
 
-    default:
+    case "visual_bible_generated":
+      mainLabel = `Visual Bible generated (v${event.version})`;
+      break;
+
+    case "scene_plan_generated":
+      mainLabel = `Scene plan generated for page ${event.pageNumber} (v${event.version})`;
+      break;
+
+    case "image_generated":
+      mainLabel = `Image generated for page ${event.pageNumber} (v${event.version})`;
+      break;
+
+    case "image_approved":
+      mainLabel = `Image approved for page ${event.pageNumber} (v${event.version})`;
+      break;
+
+    case "image_rejected":
+      mainLabel = `Image rejected for page ${event.pageNumber} (v${event.version})`;
+      feedbackText = event.feedbackNote;
+      break;
+
+    case "illustration_workspace_opened":
+      mainLabel = "Illustration workspace opened";
+      break;
+
+    case "illustration_ready_marked":
+      mainLabel = "Illustration ready marked";
+      break;
+
+    default: {
+      const _exhaustive: never = event;
+      void _exhaustive;
       mainLabel = "Unknown event";
+    }
   }
 
   return (

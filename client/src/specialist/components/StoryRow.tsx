@@ -53,8 +53,25 @@ function editEventVerb(event: EditHistoryEvent, desk: SpecialistDeskUi): string 
       return desk.editEventArchived;
     case "restored":
       return desk.editEventRestored;
-    default:
+    case "visual_bible_generated":
+      return "Visual Bible generated";
+    case "scene_plan_generated":
+      return "Scene plan generated";
+    case "image_generated":
+      return "Image generated";
+    case "image_approved":
+      return "Image approved";
+    case "image_rejected":
+      return "Image rejected";
+    case "illustration_workspace_opened":
+      return "Illustration workspace opened";
+    case "illustration_ready_marked":
+      return "Illustration ready marked";
+    default: {
+      const _u: never = event;
+      void _u;
       return desk.editEventUpdated;
+    }
   }
 }
 

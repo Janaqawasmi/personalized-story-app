@@ -23,18 +23,16 @@ describe("isTransitionAllowed — allowed transitions", () => {
 // ============================================================================
 
 describe("isTransitionAllowed — illegal transitions", () => {
-  // Build the full 8×8 cartesian product
   const allPairs = STORY_STATUSES.flatMap((from) =>
     STORY_STATUSES.map((to) => ({ from, to })),
   );
 
-  // Filter out the 16 that are explicitly allowed
   const illegalPairs = allPairs.filter(
     ({ from, to }) =>
       !ALLOWED_TRANSITIONS.some((t) => t.from === from && t.to === to),
   );
 
-  test("illegal pairs total 48 (64 total minus 16 allowed)", () => {
+  test("illegal pairs count matches n² minus allowed edges", () => {
     expect(illegalPairs).toHaveLength(
       STORY_STATUSES.length * STORY_STATUSES.length - ALLOWED_TRANSITIONS.length,
     );
@@ -53,8 +51,19 @@ describe("isTransitionAllowed — illegal transitions", () => {
 // ============================================================================
 
 describe("STORY_STATUSES structure", () => {
-  test("has exactly 8 entries", () => {
-    expect(STORY_STATUSES).toHaveLength(8);
+  test("matches specialist + illustration pipeline ordering", () => {
+    expect(STORY_STATUSES).toEqual([
+      "draft_brief",
+      "generating",
+      "awaiting_review",
+      "in_review",
+      "needs_revision",
+      "approved",
+      "illustration_workspace",
+      "illustration_ready",
+      "published",
+      "archived",
+    ]);
   });
 
   test.each([
@@ -64,6 +73,8 @@ describe("STORY_STATUSES structure", () => {
     "in_review",
     "needs_revision",
     "approved",
+    "illustration_workspace",
+    "illustration_ready",
     "published",
     "archived",
   ] as const)('contains "%s"', (status) => {
@@ -86,10 +97,6 @@ describe("BRIEF_STATUSES structure", () => {
 });
 
 describe("ALLOWED_TRANSITIONS structure", () => {
-  test("has exactly 16 entries", () => {
-    expect(ALLOWED_TRANSITIONS).toHaveLength(16);
-  });
-
   test("every 'from' value is a member of STORY_STATUSES", () => {
     for (const { from } of ALLOWED_TRANSITIONS) {
       expect(STORY_STATUSES).toContain(from);

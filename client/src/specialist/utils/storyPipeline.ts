@@ -44,7 +44,9 @@ function nextHintForStatus(status: StoryStatus): string {
     case "in_review":
       return "Finish reviewing the generated story, then approve, edit, or request changes.";
     case "approved":
-      return "This story is approved. The illustration workspace will be available shortly.";
+      return "This story is approved. Open the illustration workspace to generate a Visual Bible and per-page scene plans.";
+    case "illustration_workspace":
+      return "Generate illustrations for each page, then mark ready when all pages are approved.";
     case "illustration_ready":
       return "All illustrations are approved. Publish when you are ready.";
     case "published":
@@ -87,11 +89,16 @@ export function getStoryPipelineUiState(status: StoryStatus): StoryPipelineUiSta
       return {
         kind: "active",
         stepsCompleted: 3,
+        emphasisStepIndex: 3,
+        nextHint,
+      };
+    case "illustration_workspace":
+      return {
+        kind: "active",
+        stepsCompleted: 4,
         emphasisStepIndex: 4,
         nextHint,
       };
-    // Phase 1 of the v2 illustration redesign adds the `illustration_workspace`
-    // case here (emphasis on step 4, the Illustration column).
     case "illustration_ready":
       return {
         kind: "active",

@@ -79,6 +79,9 @@ export class HybridDraftStore implements DraftStore {
       approvedAt: null,
       pages: null,
       publishedAt: null,
+      illustrationPages: null,
+      currentVisualBibleVersion: null,
+      illustrationWorkspaceOpenedAt: null,
     };
 
     const registry = loadRegistry();
