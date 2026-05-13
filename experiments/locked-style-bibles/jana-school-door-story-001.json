@@ -1,0 +1,32 @@
+{
+  "characterSheet": "Jana is a five-to-six-year-old child of average build, small-framed and proportionate to her age. Her face is round with large, expressive dark brown eyes set wide apart with visible lower lids that convey vulnerability; her nose is small and button-like, her mouth naturally falls in a slightly open, uncertain line. Her hair is shoulder-length, straight to gently wavy, a warm medium brown colour, often falling forward to frame or partially hide her face when anxious. She wears a soft-coloured long-sleeved shirt (pale blue or cream) under a rust or terracotta cardigan or sweater, paired with grey or navy trousers; these garments are slightly oversized, suggesting comfort-seeking. Her signature is her white-knuckled grip on her backpack straps and the tension held in her shoulders when afraid. Her default posture is slightly hunched inward, with rounded shoulders and feet that turn slightly inward, expressing caution and self-protection.",
+  "characterAnchor": "Five-to-six-year-old with round face, large dark eyes, shoulder-length warm brown hair. Wears pale blue or cream shirt under rust cardigan, grey trousers.",
+  "styleGuide": "Soft watercolour and coloured pencil with muted, gentle palette; loose, expressive linework; warm, naturalistic rendering with emotional restraint; quiet, intimate mood conveyed through negative space and subtle gesture rather than exaggeration.",
+  "consistencyAnchors": [
+    "soft watercolour with coloured pencil",
+    "muted warm palette, low saturation",
+    "intimate close framings and negative space",
+    "quiet emotional truth, no exaggeration"
+  ],
+  "environmentRegistry": {
+    "hallway_outside_room_4": {
+      "atmosphere": "Institutional, echoing, slightly cold and isolating; fluorescent or pale natural light creates subtle shadows; the smell of pencils and floor polish is present in the visual mood through muted, clean tones.",
+      "spatialLayout": "Closed door to Room 4 centred or slightly right; cold metal handle visible; hallway recedes into soft focus behind Jana; floor is polished tile or light linoleum; left and right walls are pale institutional colour; bell sound travels from far end of hallway (visual suggestion through empty space)."
+    },
+    "classroom_room_4": {
+      "atmosphere": "Overwhelming sensory space with chaotic visual density balanced by moments of calm focus; natural light from window on left; sounds (chair scraping, voices, pencil tapping) suggested through visual activity and composition rather than literal symbols.",
+      "spatialLayout": "Window on left wall with blue stripe painted along wall directly below it (long, horizontal, quiet); rows of desks distributed throughout space, some occupied, some empty; Jana's chosen desk positioned near window on right side of room; back wall has open space or whiteboard; classroom furniture arranged in conventional school layout; teacher's area implied but not detailed."
+    }
+  },
+  "palette": "pale blue, cream, rust, warm grey, soft brown, muted sage, cool stone grey",
+  "avoidList": [
+    "text, letters, words, or captions of any kind",
+    "exaggerated facial expressions or grotesque features",
+    "literal visual metaphors like knots or waves as shapes",
+    "bright primary colours or high-saturation hues",
+    "cartoon-style simplification or cute anthropomorphism",
+    "props not mentioned in story (toys, books on desks, posters)",
+    "other children rendered with equal detail to Jana"
+  ],
+  "generatedAt": 1777657416448
+}

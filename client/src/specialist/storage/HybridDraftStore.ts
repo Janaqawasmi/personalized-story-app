@@ -11,6 +11,7 @@ import { isTransitionAllowed } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import { createEmptyBrief } from "../../types/storyBrief";
 import * as apiClient from "../../api/specialistStories";
+import type { Agent1RegenerationPayload } from "../../api/specialistStories";
 import { buildSpecialistSnapshotFields } from "../utils/specialistVersionSnapshot";
 import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
 
@@ -47,6 +48,9 @@ function saveRegistry(registry: StoryRegistry): void {
 // ============================================================================
 
 export class HybridDraftStore implements DraftStore {
+  /** Set when the most recent server fetch fails. Cleared on success. */
+  lastServerError: string | null = null;
+
   private storyListeners = new Map<string, Set<(story: Story) => void>>();
   private listListeners = new Set<(stories: Story[]) => void>();
 
@@ -74,6 +78,12 @@ export class HybridDraftStore implements DraftStore {
       lastOpenedAt: now,
       submittedAt: null,
       approvedAt: null,
+      pages: null,
+      publishedAt: null,
+      publishedTemplateId: null,
+      illustrationPages: null,
+      currentVisualBibleVersion: null,
+      illustrationWorkspaceOpenedAt: null,
     };
 
     const registry = loadRegistry();
@@ -108,12 +118,11 @@ export class HybridDraftStore implements DraftStore {
     let serverStories: Story[] = [];
     try {
       serverStories = await apiClient.listStories();
+      this.lastServerError = null;
     } catch (err) {
-      console.error(
-        "Failed to fetch server stories, falling back to localStorage-only:",
-        err,
-      );
-      // TODO: Surface a non-blocking "offline" indicator to the UI
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.error("Failed to fetch server stories:", msg);
+      this.lastServerError = msg;
     }
 
     // Merge: server wins on conflict, silently clean up localStorage duplicates
@@ -133,12 +142,11 @@ export class HybridDraftStore implements DraftStore {
 
     let merged = [...dedupedLocal, ...serverStories];
 
-    // Status filter
+    // Status filter — if statuses are specified, apply them; otherwise return all
+    // (SpecialistStoriesPage.applyFilters() excludes archived by default)
     if (filter?.statuses && filter.statuses.length > 0) {
       const allowed = new Set(filter.statuses);
       merged = merged.filter((s) => allowed.has(s.status));
-    } else {
-      merged = merged.filter((s) => s.status !== "archived");
     }
 
     // Search query — client-side since the API doesn't support it
@@ -284,6 +292,35 @@ export class HybridDraftStore implements DraftStore {
       storyId,
       serverDraft.brief,
       serverDraft.parentStoryId ?? undefined,
+    );
+    this.notifyStoryListeners(storyId, serverStory);
+    this.notifyListListeners();
+    return serverStory;
+  }
+
+  async runAgent1Regeneration(
+    storyId: string,
+    payload: Agent1RegenerationPayload,
+  ): Promise<Story> {
+    const registry = loadRegistry();
+    if (registry.stories[storyId]) {
+      throw new Error(
+        "Agent 1 regeneration runs on the server. Submit the brief first.",
+      );
+    }
+
+    const current = await apiClient.getStory(storyId);
+    if (current.status !== "needs_revision") {
+      throw new Error(
+        `Cannot run regeneration: story status is '${current.status}', expected needs_revision.`,
+      );
+    }
+
+    const serverStory = await apiClient.generateStory(
+      storyId,
+      current.brief,
+      current.parentStoryId ?? undefined,
+      payload,
     );
     this.notifyStoryListeners(storyId, serverStory);
     this.notifyListListeners();

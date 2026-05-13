@@ -92,12 +92,31 @@ export type Step1Output = {
   llmCallRecord: LLMCallRecord;
 };
 
+// A single page as emitted by the Step 2 Author.
+// Illustration-specific fields (scene, emotionalTone, etc.) are added later
+// when the page is extended for the Story model and illustration pipeline.
+export type StoryPage = {
+  pageNumber: number;
+  text: string;
+  wordCount: number;
+};
+
+export type PageCountDrift = "within_range" | "under" | "over";
+
 export type Step2Output = {
   title: string;
+  // Legacy single-string story body — kept for backward compat.
+  // Derived from joining pages[].text once pages are populated.
   story: string;
   wordCount: number;
   targetWordRange: readonly [number, number];
   wordCountDrift: "within_range" | "under" | "over";
+  // Structured page output — populated by the JSON-format parser (Step 0.4).
+  // Optional until the parser is updated; required thereafter.
+  pages?: StoryPage[];
+  pageCount?: number;
+  targetPageRange?: readonly [number, number];
+  pageCountDrift?: PageCountDrift;
   rawResponse: string;
   promptHash: string;
   llmCallRecord: LLMCallRecord;
@@ -113,6 +132,9 @@ export type PostValidationFlag = {
   passage: string;
   reasoning: string;
   severity: "likely_violation" | "borderline_specialist_review";
+  // Which page the flag concerns. null = whole-story flag. Undefined when
+  // the validator ran against a legacy single-string story (no page data).
+  pageNumber?: number | null;
 };
 
 export type PostValidationResult = {
@@ -137,10 +159,16 @@ export type Agent1Result = {
   characterNotesContradictions?: ContradictionFlag[];
   // Step 2
   title: string;
+  // Legacy single-string body — derived from joining pages[].text.
   story: string;
   wordCount: number;
   targetWordRange: readonly [number, number];
   wordCountDrift: "within_range" | "under" | "over";
+  // Structured page output
+  pages?: StoryPage[];
+  pageCount?: number;
+  targetPageRange?: readonly [number, number];
+  pageCountDrift?: PageCountDrift;
   // Step 3
   alignmentNote: string;
   postValidationFlags: PostValidationFlag[];

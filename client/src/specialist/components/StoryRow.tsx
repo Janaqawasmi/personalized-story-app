@@ -10,202 +10,203 @@ import TableCell from "@mui/material/TableCell";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
-import AutoFixHighOutlinedIcon from "@mui/icons-material/AutoFixHighOutlined";
-import EditNoteOutlinedIcon from "@mui/icons-material/EditNoteOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import RateReviewOutlinedIcon from "@mui/icons-material/RateReviewOutlined";
-import VerifiedOutlinedIcon from "@mui/icons-material/VerifiedOutlined";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
-import type { AgeRange, StoryType } from "../../types/storyBrief";
+import { useLanguage } from "../../i18n/context/useLanguage";
+import {
+  dateLocaleForLang,
+  formatListEventTimeMs,
+} from "../../i18n/specialistRelativeTime";
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import { useStoryBriefUi } from "../../i18n/storyBriefUi";
+import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
+import type { StoryType } from "../../types/storyBrief";
 import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
-import { getPipelineListLabel, getPipelineListStepIndex } from "../utils/storyPipeline";
+import {
+  getPipelineListLabelTranslated,
+  getStoryPipelineUiState,
+  normalizeStoryStatusForDisplay,
+} from "../utils/storyPipeline";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
-const PIPELINE_LIST_ICONS = [
-  EditNoteOutlinedIcon,
-  AutoFixHighOutlinedIcon,
-  RateReviewOutlinedIcon,
-  VerifiedOutlinedIcon,
-] as const;
+const SERIF =
+  "'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif";
 
-// ---------------------------------------------------------------------------
-// Display maps
-// ---------------------------------------------------------------------------
-
-const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
-  fear_anxiety: "Fear & Anxiety",
-  big_emotions: "Big Emotions",
-  loss_grief: "Loss & Grief",
-  identity_self_worth: "Identity & Self-Worth",
-  life_transitions: "Life Transitions",
-};
-
-const AGE_RANGE_LABELS: Record<AgeRange, string> = {
-  "3-5": "3–5",
-  "5-7": "5–7",
-  "7-9": "7–9",
-  "9-12": "9–12",
-};
-
-const STATUS_LABELS: Record<StoryStatus, string> = {
-  draft_brief: "Brief in progress",
-  generating: "Generating",
-  awaiting_review: "Awaiting review",
-  in_review: "In review",
-  needs_revision: "Needs revision",
-  approved: "Approved",
-  published: "Published",
-  archived: "Archived",
-};
-
-// ---------------------------------------------------------------------------
-// Last edit column (editHistory + compact time)
-// ---------------------------------------------------------------------------
-
-function editEventVerb(event: EditHistoryEvent): string {
+function editEventVerb(event: EditHistoryEvent, desk: SpecialistDeskUi): string {
   switch (event.kind) {
     case "draft_created":
-      return "Created";
+      return desk.editEventCreated;
     case "draft_edited":
-      return "Story edited";
+      return desk.editEventStoryEdited;
     case "status_changed":
-      return "Updated";
+      return desk.editEventUpdated;
     case "brief_submitted":
-      return "Submitted";
+      return desk.editEventSubmitted;
     case "agent1_generated":
-      return event.succeeded ? "Generated" : "Generation failed";
+      return event.succeeded
+        ? desk.editEventDraftGenerated
+        : desk.editEventGenerationFailed;
     case "regeneration_requested":
-      return "Regeneration requested";
+      return desk.editEventRegenerationRequested;
     case "archived":
-      return "Archived";
+      return desk.editEventArchived;
     case "restored":
-      return "Restored";
-    default:
-      return "Updated";
+      return desk.editEventRestored;
+    case "visual_bible_generated":
+      return "Visual Bible generated";
+    case "visual_bible_edited":
+      return "Visual Bible edited";
+    case "visual_bible_regenerated":
+      return "Visual Bible regenerated";
+    case "scene_plan_generated":
+      return "Scene plan generated";
+    case "image_generated":
+      return "Image generated";
+    case "image_approved":
+      return "Image approved";
+    case "image_rejected":
+      return "Image rejected";
+    case "illustration_workspace_opened":
+      return "Illustration workspace opened";
+    case "illustration_ready_marked":
+      return "Illustration ready marked";
+    case "published":
+      return "Published to library";
+    case "job_cancelled":
+      return "Illustration job cancelled";
+    default: {
+      const _u: never = event;
+      void _u;
+      return desk.editEventUpdated;
+    }
   }
 }
 
-/** Relative for events within the last 7 days ("2h ago", "1d ago"); month + day (and year if needed) for older. */
-function formatListEventTime(at: number): string {
-  const now = Date.now();
-  const diffMs = Math.max(0, now - at);
-  const dayMs = 24 * 60 * 60 * 1000;
-  if (diffMs >= 7 * dayMs) {
-    const d = new Date(at);
-    const yNow = new Date(now).getFullYear();
-    const month = d.toLocaleString("en-US", { month: "short" });
-    const day = d.getDate();
-    if (d.getFullYear() !== yNow) return `${month} ${day}, ${d.getFullYear()}`;
-    return `${month} ${day}`;
-  }
-  const diffMin = Math.floor(diffMs / (60 * 1000));
-  const diffHr = Math.floor(diffMs / (60 * 60 * 1000));
-  const diffDay = Math.floor(diffMs / dayMs);
-  if (diffDay >= 1) return `${diffDay}d ago`;
-  if (diffHr >= 1) return `${diffHr}h ago`;
-  if (diffMin >= 1) return `${diffMin}m ago`;
-  return "Just now";
-}
-
-function formatLastEditSummary(story: Story): string {
+function lastEventLines(
+  story: Story,
+  desk: SpecialistDeskUi,
+  dateLocale: string,
+): { what: string; when: string } {
   const hist = story.editHistory;
   const last =
     hist && hist.length > 0 ? hist[hist.length - 1] : undefined;
   if (!last) {
-    return `Created · ${formatListEventTime(story.createdAt)}`;
+    return {
+      what: desk.editEventCreated,
+      when: formatListEventTimeMs(story.createdAt, desk, dateLocale),
+    };
   }
-  return `${editEventVerb(last.event)} · ${formatListEventTime(last.at)}`;
+  return {
+    what: editEventVerb(last.event, desk),
+    when: formatListEventTimeMs(last.at, desk, dateLocale),
+  };
 }
 
-// ---------------------------------------------------------------------------
-// Relative time helper (shared with BriefTab / DraftTab)
-// ---------------------------------------------------------------------------
-
-export function formatRelativeTime(ms: number): string {
-  const now = Date.now();
-  const diffMs = now - ms;
-  const diffSec = Math.floor(diffMs / 1000);
-  const diffMin = Math.floor(diffSec / 60);
-  const diffHr = Math.floor(diffMin / 60);
-  const diffDay = Math.floor(diffHr / 24);
-
-  if (diffSec < 60) return "Just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
-  if (diffHr < 24) return `${diffHr} hour${diffHr === 1 ? "" : "s"} ago`;
-  if (diffDay === 1) return "Yesterday";
-
-  const date = new Date(ms);
-  const nowDate = new Date(now);
-
-  const month = date.toLocaleString("en", { month: "short" });
-  const day = date.getDate();
-
-  if (date.getFullYear() === nowDate.getFullYear()) {
-    return `${month} ${day}`;
+function toRomanLower(n: number): string {
+  const map: [number, string][] = [
+    [1000, "m"],
+    [900, "cm"],
+    [500, "d"],
+    [400, "cd"],
+    [100, "c"],
+    [90, "xc"],
+    [50, "l"],
+    [40, "xl"],
+    [10, "x"],
+    [9, "ix"],
+    [5, "v"],
+    [4, "iv"],
+    [1, "i"],
+  ];
+  let out = "";
+  let x = n;
+  for (const [v, s] of map) {
+    while (x >= v) {
+      out += s;
+      x -= v;
+    }
   }
-  return `${month} ${day}, ${date.getFullYear()}`;
+  return out;
 }
 
-// ---------------------------------------------------------------------------
-// Pipeline column (icon + label aligned with StoryPipelineStepper)
-// ---------------------------------------------------------------------------
+function PipelineDots({
+  status,
+  dotCount,
+}: {
+  status: StoryStatus;
+  dotCount: number;
+}) {
+  const n = dotCount;
+  const ui = getStoryPipelineUiState(status);
 
-function PipelineStageCell({ story }: { story: Story }) {
-  const label = getPipelineListLabel(story.status);
-  const step = getPipelineListStepIndex(story.status);
-  const Icon =
-    step === null ? ArchiveOutlinedIcon : PIPELINE_LIST_ICONS[step];
+  if (ui.kind === "archived") {
+    return (
+      <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+        {Array.from({ length: n }).map((_, i) => (
+          <Box
+            key={i}
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              bgcolor: COLORS.border,
+              flexShrink: 0,
+            }}
+          />
+        ))}
+      </Box>
+    );
+  }
+
+  const cur = ui.emphasisStepIndex;
+  const isPublished = status === "published";
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 0.75,
-        minWidth: 0,
-      }}
-    >
-      <Icon
-        sx={{
-          fontSize: 18,
-          color: step === null ? COLORS.textSecondary : COLORS.primary,
-          opacity: step === null ? 0.65 : 0.9,
-          flexShrink: 0,
-        }}
-        aria-hidden
-      />
-      <Typography
-        variant="body2"
-        sx={{
-          fontSize: "0.8rem",
-          fontWeight: 600,
-          color: COLORS.textPrimary,
-          lineHeight: 1.3,
-        }}
-      >
-        {label}
-      </Typography>
+    <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+      {Array.from({ length: n }).map((_, i) => {
+        let bg = COLORS.border;
+        let shadow: string | undefined;
+        if (isPublished) {
+          bg = COLORS.success;
+        } else if (i < cur) {
+          bg = COLORS.primary;
+        } else if (i === cur) {
+          bg =
+            status === "awaiting_review" ? COLORS.warning : COLORS.primary;
+          shadow =
+            status === "awaiting_review"
+              ? "0 0 0 3px rgba(176,132,51,0.18)"
+              : "0 0 0 3px rgba(97,120,145,0.2)";
+        }
+        return (
+          <Box
+            key={i}
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              bgcolor: bg,
+              boxShadow: shadow,
+              flexShrink: 0,
+            }}
+          />
+        );
+      })}
     </Box>
   );
 }
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 export interface StoryRowProps {
+  rowIndex: number;
   story: Story;
   onArchive: (storyId: string) => void;
   onRestore: (storyId: string) => void;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function StoryRow({
+  rowIndex,
   story,
   onArchive,
   onRestore,
@@ -213,13 +214,29 @@ export default function StoryRow({
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
+  const { language } = useLanguage();
+  const desk = useSpecialistDeskUi();
+  const briefUi = useStoryBriefUi();
   const storyPath = `/${lang ?? "he"}/specialist/stories/${story.id}`;
+  const dateLocale = dateLocaleForLang(language);
 
   const isArchived = story.status === "archived";
+  const isAttention = story.status === "awaiting_review";
   const displayTitle =
     story.title.trim() === "" ? null : story.title;
 
-  const col = STATUS_CHIP_COLORS[story.status];
+  const statusForUi = normalizeStoryStatusForDisplay(story.status);
+  const col = STATUS_CHIP_COLORS[statusForUi];
+  const pipelineLabel = getPipelineListLabelTranslated(story.status, desk);
+  const evt = lastEventLines(story, desk, dateLocale);
+  const statusLabels = desk.statusLabels;
+  const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
+  const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
+
+  const briefRev =
+    story.parentStoryId || /revision/i.test(story.title ?? "")
+      ? desk.revisionBadge
+      : null;
 
   function handleRowClick() {
     navigate(storyPath);
@@ -248,6 +265,10 @@ export default function StoryRow({
     onRestore(story.id);
   }
 
+  const rowBg = isAttention
+    ? "linear-gradient(90deg, rgba(245,236,215,0.55), rgba(245,236,215,0) 58%)"
+    : "transparent";
+
   return (
     <TableRow
       hover
@@ -256,49 +277,140 @@ export default function StoryRow({
         cursor: "pointer",
         opacity: isArchived ? 0.6 : 1,
         transition: "background-color 0.15s ease, opacity 0.15s ease",
+        position: "relative",
+        background: isAttention ? rowBg : undefined,
         "&:last-child td": { borderBottom: 0 },
         "&:hover": {
-          bgcolor: (theme) => theme.palette.action.hover,
+          bgcolor: `${COLORS.cream} !important`,
         },
         "&:hover .story-row-title-link": {
           color: COLORS.primary,
-          textDecoration: "underline",
-          textUnderlineOffset: 3,
         },
       }}
     >
-      {/* ---- Title (real URL for new tab / copy link; click does not double-fire row) ---- */}
-      <TableCell sx={{ maxWidth: 280, py: 1.5 }}>
-        <Link
-          component={RouterLink}
-          to={storyPath}
-          className="story-row-title-link"
-          underline="none"
-          onClick={(e) => e.stopPropagation()}
+      {isAttention && (
+        <Box
           sx={{
-            fontWeight: 600,
+            position: "absolute",
+            left: 0,
+            top: 10,
+            bottom: 10,
+            width: 3,
+            bgcolor: COLORS.warning,
+            borderRadius: "0 2px 2px 0",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      <TableCell
+        sx={{
+          py: 2,
+          px: 1.5,
+          verticalAlign: "middle",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+        }}
+      >
+        <Typography
+          sx={{
+            fontFamily: SERIF,
+            fontStyle: "italic",
+            fontWeight: 500,
+            color: COLORS.textMuted,
             fontSize: "0.875rem",
-            lineHeight: 1.43,
-            color: displayTitle ? COLORS.textPrimary : COLORS.textSecondary,
-            fontStyle: displayTitle ? "normal" : "italic",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            maxWidth: 260,
-            display: "block",
           }}
         >
-          {displayTitle ?? "Untitled story"}
-        </Link>
+          {toRomanLower(rowIndex + 1)}.
+        </Typography>
       </TableCell>
 
-      {/* ---- Pipeline (coarse stage — matches workspace stepper) ---- */}
-      <TableCell sx={{ py: 1.5, maxWidth: 140 }}>
-        <PipelineStageCell story={story} />
+      <TableCell
+        sx={{
+          py: 2,
+          maxWidth: 280,
+          verticalAlign: "middle",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.25, minWidth: 0 }}>
+          <Link
+            component={RouterLink}
+            to={storyPath}
+            className="story-row-title-link"
+            underline="none"
+            onClick={(e) => e.stopPropagation()}
+            sx={{
+              fontFamily: SERIF,
+              fontWeight: 600,
+              fontSize: "1.125rem",
+              lineHeight: 1.25,
+              color: displayTitle ? COLORS.textPrimary : COLORS.textMuted,
+              fontStyle: displayTitle ? "normal" : "italic",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              maxWidth: 260,
+              display: "block",
+              transition: "color 0.12s ease",
+            }}
+          >
+            {displayTitle ?? desk.untitledStory}
+          </Link>
+          {briefRev && (
+            <Typography
+              component="span"
+              sx={{
+                fontSize: "0.625rem",
+                color: COLORS.textMuted,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                border: `1px solid ${COLORS.border}`,
+                bgcolor: COLORS.surface,
+                px: 0.75,
+                py: 0.125,
+                borderRadius: "4px",
+                flexShrink: 0,
+                fontWeight: 600,
+              }}
+            >
+              {briefRev}
+            </Typography>
+          )}
+        </Box>
       </TableCell>
 
-      {/* ---- Type / age ---- */}
-      <TableCell sx={{ py: 1.5 }}>
+      <TableCell
+        sx={{
+          py: 2,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          verticalAlign: "middle",
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+          <PipelineDots
+            status={story.status}
+            dotCount={desk.pipelineSteps.length}
+          />
+          <Typography
+            sx={{
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              color: COLORS.textPrimary,
+              lineHeight: 1.3,
+            }}
+          >
+            {pipelineLabel}
+          </Typography>
+        </Box>
+      </TableCell>
+
+      <TableCell
+        sx={{
+          py: 2,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          verticalAlign: "middle",
+        }}
+      >
         <Box
           sx={{
             display: "flex",
@@ -309,27 +421,32 @@ export default function StoryRow({
         >
           {story.storyType ? (
             <Chip
-              label={STORY_TYPE_LABELS[story.storyType] ?? story.storyType}
+              label={
+                storyTypeLabels[story.storyType as StoryType] ??
+                story.storyType
+              }
               size="small"
               variant="outlined"
               sx={{
                 fontSize: "0.72rem",
                 borderColor: COLORS.border,
                 color: COLORS.textSecondary,
-                height: 22,
+                height: 24,
+                borderRadius: "999px",
               }}
             />
           ) : null}
           {story.ageRange ? (
             <Chip
-              label={AGE_RANGE_LABELS[story.ageRange]}
+              label={ageRangeLabels[story.ageRange]}
               size="small"
               variant="outlined"
               sx={{
                 fontSize: "0.72rem",
                 borderColor: COLORS.border,
-                color: COLORS.textSecondary,
-                height: 22,
+                color: COLORS.textMuted,
+                height: 24,
+                borderRadius: "999px",
               }}
             />
           ) : null}
@@ -341,8 +458,13 @@ export default function StoryRow({
         </Box>
       </TableCell>
 
-      {/* ---- Status ---- */}
-      <TableCell sx={{ py: 1.5 }}>
+      <TableCell
+        sx={{
+          py: 2,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          verticalAlign: "middle",
+        }}
+      >
         <Chip
           label={
             story.status === "generating" ? (
@@ -352,46 +474,94 @@ export default function StoryRow({
                   thickness={5}
                   sx={{ color: col.filledText }}
                 />
-                {STATUS_LABELS[story.status]}
+                {statusLabels[statusForUi]}
               </span>
             ) : (
-              STATUS_LABELS[story.status]
+              <Box
+                component="span"
+                sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    bgcolor: col.dot ?? col.filledText,
+                    flexShrink: 0,
+                  }}
+                />
+                {statusLabels[statusForUi]}
+              </Box>
             )
           }
           size="small"
           sx={{
-            fontSize: "0.72rem",
-            height: 22,
+            fontSize: "0.75rem",
+            height: 26,
+            borderRadius: "999px",
             bgcolor: col.filledBg,
             color: col.filledText,
             border: "none",
+            fontWeight: 600,
             "& .MuiChip-label": {
               color: col.filledText,
-              px: story.status === "generating" ? 0.75 : undefined,
+              px: story.status === "generating" ? 0.75 : 1,
             },
           }}
         />
       </TableCell>
 
-      {/* ---- Last event (from edit history) ---- */}
-      <TableCell sx={{ py: 1.5, maxWidth: 240 }}>
+      <TableCell
+        sx={{
+          py: 2,
+          maxWidth: 200,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          verticalAlign: "middle",
+        }}
+      >
         <Typography
-          variant="body2"
-          color="text.secondary"
-          fontSize="0.8rem"
-          sx={{ lineHeight: 1.35 }}
+          sx={{
+            fontSize: "0.8125rem",
+            color: COLORS.textSecondary,
+            lineHeight: 1.35,
+          }}
         >
-          {formatLastEditSummary(story)}
+          {evt.what}
+        </Typography>
+        <Typography
+          sx={{
+            display: "block",
+            fontSize: "0.6875rem",
+            color: COLORS.textMuted,
+            mt: 0.25,
+            fontWeight: 500,
+          }}
+        >
+          {evt.when}
         </Typography>
       </TableCell>
 
-      {/* ---- Actions ---- */}
-      <TableCell sx={{ py: 1.5, width: 48 }} onClick={handleMenuOpen_e}>
+      <TableCell
+        sx={{
+          py: 2,
+          width: 48,
+          verticalAlign: "middle",
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+        }}
+        onClick={handleMenuOpen_e}
+      >
         <IconButton
           size="small"
           onClick={handleMenuOpen}
-          aria-label="Story actions"
-          sx={{ color: COLORS.textSecondary }}
+          aria-label={desk.rowAriaStoryActions}
+          className="dammah-more"
+          sx={{
+            color: COLORS.textMuted,
+            opacity: 0,
+            transition: "opacity 0.12s ease",
+            ".MuiTableRow-root:hover &": { opacity: 1 },
+          }}
         >
           <MoreVertIcon fontSize="small" />
         </IconButton>
@@ -413,12 +583,15 @@ export default function StoryRow({
               onClick={handleArchive}
               sx={{ fontSize: "0.875rem", color: COLORS.textSecondary }}
             >
-              Archive
+              <ArchiveOutlinedIcon
+                sx={{ fontSize: 18, mr: 1, opacity: 0.75 }}
+              />
+              {desk.rowMenuArchive}
             </MenuItem>
           )}
           {isArchived && (
             <MenuItem onClick={handleRestore} sx={{ fontSize: "0.875rem" }}>
-              Restore
+              {desk.rowMenuRestore}
             </MenuItem>
           )}
         </Menu>

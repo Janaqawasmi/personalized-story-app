@@ -5,6 +5,7 @@ import { storyTemplateConverter } from "../shared/firestore/converters";
 import { StoryPreview, PreviewPage, PreviewStatus, PreviewKind } from "../shared/types/storyPreview";
 import { StoryTemplate } from "../shared/types/storyTemplate";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
+import { CHILDRENS_BOOK_PAGE_ILLUSTRATION } from "../shared/seedreamImageSize";
 import {
   ChildData,
   personalizeText,
@@ -56,7 +57,7 @@ export function registerImageProvider(provider: ImageGenerationProvider): void {
   _imageProvider = provider;
 }
 
-function requireImageProvider(): ImageGenerationProvider {
+export function requireImageProvider(): ImageGenerationProvider {
   if (!_imageProvider) {
     return getImageProvider();
   }
@@ -348,7 +349,7 @@ export async function generatePreview(
       caregiverUid,
       childData,
       template,
-      photoBuffer,
+      photoPath,
       trackCaregiverQuota
     ).catch(async (err) => {
       console.error(`[preview ${claimedPreviewId}] generation failed`, err);
@@ -372,7 +373,7 @@ async function generatePreviewPages(
   caregiverUid: string,
   child: ChildData,
   template: StoryTemplate,
-  photoBuffer: Buffer,
+  photoPath: string,
   trackCaregiverQuota: boolean
 ): Promise<void> {
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId);
@@ -380,6 +381,20 @@ async function generatePreviewPages(
   const previewPageCount = Math.min(PREVIEW_SPREAD_LIMIT, template.pages.length);
   const language = template.generationConfig.language;
   const completedPages: PreviewPage[] = [];
+
+  // Generate a short-lived signed URL so Seedream can fetch the child's photo.
+  // Requires the service account to have iam.serviceAccounts.signBlob permission.
+  const bucket = admin.storage().bucket();
+  let photoSignedUrl: string | undefined;
+  try {
+    const [url] = await bucket.file(photoPath).getSignedUrl({
+      action: "read",
+      expires: Date.now() + 30 * 60 * 1000, // 30 minutes
+    });
+    photoSignedUrl = url;
+  } catch (signErr) {
+    console.warn(`[preview ${previewId}] Could not generate signed URL for photo — generating without reference image.`, signErr);
+  }
 
   try {
     let imageProvider: ImageGenerationProvider | null = null;
@@ -408,11 +423,10 @@ async function generatePreviewPages(
         }
         imageResult = await imageProvider.generateImage({
           textPrompt: imagePrompt,
-          referenceImage: photoBuffer,
-          style: page.emotionalTone,
-          outputFormat: "webp",
-          outputWidth: 1024,
-          outputHeight: 1024,
+          seed: Math.floor(Math.random() * 2 ** 31),
+          ...(photoSignedUrl ? { referenceImage: photoSignedUrl } : {}),
+          outputWidth: CHILDRENS_BOOK_PAGE_ILLUSTRATION.width,
+          outputHeight: CHILDRENS_BOOK_PAGE_ILLUSTRATION.height,
         });
 
         const ext = imageResult.mimeType.split("/")[1] ?? "webp";
@@ -436,6 +450,7 @@ async function generatePreviewPages(
           providerId: "failed",
           modelId: "failed",
           latencyMs: Date.now() - startTime,
+          seed: 0,
         };
       }
 

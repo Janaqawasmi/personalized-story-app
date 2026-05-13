@@ -10,6 +10,8 @@ const STATUS_TO_ACTIVITY_VERB: Record<StoryStatus, string> = {
   in_review: "Review started",
   needs_revision: "Needs revision",
   approved: "Approved",
+  illustration_ready: "Illustration ready",
+  illustration_workspace: "Illustration workspace opened",
   published: "Published",
   archived: "Archived",
 };
@@ -32,6 +34,33 @@ function verbFromEvent(event: EditHistoryEvent): string {
       return "Restored";
     case "status_changed":
       return STATUS_TO_ACTIVITY_VERB[event.to] ?? "Updated";
+    case "visual_bible_generated":
+      return "Visual Bible generated";
+    case "visual_bible_edited":
+      return "Visual Bible edited";
+    case "visual_bible_regenerated":
+      return "Visual Bible regenerated";
+    case "scene_plan_generated":
+      return "Scene plan generated";
+    case "image_generated":
+      return "Image generated";
+    case "image_approved":
+      return "Image approved";
+    case "image_rejected":
+      return "Image rejected";
+    case "illustration_workspace_opened":
+      return "Workspace opened";
+    case "illustration_ready_marked":
+      return "Illustration ready marked";
+    case "published":
+      return "Published to library";
+    case "job_cancelled":
+      return "Illustration job cancelled";
+    default: {
+      const _e: never = event;
+      void _e;
+      return "Updated";
+    }
   }
 }
 

@@ -4,6 +4,11 @@ export type SpecialistUi = {
   /** Nav + page chrome */
   workspaceTitle: string;
   workspaceNavAriaLabel: string;
+  /** Top app bar for specialist routes (replaces the storefront navbar). */
+  specialistTopNavAriaLabel: string;
+  navMyStories: string;
+  /** Link to leave the specialist dashboard and open the public site home. */
+  navVisitSite: string;
   navBriefs: string;
   navStoryBrief: string;
 

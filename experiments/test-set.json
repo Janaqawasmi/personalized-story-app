@@ -1,0 +1,18 @@
+{
+  "_comment": "Canonical test set for image generation experiments. Phase 1: 1 story, 3 pages.",
+  "phase": 1,
+  "stories": [
+    {
+      "storyId": "ca8b0cea-4cb3-428f-afce-4693f5dba9f9",
+      "title": "fear of dark v2",
+      "ageRange": "5-7",
+      "pageCount": 13,
+      "pages": [1, 5, 10],
+      "rationale": {
+        "1": "Anchor / establishing shot — full bedroom (dresser, books, window, blue blanket), lamp still on. Required as image-to-image reference for later pages.",
+        "5": "Emotional peak in dim light — Theo frozen 'like a rabbit goes still', chest tight. Tests show-don't-tell emotional expression and dim-light atmosphere.",
+        "10": "Resolution moment — eyes adjust, dresser/window/books resolve in their correct positions. Tests character consistency vs page 1 AND scene-element fidelity."
+      }
+    }
+  ]
+}

@@ -18,6 +18,12 @@ export const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:5001
  */
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   const auth = getAuth();
+
+  // Wait for Firebase to restore the persisted session before checking currentUser.
+  // Without this, currentUser can be null on initial page load even when the user
+  // is already signed in, causing the API call to fail with "Not authenticated".
+  await auth.authStateReady();
+
   const user = auth.currentUser;
 
   if (!user) {

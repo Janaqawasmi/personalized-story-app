@@ -1,0 +1,13 @@
+{
+  "protagonist": "A small child with a round face and gentle features, wearing soft pajamas, with an open, vulnerable expression that shifts from worry to calm throughout the story.",
+  "styleGuide": "Soft, muted watercolour with loose brushwork and gentle edges; warm amber and grey tones dominate, creating an intimate, introspective mood that balances vulnerability with safety and quiet courage.",
+  "environmentRegistry": {
+    "bedroom_lit": "A cozy bedroom in soft lamplight showing a small bed with a blue blanket, a wooden dresser in the corner, a window with curtains, and a scattered pile of books on the floor, rendered in warm golden-amber tones.",
+    "bedroom_dark_transition": "The same bedroom as light fades, with the doorway showing a thinning orange stripe of hallway light, shapes becoming increasingly indistinct and grey, evoking uncertainty and the shift into darkness.",
+    "bedroom_dark": "The bedroom shrouded in deep grey-blue darkness with barely-visible shapes—the dresser, window, and books reduced to shadowy suggestions and half-formed silhouettes, creating a sense of gentle mystery rather than true menace.",
+    "bedroom_rediscovered": "The bedroom gradually revealing itself again through shades of grey and muted blue, as familiar shapes and objects slowly emerge from the darkness—dresser in its corner, window with its faint glow, pile of books becoming visible again.",
+    "hallway": "A narrow hallway glimpsed from the bedroom doorway, filled with warm orange light that gradually narrows to a thin line before disappearing completely, suggesting safety and connection just beyond the threshold."
+  },
+  "palette": "soft grey-blue, warm amber, pale cream, deep charcoal, muted sage, gentle taupe",
+  "generatedAt": 1777647393455
+}

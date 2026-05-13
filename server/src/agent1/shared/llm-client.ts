@@ -18,6 +18,8 @@ interface CallLogEntry {
   latencyMs: number;
   success: boolean;
   errorMessage?: string;
+  /** Raw text returned by the LLM (first text block). */
+  rawText?: string;
 }
 
 function appendLogLine(entry: CallLogEntry): void {
@@ -25,7 +27,7 @@ function appendLogLine(entry: CallLogEntry): void {
     fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
     fs.appendFileSync(LOG_PATH, JSON.stringify(entry) + "\n", "utf8");
   } catch (err) {
-    console.error("Failed to write Agent 1 LLM call log:", err);
+    console.error("Failed to write story-generation LLM call log:", err);
   }
 }
 
@@ -123,6 +125,7 @@ export async function callLLM(input: LLMCallInput): Promise<LLMCallOutput> {
       outputTokens,
       latencyMs,
       success: true,
+      rawText: text,
     });
 
     return { text, inputTokens, outputTokens, latencyMs };

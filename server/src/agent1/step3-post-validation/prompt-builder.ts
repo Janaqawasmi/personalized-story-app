@@ -56,13 +56,28 @@ export function buildPostValidationPrompt(
     resolutionSignature = 'Something new but journey unfinished. Ends looking forward.';
   }
 
+  // When structured pages are available, present the story with page markers so
+  // the validator can reference specific pages in its flags. Fall back to the
+  // single prose string when pages are absent (legacy or parse-fallback path).
+  const storyBody =
+    step2Output.pages !== undefined && step2Output.pages.length > 0
+      ? step2Output.pages
+          .map((p) => `[Page ${p.pageNumber}]\n${p.text}`)
+          .join('\n\n')
+      : step2Output.story;
+
+  const pageNote =
+    step2Output.pages !== undefined && step2Output.pages.length > 0
+      ? 'When referencing a passage, include the page number: e.g. "[Page 2] ..."'
+      : '';
+
   return `You are a clinical safety reviewer. Two jobs: check hard constraints,
 write an alignment note.
 NOT judging quality. NOT judging whether the story lectures.
 Checking specific rules and providing a clinical read.
 THE STORY:
 ${step2Output.title}
-${step2Output.story}
+${storyBody}
 Brief somatic expressions (from brief): ${somaticExpressionSummary}
 ===== PART 1: CONSTRAINT CHECK =====
 
@@ -83,6 +98,7 @@ OUTPUT:
 "PASS" or per-concern: check number, passage, reasoning, severity
 ("likely violation" / "borderline — specialist should review").
 Flag only what a clinical reviewer would genuinely question.
+${pageNote}
 ===== PART 2: ALIGNMENT NOTE =====
 2–3 sentences. What therapeutic mechanism is embodied. Where the coping tool appears. What the emotional arc achieves.
 Resolution token: ${brief.therapeuticArchitecture.resolutionCompleteness} (${resolutionCompletenessLabel})

@@ -7,16 +7,34 @@ import {
   TypeMismatchError,
   Step1IncoherentError,
 } from "@/agent1";
-import type { Agent1Result } from "@/agent1";
+import type { Agent1Result, ApprovedPart, GenerateOptions } from "@/agent1/types";
 import { firestore } from "@/config/firebase";
 import {
   STORIES_COLLECTION,
   createStoryForGeneration,
+  fillIllustrationV2DocDefaults,
   isTransitionAllowed,
 } from "@/models/story.model";
 import type { Story, StoryStatus } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
+import { enqueueJob } from "@/illustration/shared/job-enqueue";
+import { appendIllustrationEvent } from "@/illustration/shared/history-events";
+import {
+  readLatestImage,
+  listImagesForPage,
+  listScenePlansForPage,
+  readVisualBible,
+  listVisualBibleVersions,
+} from "@/illustration/shared/artefact-store";
+import {
+  patchVisualBible,
+  PatchVisualBibleValidationError,
+  type VisualBiblePatchBody,
+} from "@/illustration/orchestrator/patchVisualBible";
+import { publishStory, PublishStoryError, type PublishStoryBody } from "@/illustration/orchestrator/publishStory";
+import type { EnvironmentEntry } from "@/illustration/types";
+import { COLLECTIONS } from "@/shared/firestore/paths";
 
 const router = Router();
 
@@ -67,6 +85,15 @@ router.use(requireRole("specialist", "admin"));
 // SHARED HELPER
 // ============================================================================
 
+function hydrateStoryFromFirestore(
+  storyId: string,
+  data: Record<string, unknown> | undefined,
+): Story {
+  const story = { id: storyId, ...data } as Story;
+  fillIllustrationV2DocDefaults(story);
+  return story;
+}
+
 async function readAndVerifyOwnership(
   storyId: string,
   ownerUid: string,
@@ -76,7 +103,7 @@ async function readAndVerifyOwnership(
     .doc(storyId)
     .get();
   if (!doc.exists) return null;
-  const story = { id: storyId, ...doc.data() } as Story;
+  const story = hydrateStoryFromFirestore(storyId, doc.data() as Record<string, unknown>);
   if (story.ownerUid !== ownerUid) return null; // 404, not 403
   return story;
 }
@@ -223,16 +250,14 @@ async function handleListStories(req: Request, res: Response): Promise<void> {
     .where("ownerUid", "==", ownerUid)
     .get();
 
-  let stories = snapshot.docs.map(
-    (doc) => ({ id: doc.id, ...doc.data() }) as Story,
+  let stories = snapshot.docs.map((doc) =>
+    hydrateStoryFromFirestore(doc.id, doc.data() as Record<string, unknown>),
   );
 
-  // Filter by statuses
+  // Filter by statuses (optional — no filter returns all stories including archived)
   if (statusesParam && typeof statusesParam === "string") {
     const requested = statusesParam.split(",").map((s) => s.trim()) as StoryStatus[];
     stories = stories.filter((s) => requested.includes(s.status));
-  } else {
-    stories = stories.filter((s) => s.status !== "archived");
   }
 
   // Sort
@@ -333,6 +358,29 @@ async function handlePatchStory(req: Request, res: Response): Promise<void> {
     updatedHistory.push(historyEntry);
   }
 
+  // When pages are patched, keep currentDraft in sync so the legacy body
+  // field stays consistent for UI consumers that still read currentDraft.body.
+  if (Array.isArray(patch.pages) && patch.pages.length > 0) {
+    const newPages = patch.pages as Array<{ text: string; wordCount: number }>;
+    const derivedBody = newPages.map((p) => p.text).join("\n\n");
+    const derivedWordCount = newPages.reduce((sum, p) => sum + p.wordCount, 0);
+    const existingDraft = story.currentDraft;
+    patch.currentDraft = {
+      title: existingDraft?.title ?? story.title,
+      body: derivedBody,
+      wordCount: derivedWordCount,
+      updatedAt: now,
+    };
+    if (!updatedHistory.some((e) => e.event.kind === "draft_edited")) {
+      updatedHistory.push({
+        id: crypto.randomUUID(),
+        at: now,
+        byUid: ownerUid,
+        event: { kind: "draft_edited" as const, snapshot: patch.currentDraft },
+      });
+    }
+  }
+
   await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
     ...patch,
     updatedAt: now,
@@ -340,7 +388,7 @@ async function handlePatchStory(req: Request, res: Response): Promise<void> {
   });
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
-  const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+  const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
   res.status(200).json({ story: finalStory });
 }
@@ -382,6 +430,32 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
       error: "INVALID_INPUT",
       message: "Feedback is required for needs_revision transitions.",
     });
+    return;
+  }
+
+  if (to === "illustration_ready") {
+    const pages = story.illustrationPages ?? [];
+    const unapproved = pages.filter((p) => p.status !== "approved").map((p) => p.pageNumber);
+    if (unapproved.length > 0) {
+      res.status(409).json({
+        error: "NOT_ALL_PAGES_APPROVED",
+        message: "Every page must have an approved illustration before marking ready to publish.",
+        unapprovedPageNumbers: unapproved,
+      });
+      return;
+    }
+  }
+
+  if (to === "illustration_workspace") {
+    const jobId = await enqueueJob({
+      storyId,
+      type: "workspace_open",
+      pageNumber: null,
+      enqueuedBy: ownerUid,
+      inputRefs: {},
+      idempotencyKey: `${storyId}:workspace_open:v1`,
+    });
+    res.status(200).json({ jobId, status: "pending" });
     return;
   }
 
@@ -428,8 +502,17 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     updatedHistory.push(feedbackEvent);
   }
 
+  if (to === "illustration_ready") {
+    updatedHistory.push({
+      id: crypto.randomUUID(),
+      at: now,
+      byUid: ownerUid,
+      event: { kind: "illustration_ready_marked" as const },
+    });
+  }
+
   // NOTE: transitioning to "generating" via this endpoint only updates the
-  // status — it does NOT invoke Agent 1. Use POST /:storyId/generate to
+  // status — it does NOT run story generation. Use POST /:storyId/generate to
   // trigger actual generation.
   await firestore.collection(STORIES_COLLECTION).doc(storyId).update({
     status: to,
@@ -438,8 +521,10 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
     editHistory: updatedHistory,
   });
 
+  // Phase 2: `illustration_workspace` is enqueued above; the worker flips status when done.
+
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
-  const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+  const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
   res.status(200).json({ story: finalStory });
 }
@@ -489,9 +574,546 @@ async function handleUpdateBrief(req: Request, res: Response): Promise<void> {
   await firestore.collection(STORIES_COLLECTION).doc(storyId).update(updateFields);
 
   const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
-  const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+  const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
   res.status(200).json({ story: finalStory });
+}
+
+async function setIllustrationPagePendingImageJob(
+  storyId: string,
+  pageNumber: number,
+  jobId: string,
+): Promise<void> {
+  await firestore.runTransaction(async (tx) => {
+    const ref = firestore.collection(STORIES_COLLECTION).doc(storyId);
+    const snap = await tx.get(ref);
+    if (!snap.exists) return;
+    const st = hydrateStoryFromFirestore(storyId, snap.data() as Record<string, unknown>);
+    if (st.status !== "illustration_workspace") return;
+    const pages = [...(st.illustrationPages ?? [])];
+    const idx = pages.findIndex((p) => p.pageNumber === pageNumber);
+    if (idx < 0) return;
+    const row = pages[idx]!;
+    pages[idx] = {
+      ...row,
+      pendingJobId: jobId,
+      status: "generating_image",
+      lastError: null,
+    };
+    tx.update(ref, { illustrationPages: pages, updatedAt: Date.now() });
+  });
+}
+
+async function handleEnqueuePageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Image generation is only available in the illustration workspace.",
+    });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentScenePlanVersion === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Illustration page not found." });
+    return;
+  }
+
+  const idempotencyKey = `${storyId}:image:${pageNumber}:sp${row.currentScenePlanVersion}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "image_generation",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: {},
+    idempotencyKey,
+  });
+
+  await setIllustrationPagePendingImageJob(storyId, pageNumber, jobId);
+
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handleApprovePageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Approvals only apply in illustration_workspace." });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentImageVersion === null) {
+    res.status(409).json({ error: "INVALID_STATE", message: "No image to approve for this page." });
+    return;
+  }
+
+  const img = await readLatestImage(storyId, pageNumber);
+  if (!img || img.version !== row.currentImageVersion || img.reviewStatus !== "awaiting_review") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Latest image is not awaiting review." });
+    return;
+  }
+
+  const now = Date.now();
+  const storyRef = firestore.collection(STORIES_COLLECTION).doc(storyId);
+  const imageRef = storyRef.collection(COLLECTIONS.STORY_IMAGES).doc(`${pageNumber}-${img.version}`);
+
+  await firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(storyRef);
+    if (!snap.exists) return;
+    const st = hydrateStoryFromFirestore(storyId, snap.data() as Record<string, unknown>);
+    const pages = [...(st.illustrationPages ?? [])];
+    const idx = pages.findIndex((p) => p.pageNumber === pageNumber);
+    if (idx < 0) return;
+    const r = pages[idx]!;
+    if (r.currentImageVersion !== img.version) return;
+    pages[idx] = { ...r, status: "approved" };
+    tx.update(imageRef, { reviewStatus: "approved", approvedAt: now });
+    tx.update(storyRef, { illustrationPages: pages, updatedAt: now });
+  });
+
+  await appendIllustrationEvent(
+    storyId,
+    { kind: "image_approved", pageNumber, version: img.version },
+    ownerUid,
+  );
+
+  res.status(200).json({ ok: true as const });
+}
+
+async function handleRejectPageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Rejections only apply in illustration_workspace." });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentImageVersion === null || row.currentScenePlanVersion === null) {
+    res.status(409).json({ error: "INVALID_STATE", message: "No image to reject for this page." });
+    return;
+  }
+
+  const img = await readLatestImage(storyId, pageNumber);
+  if (!img || img.version !== row.currentImageVersion || img.reviewStatus !== "awaiting_review") {
+    res.status(409).json({ error: "INVALID_STATE", message: "Latest image is not awaiting review." });
+    return;
+  }
+
+  const body = req.body as { feedbackNote?: unknown };
+  const feedbackNote =
+    typeof body.feedbackNote === "string" ? body.feedbackNote.trim() : "";
+
+  const idempotencyKey = `${storyId}:image_regen:${pageNumber}:sp${row.currentScenePlanVersion}:img${row.currentImageVersion}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "image_regen",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: { feedbackNote },
+    idempotencyKey,
+  });
+
+  const now = Date.now();
+  const storyRef = firestore.collection(STORIES_COLLECTION).doc(storyId);
+  const imageRef = storyRef.collection(COLLECTIONS.STORY_IMAGES).doc(`${pageNumber}-${img.version}`);
+
+  await firestore.runTransaction(async (tx) => {
+    const snap = await tx.get(storyRef);
+    if (!snap.exists) return;
+    const st = hydrateStoryFromFirestore(storyId, snap.data() as Record<string, unknown>);
+    const pages = [...(st.illustrationPages ?? [])];
+    const idx = pages.findIndex((p) => p.pageNumber === pageNumber);
+    if (idx < 0) return;
+    const r = pages[idx]!;
+    if (r.currentImageVersion !== img.version) return;
+    pages[idx] = {
+      ...r,
+      status: "generating_image",
+      pendingJobId: jobId,
+      lastError: null,
+    };
+    tx.update(imageRef, {
+      reviewStatus: "needs_revision",
+      rejectionNote: feedbackNote.length > 0 ? feedbackNote : null,
+    });
+    tx.update(storyRef, { illustrationPages: pages, updatedAt: now });
+  });
+
+  await appendIllustrationEvent(
+    storyId,
+    {
+      kind: "image_rejected",
+      pageNumber,
+      version: img.version,
+      feedbackNote,
+    },
+    ownerUid,
+  );
+
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handleRegenerateScenePlan(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Scene plan regeneration is only available in the illustration workspace.",
+    });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentScenePlanVersion === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Illustration page not found." });
+    return;
+  }
+
+  const body = req.body as { feedbackNote?: unknown };
+  const feedbackNote =
+    typeof body.feedbackNote === "string" ? body.feedbackNote.trim() : "";
+
+  const idempotencyKey = `${storyId}:scene_plan_regen:${pageNumber}:sp${row.currentScenePlanVersion}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "scene_plan_regen",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: { feedbackNote },
+    idempotencyKey,
+  });
+
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handleGetPageIllustrationHistory(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+
+  const [scenePlans, images] = await Promise.all([
+    listScenePlansForPage(storyId, pageNumber),
+    listImagesForPage(storyId, pageNumber),
+  ]);
+
+  res.status(200).json({ scenePlans, images });
+}
+
+async function handleGetVisualBible(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace" && story.status !== "illustration_ready") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Visual Bible is only available in illustration workspace states.",
+    });
+    return;
+  }
+  const v = story.currentVisualBibleVersion;
+  if (v === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "No Visual Bible version on story." });
+    return;
+  }
+  const artefact = await readVisualBible(storyId, v);
+  if (!artefact) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Visual Bible artefact missing." });
+    return;
+  }
+  res.status(200).json({ artefact, version: v });
+}
+
+async function handleListVisualBibleVersions(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace" && story.status !== "illustration_ready") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Visual Bible history is only available in illustration workspace states.",
+    });
+    return;
+  }
+  const versions = await listVisualBibleVersions(storyId);
+  res.status(200).json({ versions });
+}
+
+async function handlePatchVisualBible(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  const body = req.body as Record<string, unknown>;
+  const patch: VisualBiblePatchBody = {};
+  if (typeof body.characterAnchor === "string") patch.characterAnchor = body.characterAnchor;
+  if (typeof body.characterSheet === "string") patch.characterSheet = body.characterSheet;
+  if (typeof body.styleGuide === "string") patch.styleGuide = body.styleGuide;
+  if (typeof body.palette === "string") patch.palette = body.palette;
+  if (Array.isArray(body.consistencyAnchors)) {
+    patch.consistencyAnchors = body.consistencyAnchors.filter((x): x is string => typeof x === "string");
+  }
+  if (Array.isArray(body.avoidList)) {
+    patch.avoidList = body.avoidList.filter((x): x is string => typeof x === "string");
+  }
+  if (body.environmentRegistry && typeof body.environmentRegistry === "object" && body.environmentRegistry !== null) {
+    patch.environmentRegistry = body.environmentRegistry as Record<string, EnvironmentEntry>;
+  }
+
+  try {
+    const result = await patchVisualBible({ storyId, uid: ownerUid, body: patch });
+    res.status(200).json(result);
+  } catch (e) {
+    if (e instanceof PatchVisualBibleValidationError) {
+      const notFound = e.message === "Story not found.";
+      res.status(notFound ? 404 : 400).json({
+        error: notFound ? "NOT_FOUND" : "INVALID_INPUT",
+        message: e.message,
+      });
+      return;
+    }
+    throw e;
+  }
+}
+
+async function handlePostVisualBibleRegenerate(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Visual Bible regeneration is only available in illustration_workspace.",
+    });
+    return;
+  }
+  const vbv = story.currentVisualBibleVersion;
+  if (vbv === null) {
+    res.status(409).json({ error: "INVALID_STATE", message: "Missing Visual Bible version." });
+    return;
+  }
+  const idempotencyKey = `${storyId}:visual_bible_regen:vb${vbv}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "visual_bible_regen",
+    pageNumber: null,
+    enqueuedBy: ownerUid,
+    inputRefs: {},
+    idempotencyKey,
+  });
+  res.status(200).json({ jobId, status: "pending" as const });
+}
+
+async function handlePublishStory(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_ready") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Publish is only available when the story is illustration_ready.",
+    });
+    return;
+  }
+
+  const raw = req.body as Record<string, unknown> | undefined;
+  const body: PublishStoryBody = {};
+  if (typeof raw?.["shortDescriptionHe"] === "string") body.shortDescriptionHe = raw["shortDescriptionHe"];
+  if (typeof raw?.["shortDescriptionAr"] === "string") body.shortDescriptionAr = raw["shortDescriptionAr"];
+  if (typeof raw?.["displayTopicHe"] === "string") body.displayTopicHe = raw["displayTopicHe"];
+  if (typeof raw?.["displayTopicAr"] === "string") body.displayTopicAr = raw["displayTopicAr"];
+
+  try {
+    const { templateId } = await publishStory({ storyId, uid: ownerUid, body });
+    res.status(200).json({ templateId });
+  } catch (err) {
+    if (err instanceof PublishStoryError) {
+      const status = err.code === "NOT_READY" ? 409 : 409;
+      res.status(status).json({ error: err.code, message: err.message });
+      return;
+    }
+    throw err;
+  }
+}
+
+async function handleCancelIllustrationJob(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const jobId = req.params["jobId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  const jobRef = firestore
+    .collection(STORIES_COLLECTION)
+    .doc(storyId)
+    .collection(COLLECTIONS.STORY_ILLUSTRATION_JOBS)
+    .doc(jobId);
+  const snap = await jobRef.get();
+  if (!snap.exists) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Job not found." });
+    return;
+  }
+  const st = snap.data()?.["status"];
+  if (st !== "pending" && st !== "running") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Only pending or running jobs can be cancelled.",
+    });
+    return;
+  }
+  await jobRef.update({ cancelRequested: true });
+  res.status(200).json({ ok: true as const, status: st });
+}
+
+async function handleGetIllustrationJob(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const jobId = req.params["jobId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  const jobRef = firestore
+    .collection(STORIES_COLLECTION)
+    .doc(storyId)
+    .collection(COLLECTIONS.STORY_ILLUSTRATION_JOBS)
+    .doc(jobId);
+  const snap = await jobRef.get();
+  if (!snap.exists) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Job not found." });
+    return;
+  }
+  const data = snap.data() as Record<string, unknown>;
+  res.status(200).json({ job: { ...data, id: jobId } as unknown });
 }
 
 // ============================================================================
@@ -500,9 +1122,13 @@ async function handleUpdateBrief(req: Request, res: Response): Promise<void> {
 
 // GET
 router.get("/", handleListStories);
+router.get("/:storyId/visual-bible/versions", handleListVisualBibleVersions);
+router.get("/:storyId/visual-bible", handleGetVisualBible);
+router.get("/:storyId/jobs/:jobId", handleGetIllustrationJob);
 router.get("/:storyId", handleGetStory);
 
 // PATCH
+router.patch("/:storyId/visual-bible", handlePatchVisualBible);
 router.patch("/:storyId", handlePatchStory);
 
 // PUT
@@ -510,11 +1136,56 @@ router.put("/:storyId/brief", handleUpdateBrief);
 
 // POST
 router.post("/:storyId/transitions", handleTransition);
+router.post("/:storyId/publish", handlePublishStory);
+router.post("/:storyId/jobs/:jobId/cancel", handleCancelIllustrationJob);
+router.post("/:storyId/visual-bible/regenerate", handlePostVisualBibleRegenerate);
+router.post("/:storyId/pages/:pageNumber/image", handleEnqueuePageImage);
+router.post("/:storyId/pages/:pageNumber/image/approve", handleApprovePageImage);
+router.post("/:storyId/pages/:pageNumber/image/reject", handleRejectPageImage);
+router.post("/:storyId/pages/:pageNumber/scene-plan/regenerate", handleRegenerateScenePlan);
+router.get("/:storyId/pages/:pageNumber/history", handleGetPageIllustrationHistory);
 router.post("/:storyId/generate", handleGenerate); // from R2
+
+const AGENT1_APPROVED_PART_CODES = new Set<string>([
+  "emotionalTruth",
+  "blueprint",
+  "approachInstruction",
+  "story",
+]);
+
+function parseAgent1Rerun(raw: unknown): {
+  feedbackText: string;
+  approvedParts: ApprovedPart[];
+} | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const feedbackText =
+    typeof o.feedbackText === "string" ? o.feedbackText.trim() : "";
+  if (!feedbackText) return null;
+
+  const approvedParts: ApprovedPart[] = [];
+  if (Array.isArray(o.approvedParts)) {
+    for (const p of o.approvedParts) {
+      if (typeof p === "string" && AGENT1_APPROVED_PART_CODES.has(p)) {
+        approvedParts.push(p as ApprovedPart);
+      }
+    }
+  }
+
+  return { feedbackText, approvedParts };
+}
 
 async function handleGenerate(req: Request, res: Response): Promise<void> {
   const { storyId } = req.params;
-  const { story: clientStory } = req.body;
+  const body = req.body as {
+    story?: {
+      brief?: unknown;
+      parentStoryId?: string | null;
+      title?: string;
+    };
+    agent1Rerun?: unknown;
+  };
+  const clientStory = body.story;
 
   if (!storyId || typeof storyId !== "string") {
     res.status(400).json({
@@ -560,9 +1231,13 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     brief.status = "submitted";
   }
 
+  let preGenStory: Story | undefined;
+  let generateOptions: GenerateOptions | undefined;
   let story: Story;
+
   if (existingDoc.exists) {
-    const existingStory = { id: storyId, ...existingDoc.data() } as Story;
+    const existingStory = hydrateStoryFromFirestore(storyId, existingDoc.data() as Record<string, unknown>);
+    preGenStory = existingStory;
 
     if (existingStory.ownerUid !== ownerUid) {
       res.status(409).json({
@@ -591,6 +1266,45 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
           "Only draft_brief or needs_revision can be generated.",
       });
       return;
+    }
+
+    if (existingStory.status === "needs_revision") {
+      if (existingStory.agent1Versions.length >= 3) {
+        res.status(409).json({
+          error: "REGEN_LIMIT",
+          message:
+            "This story already has the maximum number of Agent 1 versions. Open a new revision from the brief.",
+        });
+        return;
+      }
+
+      const rerunPayload = parseAgent1Rerun(body.agent1Rerun);
+      if (!rerunPayload) {
+        res.status(400).json({
+          error: "INVALID_INPUT",
+          message:
+            "Regeneration requires agent1Rerun.feedbackText in the request body (and optional agent1Rerun.approvedParts).",
+        });
+        return;
+      }
+
+      const previousOutput = existingStory.agent1Result;
+      if (!previousOutput) {
+        res.status(400).json({
+          error: "INVALID_INPUT",
+          message: "Cannot regenerate: story has no agent1Result.",
+        });
+        return;
+      }
+
+      generateOptions = {
+        feedback: {
+          rerunOf: previousOutput.generationId,
+          approvedParts: rerunPayload.approvedParts,
+          feedbackText: rerunPayload.feedbackText,
+          previousOutput,
+        },
+      };
     }
 
     const now = Date.now();
@@ -634,10 +1348,14 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       id: storyId,
       ownerUid,
       brief,
-      parentStoryId: clientStory.parentStoryId ?? undefined,
-      title: clientStory.title ?? undefined,
+      ...(typeof clientStory.parentStoryId === "string"
+        ? { parentStoryId: clientStory.parentStoryId }
+        : {}),
+      ...(typeof clientStory.title === "string" ? { title: clientStory.title } : {}),
     });
   }
+
+  const isRegeneration = preGenStory !== undefined && preGenStory.status === "needs_revision";
 
   await firestore.collection(STORIES_COLLECTION).doc(storyId).set(story);
 
@@ -649,7 +1367,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     });
 
     const agent1Result: Agent1Result = await Promise.race([
-      generateStoryDraftFromBrief(brief),
+      generateStoryDraftFromBrief(brief, generateOptions),
       timeoutPromise,
     ]);
 
@@ -664,6 +1382,9 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
         wordCount: agent1Result.wordCount,
         updatedAt: now,
       },
+      // Persist structured manuscript pages when the JSON-format parser produced them.
+      // null when the legacy text-format fallback was used.
+      pages: agent1Result.pages ?? null,
       updatedAt: now,
     };
 
@@ -702,7 +1423,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       .doc(storyId)
       .get();
 
-    const finalStory = { id: storyId, ...finalDoc.data() } as Story;
+    const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
 
     res.status(200).json({ story: finalStory });
   } catch (error: unknown) {
@@ -718,6 +1439,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       },
     };
 
+    const revertTo: StoryStatus = isRegeneration ? "in_review" : "draft_brief";
     const revertEvent = {
       id: crypto.randomUUID(),
       at: now,
@@ -725,23 +1447,42 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       event: {
         kind: "status_changed" as const,
         from: "generating" as const,
-        to: "draft_brief" as const,
+        to: revertTo,
       },
     };
 
     try {
-      await firestore
-        .collection(STORIES_COLLECTION)
-        .doc(storyId)
-        .update({
-          status: "draft_brief",
-          briefStatus: "draft",
-          updatedAt: now,
-          editHistory: [...story.editHistory, failedEvent, revertEvent],
-        });
+      if (isRegeneration && preGenStory) {
+        await firestore
+          .collection(STORIES_COLLECTION)
+          .doc(storyId)
+          .update({
+            status: "in_review",
+            briefStatus: preGenStory.briefStatus,
+            brief: preGenStory.brief,
+            agent1Result: preGenStory.agent1Result,
+            agent1Versions: preGenStory.agent1Versions,
+            currentDraft: preGenStory.currentDraft,
+            pages: preGenStory.pages ?? null,
+            title: preGenStory.title,
+            parentStoryId: preGenStory.parentStoryId,
+            updatedAt: now,
+            editHistory: [...story.editHistory, failedEvent, revertEvent],
+          });
+      } else {
+        await firestore
+          .collection(STORIES_COLLECTION)
+          .doc(storyId)
+          .update({
+            status: "draft_brief",
+            briefStatus: "draft",
+            updatedAt: now,
+            editHistory: [...story.editHistory, failedEvent, revertEvent],
+          });
+      }
     } catch (revertError) {
       console.error(
-        "Failed to revert story status after Agent 1 failure:",
+        "Failed to revert story status after generation failure:",
         revertError,
       );
     }
@@ -791,5 +1532,4 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     });
   }
 }
-
 export default router;

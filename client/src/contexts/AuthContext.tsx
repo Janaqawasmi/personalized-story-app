@@ -94,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
       await cred.user.reload(); // refresh displayName/email
+      await cred.user.getIdToken(true); // pick up custom claims (specialist/admin) for Firestore rules
       setCurrentUser(cred.user);
 
       console.log(

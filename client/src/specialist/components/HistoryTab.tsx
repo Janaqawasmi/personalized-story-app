@@ -30,6 +30,8 @@ const STATUS_LABELS: Record<StoryStatus, string> = {
   in_review: "In review",
   needs_revision: "Needs revision",
   approved: "Approved",
+  illustration_ready: "Illustration ready",
+  illustration_workspace: "Illustration workspace",
   published: "Published",
   archived: "Archived",
 };
@@ -107,8 +109,61 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       mainLabel = "Story restored";
       break;
 
-    default:
+    case "visual_bible_generated":
+      mainLabel = `Visual Bible generated (v${event.version})`;
+      break;
+
+    case "visual_bible_edited":
+      mainLabel = `Visual Bible edited (v${event.version}) — changed: ${event.fields.join(", ")}`;
+      break;
+
+    case "visual_bible_regenerated":
+      mainLabel = `Visual Bible regenerated (v${event.version})`;
+      break;
+
+    case "scene_plan_generated": {
+      const vbPart =
+        event.visualBibleVersion !== undefined
+          ? ` (VB v${event.visualBibleVersion})`
+          : "";
+      mainLabel = `Scene plan generated for page ${event.pageNumber} (v${event.version})${vbPart}`;
+      break;
+    }
+
+    case "image_generated":
+      mainLabel = `Image generated for page ${event.pageNumber} (v${event.version})`;
+      break;
+
+    case "image_approved":
+      mainLabel = `Image approved for page ${event.pageNumber} (v${event.version})`;
+      break;
+
+    case "image_rejected":
+      mainLabel = `Image rejected for page ${event.pageNumber} (v${event.version})`;
+      feedbackText = event.feedbackNote;
+      break;
+
+    case "illustration_workspace_opened":
+      mainLabel = "Illustration workspace opened";
+      break;
+
+    case "illustration_ready_marked":
+      mainLabel = "Illustration ready marked";
+      break;
+
+    case "published":
+      mainLabel = `Published to library (template ${event.templateId.slice(0, 8)}…)`;
+      break;
+
+    case "job_cancelled":
+      mainLabel = `Job cancelled (${event.jobType})`;
+      break;
+
+    default: {
+      const _exhaustive: never = event;
+      void _exhaustive;
       mainLabel = "Unknown event";
+    }
   }
 
   return (

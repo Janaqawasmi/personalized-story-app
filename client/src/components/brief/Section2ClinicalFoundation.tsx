@@ -585,15 +585,16 @@ export default function Section2ClinicalFoundation({
                         }}
                       >
                         <Typography variant="caption" color={COLORS.textSecondary} fontStyle="italic">
-                          "…feel{" "}
+                          {ui.s2IntentionExampleQuoteOpen}
+                          {ui.s2IntentionExampleFeelCue}{" "}
                           <Box component="span" fontWeight={600} color={COLORS.textPrimary}>
                             {ex.feel}
                           </Box>{" "}
-                          because{" "}
+                          {ui.s2IntentionExampleBecauseCue}{" "}
                           <Box component="span" fontWeight={600} color={COLORS.textPrimary}>
                             {ex.because}
                           </Box>
-                          "
+                          {ui.s2IntentionExampleQuoteClose}
                         </Typography>
                       </Box>
                     ))}
@@ -626,15 +627,16 @@ export default function Section2ClinicalFoundation({
                         }}
                       >
                         <Typography variant="caption" color={COLORS.textSecondary} fontStyle="italic">
-                          "…feel{" "}
+                          {ui.s2IntentionExampleQuoteOpen}
+                          {ui.s2IntentionExampleFeelCue}{" "}
                           <Box component="span" fontWeight={600} color={COLORS.textPrimary}>
                             {ex.feel}
                           </Box>{" "}
-                          because{" "}
+                          {ui.s2IntentionExampleBecauseCue}{" "}
                           <Box component="span" fontWeight={600} color={COLORS.textPrimary}>
                             {ex.because}
                           </Box>
-                          "
+                          {ui.s2IntentionExampleQuoteClose}
                         </Typography>
                         {ex.note && (
                           <Typography

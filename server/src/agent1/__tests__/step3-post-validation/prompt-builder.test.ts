@@ -234,3 +234,74 @@ describe('buildPostValidationPrompt', () => {
     expect(out).not.toContain('undefined');
   });
 });
+
+// ─── Tests: pages-aware rendering ────────────────────────────────────────────
+
+describe('buildPostValidationPrompt — pages-aware rendering', () => {
+  function makeMockStep2WithPages(): Step2Output {
+    return {
+      title: 'The Night Sounds Game',
+      story: 'Page one text. Page two text.',
+      wordCount: 6,
+      targetWordRange: [150, 250] as const,
+      wordCountDrift: 'within_range',
+      pages: [
+        { pageNumber: 1, text: 'Page one text.', wordCount: 3 },
+        { pageNumber: 2, text: 'Page two text.', wordCount: 3 },
+      ],
+      pageCount: 2,
+      targetPageRange: [4, 8] as const,
+      pageCountDrift: 'under',
+      rawResponse: 'mock',
+      promptHash: 'a'.repeat(64),
+      llmCallRecord: {
+        step: 'step2_author',
+        model: 'claude-sonnet-4-6',
+        inputTokens: 100,
+        outputTokens: 50,
+        latencyMs: 1000,
+        attempt: 1,
+        promptHash: 'a'.repeat(64),
+      },
+    };
+  }
+
+  it('test 16: with pages — prompt shows [Page N] markers', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2WithPages(),
+      makeMinimalBrief(),
+      'Approach.',
+    );
+    expect(out).toContain('[Page 1]');
+    expect(out).toContain('[Page 2]');
+  });
+
+  it('test 17: with pages — each page text appears in prompt', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2WithPages(),
+      makeMinimalBrief(),
+      'Approach.',
+    );
+    expect(out).toContain('Page one text.');
+    expect(out).toContain('Page two text.');
+  });
+
+  it('test 18: with pages — page note instructs validator to reference page numbers', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2WithPages(),
+      makeMinimalBrief(),
+      'Approach.',
+    );
+    expect(out).toContain('page number');
+  });
+
+  it('test 19: without pages — falls back to story string, no page markers', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2Output(),
+      makeMinimalBrief(),
+      'Approach.',
+    );
+    expect(out).not.toContain('[Page 1]');
+    expect(out).toContain('Pip was a small rabbit');
+  });
+});

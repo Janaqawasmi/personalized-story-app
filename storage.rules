@@ -43,6 +43,12 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Specialist v2 illustrations — public read (URL embedded in Firestore); Admin SDK writes only
+    match /specialist-illustrations/{storyId}/{pageFile} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ────────────────────────────────────────────────────
     // Default: deny everything else
     // ────────────────────────────────────────────────────

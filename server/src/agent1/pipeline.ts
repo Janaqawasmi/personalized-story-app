@@ -59,7 +59,7 @@ export async function executePipelineWithBrief(
   const preCheckResult = runPreCheck(brief);
 
   const { step1Output, exampleBankStatus: step1ExampleStatus } =
-    await runStoryArchitect(brief, preCheckResult);
+    await runStoryArchitect(brief, preCheckResult, options);
 
   const { step2Output, exampleBankStatus: step2ExampleStatus } =
     await runAuthor(brief, step1Output);
@@ -113,6 +113,10 @@ export async function executePipelineWithBrief(
     wordCount: step2Output.wordCount,
     targetWordRange: step2Output.targetWordRange,
     wordCountDrift: step2Output.wordCountDrift,
+    ...(step2Output.pages !== undefined ? { pages: step2Output.pages } : {}),
+    ...(step2Output.pageCount !== undefined ? { pageCount: step2Output.pageCount } : {}),
+    ...(step2Output.targetPageRange !== undefined ? { targetPageRange: step2Output.targetPageRange } : {}),
+    ...(step2Output.pageCountDrift !== undefined ? { pageCountDrift: step2Output.pageCountDrift } : {}),
 
     // Step 3
     alignmentNote: postValidationResult.alignmentNote,

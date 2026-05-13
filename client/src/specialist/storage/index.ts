@@ -6,7 +6,12 @@
 import { HybridDraftStore } from "./HybridDraftStore";
 import type { DraftStore } from "./DraftStore";
 
-export const draftStore: DraftStore = new HybridDraftStore();
+const _store = new HybridDraftStore();
+
+export const draftStore: DraftStore = _store;
+
+/** Typed as HybridDraftStore so callers can read lastServerError. */
+export const hybridStore: HybridDraftStore = _store;
 
 export type { DraftStore } from "./DraftStore";
 export type { ListStoriesFilter } from "./DraftStore";

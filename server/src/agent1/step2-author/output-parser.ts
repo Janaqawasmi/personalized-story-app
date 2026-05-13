@@ -1,5 +1,36 @@
-import type { Step2Output, LLMCallRecord } from '@/agent1/types';
+import type { Step2Output, StoryPage, LLMCallRecord, PageCountDrift } from '@/agent1/types';
 import { STRUCTURAL_PARAMS, type AgeRange, type StoryLength } from '@/models/storyBrief.model';
+
+// ─── JSON response shape expected from the Author LLM ────────────────────────
+
+type AuthorJsonResponse = {
+  title: string;
+  pages: Array<{ pageNumber: number; text: string }>;
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function countWords(text: string): number {
+  return text.split(/\s+/).filter((w) => w.length > 0).length;
+}
+
+function computeDrift(
+  value: number,
+  min: number,
+  max: number,
+): 'within_range' | 'under' | 'over' {
+  if (value < min * 0.7) return 'under';
+  if (value > max * 1.3) return 'over';
+  return 'within_range';
+}
+
+// Strip optional markdown code fences the model may wrap around JSON despite
+// being told not to (e.g. ```json ... ``` or ``` ... ```).
+function stripMarkdownFences(raw: string): string {
+  return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+}
+
+// ─── Parser ──────────────────────────────────────────────────────────────────
 
 export function parseStep2Response(
   rawResponse: string,
@@ -8,19 +39,105 @@ export function parseStep2Response(
   llmCallRecord: LLMCallRecord,
   promptHash: string,
 ): Step2Output {
-  // ─── Step 1: Extract title ───────────────────────────────────────────────
+  const params = STRUCTURAL_PARAMS[ageRange][storyLength];
 
+  const targetWordRange: readonly [number, number] = [
+    params.totalWords[0]!,
+    params.totalWords[1]!,
+  ];
+  const targetPageRange: readonly [number, number] = [
+    params.pages[0]!,
+    params.pages[1]!,
+  ];
+
+  // ─── Parse JSON ────────────────────────────────────────────────────────────
+
+  let parsed: AuthorJsonResponse;
+  try {
+    const cleaned = stripMarkdownFences(rawResponse);
+    parsed = JSON.parse(cleaned) as AuthorJsonResponse;
+  } catch {
+    // JSON parse failed — fall back to legacy TITLE/STORY text extraction so
+    // that a single bad generation doesn't hard-crash the pipeline.
+    return parseLegacyTextFormat(
+      rawResponse,
+      targetWordRange,
+      targetPageRange,
+      llmCallRecord,
+      promptHash,
+    );
+  }
+
+  // ─── Validate structure ────────────────────────────────────────────────────
+
+  const title = (typeof parsed.title === 'string' ? parsed.title.trim() : '').replace(
+    /^["'](.*)["']$/,
+    '$1',
+  );
+
+  const rawPages = Array.isArray(parsed.pages) ? parsed.pages : [];
+
+  // ─── Build StoryPage array ─────────────────────────────────────────────────
+
+  const pages: StoryPage[] = rawPages
+    .filter((p) => typeof p.pageNumber === 'number' && typeof p.text === 'string')
+    .sort((a, b) => a.pageNumber - b.pageNumber)
+    .map((p) => ({
+      pageNumber: p.pageNumber,
+      text: p.text.trim(),
+      wordCount: countWords(p.text),
+    }));
+
+  // ─── Totals ────────────────────────────────────────────────────────────────
+
+  const totalWordCount = pages.reduce((sum, p) => sum + p.wordCount, 0);
+  const story = pages.map((p) => p.text).join('\n\n');
+
+  // ─── Drift calculations ────────────────────────────────────────────────────
+
+  const wordCountDrift = computeDrift(totalWordCount, targetWordRange[0], targetWordRange[1]);
+  const pageCountDrift: PageCountDrift = computeDrift(
+    pages.length,
+    targetPageRange[0],
+    targetPageRange[1],
+  );
+
+  return {
+    title,
+    story,
+    wordCount: totalWordCount,
+    targetWordRange,
+    wordCountDrift,
+    pages,
+    pageCount: pages.length,
+    targetPageRange,
+    pageCountDrift,
+    rawResponse,
+    promptHash,
+    llmCallRecord,
+  };
+}
+
+// ─── Legacy fallback for old TITLE/STORY text format ─────────────────────────
+// Retained so that any existing story drafts or smoke tests that produce the
+// old format continue to parse rather than crash. Remove once all generation
+// is confirmed to produce JSON.
+
+function parseLegacyTextFormat(
+  rawResponse: string,
+  targetWordRange: readonly [number, number],
+  targetPageRange: readonly [number, number],
+  llmCallRecord: LLMCallRecord,
+  promptHash: string,
+): Step2Output {
   let title = '';
   let titleLineIndex = -1;
   const lines = rawResponse.split('\n');
 
-  // Priority 1: line starting with "1. TITLE" or "TITLE:" (case-insensitive).
-  // Allow the marker at end-of-line (e.g. bare "1. TITLE" with title on next line).
   const titleMarkerRe = /^(?:1\.\s*)?TITLE(?:[:\s]|$)/i;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!;
     if (titleMarkerRe.test(line)) {
-      // Check for inline title: "TITLE: Some Title" or "1. TITLE: Some Title"
       const colonIdx = line.indexOf(':');
       if (colonIdx !== -1) {
         const inline = line.slice(colonIdx + 1).trim();
@@ -30,16 +147,13 @@ export function parseStep2Response(
           break;
         }
       }
-      // Title is on the next non-empty line
       for (let j = i + 1; j < lines.length; j++) {
         const next = lines[j]!.trim();
         if (next.length > 0) {
-          // Make sure it's not the STORY marker
           if (!/^(?:2\.\s*)?STORY(?:[:\s]|$)/i.test(next)) {
             title = next;
             titleLineIndex = j;
           } else {
-            // No separate title line found, title stays empty — will fallback
             titleLineIndex = i;
           }
           break;
@@ -50,7 +164,6 @@ export function parseStep2Response(
     }
   }
 
-  // Fallback: first non-empty line is the title
   if (title.length === 0) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!.trim();
@@ -62,14 +175,10 @@ export function parseStep2Response(
     }
   }
 
-  // Remove surrounding quotes from title
   title = title.trim().replace(/^["'](.*)["']$/, '$1').trim();
-
-  // ─── Step 2: Extract story ───────────────────────────────────────────────
 
   let story = '';
   const storyMarkerRe = /^(?:2\.\s*)?STORY(?:[:\s]|$)/i;
-
   let storyStartLine = -1;
   for (let i = 0; i < lines.length; i++) {
     if (storyMarkerRe.test(lines[i]!)) {
@@ -81,41 +190,11 @@ export function parseStep2Response(
   if (storyStartLine !== -1) {
     story = lines.slice(storyStartLine).join('\n').trim();
   } else {
-    // No STORY marker: everything after the title line is the story
-    story = lines
-      .slice(titleLineIndex + 1)
-      .join('\n')
-      .trim();
+    story = lines.slice(titleLineIndex + 1).join('\n').trim();
   }
 
-  // ─── Step 3: Compute word count ──────────────────────────────────────────
-
-  const wordCount = story.split(/\s+/).filter((w) => w.length > 0).length;
-
-  // ─── Step 4: Read target word range ──────────────────────────────────────
-
-  const params = STRUCTURAL_PARAMS[ageRange][storyLength];
-  const targetWordRange: readonly [number, number] = [
-    params.totalWords[0]!,
-    params.totalWords[1]!,
-  ];
-
-  // ─── Step 5: Compute word count drift ────────────────────────────────────
-
-  const [minWords, maxWords] = targetWordRange;
-  const lowerBound = minWords * 0.7;
-  const upperBound = maxWords * 1.3;
-
-  let wordCountDrift: 'within_range' | 'under' | 'over';
-  if (wordCount < lowerBound) {
-    wordCountDrift = 'under';
-  } else if (wordCount > upperBound) {
-    wordCountDrift = 'over';
-  } else {
-    wordCountDrift = 'within_range';
-  }
-
-  // ─── Step 6: Return ──────────────────────────────────────────────────────
+  const wordCount = countWords(story);
+  const wordCountDrift = computeDrift(wordCount, targetWordRange[0], targetWordRange[1]);
 
   return {
     title,
@@ -123,6 +202,8 @@ export function parseStep2Response(
     wordCount,
     targetWordRange,
     wordCountDrift,
+    // pages not available from legacy format
+    targetPageRange,
     rawResponse,
     promptHash,
     llmCallRecord,

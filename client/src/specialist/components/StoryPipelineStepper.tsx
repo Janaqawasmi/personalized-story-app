@@ -1,13 +1,14 @@
-// Compact horizontal pipeline for the story workspace (Brief → Generate → Review → Approved).
+// Compact horizontal pipeline for the story workspace
+// (Brief → Generate → Review → Approved → Illustration → Publish).
 
 import React from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 
-import type { Story } from "../../types/story";
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import type { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import {
-  PIPELINE_STEP_LABELS,
   getStoryPipelineUiState,
   type PipelineStepIndex,
 } from "../utils/storyPipeline";
@@ -41,19 +42,26 @@ export interface StoryPipelineStepperProps {
 }
 
 export default function StoryPipelineStepper({ story }: StoryPipelineStepperProps) {
+  const desk = useSpecialistDeskUi();
   const ui = getStoryPipelineUiState(story.status);
   const archived = ui.kind === "archived";
   const active = ui.kind === "active" ? ui : null;
-  const allComplete = active !== null && active.stepsCompleted === 4;
+  const pipelineLabels = desk.pipelineSteps;
+  const totalSteps = pipelineLabels.length;
+  const allComplete = active !== null && active.stepsCompleted === totalSteps;
 
   const hint = archived
-    ? "This story is archived. Restore it from the menu to continue the pipeline."
-    : active?.nextHint ?? "";
+    ? desk.pipelineArchivedHint
+    : active
+      ? desk.pipelineHints[
+          story.status as Exclude<StoryStatus, "archived">
+        ]
+      : "";
 
   return (
     <Box
       component="nav"
-      aria-label="Story pipeline progress"
+      aria-label={desk.pipelineAriaLabel}
       sx={{
         px: { xs: 2, sm: 3, md: 5 },
         pt: 1.75,
@@ -73,7 +81,7 @@ export default function StoryPipelineStepper({ story }: StoryPipelineStepperProp
           pb: 0.25,
         }}
       >
-        {PIPELINE_STEP_LABELS.map((label, index) => {
+        {pipelineLabels.map((label, index) => {
           const position = index as PipelineStepIndex;
           const stepsCompleted = active?.stepsCompleted ?? 0;
 

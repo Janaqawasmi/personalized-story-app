@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npx tsc *)",
+      "Bash(npx jest *)",
+      "WebFetch(domain:docs.byteplus.com)",
+      "WebFetch(domain:bytedance.larkoffice.com)"
+    ]
+  }
+}

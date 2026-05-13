@@ -8,6 +8,7 @@
 
 import type { Story, StoryStatus } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
+import type { Agent1RegenerationPayload } from "../../api/specialistStories";
 
 // ============================================================================
 // Filter
@@ -64,11 +65,20 @@ export interface DraftStore {
   updateBrief(storyId: string, brief: CompleteBrief): Promise<Story>;
 
   /**
-   * Submit the brief to Agent 1 (Option C handoff).
+   * Submit the brief for generation (Option C handoff).
    * Sends the brief to the server and receives the Story back with
    * `agent1Result` populated.
    */
   submitBrief(storyId: string): Promise<Story>;
+
+  /**
+   * After transitioning to `needs_revision` with feedback, invokes Agent 1 again
+   * (`POST .../generate` with `agent1Rerun`). Server-backed stories only.
+   */
+  runAgent1Regeneration(
+    storyId: string,
+    payload: Agent1RegenerationPayload,
+  ): Promise<Story>;
 
   // ─── Status transitions ───────────────────────────────────────────────────
 

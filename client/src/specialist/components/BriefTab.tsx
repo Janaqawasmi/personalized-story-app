@@ -27,9 +27,14 @@ import type { Story } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import BriefForm, { type BriefFormStorageAdapter } from "../../components/brief/BriefForm";
 import SubmittedBriefReadView from "../../components/specialist/SubmittedBriefReadView";
-import { draftStore } from "../storage";
+import { useLanguage } from "../../i18n/context/useLanguage";
+import {
+  dateLocaleForLang,
+  formatRelativeTimeMs,
+} from "../../i18n/specialistRelativeTime";
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useSpecialistUi } from "../../i18n/specialistUi";
-import { formatRelativeTime } from "./StoryRow";
+import { draftStore } from "../storage";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -59,6 +64,8 @@ function shouldOfferNewStoryWelcome(story: Story): boolean {
 
 export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: BriefTabProps) {
   const sp = useSpecialistUi();
+  const desk = useSpecialistDeskUi();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const { lang } = useParams<{ lang?: string }>();
   const base = `/${lang ?? "he"}/specialist`;
@@ -137,11 +144,38 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
 
   const handleSubmit = useCallback(
     async (_brief: CompleteBrief): Promise<{ briefId: string }> => {
-      const updated = await draftStore.submitBrief(story.id);
-      onStoryUpdate(updated);
+      const now = Date.now();
+      const optimistic: Story = {
+        ...story,
+        status: "generating",
+        briefStatus: "submitted",
+        submittedAt: story.submittedAt ?? now,
+        updatedAt: now,
+      };
+      onStoryUpdate(optimistic);
+      navigate(`${base}/stories/${story.id}/brief`, { replace: true });
+
+      // Run the expensive server generation in background so the UI can switch
+      // immediately to the submitted/read-only brief state.
+      void draftStore.submitBrief(story.id).then(
+        (updated) => {
+          onStoryUpdate(updated);
+        },
+        async () => {
+          // If submission fails, recover story state so BriefTab can show
+          // "Generation failed" and allow edits again.
+          setGenerationFailed(true);
+          try {
+            const recovered = await draftStore.getStory(story.id);
+            if (recovered) onStoryUpdate(recovered);
+          } catch {
+            // Keep optimistic state; polling/error banners handle follow-up.
+          }
+        },
+      );
       return { briefId: story.id };
     },
-    [story.id, onStoryUpdate],
+    [story, onStoryUpdate, navigate, base],
   );
 
   // ---- "Open new revision" ----
@@ -243,13 +277,20 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
             color="text.secondary"
             sx={{ display: "block", mb: 1.5, fontWeight: 500 }}
           >
-            Saved {formatRelativeTime(story.updatedAt)}
+            {desk.formatSavedAt(
+              formatRelativeTimeMs(
+                story.updatedAt,
+                desk,
+                dateLocaleForLang(language),
+              ),
+            )}
           </Typography>
         )}
 
         <BriefForm
           storageAdapter={storageAdapter}
           onSubmit={handleSubmit}
+          showSubmitSuccess={false}
           onUserInteraction={() => setWelcomeDismissed(true)}
         />
       </Box>
