@@ -25,11 +25,11 @@ import {
   addToCart,
   createDirectPurchasePreview,
   generatePreview,
+  getPreviewPersonalization,
   type AgeGroup,
   FreePreviewAlreadyUsedError,
 } from "../api/caregiverApi";
 import { usePreviewQuota } from "../hooks/usePreviewQuota";
-import { PreviewAlreadyUsed } from "../components/preview/PreviewAlreadyUsed";
 import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
 
 type VisualStyle =
@@ -603,6 +603,12 @@ export default function PersonalizeStoryPage() {
     photoPreviewUrl: string | null;
   } | null>(null);
 
+  useEffect(() => {
+    if (quota?.hasUsedPreview) {
+      setSkipPreviewMode(true);
+    }
+  }, [quota?.hasUsedPreview]);
+
   const styleDisplay = useMemo(
     () => [
       {
@@ -1027,29 +1033,35 @@ export default function PersonalizeStoryPage() {
             }
           }}
           onBack={() => setDirectPurchaseResult(null)}
-        />
-      </Box>
-    );
-  }
-
-  if (quota?.hasUsedPreview && !skipPreviewMode) {
-    return (
-      <Box
-        sx={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#E5DFD9",
-          direction: direction,
-          px: 2,
-        }}
-      >
-        <PreviewAlreadyUsed
-          existingPreviewId={quota.existingPreviewId}
-          existingTemplateId={quota.existingTemplateId}
-          currentStoryId={storyId!}
-          onContinueWithoutPreview={() => setSkipPreviewMode(true)}
+          existingPreviewId={quota?.existingPreviewId ?? null}
+          existingTemplateId={quota?.existingTemplateId ?? null}
+          onViewExistingPreview={async () => {
+            const eid = quota?.existingPreviewId;
+            const etid = quota?.existingTemplateId;
+            if (!eid || !etid) return;
+            try {
+              const p = await getPreviewPersonalization(eid);
+              const storageKey = getStoryPersonalizationStorageKey(etid);
+              localStorage.setItem(
+                storageKey,
+                JSON.stringify({
+                  status: "completed",
+                  data: {
+                    childName: p.childFirstName,
+                    gender: p.childGender,
+                    childAgeGroup: p.childAgeGroup,
+                    photoPreviewUrl: "",
+                    visualStyle: "watercolor",
+                  },
+                  updatedAt: Date.now(),
+                })
+              );
+              localStorage.setItem(`dammah.preview.${etid}`, eid);
+            } catch {
+              /* navigate anyway */
+            }
+            navigate(`/stories/${etid}/read?previewId=${encodeURIComponent(eid)}`);
+          }}
         />
       </Box>
     );

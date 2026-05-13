@@ -507,7 +507,9 @@
       "personalizedFor": "مخصّص لـ",
       "addToCart": "أضف إلى السلة",
       "back": "← تعديل التفاصيل",
-      "loadingPreview": "جارٍ التحميل..."
+      "loadingPreview": "جارٍ التحميل...",
+      "previousPreviewNotice": "لديك معاينة شخصية محفوظة من قبل.",
+      "viewPreviousPreview": "عرضها"
     },
     "celebrateName": "قصة {name} جاهزة.",
     "celebrateSub": "كل كلمة، كل رسم توضيحي — مصنوع من أجل {name}. الاستعداد لشيء خاص حقا.",
