@@ -1,8 +1,54 @@
 import { randomUUID } from "crypto";
+import type { EnvironmentEntry } from "@/illustration/types/visual-bible";
 import type { FinalPromptArtefact, ScenePlanArtefact, VisualBibleArtefact } from "@/illustration/types";
 
 const NO_TEXT_LEAD =
   "No text, no letters, no words, no captions, no labels, no speech bubbles, no logos, wordless illustration.";
+
+/** Match `setting` text from Stage 2 to a Visual Bible registry entry so spatial layout can be injected verbatim. */
+export function resolveEnvironmentEntry(
+  setting: string,
+  registry: Record<string, EnvironmentEntry>,
+): EnvironmentEntry | null {
+  const trimmed = setting.trim();
+  if (!trimmed || Object.keys(registry).length === 0) {
+    return null;
+  }
+
+  const firstSegment =
+    trimmed.split("|")[0]?.split(",")[0]?.trim().replace(/^["']|["']$/g, "") ?? trimmed;
+
+  if (registry[firstSegment]) {
+    return registry[firstSegment]!;
+  }
+
+  const normalized = firstSegment.toLowerCase().replace(/\s+/g, "_");
+  if (registry[normalized]) {
+    return registry[normalized]!;
+  }
+
+  const lower = trimmed.toLowerCase();
+  let bestKey: string | null = null;
+  let bestLen = -1;
+  for (const key of Object.keys(registry)) {
+    const kl = key.toLowerCase();
+    if (!kl.length) continue;
+    if (lower.startsWith(kl)) {
+      const rest = lower.slice(kl.length);
+      if (rest.length === 0 || /^[\s,|:\-—]/.test(rest)) {
+        if (kl.length > bestLen) {
+          bestLen = kl.length;
+          bestKey = key;
+        }
+      }
+    }
+  }
+  if (bestKey) {
+    return registry[bestKey]!;
+  }
+
+  return null;
+}
 
 export interface AssembleFinalPromptInput {
   scenePlan: ScenePlanArtefact;
@@ -28,6 +74,11 @@ export function assembleFinalPrompt(input: AssembleFinalPromptInput): FinalPromp
     .join(", ");
   const avoid = visualBible.avoidList.slice(0, 3).join("; ");
 
+  const envEntry = resolveEnvironmentEntry(sp.setting, visualBible.environmentRegistry);
+  const settingSection = envEntry
+    ? `Setting: ${sp.setting}. Spatial layout (fixed for this location): ${envEntry.spatialLayout}.`
+    : `Setting: ${sp.setting}.`;
+
   const promptOrder = [
     "no-text",
     "consistency",
@@ -43,7 +94,7 @@ export function assembleFinalPrompt(input: AssembleFinalPromptInput): FinalPromp
   const parts = [
     NO_TEXT_LEAD,
     `${anchors}.`,
-    `Setting: ${sp.setting}.`,
+    settingSection,
     `${visualBible.characterAnchor} In this scene: ${sp.character}.`,
     `Focal point: ${sp.focalPoint}.`,
     `Lighting: ${sp.lighting}.`,

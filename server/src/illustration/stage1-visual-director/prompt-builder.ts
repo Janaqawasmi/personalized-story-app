@@ -44,7 +44,7 @@ ${manuscriptText}
   "environmentRegistry": {
     "<envKey>": {
       "atmosphere": "1 sentence: feeling, light quality, visual tone.",
-      "spatialLayout": "1 sentence: prop positions using wall references."
+      "spatialLayout": "2-3 sentences: name at least three fixed props or fixtures per environment (furniture, windows, boards, doors) with compass or wall references (north wall, left of window). This text is injected verbatim into every illustration of this location — be specific and stable."
     }
   },
   "palette": "5-7 comma-separated colour names.",

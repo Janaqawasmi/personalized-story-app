@@ -41,7 +41,7 @@ Scene direction:
 Produce exactly these 5 sections as JSON with keys setting, character, focalPoint, composition, lighting.
 
 Word budgets (strict):
-- setting: ≤25 words — registry key if applicable, light state, only props visible in this camera frame.
+- setting: ≤25 words — when the scene uses a location from STYLE BIBLE Environments, START with the exact registry key (e.g. classroom_morning), then add only frame-specific light state and props visible in this camera frame. Do not paraphrase or rename the key; downstream assembly uses it to inject the full spatial layout verbatim.
 - character: ≤30 words — body position, limb positions, gaze; NO emotion words.
 - focalPoint: ≤10 words — single visual anchor the eye hits first.
 - composition: ≤20 words — framing, angle, foreground/midground/background.
@@ -49,6 +49,7 @@ Word budgets (strict):
 
 CRITICAL:
 - Literal language only. No similes, no "like a …", no figurative phrasing.
+- Registry-backed locations: the setting string must begin with the literal environmentRegistry key when one applies, so the image step can attach the fixed spatial layout for that room.
 - No external image attachments — text-only prompts for the model.
 
 Return only JSON (no markdown fences):

@@ -1,4 +1,4 @@
-import { assembleFinalPrompt } from "../index";
+import { assembleFinalPrompt, resolveEnvironmentEntry } from "../index";
 
 describe("assembleFinalPrompt", () => {
   const vb = {
@@ -106,5 +106,68 @@ describe("assembleFinalPrompt", () => {
       parentVisualBibleVersion: 2,
     });
     expect(fp.finalPromptString.toLowerCase()).not.toContain("reference");
+  });
+
+  test("injects spatialLayout when setting matches environmentRegistry key", () => {
+    const vbWithEnv = {
+      ...vb,
+      environmentRegistry: {
+        kitchen_morning: {
+          atmosphere: "quiet dawn kitchen",
+          spatialLayout:
+            "Sink under east window; round table center; fridge on north wall beside doorway.",
+        },
+      },
+    };
+    const sp = {
+      ...scenePlan,
+      structuredPrompt: {
+        ...scenePlan.structuredPrompt!,
+        setting: "kitchen_morning, east window light, mug steam",
+      },
+    };
+    const fp = assembleFinalPrompt({
+      scenePlan: sp as never,
+      visualBible: vbWithEnv as never,
+      version: 1,
+      parentScenePlanVersion: 1,
+      parentVisualBibleVersion: 2,
+    });
+    expect(fp.finalPromptString).toContain("Spatial layout (fixed for this location):");
+    expect(fp.finalPromptString).toContain(
+      "Sink under east window; round table center; fridge on north wall beside doorway.",
+    );
+  });
+});
+
+describe("resolveEnvironmentEntry", () => {
+  const registry = {
+    classroom_morning: {
+      atmosphere: "bright",
+      spatialLayout: "Desks in three rows facing north whiteboard.",
+    },
+    lab: { atmosphere: "cool", spatialLayout: "Steel tables along walls." },
+  };
+
+  it("matches exact first segment before comma", () => {
+    expect(resolveEnvironmentEntry("classroom_morning, soft side light", registry)).toEqual(
+      registry.classroom_morning,
+    );
+  });
+
+  it("matches normalized human-readable first segment", () => {
+    expect(resolveEnvironmentEntry("Classroom morning | frame props", registry)).toEqual(
+      registry.classroom_morning,
+    );
+  });
+
+  it("matches longest registry key prefix", () => {
+    expect(resolveEnvironmentEntry("classroom_morning east light", registry)).toEqual(
+      registry.classroom_morning,
+    );
+  });
+
+  it("returns null when no key matches", () => {
+    expect(resolveEnvironmentEntry("unknown hall, dim", registry)).toBeNull();
   });
 });
