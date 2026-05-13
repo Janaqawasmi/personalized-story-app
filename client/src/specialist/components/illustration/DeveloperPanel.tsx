@@ -67,10 +67,12 @@ export default function DeveloperPanel({
     });
   }, [storyId]);
 
-  const fp =
-    finalPrompts
-      .filter((f) => f.pageNumber === pageNumber)
-      .sort((a, b) => b.version - a.version)[0] ?? null;
+  const fpsForPage = finalPrompts.filter((f) => f.pageNumber === pageNumber);
+  const forCurrentScenePlan = fpsForPage
+    .filter((f) => f.parentScenePlanVersion === scenePlanVersion)
+    .slice()
+    .sort((a, b) => b.version - a.version);
+  const fp = forCurrentScenePlan[0] ?? null;
 
   const img =
     imageVersion === null
@@ -159,7 +161,8 @@ export default function DeveloperPanel({
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                Structured prompt not available yet.
+                Not written yet. The structured prompt is created when you click Generate and Stage 2
+                (prompt engineer) finishes successfully.
               </Typography>
             )}
           </AccordionDetails>
@@ -186,7 +189,14 @@ export default function DeveloperPanel({
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No final prompt for this page yet.
+                {fpsForPage.length > 0 ? (
+                  <>
+                    No final prompt for scene plan v{scenePlanVersion} yet (older prompts may exist
+                    for other scene plan versions). Appears after a successful Generate (Stage 3).
+                  </>
+                ) : (
+                  <>No final prompt for this page yet. Appears after a successful Generate (Stage 3).</>
+                )}
               </Typography>
             )}
           </AccordionDetails>
@@ -216,7 +226,9 @@ export default function DeveloperPanel({
               </Stack>
             ) : (
               <Typography variant="body2" color="text.secondary">
-                No image for this version.
+                {imageVersion === null
+                  ? "No image on this page yet — click Generate to run the image step (Stage 4)."
+                  : `No image document for page ${pageNumber} image v${imageVersion} (still generating, failed, or not written).`}
               </Typography>
             )}
           </AccordionDetails>

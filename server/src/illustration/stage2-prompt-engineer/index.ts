@@ -4,7 +4,7 @@ import { buildLLMCallRecord } from "@/illustration/shared/llm-call-record";
 import { callClaude } from "@/illustration/shared/llm-client";
 import { buildPromptEngineerPrompt } from "./prompt-builder";
 import { parsePromptEngineerOutput, PromptEngineerParseError } from "./output-parser";
-import { validateStructuredPrompt } from "./validator";
+import { clampStructuredPromptToWordLimits, validateStructuredPrompt } from "./validator";
 
 export class PromptEngineerError extends Error {
   constructor(message: string) {
@@ -46,6 +46,7 @@ export async function runPromptEngineer(input: {
       }
       throw e;
     }
+    parsed = clampStructuredPromptToWordLimits(parsed);
     const v = validateStructuredPrompt(parsed);
     if (!v.ok) {
       throw new PromptEngineerError(`Validation failed: ${v.reasons.join("; ")}`);
