@@ -25,6 +25,7 @@ import {
   regenerateVisualBible,
   type VisualBiblePatchFields,
 } from "../../../api/illustrationApi";
+import CancelJobButton from "./CancelJobButton";
 
 const MANDATED_NO_TEXT_HINT =
   "text, letters, words, captions, labels, speech bubbles, logos of any kind";
@@ -47,6 +48,8 @@ interface Props {
   visualBible: VisualBibleArtefact | null;
   visualBibleVersionsDesc: VisualBibleArtefact[];
   visualBibleRegenBusy: boolean;
+  /** Active VB regen job id for cancellation UI */
+  visualBibleRegenJobId?: string | null;
 }
 
 export default function VisualBibleCard({
@@ -56,6 +59,7 @@ export default function VisualBibleCard({
   visualBible,
   visualBibleVersionsDesc,
   visualBibleRegenBusy,
+  visualBibleRegenJobId = null,
 }: Props) {
   const [selectedVersion, setSelectedVersion] = useState(currentVersion);
   const [editing, setEditing] = useState(false);
@@ -172,9 +176,14 @@ export default function VisualBibleCard({
           Visual Bible
         </Typography>
         <Skeleton variant="rounded" height={160} />
-        <Typography variant="body2" color="text.secondary">
-          Regenerating Visual Bible…
-        </Typography>
+        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+          <Typography variant="body2" color="text.secondary">
+            Regenerating Visual Bible…
+          </Typography>
+          {visualBibleRegenJobId ? (
+            <CancelJobButton storyId={storyId} jobId={visualBibleRegenJobId} />
+          ) : null}
+        </Stack>
       </Stack>
     );
   }

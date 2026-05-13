@@ -2,7 +2,9 @@ import { firestore } from "@/config/firebase";
 import { readVisualBible, writeVisualBible } from "@/illustration/shared/artefact-store";
 import { appendIllustrationEvent } from "@/illustration/shared/history-events";
 import { runVisualDirector } from "@/illustration/stage1-visual-director";
+import { assertJobNotCancelled } from "@/illustration/worker/cancellation";
 import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@/models/story.model";
+import type { DocumentReference } from "firebase-admin/firestore";
 import { IllegalStateGenerateImageError } from "./generateImage";
 
 function composeManuscript(pages: NonNullable<Story["pages"]>): string {
@@ -21,8 +23,9 @@ function hydrateStory(storyId: string, data: Record<string, unknown> | undefined
 export async function regenerateVisualBible(params: {
   storyId: string;
   uid: string;
+  jobRef?: DocumentReference;
 }): Promise<{ vbId: string; version: number }> {
-  const { storyId, uid } = params;
+  const { storyId, uid, jobRef } = params;
   const storyRef = firestore.collection(STORIES_COLLECTION).doc(storyId);
   const snap = await storyRef.get();
   if (!snap.exists) {
@@ -48,6 +51,7 @@ export async function regenerateVisualBible(params: {
 
   const manuscriptText = composeManuscript(story.pages);
   const vbRaw = await runVisualDirector({ story, manuscriptText });
+  if (jobRef) await assertJobNotCancelled(jobRef);
   const vb = { ...vbRaw, parentVersion: prevV };
 
   await writeVisualBible(storyId, vb);

@@ -74,6 +74,10 @@ function labelEditHistoryKind(e: EditHistoryEvent): string {
       return e.kind;
     case "illustration_ready_marked":
       return e.kind;
+    case "published":
+      return e.kind;
+    case "job_cancelled":
+      return e.kind;
   }
 }
 

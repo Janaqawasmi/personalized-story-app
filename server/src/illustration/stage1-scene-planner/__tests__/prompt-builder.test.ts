@@ -46,6 +46,8 @@ function story(): Story {
     illustrationPages: null,
     currentVisualBibleVersion: null,
     illustrationWorkspaceOpenedAt: null,
+    publishedAt: null,
+    publishedTemplateId: null,
   };
 }
 

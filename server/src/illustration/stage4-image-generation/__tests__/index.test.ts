@@ -59,5 +59,6 @@ describe("runImageGeneration", () => {
     expect(arg["textPrompt"]).toBe("prompt text");
     expect(img.reviewStatus).toBe("awaiting_review");
     expect(img.publicUrl).toContain("https://");
+    expect(img.safetyFlags).toEqual([]);
   });
 });

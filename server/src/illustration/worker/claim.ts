@@ -9,6 +9,15 @@ export async function claimJob(jobRef: DocumentReference): Promise<boolean> {
       const data = snap.data();
       if (data?.["status"] !== "pending") return false;
       const now = Date.now();
+      if (data?.["cancelRequested"] === true) {
+        tx.update(jobRef, {
+          status: "cancelled",
+          cancelledAt: now,
+          completedAt: now,
+          lastHeartbeatAt: now,
+        });
+        return false;
+      }
       tx.update(jobRef, {
         status: "running",
         startedAt: now,

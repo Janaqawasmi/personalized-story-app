@@ -6,10 +6,10 @@ import {
   generateImage,
   markImageGenerationFailedOnStory,
 } from "@/illustration/orchestrator/generateImage";
-import { openWorkspace } from "@/illustration/orchestrator/openWorkspace";
 import { regenerateScenePlan } from "@/illustration/orchestrator/regenerateScenePlan";
 import { regenerateVisualBible } from "@/illustration/orchestrator/regenerateVisualBible";
 import { handlers } from "../handlers";
+import { JobCancelledError } from "../cancellation";
 
 jest.mock("@/illustration/orchestrator/generateImage", () => ({
   generateImage: jest.fn(),
@@ -30,6 +30,10 @@ jest.mock("@/illustration/orchestrator/cascadeAfterReject", () => ({
 
 jest.mock("@/illustration/orchestrator/regenerateVisualBible", () => ({
   regenerateVisualBible: jest.fn(),
+}));
+
+jest.mock("@/illustration/shared/history-events", () => ({
+  appendIllustrationEvent: jest.fn(async () => undefined),
 }));
 
 const generateImageMock = generateImage as jest.MockedFunction<typeof generateImage>;
@@ -84,6 +88,7 @@ describe("illustration worker handlers — image_generation", () => {
       storyId: "s1",
       pageNumber: 2,
       uid: "uid",
+      jobRef,
     });
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -126,6 +131,42 @@ describe("illustration worker handlers — image_generation", () => {
       message: "boom",
     });
   });
+
+  test("JobCancelledError marks cancelled without rethrowing", async () => {
+    generateImageMock.mockRejectedValue(new JobCancelledError());
+    const update = jest.fn().mockResolvedValue(undefined);
+    const jobRef = { update } as unknown as DocumentReference;
+    const job = {
+      id: "job-can",
+      storyId: "s1",
+      type: "image_generation" as const,
+      pageNumber: 1,
+      enqueuedBy: "uid",
+      enqueuedAt: 1,
+      startedAt: null,
+      completedAt: null,
+      lastHeartbeatAt: null,
+      status: "running" as const,
+      attempt: 1,
+      idempotencyKey: "kc",
+      inputRefs: {},
+      outputRefs: {},
+      error: null,
+    };
+    await handlers.image_generation(job, jobRef);
+    expect(markFailedMock).toHaveBeenCalledWith({
+      storyId: "s1",
+      pageNumber: 1,
+      jobId: "job-can",
+      message: "Cancelled",
+    });
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "cancelled",
+        error: null,
+      }),
+    );
+  });
 });
 
 describe("illustration worker handlers — scene_plan_regen", () => {
@@ -160,6 +201,7 @@ describe("illustration worker handlers — scene_plan_regen", () => {
       pageNumber: 2,
       uid: "uid",
       feedbackNote: "note",
+      jobRef,
     });
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -209,6 +251,7 @@ describe("illustration worker handlers — image_regen", () => {
       uid: "uid",
       feedbackNote: "fix it",
       expectedPendingJobId: "job-rg",
+      jobRef,
     });
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -276,7 +319,11 @@ describe("illustration worker handlers — visual_bible_regen", () => {
       error: null,
     };
     await handlers.visual_bible_regen(job, jobRef);
-    expect(regenerateVisualBibleMock).toHaveBeenCalledWith({ storyId: "s1", uid: "uid" });
+    expect(regenerateVisualBibleMock).toHaveBeenCalledWith({
+      storyId: "s1",
+      uid: "uid",
+      jobRef,
+    });
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({
         status: "succeeded",

@@ -206,6 +206,10 @@ export default function DeveloperPanel({
                 <Typography variant="caption" component="div">
                   review: {img.reviewStatus}
                 </Typography>
+                <Typography variant="caption" component="div" sx={{ fontWeight: 600 }}>
+                  Safety checks:{" "}
+                  {(img.safetyFlags?.length ?? 0) === 0 ? "No flags raised" : img.safetyFlags!.join(", ")}
+                </Typography>
                 <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap" }}>
                   {img.storagePath}
                 </Typography>

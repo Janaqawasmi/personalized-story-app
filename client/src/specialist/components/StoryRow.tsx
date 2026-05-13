@@ -72,6 +72,10 @@ function editEventVerb(event: EditHistoryEvent, desk: SpecialistDeskUi): string 
       return "Illustration workspace opened";
     case "illustration_ready_marked":
       return "Illustration ready marked";
+    case "published":
+      return "Published to library";
+    case "job_cancelled":
+      return "Illustration job cancelled";
     default: {
       const _u: never = event;
       void _u;

@@ -9,6 +9,8 @@ import { runScenePlannerForPage } from "@/illustration/stage1-scene-planner";
 import { fillIllustrationV2DocDefaults } from "@/models/story.model";
 import type { Story } from "@/models/story.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
+import type { DocumentReference } from "firebase-admin/firestore";
+import { assertJobNotCancelled } from "@/illustration/worker/cancellation";
 import { IllegalStateGenerateImageError } from "./generateImage";
 
 function hydrateStory(storyId: string, data: Record<string, unknown> | undefined): Story {
@@ -31,8 +33,9 @@ export async function regenerateScenePlan(params: {
   pageNumber: number;
   uid: string;
   feedbackNote: string | null;
+  jobRef?: DocumentReference;
 }): Promise<{ scenePlanId: string; version: number }> {
-  const { storyId, pageNumber, uid, feedbackNote } = params;
+  const { storyId, pageNumber, uid, feedbackNote, jobRef } = params;
   const storyRef = firestore.collection(COLLECTIONS.STORIES).doc(storyId);
   const snap = await storyRef.get();
   if (!snap.exists) {
@@ -70,6 +73,7 @@ export async function regenerateScenePlan(params: {
     previousScenePlan,
     feedbackNote,
   });
+  if (jobRef) await assertJobNotCancelled(jobRef);
   await writeScenePlan(storyId, newPlan);
 
   await firestore.runTransaction(async (tx) => {

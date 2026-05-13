@@ -6,9 +6,11 @@ import {
 } from "@/illustration/shared/artefact-store";
 import { appendIllustrationEvent } from "@/illustration/shared/history-events";
 import { runScenePlannerForPage } from "@/illustration/stage1-scene-planner";
+import { assertJobNotCancelled } from "@/illustration/worker/cancellation";
 import { fillIllustrationV2DocDefaults } from "@/models/story.model";
 import type { Story } from "@/models/story.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
+import type { DocumentReference } from "firebase-admin/firestore";
 import { IllegalStateGenerateImageError, runStage2Through4 } from "./generateImage";
 
 function hydrateStory(storyId: string, data: Record<string, unknown> | undefined): Story {
@@ -32,8 +34,9 @@ export async function cascadeAfterReject(params: {
   uid: string;
   feedbackNote: string | null;
   expectedPendingJobId: string;
+  jobRef?: DocumentReference;
 }): Promise<{ imageId: string; storagePath: string; publicUrl: string }> {
-  const { storyId, pageNumber, uid, feedbackNote, expectedPendingJobId } = params;
+  const { storyId, pageNumber, uid, feedbackNote, expectedPendingJobId, jobRef } = params;
   const storyRef = firestore.collection(COLLECTIONS.STORIES).doc(storyId);
   const snap = await storyRef.get();
   if (!snap.exists) {
@@ -71,6 +74,7 @@ export async function cascadeAfterReject(params: {
     previousScenePlan,
     feedbackNote,
   });
+  if (jobRef) await assertJobNotCancelled(jobRef);
   await writeScenePlan(storyId, newPlan);
 
   await firestore.runTransaction(async (tx) => {
@@ -113,5 +117,6 @@ export async function cascadeAfterReject(params: {
     scenePlan: newPlan,
     visualBible,
     visualBibleVersion: vbv,
+    ...(jobRef ? { jobRef } : {}),
   });
 }

@@ -62,6 +62,7 @@ export async function runImageGeneration(input: {
         reviewStatus: "awaiting_review",
         approvedAt: null,
         rejectionNote: null,
+        safetyFlags: [],
       };
       return artefact;
     } catch (err) {

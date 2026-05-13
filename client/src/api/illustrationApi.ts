@@ -267,3 +267,77 @@ export async function markIllustrationReadyToPublish(storyId: string): Promise<v
     throw new Error(body.message || body.error || `Request failed (${res.status})`);
   }
 }
+
+export interface PublishStoryRequestBody {
+  shortDescriptionHe?: string;
+  shortDescriptionAr?: string;
+  displayTopicHe?: string;
+  displayTopicAr?: string;
+}
+
+export async function publishStoryToLibrary(
+  storyId: string,
+  body: PublishStoryRequestBody,
+): Promise<{ templateId: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${BASE}/${encodeURIComponent(storyId)}/publish`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    templateId?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(json.message || json.error || `Request failed (${res.status})`);
+  }
+  if (!json.templateId) throw new Error("Invalid publish response");
+  return { templateId: json.templateId };
+}
+
+export async function cancelIllustrationJob(
+  storyId: string,
+  jobId: string,
+): Promise<{ ok: true; status: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/jobs/${encodeURIComponent(jobId)}/cancel`,
+    { method: "POST", headers },
+  );
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    status?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(json.message || json.error || `Request failed (${res.status})`);
+  }
+  if (!json.ok || typeof json.status !== "string") {
+    throw new Error("Invalid cancel response");
+  }
+  return { ok: true, status: json.status };
+}
+
+export async function fetchIllustrationJob(
+  storyId: string,
+  jobId: string,
+): Promise<{ job: import("../types/illustration").IllustrationJob }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/jobs/${encodeURIComponent(jobId)}`,
+    { headers },
+  );
+  const json = (await res.json().catch(() => ({}))) as {
+    job?: import("../types/illustration").IllustrationJob;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(json.message || json.error || `Request failed (${res.status})`);
+  }
+  if (!json.job) throw new Error("Invalid job response");
+  return { job: json.job };
+}

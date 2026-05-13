@@ -10,8 +10,10 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
+import CancelJobButton from "./CancelJobButton";
 
 interface Props {
+  storyId: string;
   page: PageCardViewModel;
   readOnly: boolean;
   activeImageJobHint?: string;
@@ -21,6 +23,7 @@ interface Props {
 }
 
 export default function PageCardImage({
+  storyId,
   page,
   readOnly,
   activeImageJobHint,
@@ -71,13 +74,21 @@ export default function PageCardImage({
             </Stack>
           </Box>
         ) : (
-          <Stack direction="row" spacing={2} alignItems="center">
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
             <CircularProgress size={28} />
             <Typography variant="body2" color="text.secondary">
               {activeImageJobHint ?? "Generating illustration…"}
             </Typography>
+            {page.pendingJobId ? (
+              <CancelJobButton storyId={storyId} jobId={page.pendingJobId} />
+            ) : null}
           </Stack>
         )}
+        {page.pendingJobId && page.imageUrl ? (
+          <Stack direction="row" justifyContent="flex-end">
+            <CancelJobButton storyId={storyId} jobId={page.pendingJobId} />
+          </Stack>
+        ) : null}
         {page.rejectionNote ? (
           <Typography variant="caption" color="text.secondary">
             <strong>Feedback:</strong> {page.rejectionNote}

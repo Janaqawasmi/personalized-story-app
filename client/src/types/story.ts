@@ -12,7 +12,7 @@
 
 import type { AgeRange, CompleteBrief, StoryType } from "./storyBrief";
 import type { Agent1Result } from "./agent1Result";
-import type { IllustrationPage } from "./illustration";
+import type { IllustrationJobType, IllustrationPage } from "./illustration";
 
 // ============================================================================
 // COLLECTION CONSTANT
@@ -97,7 +97,9 @@ export type EditHistoryEvent =
   | { kind: "image_approved"; pageNumber: number; version: number }
   | { kind: "image_rejected"; pageNumber: number; version: number; feedbackNote: string }
   | { kind: "illustration_workspace_opened" }
-  | { kind: "illustration_ready_marked" };
+  | { kind: "illustration_ready_marked" }
+  | { kind: "published"; templateId: string }
+  | { kind: "job_cancelled"; jobId: string; jobType: IllustrationJobType };
 
 export interface EditHistoryEntry {
   /** UUID */
@@ -148,13 +150,17 @@ export interface Story {
   currentVisualBibleVersion: number | null;
   illustrationWorkspaceOpenedAt: number | null;
 
+  /** ms since epoch when published to the public library (Phase 6). */
+  publishedAt: number | null;
+  /** `story_templates` document id after publish (Phase 6). */
+  publishedTemplateId: string | null;
+
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
   updatedAt: number;
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
-  publishedAt: number | null;
 }
 
 // ============================================================================

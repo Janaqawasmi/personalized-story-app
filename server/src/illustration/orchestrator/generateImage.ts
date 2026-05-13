@@ -1,4 +1,5 @@
 import type { ScenePlanArtefact, VisualBibleArtefact } from "@/illustration/types";
+import type { DocumentReference } from "firebase-admin/firestore";
 import { firestore } from "@/config/firebase";
 import { fillIllustrationV2DocDefaults } from "@/models/story.model";
 import type { Story } from "@/models/story.model";
@@ -14,6 +15,7 @@ import { nextFinalPromptVersion, nextImageVersion } from "@/illustration/shared/
 import { assembleFinalPrompt } from "@/illustration/stage3-final-prompt";
 import { runImageGeneration } from "@/illustration/stage4-image-generation";
 import { runPromptEngineer } from "@/illustration/stage2-prompt-engineer";
+import { assertJobNotCancelled } from "@/illustration/worker/cancellation";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 
 export class IllegalStateGenerateImageError extends Error {
@@ -63,9 +65,12 @@ export async function runStage2Through4(params: {
   scenePlan: ScenePlanArtefact;
   visualBible: VisualBibleArtefact;
   visualBibleVersion: number;
+  jobRef?: DocumentReference;
 }): Promise<{ imageId: string; storagePath: string; publicUrl: string }> {
-  const { storyId, pageNumber, uid, visualBible, visualBibleVersion } = params;
+  const { storyId, pageNumber, uid, visualBible, visualBibleVersion, jobRef } = params;
   let scenePlan = params.scenePlan;
+
+  if (jobRef) await assertJobNotCancelled(jobRef);
 
   if (!scenePlan.structuredPrompt) {
     const { structuredPrompt, stage2LLMCall } = await runPromptEngineer({
@@ -82,6 +87,8 @@ export async function runStage2Through4(params: {
     scenePlan = { ...scenePlan, structuredPrompt, stage2LLMCall };
   }
 
+  if (jobRef) await assertJobNotCancelled(jobRef);
+
   const fpVersion = await nextFinalPromptVersion(storyId, pageNumber);
   const finalPrompt = assembleFinalPrompt({
     scenePlan,
@@ -91,6 +98,8 @@ export async function runStage2Through4(params: {
     parentVisualBibleVersion: visualBibleVersion,
   });
   await writeFinalPrompt(storyId, finalPrompt);
+
+  if (jobRef) await assertJobNotCancelled(jobRef);
 
   const imageVersion = await nextImageVersion(storyId, pageNumber);
   const imageArtefact = await runImageGeneration({
@@ -136,8 +145,9 @@ export async function generateImage(params: {
   storyId: string;
   pageNumber: number;
   uid: string;
+  jobRef?: DocumentReference;
 }): Promise<{ imageId: string; storagePath: string; publicUrl: string }> {
-  const { storyId, pageNumber, uid } = params;
+  const { storyId, pageNumber, uid, jobRef } = params;
   const storyRef = firestore.collection(COLLECTIONS.STORIES).doc(storyId);
   const snap = await storyRef.get();
   if (!snap.exists) {
@@ -176,5 +186,6 @@ export async function generateImage(params: {
     scenePlan,
     visualBible,
     visualBibleVersion: vbv,
+    ...(jobRef ? { jobRef } : {}),
   });
 }

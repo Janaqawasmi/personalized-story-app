@@ -5,7 +5,12 @@ export type IllustrationJobType =
   | "image_regen"
   | "visual_bible_regen";
 
-export type IllustrationJobStatus = "pending" | "running" | "succeeded" | "failed";
+export type IllustrationJobStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
 
 export interface IllustrationJob {
   id: string;
@@ -18,6 +23,10 @@ export interface IllustrationJob {
   completedAt: number | null;
   /** Updated by the worker while status is `running` (staleness recovery). */
   lastHeartbeatAt: number | null;
+  /** Specialist requested cancellation; worker observes at stage boundaries. */
+  cancelRequested?: boolean;
+  /** Set when status becomes `cancelled`. */
+  cancelledAt?: number | null;
   status: IllustrationJobStatus;
   attempt: number;
   idempotencyKey: string;

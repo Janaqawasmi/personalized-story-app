@@ -32,6 +32,7 @@ import {
   PatchVisualBibleValidationError,
   type VisualBiblePatchBody,
 } from "@/illustration/orchestrator/patchVisualBible";
+import { publishStory, PublishStoryError, type PublishStoryBody } from "@/illustration/orchestrator/publishStory";
 import type { EnvironmentEntry } from "@/illustration/types";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 
@@ -1013,6 +1014,108 @@ async function handlePostVisualBibleRegenerate(req: Request, res: Response): Pro
   res.status(200).json({ jobId, status: "pending" as const });
 }
 
+async function handlePublishStory(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_ready") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Publish is only available when the story is illustration_ready.",
+    });
+    return;
+  }
+
+  const raw = req.body as Record<string, unknown> | undefined;
+  const body: PublishStoryBody = {};
+  if (typeof raw?.["shortDescriptionHe"] === "string") body.shortDescriptionHe = raw["shortDescriptionHe"];
+  if (typeof raw?.["shortDescriptionAr"] === "string") body.shortDescriptionAr = raw["shortDescriptionAr"];
+  if (typeof raw?.["displayTopicHe"] === "string") body.displayTopicHe = raw["displayTopicHe"];
+  if (typeof raw?.["displayTopicAr"] === "string") body.displayTopicAr = raw["displayTopicAr"];
+
+  try {
+    const { templateId } = await publishStory({ storyId, uid: ownerUid, body });
+    res.status(200).json({ templateId });
+  } catch (err) {
+    if (err instanceof PublishStoryError) {
+      const status = err.code === "NOT_READY" ? 409 : 409;
+      res.status(status).json({ error: err.code, message: err.message });
+      return;
+    }
+    throw err;
+  }
+}
+
+async function handleCancelIllustrationJob(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const jobId = req.params["jobId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  const jobRef = firestore
+    .collection(STORIES_COLLECTION)
+    .doc(storyId)
+    .collection(COLLECTIONS.STORY_ILLUSTRATION_JOBS)
+    .doc(jobId);
+  const snap = await jobRef.get();
+  if (!snap.exists) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Job not found." });
+    return;
+  }
+  const st = snap.data()?.["status"];
+  if (st !== "pending" && st !== "running") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Only pending or running jobs can be cancelled.",
+    });
+    return;
+  }
+  await jobRef.update({ cancelRequested: true });
+  res.status(200).json({ ok: true as const, status: st });
+}
+
+async function handleGetIllustrationJob(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const jobId = req.params["jobId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  const jobRef = firestore
+    .collection(STORIES_COLLECTION)
+    .doc(storyId)
+    .collection(COLLECTIONS.STORY_ILLUSTRATION_JOBS)
+    .doc(jobId);
+  const snap = await jobRef.get();
+  if (!snap.exists) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Job not found." });
+    return;
+  }
+  const data = snap.data() as Record<string, unknown>;
+  res.status(200).json({ job: { ...data, id: jobId } as unknown });
+}
+
 // ============================================================================
 // ROUTE REGISTRATION
 // ============================================================================
@@ -1021,6 +1124,7 @@ async function handlePostVisualBibleRegenerate(req: Request, res: Response): Pro
 router.get("/", handleListStories);
 router.get("/:storyId/visual-bible/versions", handleListVisualBibleVersions);
 router.get("/:storyId/visual-bible", handleGetVisualBible);
+router.get("/:storyId/jobs/:jobId", handleGetIllustrationJob);
 router.get("/:storyId", handleGetStory);
 
 // PATCH
@@ -1032,6 +1136,8 @@ router.put("/:storyId/brief", handleUpdateBrief);
 
 // POST
 router.post("/:storyId/transitions", handleTransition);
+router.post("/:storyId/publish", handlePublishStory);
+router.post("/:storyId/jobs/:jobId/cancel", handleCancelIllustrationJob);
 router.post("/:storyId/visual-bible/regenerate", handlePostVisualBibleRegenerate);
 router.post("/:storyId/pages/:pageNumber/image", handleEnqueuePageImage);
 router.post("/:storyId/pages/:pageNumber/image/approve", handleApprovePageImage);

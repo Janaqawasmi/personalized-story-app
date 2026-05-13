@@ -13,6 +13,7 @@
 import type { AgeRange, StoryBrief, StoryType } from "@/models/storyBrief.model";
 import type { Agent1Result, StoryPage } from "@/agent1/types";
 import type { IllustrationPage } from "@/illustration/types";
+import type { IllustrationJobType } from "@/illustration/types/job";
 
 // Re-export so downstream modules can import StoryPage from here rather than
 // reaching into agent1/types directly. Step 1.3 will extend this type with
@@ -92,7 +93,9 @@ export type EditHistoryEvent =
   | { kind: "image_approved"; pageNumber: number; version: number }
   | { kind: "image_rejected"; pageNumber: number; version: number; feedbackNote: string }
   | { kind: "illustration_workspace_opened" }
-  | { kind: "illustration_ready_marked" };
+  | { kind: "illustration_ready_marked" }
+  | { kind: "published"; templateId: string }
+  | { kind: "job_cancelled"; jobId: string; jobType: IllustrationJobType };
 
 export interface EditHistoryEntry {
   /** UUID */
@@ -154,6 +157,11 @@ export interface Story {
   currentVisualBibleVersion: number | null;
   /** ms since epoch when specialist opened illustration workspace. */
   illustrationWorkspaceOpenedAt: number | null;
+
+  /** ms since epoch when published to `story_templates` (Phase 6). */
+  publishedAt: number | null;
+  /** `story_templates` document id after publish (Phase 6). */
+  publishedTemplateId: string | null;
 }
 
 // ============================================================================
@@ -205,6 +213,8 @@ export function fillIllustrationV2DocDefaults(story: Story): void {
     illustrationPages?: Story["illustrationPages"];
     currentVisualBibleVersion?: Story["currentVisualBibleVersion"];
     illustrationWorkspaceOpenedAt?: Story["illustrationWorkspaceOpenedAt"];
+    publishedAt?: Story["publishedAt"];
+    publishedTemplateId?: Story["publishedTemplateId"];
   };
   if (s.illustrationPages === undefined) s.illustrationPages = null;
   if (s.currentVisualBibleVersion === undefined) {
@@ -213,6 +223,8 @@ export function fillIllustrationV2DocDefaults(story: Story): void {
   if (s.illustrationWorkspaceOpenedAt === undefined) {
     s.illustrationWorkspaceOpenedAt = null;
   }
+  if (s.publishedAt === undefined) s.publishedAt = null;
+  if (s.publishedTemplateId === undefined) s.publishedTemplateId = null;
 }
 
 // ============================================================================
@@ -267,5 +279,8 @@ export function createStoryForGeneration(params: {
     illustrationPages: null,
     currentVisualBibleVersion: null,
     illustrationWorkspaceOpenedAt: null,
+
+    publishedAt: null,
+    publishedTemplateId: null,
   };
 }

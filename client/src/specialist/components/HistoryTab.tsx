@@ -151,6 +151,14 @@ function EntryDescription({ entry }: { entry: EditHistoryEntry }) {
       mainLabel = "Illustration ready marked";
       break;
 
+    case "published":
+      mainLabel = `Published to library (template ${event.templateId.slice(0, 8)}…)`;
+      break;
+
+    case "job_cancelled":
+      mainLabel = `Job cancelled (${event.jobType})`;
+      break;
+
     default: {
       const _exhaustive: never = event;
       void _exhaustive;

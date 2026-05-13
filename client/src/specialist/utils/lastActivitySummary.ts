@@ -52,6 +52,10 @@ function verbFromEvent(event: EditHistoryEvent): string {
       return "Workspace opened";
     case "illustration_ready_marked":
       return "Illustration ready marked";
+    case "published":
+      return "Published to library";
+    case "job_cancelled":
+      return "Illustration job cancelled";
     default: {
       const _e: never = event;
       void _e;

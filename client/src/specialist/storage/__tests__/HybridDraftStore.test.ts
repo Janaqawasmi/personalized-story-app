@@ -67,6 +67,7 @@ function makeStory(overrides: Partial<Story> = {}): Story {
     approvedAt: overrides.approvedAt ?? null,
     pages: overrides.pages ?? null,
     publishedAt: overrides.publishedAt ?? null,
+    publishedTemplateId: overrides.publishedTemplateId ?? null,
     illustrationPages: overrides.illustrationPages ?? null,
     currentVisualBibleVersion: overrides.currentVisualBibleVersion ?? null,
     illustrationWorkspaceOpenedAt: overrides.illustrationWorkspaceOpenedAt ?? null,

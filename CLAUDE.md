@@ -160,50 +160,17 @@ POST   /api/specialist/stories/:storyId/generate
 
 All are gated by `requireAuth` + `requireRole("specialist", "admin")`.
 
-### 4.4 Illustration generation — in development
+### 4.4 Specialist-side illustration (v2 — shipped)
 
-Illustration is the next phase after story-text approval. The current implementation context:
+After manuscript approval, the story moves into the **illustration v2** workspace (`illustration_workspace` → `illustration_ready` → `published`). The pipeline generates a **Visual Bible**, per-page **scene plans**, **final image prompts**, and page illustrations with review/approval. Implementation follows [docs/illustration/spec.md](docs/illustration/spec.md) (orchestrators under [server/src/illustration/](server/src/illustration/), specialist **Illustrations** tab, in-process worker). Caregiver preview/checkout still use the existing `ImageGenerationProvider` paths in [server/src/services/preview.service.ts](server/src/services/preview.service.ts) and [server/src/services/fullStoryGeneration.service.ts](server/src/services/fullStoryGeneration.service.ts).
 
+### 4.5 Publish bridge
 
-- The **specialist-side** illustration path (turning an approved therapeutic-story manuscript into a full illustrated book) is the active work item. See branche `image-gen-experiments`, Key requirements driving this module:
-  - **Character consistency** across pages.
-  - **Environmental consistency** across pages.
-  - **Emotionally safe, child-appropriate visuals.**
-  - Illustrations that reinforce the story's psychological intent, not just decorate.
-- committed to `main` yet — it is wired up via env var (`IMAGE_PROVIDER`) and a startup registration call.
+When every page illustration is approved and the story is `illustration_ready`, a specialist can **publish** via `POST /api/specialist/stories/:storyId/publish`. The server writes a `story_templates` document (cover, preview spreads, pages, metadata) and sets the story to `published` with `publishedTemplateId`. The public catalog picks it up from Firestore as before.
 
+### 4.6 Publishing (catalog)
 
-### 4.5 Illustration approval (in design)
-
-Approving the **manuscript** is not the last gate before a story goes public. The intended end-to-end workflow has a second approval — the illustrated book — sitting between manuscript approval and publishing:
-
-```
-manuscript approved  →  generate illustrations  →  specialist reviews
-                                                   illustrated book
-                                                          ↓
-                                            illustrations approved
-                                                          ↓
-                                                      published
-```
-
-Only a Story that is **both text-approved and illustration-approved** can become a published `story_templates` entry. A reject at the illustration stage loops back to illustration regeneration (or, for a structural problem, back to the manuscript).
-
-**Status: this phase is under active design.** The illustration approval gate is not modelled in the current `StoryStatus` state machine in [server/src/models/story.model.ts](server/src/models/story.model.ts) — `approved → published` is presently a direct transition, and there is no specialist-facing illustration-review surface in the workspace on `main`. The full design (states, data shape, UI, generation strategy, consistency guarantees) is being worked out separately and will be specified before implementation. Key open questions the spec needs to answer:
-
-- **State machine.** New states / sub-states between `approved` and `published` (e.g. `illustrating`, `illustration_review`, `illustration_revision`), and the allowed transitions among them.
-- **Data shape.** Where illustration artefacts live on the `Story` (per-page image URLs, version history, prompt + reference inputs, provider/model metadata, approval flags) and how they map onto the eventual `story_templates` document at publish time.
-- **Generation pipeline.** How the illustration generator consumes the approved manuscript + brief (visual style, age range, character continuity inputs) — including the Visual Bible + per-page-prompt approach validated in the [image-gen-experiments](https://github.com/Janaqawasmi/personalized-story-app/tree/image-gen-experiments) work, and the page-1 reference image strategy for character/environment consistency across pages.
-- **Provider seam.** Reuse of the existing [ImageGenerationProvider](server/src/shared/types/aiProvider.ts) abstraction (which already backs preview/full-story illustration on the caregiver side) vs. a specialist-side variant that can take richer inputs.
-- **Review UX.** Specialist-facing surface for reviewing the illustrated book page by page, requesting per-page regeneration, comparing versions, and approving.
-- **Safety gate.** A child-appropriateness check on illustrations comparable to Agent 1's `postValidationFlags` for the text.
-
-When the design lands, this section will be replaced with the concrete spec link, and the state machine + types + workspace tabs will be updated accordingly. Until then, treat the existing template-based illustration code paths ([server/src/services/preview.service.ts](server/src/services/preview.service.ts), [server/src/services/fullStoryGeneration.service.ts](server/src/services/fullStoryGeneration.service.ts)) as the **caregiver-side** runtime, not the specialist-side authoring tool.
-
-### 4.6 Publishing
-
-Once a Story is both manuscript-approved and illustration-approved (today: only the manuscript gate is wired in code; the illustration gate is the in-design step above), a specialist publishes it. Publishing produces an entry in the public `story_templates` collection — the catalog the public site reads. The template carries everything the public site needs: `slug`, `coverImage`, `previewSpreads` (the first two illustrated pages used on the Story Detail page), `previewSentence` (the live-name preview helper), `pages[]` (per-page text + image prompt), `previewPageCount`, `totalPageCount`. Type: [server/src/shared/types/storyTemplate.ts](server/src/shared/types/storyTemplate.ts).
-
-Auto-fill: when a `story_templates` document is created or updated without a `previewSentence`, the Firestore-triggered `autoFillPreviewSentence` function computes one from the template's pages ([server/src/functions/onStoryTemplateWrite.ts](server/src/functions/onStoryTemplateWrite.ts), [server/src/shared/utils/resolvePreviewSentence.ts](server/src/shared/utils/resolvePreviewSentence.ts)).
+Publishing produces a `story_templates` document the public site reads: `slug`, `coverImage`, `previewSpreads`, optional `previewSentence` (auto-filled by [server/src/functions/onStoryTemplateWrite.ts](server/src/functions/onStoryTemplateWrite.ts)), `pages[]`, etc. Type: [server/src/shared/types/storyTemplate.ts](server/src/shared/types/storyTemplate.ts).
 
 ---
 
@@ -359,10 +326,11 @@ npm run get-user-role
 - Hybrid draft storage (localStorage pre-submission, REST post-submission).
 - Public site: discovery, story detail, personalization wizard, book reader, cart API + preview + checkout + full-story generation.
 - Template-based per-page illustration generation behind the `ImageGenerationProvider` interface (provider implementation is plugged in via env at deploy time).
+- Specialist-side **illustration v2** workspace (Visual Bible, scene plans, per-page image review, publish to `story_templates`) per [docs/illustration/spec.md](docs/illustration/spec.md).
 - Bilingual UI (Hebrew default, Arabic, partial English fallback).
 
 **Active development:**
-- Specialist-side illustration generation (turning an approved manuscript into a full illustrated book with character + environmental consistency). Tracked across `image-gen-experiments`, `image-gen-final`, `image-gen-final-pilot`, `Story_Illustration` branches; not yet wired into the specialist workspace on `main`.
+- Post-pilot illustration hardening (e.g. dedicated image safety classifier beyond the `safetyFlags` stub, multi-instance worker, Cloud Tasks migration) as called out in the illustration spec.
 
 **Out of scope for v1** (see [client/src/specialist/docs/07-out-of-scope.md](client/src/specialist/docs/07-out-of-scope.md)):
 - Agent 2 (targeted edit loop).

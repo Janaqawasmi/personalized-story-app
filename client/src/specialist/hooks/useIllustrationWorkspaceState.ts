@@ -18,6 +18,8 @@ import type { EditHistoryEntry, Story } from "../../types/story";
 import { STORIES_COLLECTION } from "../../types/story";
 import { useAuth } from "../../contexts/AuthContext";
 import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
+import type { BookReaderModel } from "../../components/book/BookReaderModel";
+import { storyToReaderModel } from "../../components/book/storyToReaderModel";
 
 const JOBS = "illustrationJobs";
 const IMAGES = "images";
@@ -55,6 +57,7 @@ export type WorkspaceViewModel =
       pages: PageCardViewModel[];
       allApproved: boolean;
       readOnly: boolean;
+      previewModel: BookReaderModel | null;
     }
   | { kind: "failed"; jobId: string; error: string };
 
@@ -250,6 +253,8 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
           illustrationPages: raw.illustrationPages ?? null,
           currentVisualBibleVersion: raw.currentVisualBibleVersion ?? null,
           illustrationWorkspaceOpenedAt: raw.illustrationWorkspaceOpenedAt ?? null,
+          publishedAt: raw.publishedAt ?? null,
+          publishedTemplateId: raw.publishedTemplateId ?? null,
         };
         setStory(normalizeStoryFromApi(withDefaults));
       });
@@ -315,17 +320,19 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
   return useMemo((): WorkspaceViewModel => {
     if (!story) return { kind: "loading" };
 
-    if (story.status === "illustration_workspace" || story.status === "illustration_ready") {
+    if (story.status === "illustration_workspace" || story.status === "illustration_ready" || story.status === "published") {
       const pages = story.illustrationPages ?? [];
       const vbv = story.currentVisualBibleVersion;
       if (vbv === null) return { kind: "loading" };
-      const readOnly = story.status === "illustration_ready";
+      const readOnly = story.status === "illustration_ready" || story.status === "published";
       const cards = buildPageCards(pages, jobs, images, scenePlans, vbv);
       const allApproved = cards.length > 0 && cards.every((p) => p.subStatus === "approved");
       const visualBible =
         visualBibles.find((v) => v.version === vbv) ?? null;
       const visualBibleVersionsDesc = [...visualBibles].sort((a, b) => b.version - a.version);
       const visualBibleRegenJob = latestVisualBibleRegenJob(jobs);
+      const previewModel =
+        allApproved || story.status === "published" ? storyToReaderModel(story, images) : null;
       return {
         kind: "ready",
         visualBibleVersion: vbv,
@@ -335,6 +342,7 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
         pages: cards,
         allApproved,
         readOnly,
+        previewModel,
       };
     }
 
@@ -359,6 +367,10 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
     }
     if (latest.status === "failed") {
       return { kind: "failed", jobId: latest.id, error: latest.error ?? "Unknown error" };
+    }
+
+    if (latest.status === "cancelled") {
+      return { kind: "cta" };
     }
 
     if (latest.status === "succeeded") {

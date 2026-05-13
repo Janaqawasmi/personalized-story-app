@@ -1,4 +1,5 @@
 import { firestore } from "@/config/firebase";
+import type { DocumentReference } from "firebase-admin/firestore";
 import type { IllustrationPage } from "@/illustration/types";
 import {
   readLatestVisualBible,
@@ -8,6 +9,7 @@ import {
   writeVisualBible,
 } from "@/illustration/shared/artefact-store";
 import { appendIllustrationEvent, appendIllustrationEvents } from "@/illustration/shared/history-events";
+import { assertJobNotCancelled } from "@/illustration/worker/cancellation";
 import { runScenePlanner } from "@/illustration/stage1-scene-planner";
 import { runVisualDirector } from "@/illustration/stage1-visual-director";
 import type { Story } from "@/models/story.model";
@@ -46,8 +48,9 @@ function hydrateStory(
 export async function openWorkspace(params: {
   storyId: string;
   uid: string;
+  jobRef?: DocumentReference;
 }): Promise<OpenWorkspaceResult> {
-  const { storyId, uid } = params;
+  const { storyId, uid, jobRef } = params;
   const storyRef = firestore.collection(COLLECTIONS.STORIES).doc(storyId);
   const snap = await storyRef.get();
   if (!snap.exists) {
@@ -101,6 +104,10 @@ export async function openWorkspace(params: {
       { kind: "visual_bible_generated", version: vb.version, source: "llm" },
       uid,
     );
+  }
+
+  if (jobRef) {
+    await assertJobNotCancelled(jobRef);
   }
 
   const scenePlans = await runScenePlanner({

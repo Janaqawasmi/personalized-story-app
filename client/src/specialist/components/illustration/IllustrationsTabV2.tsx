@@ -16,6 +16,7 @@ import ErrorPanel from "./ErrorPanel";
 import LoadingPanel from "./LoadingPanel";
 import PanelACta from "./PanelACta";
 import WorkspacePreview from "./WorkspacePreview";
+import CancelJobButton from "./CancelJobButton";
 
 interface Props {
   story: Story;
@@ -91,7 +92,8 @@ export default function IllustrationsTabV2({ story }: Props) {
   if (
     story.status !== "approved" &&
     story.status !== "illustration_workspace" &&
-    story.status !== "illustration_ready"
+    story.status !== "illustration_ready" &&
+    story.status !== "published"
   ) {
     return (
       <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 4, pb: 8 }}>
@@ -120,13 +122,19 @@ export default function IllustrationsTabV2({ story }: Props) {
         ) : null}
 
         {vm.kind === "pending" ? (
-          <LoadingPanel message="Queued — starting illustration workspace…" />
+          <Stack spacing={1}>
+            <LoadingPanel message="Queued — starting illustration workspace…" />
+            <CancelJobButton storyId={story.id} jobId={vm.jobId} />
+          </Stack>
         ) : null}
 
         {vm.kind === "running" ? (
-          <LoadingPanel
-            message={vm.progressHint ?? "Generating illustration workspace…"}
-          />
+          <Stack spacing={1}>
+            <LoadingPanel
+              message={vm.progressHint ?? "Generating illustration workspace…"}
+            />
+            <CancelJobButton storyId={story.id} jobId={vm.jobId} />
+          </Stack>
         ) : null}
 
         {vm.kind === "failed" ? (
@@ -135,6 +143,7 @@ export default function IllustrationsTabV2({ story }: Props) {
 
         {vm.kind === "ready" ? (
           <WorkspacePreview
+            story={story}
             storyId={story.id}
             visualBibleVersion={vm.visualBibleVersion}
             visualBible={vm.visualBible}
@@ -143,6 +152,7 @@ export default function IllustrationsTabV2({ story }: Props) {
             pages={vm.pages}
             readOnly={vm.readOnly}
             allApproved={vm.allApproved}
+            previewModel={vm.previewModel}
             onGeneratePage={handleGeneratePage}
             onApprovePage={handleApprovePage}
             onRejectPage={handleRejectPage}

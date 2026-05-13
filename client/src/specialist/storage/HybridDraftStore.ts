@@ -79,6 +79,7 @@ export class HybridDraftStore implements DraftStore {
       approvedAt: null,
       pages: null,
       publishedAt: null,
+      publishedTemplateId: null,
       illustrationPages: null,
       currentVisualBibleVersion: null,
       illustrationWorkspaceOpenedAt: null,

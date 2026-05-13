@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import type { Story } from "../../types/story";
 import IllustrationsTabV2 from "../components/illustration/IllustrationsTabV2";
 import { useIllustrationWorkspaceState } from "../hooks/useIllustrationWorkspaceState";
 
@@ -7,11 +6,14 @@ jest.mock("../hooks/useIllustrationWorkspaceState", () => ({
   useIllustrationWorkspaceState: jest.fn(),
 }));
 
-const mockUseVm = useIllustrationWorkspaceState as jest.MockedFunction<
-  typeof useIllustrationWorkspaceState
->;
+jest.mock("../hooks/useIsAdminOrDevPanelEnabled", () => ({
+  useIllustrationDevPanelsGate: () => ({ ready: true, allowed: false }),
+  useIsAdminOrDevPanelEnabled: () => false,
+}));
 
-function approvedStory(): Story {
+const mockUseVm = useIllustrationWorkspaceState as unknown as jest.Mock;
+
+function approvedStory() {
   return {
     id: "s1",
     ownerUid: "u1",
@@ -37,7 +39,8 @@ function approvedStory(): Story {
     submittedAt: 1,
     approvedAt: 1,
     publishedAt: null,
-  } as unknown as Story;
+    publishedTemplateId: null,
+  } as unknown as import("../../types/story").Story;
 }
 
 describe("IllustrationsTabV2", () => {
@@ -94,12 +97,13 @@ describe("IllustrationsTabV2", () => {
       ],
       allApproved: false,
       readOnly: false,
+      previewModel: null,
     });
     render(<IllustrationsTabV2 story={approvedStory()} />);
     expect(screen.getByText(/^Pages$/i)).toBeTruthy();
   });
 
-  it("disables mark ready when not all approved", () => {
+  it("does not show mark ready when not all approved (workspace)", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
       visualBibleVersion: 1,
@@ -126,9 +130,13 @@ describe("IllustrationsTabV2", () => {
       ],
       allApproved: false,
       readOnly: false,
+      previewModel: null,
     });
-    render(<IllustrationsTabV2 story={approvedStory()} />);
-    expect(screen.getByRole("button", { name: /Mark as ready to publish/i })).toBeDisabled();
+    const story = { ...approvedStory(), status: "illustration_workspace" as const };
+    render(<IllustrationsTabV2 story={story} />);
+    expect(
+      screen.queryByRole("button", { name: /Mark as ready to publish/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders failed state", () => {

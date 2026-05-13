@@ -77,6 +77,7 @@ export default function PageCard({
             />
           )}
           <PageCardImage
+            storyId={storyId}
             page={page}
             readOnly={readOnly}
             activeImageJobHint={imageGenHint}

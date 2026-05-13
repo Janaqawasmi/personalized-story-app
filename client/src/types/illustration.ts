@@ -110,6 +110,8 @@ export interface ImageArtefact {
   reviewStatus: ImageReviewStatus;
   approvedAt: number | null;
   rejectionNote: string | null;
+  /** Phase 6 stub — empty until v3 classifier. */
+  safetyFlags?: string[];
 }
 
 export type IllustrationJobType =
@@ -119,7 +121,12 @@ export type IllustrationJobType =
   | "image_regen"
   | "visual_bible_regen";
 
-export type IllustrationJobStatus = "pending" | "running" | "succeeded" | "failed";
+export type IllustrationJobStatus =
+  | "pending"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "cancelled";
 
 export interface IllustrationJob {
   id: string;
@@ -131,6 +138,8 @@ export interface IllustrationJob {
   startedAt: number | null;
   completedAt: number | null;
   lastHeartbeatAt?: number | null;
+  cancelRequested?: boolean;
+  cancelledAt?: number | null;
   status: IllustrationJobStatus;
   attempt: number;
   idempotencyKey: string;

@@ -20,4 +20,6 @@ export interface ImageArtefact {
   reviewStatus: ImageReviewStatus;
   approvedAt: number | null;
   rejectionNote: string | null;
+  /** Phase 6 stub — empty until v3 image classifier. */
+  safetyFlags: string[];
 }
