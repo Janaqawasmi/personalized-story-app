@@ -72,6 +72,8 @@ console.log("🔥 Firebase project:", admin.app().options.projectId);
 console.log("🔥 Firestore project:", admin.app().options.projectId);
 
 const firestore = admin.firestore();
+// Avoid gRPC over IPv6 when the network cannot reach Google (common on Windows dev).
+firestore.settings({ preferRest: true });
 const db = firestore;
 
 export { admin, firestore, db };

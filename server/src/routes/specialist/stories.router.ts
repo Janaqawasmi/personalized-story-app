@@ -19,6 +19,10 @@ import type { Story, StoryStatus } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
 import { isClientWireBriefPayload } from "@dammah/story-brief-complexity";
 import { enqueueJob } from "@/illustration/shared/job-enqueue";
+import {
+  isIllustrationDevInlineJobsEnabled,
+  runImageGenerationJobInline,
+} from "@/illustration/shared/run-image-job-inline";
 import { appendIllustrationEvent } from "@/illustration/shared/history-events";
 import {
   readLatestImage,
@@ -648,6 +652,18 @@ async function handleEnqueuePageImage(req: Request, res: Response): Promise<void
 
   await setIllustrationPagePendingImageJob(storyId, pageNumber, jobId);
 
+  if (isIllustrationDevInlineJobsEnabled()) {
+    try {
+      await runImageGenerationJobInline({ storyId, pageNumber, jobId, uid: ownerUid });
+      res.status(200).json({ jobId, status: "completed" as const });
+      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: "JOB_FAILED", message });
+      return;
+    }
+  }
+
   res.status(200).json({ jobId, status: "pending" as const });
 }
 
@@ -707,6 +723,22 @@ async function handleRegeneratePageImage(req: Request, res: Response): Promise<v
   });
 
   await setIllustrationPagePendingImageJob(storyId, pageNumber, jobId);
+
+  console.log(
+    `[illustration] regenerate-image enqueued story=${storyId} page=${pageNumber} jobId=${jobId}`,
+  );
+
+  if (isIllustrationDevInlineJobsEnabled()) {
+    try {
+      await runImageGenerationJobInline({ storyId, pageNumber, jobId, uid: ownerUid });
+      res.status(200).json({ jobId, status: "completed" as const });
+      return;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      res.status(500).json({ error: "JOB_FAILED", message });
+      return;
+    }
+  }
 
   res.status(202).json({ jobId });
 }

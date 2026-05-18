@@ -97,6 +97,9 @@ export async function runStage2Through4(params: {
     parentScenePlanVersion: scenePlan.version,
     parentVisualBibleVersion: visualBibleVersion,
   });
+  console.log(
+    `[illustration/stage3] story=${storyId} page=${pageNumber} finalPrompt=v${fpVersion} assembly=${finalPrompt.promptOrder[0] ?? "?"} chars=${finalPrompt.charCount}`,
+  );
   await writeFinalPrompt(storyId, finalPrompt);
 
   if (jobRef) await assertJobNotCancelled(jobRef);

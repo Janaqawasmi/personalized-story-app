@@ -84,9 +84,13 @@ export default function DeveloperPanel({
     img?.parentFinalPromptId != null
       ? (finalPrompts.find((f) => f.id === img.parentFinalPromptId) ?? null)
       : null;
-  const fp = fpForCurrentImage ?? forCurrentScenePlan[0] ?? null;
+  const waitingForImagePrompt =
+    img != null && Boolean(img.parentFinalPromptId) && fpForCurrentImage === null;
+  const fp = fpForCurrentImage ?? (waitingForImagePrompt ? null : forCurrentScenePlan[0]) ?? null;
   const promptLinkedToCurrentImage =
     img != null && fp != null && fp.id === img.parentFinalPromptId;
+  const isNaturalLanguageAssembly = fp?.promptOrder[0] === "style-lead";
+  const recentPromptsForScenePlan = forCurrentScenePlan.slice(0, 5);
 
   const copy = async (text: string) => {
     try {
@@ -232,7 +236,12 @@ export default function DeveloperPanel({
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            {fp ? (
+            {waitingForImagePrompt ? (
+              <Typography variant="body2" sx={bodyInkSx}>
+                Loading final prompt for current image (image v{img?.version})… If this stays, check
+                Firestore finalPrompts for parent id {img?.parentFinalPromptId}.
+              </Typography>
+            ) : fp ? (
               <Stack spacing={1}>
                 <Typography
                   variant="caption"
@@ -240,10 +249,11 @@ export default function DeveloperPanel({
                   sx={capMutedSx}
                 >
                   v{fp.version} · {fp.charCount} chars · order: {fp.promptOrder.join(" → ")}
+                  {isNaturalLanguageAssembly ? " · natural-language assembly" : " · legacy assembly"}
                   {promptLinkedToCurrentImage
                     ? " · sent with current image"
                     : img
-                      ? " · not linked to current image"
+                      ? " · not linked to current image (may be an older prompt)"
                       : ""}
                 </Typography>
                 <Stack direction="row" gap={1}>
@@ -260,6 +270,21 @@ export default function DeveloperPanel({
                 <Typography variant="caption" component="pre" sx={{ whiteSpace: "pre-wrap", ...capMutedSx }}>
                   {fp.finalPromptString}
                 </Typography>
+                {recentPromptsForScenePlan.length > 1 ? (
+                  <Stack spacing={0.5} sx={{ pt: 1, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+                    <Typography variant="caption" sx={{ ...capMutedSx, fontWeight: 700 }}>
+                      Recent prompts (scene plan v{scenePlanVersion})
+                    </Typography>
+                    {recentPromptsForScenePlan.map((row) => (
+                      <Typography key={row.id} variant="caption" sx={capMutedSx}>
+                        v{row.version}
+                        {row.id === img?.parentFinalPromptId ? " ← current image" : ""}
+                        {row.promptOrder[0] === "style-lead" ? " · NL" : " · legacy"} ·{" "}
+                        {new Date(row.createdAt).toLocaleString()}
+                      </Typography>
+                    ))}
+                  </Stack>
+                ) : null}
               </Stack>
             ) : (
               <Typography variant="body2" color={embedded ? undefined : "text.secondary"} sx={bodyInkSx}>
