@@ -212,8 +212,10 @@ export default function StoryWorkspacePage() {
 
   // Opening the workspace while an unread generated draft exists moves the story to `in_review`
   // (sets lastOpenedAt server-side). Approve/regenerate require `in_review`, not `awaiting_review`.
+  const shouldOpenReviewOnLoad = story?.status === "awaiting_review";
+
   useEffect(() => {
-    if (!story || story.status !== "awaiting_review") return;
+    if (!shouldOpenReviewOnLoad) return;
 
     let cancelled = false;
 
@@ -252,7 +254,7 @@ export default function StoryWorkspacePage() {
     return () => {
       cancelled = true;
     };
-  }, [story?.status, resolvedStoryId, desk]);
+  }, [shouldOpenReviewOnLoad, resolvedStoryId, desk]);
 
   // Slow-loading indicator (fires after 3 s if still loading)
   useEffect(() => {
