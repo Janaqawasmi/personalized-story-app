@@ -1,5 +1,5 @@
 import type { StoryBrief } from '@/models/storyBrief.model';
-import type { PreCheckResult } from '@/agent1/types';
+import type { GenerateOptions, PreCheckResult } from '@/agent1/types';
 
 import { buildSectionA } from './prompt-sections/section-a-identity';
 import { buildSectionB } from './prompt-sections/section-b-creative-vision';
@@ -10,6 +10,7 @@ import { buildSectionD } from './prompt-sections/section-d-obligation-tiers';
 import { buildSectionE } from './prompt-sections/section-e-output-format';
 import { buildSectionF } from './prompt-sections/section-f-few-shot';
 import { getBlueprintExamples } from './few-shot-retriever';
+import { buildSectionRerun } from './prompt-sections/section-rerun';
 
 type ExampleBankStatus =
   | 'examples_used'
@@ -19,6 +20,7 @@ type ExampleBankStatus =
 export function buildStep1Prompt(
   brief: StoryBrief,
   preCheckResult: PreCheckResult,
+  options?: GenerateOptions,
 ): { prompt: string; exampleBankStatus: ExampleBankStatus } {
   const sectionA = buildSectionA();
   const sectionB = buildSectionB(brief);
@@ -57,6 +59,9 @@ export function buildStep1Prompt(
     brief.ageAndScope.ageRange,
   );
 
+  const rerunSection =
+    options?.feedback !== undefined ? buildSectionRerun(options.feedback) : null;
+
   const prompt = [
     sectionA,
     sectionB,
@@ -66,6 +71,7 @@ export function buildStep1Prompt(
     sectionD,
     sectionE,
     sectionF,
+    ...(rerunSection ? [rerunSection] : []),
   ].join('\n\n');
 
   let exampleBankStatus: ExampleBankStatus;

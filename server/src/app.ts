@@ -6,6 +6,7 @@
 
 import "dotenv/config";
 console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
+console.log("ARK API KEY EXISTS:", !!process.env.ARK_API_KEY);
 
 // ---------- GLOBAL ERROR HANDLERS ----------
 process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
@@ -21,6 +22,12 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 
 import { admin, firestore } from "./config/firebase";
+import { SeedreamProvider } from "./providers/seedream.provider";
+import { registerImageProvider } from "./services/preview.service";
+import { registerImageProviderForStory } from "./services/fullStoryGeneration.service";
+import { startIllustrationWorker } from "./illustration/worker";
+// v2 specialist illustration provider registration will be added in Phase 1
+// of the redesign (docs/illustration/spec.md). v1 registration is removed.
 
 import dammaStoryBriefRouter from "./routes/dammaStoryBrief.routes";
 import templateRoutes from "./routes/template.routes";
@@ -43,6 +50,22 @@ import caregiverPreviewsRouter from "./routes/caregiver/previews.router";
 import caregiverCheckoutRouter from "./routes/caregiver/checkout.router";
 import caregiverAccountRouter from "./routes/caregiver/account.router";
 import caregiverStoriesRouter from "./routes/caregiver/stories.router";
+
+// ---------- IMAGE PROVIDER ----------
+// Register Seedream as the image generation backend for all services.
+// Guarded so the server still boots in test/CI environments without the key.
+if (process.env.ARK_API_KEY) {
+  const seedream = new SeedreamProvider();
+  registerImageProvider(seedream);
+  registerImageProviderForStory(seedream);
+  console.log("Seedream image provider registered.");
+} else {
+  console.warn(
+    "SEEDREAM_API_KEY not set — image generation will be unavailable.",
+  );
+}
+
+startIllustrationWorker();
 
 // ---------- APP ----------
 const app = express();

@@ -29,19 +29,26 @@ export const DESIGN_TOKENS = {
 export const COLORS = {
   primary: "#617891",
   primaryDark: "#4a5f74",
+  primarySoft: " #e7ecf1",
   secondary: "#824D5C",
 
   background: "#E5DFD9",
+  cream: "#f5f1eb",
   surface: "#FFFFFF",
 
   textPrimary: "#2a2421",
   textSecondary: "#4c4440",
+  textMuted: "#7a716a",
 
   border: "#d7cfc4",
+  borderSoft: "#e6dfd5",
 
   success: "#5f7a54",
+  successSoft: " #eaf0e4",
   warning: "#b08433",
+  warningSoft: " #f5ecd7",
   error: "#a14a4a",
+  errorSoft: "#f0e4e4",
 };
 
 export function createAppTheme(direction: Direction = "rtl"): Theme {

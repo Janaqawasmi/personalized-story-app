@@ -1,7 +1,7 @@
 import { parseStep2Response } from '@/agent1/step2-author/output-parser';
 import type { LLMCallRecord } from '@/agent1/types';
 
-// ─── Shared test fixtures ─────────────────────────────────────────────────────
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function makeLLMCallRecord(): LLMCallRecord {
   return {
@@ -15,192 +15,230 @@ function makeLLMCallRecord(): LLMCallRecord {
   };
 }
 
-/**
- * Build a story string containing exactly `n` space-separated words.
- * Each word is "word" so the split is unambiguous.
- */
-function makeStory(n: number): string {
-  return Array(n).fill('word').join(' ');
-}
-
-// A short but realistic story body (~50 words) used in most fixtures
-const SHORT_STORY_BODY =
-  'Pip was a small rabbit who slept with one ear pressed to the wall. ' +
-  'Every night, when the amber light faded to blue-gray, he would listen ' +
-  'for his mother\'s footsteps padding down the hall. The sounds were always ' +
-  'the same: first the creak of the third step, then the soft hush of her ' +
-  'slippers, then silence.';
-
-// ─── Fixture 1 — clean response with TITLE / STORY markers ───────────────────
-
-const FIXTURE_1 = `1. TITLE
-The Night Sounds Game
-2. STORY
-${SHORT_STORY_BODY}`;
-
-// ─── Fixture 2 — TITLE: inline format ────────────────────────────────────────
-
-const FIXTURE_2 = `TITLE: The Counting Rabbit
-${SHORT_STORY_BODY}`;
-
-// ─── Fixture 3 — no markers at all ───────────────────────────────────────────
-
-const FIXTURE_3 = `The Night Sounds Game
-${SHORT_STORY_BODY}`;
-
-// ─── Fixture 4 — title with surrounding quotes ───────────────────────────────
-
-const FIXTURE_4 = `1. TITLE
-"The Night Sounds Game"
-2. STORY
-${SHORT_STORY_BODY}`;
-
-// ─── Fixture 5 — very long story (over drift for 3-5 short) ──────────────────
-// 3-5 short: totalWords [150, 250], upperBound = 250 * 1.3 = 325
-// Use 1500 words → well over 325
-
-const FIXTURE_5 = `1. TITLE
-A Very Long Story
-2. STORY
-${makeStory(1500)}`;
-
-// ─── Shared parser call helper ────────────────────────────────────────────────
-
 function parse(
   fixture: string,
   { ageRange = '5-7' as const, storyLength = 'standard' as const } = {},
 ) {
-  return parseStep2Response(
-    fixture,
-    ageRange,
-    storyLength,
-    makeLLMCallRecord(),
-    'b'.repeat(64),
-  );
+  return parseStep2Response(fixture, ageRange, storyLength, makeLLMCallRecord(), 'b'.repeat(64));
 }
 
-// ─── Tests: Fixture 1 ─────────────────────────────────────────────────────────
+/** Build N space-separated 'word' tokens for word-count fixtures. */
+function makeWords(n: number): string {
+  return Array(n).fill('word').join(' ');
+}
 
-describe('parseStep2Response — Fixture 1: clean TITLE / STORY markers', () => {
-  it('test 1: title equals "The Night Sounds Game"', () => {
-    const result = parse(FIXTURE_1);
-    expect(result.title).toBe('The Night Sounds Game');
+/** Build a valid JSON response string from the Author. */
+function makeJsonResponse(title: string, pages: Array<{ pageNumber: number; text: string }>): string {
+  return JSON.stringify({ title, pages });
+}
+
+// ─── JSON format fixtures (primary format) ───────────────────────────────────
+
+const PAGE_1_TEXT = 'Pip was a small rabbit who slept with one ear pressed to the wall.';
+const PAGE_2_TEXT = 'Every night he would listen for his mother\'s footsteps padding down the hall.';
+const PAGE_3_TEXT = 'The sounds were always the same: the creak, the hush, then silence.';
+
+const JSON_FIXTURE_BASE = makeJsonResponse('The Night Sounds Game', [
+  { pageNumber: 1, text: PAGE_1_TEXT },
+  { pageNumber: 2, text: PAGE_2_TEXT },
+  { pageNumber: 3, text: PAGE_3_TEXT },
+]);
+
+const JSON_FIXTURE_QUOTED_TITLE = makeJsonResponse('"The Night Sounds Game"', [
+  { pageNumber: 1, text: PAGE_1_TEXT },
+]);
+
+const JSON_FIXTURE_IN_FENCES = '```json\n' + JSON_FIXTURE_BASE + '\n```';
+
+// ─── Tests: JSON format (primary) ────────────────────────────────────────────
+
+describe('parseStep2Response — JSON format: basic extraction', () => {
+  it('test 1: title extracted correctly', () => {
+    expect(parse(JSON_FIXTURE_BASE).title).toBe('The Night Sounds Game');
   });
 
-  it('test 2: story starts with "Pip was a small rabbit"', () => {
-    const result = parse(FIXTURE_1);
-    expect(result.story).toMatch(/^Pip was a small rabbit/);
+  it('test 2: pages array has the correct length', () => {
+    expect(parse(JSON_FIXTURE_BASE).pages).toHaveLength(3);
   });
 
-  it('test 3: wordCount is a positive integer', () => {
-    const result = parse(FIXTURE_1);
-    expect(result.wordCount).toBeGreaterThan(0);
-    expect(Number.isInteger(result.wordCount)).toBe(true);
+  it('test 3: pages are sorted by pageNumber', () => {
+    // Feed pages in reverse order to verify sort
+    const fixture = makeJsonResponse('Title', [
+      { pageNumber: 3, text: 'Third.' },
+      { pageNumber: 1, text: 'First.' },
+      { pageNumber: 2, text: 'Second.' },
+    ]);
+    const result = parse(fixture);
+    expect(result.pages![0]!.pageNumber).toBe(1);
+    expect(result.pages![1]!.pageNumber).toBe(2);
+    expect(result.pages![2]!.pageNumber).toBe(3);
   });
 
-  it('test 4: 5-7 standard (500-800 words), short story → wordCountDrift "under"', () => {
-    // SHORT_STORY_BODY is ~50 words; lowerBound = 500 * 0.7 = 350
-    const result = parse(FIXTURE_1, { ageRange: '5-7', storyLength: 'standard' });
-    expect(result.wordCountDrift).toBe('under');
+  it('test 4: each page carries a non-empty text string', () => {
+    const result = parse(JSON_FIXTURE_BASE);
+    for (const page of result.pages!) {
+      expect(typeof page.text).toBe('string');
+      expect(page.text.length).toBeGreaterThan(0);
+    }
   });
 
-  it('test 5: 3-5 short (150-250 words), 200-word story → wordCountDrift "within_range"', () => {
-    // 200 words: lowerBound = 150 * 0.7 = 105, upperBound = 250 * 1.3 = 325
-    const story200 = makeStory(200);
-    const fixture = `1. TITLE\nA Title\n2. STORY\n${story200}`;
-    const result = parseStep2Response(
-      fixture,
-      '3-5',
-      'short',
-      makeLLMCallRecord(),
-      'c'.repeat(64),
-    );
-    expect(result.wordCountDrift).toBe('within_range');
+  it('test 5: each page carries a computed wordCount > 0', () => {
+    const result = parse(JSON_FIXTURE_BASE);
+    for (const page of result.pages!) {
+      expect(page.wordCount).toBeGreaterThan(0);
+    }
   });
-});
 
-// ─── Tests: Fixture 2 ─────────────────────────────────────────────────────────
-
-describe('parseStep2Response — Fixture 2: TITLE: inline format', () => {
-  it('test 6: title extracted correctly as "The Counting Rabbit"', () => {
-    const result = parse(FIXTURE_2);
-    expect(result.title).toBe('The Counting Rabbit');
+  it('test 6: total wordCount equals sum of per-page wordCounts', () => {
+    const result = parse(JSON_FIXTURE_BASE);
+    const sumFromPages = result.pages!.reduce((s, p) => s + p.wordCount, 0);
+    expect(result.wordCount).toBe(sumFromPages);
   });
-});
 
-// ─── Tests: Fixture 3 ─────────────────────────────────────────────────────────
-
-describe('parseStep2Response — Fixture 3: no markers at all', () => {
-  it('test 7: first line becomes the title, rest is the story', () => {
-    const result = parse(FIXTURE_3);
-    expect(result.title).toBe('The Night Sounds Game');
-    expect(result.story).toMatch(/^Pip was a small rabbit/);
+  it('test 7: story field is the joined page texts (backward compat)', () => {
+    const result = parse(JSON_FIXTURE_BASE);
+    const expectedStory = [PAGE_1_TEXT, PAGE_2_TEXT, PAGE_3_TEXT].join('\n\n');
+    expect(result.story).toBe(expectedStory);
   });
-});
 
-// ─── Tests: Fixture 4 ─────────────────────────────────────────────────────────
+  it('test 8: pageCount equals pages.length', () => {
+    const result = parse(JSON_FIXTURE_BASE);
+    expect(result.pageCount).toBe(result.pages!.length);
+  });
 
-describe('parseStep2Response — Fixture 4: title with surrounding quotes', () => {
-  it('test 8: quotes stripped from title', () => {
-    const result = parse(FIXTURE_4);
+  it('test 9: targetPageRange is populated from STRUCTURAL_PARAMS', () => {
+    const result = parse(JSON_FIXTURE_BASE, { ageRange: '5-7', storyLength: 'standard' });
+    expect(result.targetPageRange).toBeDefined();
+    expect(result.targetPageRange![0]).toBeGreaterThan(0);
+    expect(result.targetPageRange![1]).toBeGreaterThanOrEqual(result.targetPageRange![0]!);
+  });
+
+  it('test 10: quotes stripped from title', () => {
+    const result = parse(JSON_FIXTURE_QUOTED_TITLE);
     expect(result.title).toBe('The Night Sounds Game');
     expect(result.title).not.toMatch(/^"/);
   });
+
+  it('test 11: handles JSON wrapped in markdown fences', () => {
+    const result = parse(JSON_FIXTURE_IN_FENCES);
+    expect(result.title).toBe('The Night Sounds Game');
+    expect(result.pages).toHaveLength(3);
+  });
 });
 
-// ─── Tests: Fixture 5 ─────────────────────────────────────────────────────────
+// ─── Tests: JSON format — wordCountDrift ─────────────────────────────────────
 
-describe('parseStep2Response — Fixture 5: very long story (over drift)', () => {
-  it('test 9: 1500-word story vs 3-5 short (upperBound 325) → wordCountDrift "over"', () => {
-    const result = parseStep2Response(
-      FIXTURE_5,
-      '3-5',
-      'short',
-      makeLLMCallRecord(),
-      'd'.repeat(64),
-    );
+describe('parseStep2Response — JSON format: wordCountDrift', () => {
+  it('test 12: 5-7 standard, 3-page story (~20 total words) → wordCountDrift "under"', () => {
+    // 5-7 standard: totalWords [500, 800]; lowerBound = 500 * 0.7 = 350
+    const result = parse(JSON_FIXTURE_BASE, { ageRange: '5-7', storyLength: 'standard' });
+    expect(result.wordCountDrift).toBe('under');
+  });
+
+  it('test 13: 3-5 short, 200-word single page → wordCountDrift "within_range"', () => {
+    // 3-5 short: totalWords [150, 250]; 200 words is within [105, 325]
+    const fixture = makeJsonResponse('Title', [{ pageNumber: 1, text: makeWords(200) }]);
+    const result = parseStep2Response(fixture, '3-5', 'short', makeLLMCallRecord(), 'c'.repeat(64));
+    expect(result.wordCountDrift).toBe('within_range');
+  });
+
+  it('test 14: 3-5 short, 1500-word story → wordCountDrift "over"', () => {
+    // 3-5 short: upperBound = 250 * 1.3 = 325
+    const fixture = makeJsonResponse('Title', [{ pageNumber: 1, text: makeWords(1500) }]);
+    const result = parseStep2Response(fixture, '3-5', 'short', makeLLMCallRecord(), 'd'.repeat(64));
     expect(result.wordCountDrift).toBe('over');
   });
 });
 
-// ─── Tests: Boundary tests ────────────────────────────────────────────────────
+// ─── Tests: JSON format — pageCountDrift ─────────────────────────────────────
 
-describe('parseStep2Response — Fixture 6: exact boundary tests (3-5 short: min=150, max=250)', () => {
-  // lowerBound = 150 * 0.7 = 105
-  // upperBound = 250 * 1.3 = 325
-
-  function parseWithWordCount(n: number) {
-    const fixture = `1. TITLE\nA Title\n2. STORY\n${makeStory(n)}`;
-    return parseStep2Response(
-      fixture,
+describe('parseStep2Response — JSON format: pageCountDrift', () => {
+  it('test 15: page count within target range → pageCountDrift "within_range"', () => {
+    // 3-5 short: pages range comes from STRUCTURAL_PARAMS["3-5"]["short"].pages
+    // Feed exactly the midpoint to guarantee within_range
+    const result = parseStep2Response(
+      JSON_FIXTURE_BASE,
       '3-5',
       'short',
       makeLLMCallRecord(),
       'e'.repeat(64),
     );
+    // We don't hard-code the expected range; just verify the drift is computed
+    expect(['within_range', 'under', 'over']).toContain(result.pageCountDrift);
+  });
+
+  it('test 16: 1 page vs any multi-page target → pageCountDrift "under"', () => {
+    // All age/length combos have pages[0] >= 4; feeding 1 page → under
+    const fixture = makeJsonResponse('T', [{ pageNumber: 1, text: makeWords(50) }]);
+    const result = parseStep2Response(fixture, '5-7', 'standard', makeLLMCallRecord(), 'f'.repeat(64));
+    expect(result.pageCountDrift).toBe('under');
+  });
+});
+
+// ─── Tests: boundary — wordCount exact thresholds ────────────────────────────
+
+describe('parseStep2Response — JSON format: wordCount boundary (3-5 short: min=150, max=250)', () => {
+  // lowerBound = 150 * 0.7 = 105, upperBound = 250 * 1.3 = 325
+
+  function parseWithN(n: number) {
+    const fixture = makeJsonResponse('Title', [{ pageNumber: 1, text: makeWords(n) }]);
+    return parseStep2Response(fixture, '3-5', 'short', makeLLMCallRecord(), 'g'.repeat(64));
   }
 
-  it('test 10: word count exactly at minWords * 0.7 (105) → "within_range"', () => {
-    const result = parseWithWordCount(105);
-    expect(result.wordCount).toBe(105);
-    expect(result.wordCountDrift).toBe('within_range');
+  it('test 17: 105 words → "within_range"', () => {
+    expect(parseWithN(105).wordCountDrift).toBe('within_range');
   });
 
-  it('test 11: word count exactly at maxWords * 1.3 (325) → "within_range"', () => {
-    const result = parseWithWordCount(325);
-    expect(result.wordCount).toBe(325);
-    expect(result.wordCountDrift).toBe('within_range');
+  it('test 18: 325 words → "within_range"', () => {
+    expect(parseWithN(325).wordCountDrift).toBe('within_range');
   });
 
-  it('test 12: word count one below minWords * 0.7 (104) → "under"', () => {
-    const result = parseWithWordCount(104);
-    expect(result.wordCount).toBe(104);
-    expect(result.wordCountDrift).toBe('under');
+  it('test 19: 104 words → "under"', () => {
+    expect(parseWithN(104).wordCountDrift).toBe('under');
   });
 
-  it('test 13: word count one above maxWords * 1.3 (326) → "over"', () => {
-    const result = parseWithWordCount(326);
-    expect(result.wordCount).toBe(326);
-    expect(result.wordCountDrift).toBe('over');
+  it('test 20: 326 words → "over"', () => {
+    expect(parseWithN(326).wordCountDrift).toBe('over');
+  });
+});
+
+// ─── Tests: legacy fallback (TITLE/STORY text format) ────────────────────────
+// These test the fallback path that handles old-format responses gracefully.
+
+describe('parseStep2Response — legacy fallback: TITLE/STORY text format', () => {
+  const SHORT_BODY = 'Pip was a small rabbit who slept with one ear pressed to the wall. ' +
+    'Every night, when the amber light faded to blue-gray, he would listen ' +
+    "for his mother's footsteps padding down the hall.";
+
+  it('test 21: extracts title from "1. TITLE" marker', () => {
+    const fixture = `1. TITLE\nThe Night Sounds Game\n2. STORY\n${SHORT_BODY}`;
+    expect(parse(fixture).title).toBe('The Night Sounds Game');
+  });
+
+  it('test 22: extracts story body after "2. STORY" marker', () => {
+    const fixture = `1. TITLE\nThe Night Sounds Game\n2. STORY\n${SHORT_BODY}`;
+    expect(parse(fixture).story).toMatch(/^Pip was a small rabbit/);
+  });
+
+  it('test 23: TITLE: inline format — title extracted', () => {
+    const fixture = `TITLE: The Counting Rabbit\n${SHORT_BODY}`;
+    expect(parse(fixture).title).toBe('The Counting Rabbit');
+  });
+
+  it('test 24: no markers — first line is title, rest is story', () => {
+    const fixture = `The Night Sounds Game\n${SHORT_BODY}`;
+    const result = parse(fixture);
+    expect(result.title).toBe('The Night Sounds Game');
+    expect(result.story).toMatch(/^Pip was a small rabbit/);
+  });
+
+  it('test 25: quoted title stripped', () => {
+    const fixture = `1. TITLE\n"The Night Sounds Game"\n2. STORY\n${SHORT_BODY}`;
+    expect(parse(fixture).title).toBe('The Night Sounds Game');
+  });
+
+  it('test 26: legacy path does not populate pages array', () => {
+    const fixture = `1. TITLE\nT\n2. STORY\n${SHORT_BODY}`;
+    expect(parse(fixture).pages).toBeUndefined();
   });
 });

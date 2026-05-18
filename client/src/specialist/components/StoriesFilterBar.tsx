@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import TextField from "@mui/material/TextField";
@@ -9,6 +9,8 @@ import Select, { SelectChangeEvent } from "@mui/material/Select";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
 
+import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
+import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
 import { Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import { STATUS_CHIP_COLORS } from "./statusColors";
@@ -42,12 +44,17 @@ type SortValue =
   | "createdAt_asc"
   | "title_asc";
 
-const SORT_OPTIONS: { value: SortValue; label: string }[] = [
-  { value: "lastOpenedAt_desc", label: "Last activity" },
-  { value: "createdAt_desc", label: "Newest first" },
-  { value: "createdAt_asc", label: "Oldest first" },
-  { value: "title_asc", label: "Title (A–Z)" },
-];
+function buildSortOptions(desk: SpecialistDeskUi): {
+  value: SortValue;
+  label: string;
+}[] {
+  return [
+    { value: "lastOpenedAt_desc", label: desk.sortLastActivity },
+    { value: "createdAt_desc", label: desk.sortNewestFirst },
+    { value: "createdAt_asc", label: desk.sortOldestFirst },
+    { value: "title_asc", label: desk.sortTitleAZ },
+  ];
+}
 
 function encodeSortValue(
   sortBy: string,
@@ -81,57 +88,62 @@ interface ChipConfig {
   };
 }
 
-/** Actionable statuses where a count badge helps prioritization (not Generating / Approved / Archived). */
-const STATUSES_WITH_COUNT_BADGE: ReadonlySet<StoryStatus> = new Set<StoryStatus>([
-  "awaiting_review",
-  "in_review",
-  "draft_brief",
-  "needs_revision",
-]);
-
-function showCountBadge(status: StoryStatus | null): boolean {
-  return status !== null && STATUSES_WITH_COUNT_BADGE.has(status);
+/** Every chip shows a live count (design: “Awaiting review 1”, “All 8”). */
+function chipLabelWithCount(label: string, count: number): string {
+  return `${label} ${count}`;
 }
 
 /** Specialist-priority order: needs you now → soon → in progress → system → done → archive. */
-const CHIP_CONFIGS: ChipConfig[] = [
-  { label: "All", status: null, color: STATUS_CHIP_COLORS.all },
-  {
-    label: "Awaiting review",
-    status: "awaiting_review",
-    color: STATUS_CHIP_COLORS.awaiting_review,
-  },
-  {
-    label: "In review",
-    status: "in_review",
-    color: STATUS_CHIP_COLORS.in_review,
-  },
-  {
-    label: "Brief in progress",
-    status: "draft_brief",
-    color: STATUS_CHIP_COLORS.draft_brief,
-  },
-  {
-    label: "Generating",
-    status: "generating",
-    color: STATUS_CHIP_COLORS.generating,
-  },
-  {
-    label: "Needs revision",
-    status: "needs_revision",
-    color: STATUS_CHIP_COLORS.needs_revision,
-  },
-  {
-    label: "Approved",
-    status: "approved",
-    color: STATUS_CHIP_COLORS.approved,
-  },
-  {
-    label: "Archived",
-    status: "archived",
-    color: STATUS_CHIP_COLORS.archived,
-  },
-];
+function buildChipConfigs(desk: SpecialistDeskUi): ChipConfig[] {
+  return [
+    { label: desk.chipAll, status: null, color: STATUS_CHIP_COLORS.all },
+    {
+      label: desk.chipAwaitingReview,
+      status: "awaiting_review",
+      color: STATUS_CHIP_COLORS.awaiting_review,
+    },
+    {
+      label: desk.chipInReview,
+      status: "in_review",
+      color: STATUS_CHIP_COLORS.in_review,
+    },
+    {
+      label: desk.chipBriefInProgress,
+      status: "draft_brief",
+      color: STATUS_CHIP_COLORS.draft_brief,
+    },
+    {
+      label: desk.chipGenerating,
+      status: "generating",
+      color: STATUS_CHIP_COLORS.generating,
+    },
+    {
+      label: desk.chipNeedsRevision,
+      status: "needs_revision",
+      color: STATUS_CHIP_COLORS.needs_revision,
+    },
+    {
+      label: desk.chipApproved,
+      status: "approved",
+      color: STATUS_CHIP_COLORS.approved,
+    },
+    {
+      label: desk.chipIllustrationWorkspace,
+      status: "illustration_workspace",
+      color: STATUS_CHIP_COLORS.illustration_workspace,
+    },
+    {
+      label: desk.chipIllustrationReady,
+      status: "illustration_ready",
+      color: STATUS_CHIP_COLORS.illustration_ready,
+    },
+    {
+      label: desk.chipArchived,
+      status: "archived",
+      color: STATUS_CHIP_COLORS.archived,
+    },
+  ];
+}
 
 const DEBOUNCE_MS = 200;
 
@@ -149,6 +161,10 @@ export default function StoriesFilterBar({
   sortDir,
   onSortChange,
 }: StoriesFilterBarProps) {
+  const desk = useSpecialistDeskUi();
+  const CHIP_CONFIGS = useMemo(() => buildChipConfigs(desk), [desk]);
+  const SORT_OPTIONS = useMemo(() => buildSortOptions(desk), [desk]);
+
   // ---- local search input value (debounced before calling onSearchChange) --
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -241,57 +257,65 @@ export default function StoriesFilterBar({
       <Box
         sx={{
           display: "flex",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           gap: 1,
-          overflowX: "auto",
           flex: { md: 1 },
-          // Hide scrollbar while still allowing scroll
-          scrollbarWidth: "none",
-          "&::-webkit-scrollbar": { display: "none" },
           pb: { xs: 0.5, md: 0 },
         }}
       >
         {CHIP_CONFIGS.map((cfg) => {
           const active = isChipActive(cfg.status);
           const count = chipCount(cfg.status);
-          /** Filled blue when there is a queue and this chip is not the active filter. */
-          const awaitingReviewBlueHighlight =
+          /** Warm highlight when a queue needs attention and this chip is not selected. */
+          const awaitingGoldHighlight =
             cfg.status === "awaiting_review" && count > 0 && !active;
-          const needsRevisionBlueHighlight =
+          const needsRoseHighlight =
             cfg.status === "needs_revision" && count > 0 && !active;
-          const attentionBlueHighlight =
-            awaitingReviewBlueHighlight || needsRevisionBlueHighlight;
-          const useFilledAppearance = active || attentionBlueHighlight;
+          const attentionHighlight =
+            awaitingGoldHighlight || needsRoseHighlight;
+          const useFilledAppearance = active || attentionHighlight;
           const dimmed = count === 0 && cfg.status !== null;
           const col = cfg.color;
-          const label = showCountBadge(cfg.status)
-            ? `${cfg.label} (${count})`
-            : cfg.label;
+          const label = chipLabelWithCount(cfg.label, count);
 
-          const filledSx = attentionBlueHighlight
+          const filledSx = awaitingGoldHighlight
             ? {
-                bgcolor: "#1976d2",
-                color: "#fff",
+                bgcolor: COLORS.warningSoft,
+                color: "#7a5a1e",
                 border: "none",
                 "&:hover": {
-                  bgcolor: "#1565c0",
+                  bgcolor: COLORS.warningSoft,
+                  opacity: 0.92,
                 },
-                "& .MuiChip-label": { color: "#fff" },
+                "& .MuiChip-label": { color: "#7a5a1e" },
               }
-            : {
-                bgcolor: col.filledBg.trim(),
-                color: col.filledText.trim(),
-                border: "none",
-                "&:hover": {
+            : needsRoseHighlight
+              ? {
+                  bgcolor: STATUS_CHIP_COLORS.needs_revision.filledBg,
+                  color: STATUS_CHIP_COLORS.needs_revision.filledText,
+                  border: "none",
+                  "&:hover": {
+                    bgcolor: STATUS_CHIP_COLORS.needs_revision.filledBg,
+                    opacity: 0.92,
+                  },
+                  "& .MuiChip-label": {
+                    color: STATUS_CHIP_COLORS.needs_revision.filledText,
+                  },
+                }
+              : {
                   bgcolor: col.filledBg.trim(),
-                  opacity: 0.88,
-                },
-                "& .MuiChip-label": { color: col.filledText.trim() },
-              };
+                  color: col.filledText.trim(),
+                  border: "none",
+                  "&:hover": {
+                    bgcolor: col.filledBg.trim(),
+                    opacity: 0.88,
+                  },
+                  "& .MuiChip-label": { color: col.filledText.trim() },
+                };
 
           return (
             <Chip
-              key={cfg.label}
+              key={cfg.status ?? "all"}
               label={label}
               variant={useFilledAppearance ? "filled" : "outlined"}
               onClick={() => handleChipClick(cfg.status)}
@@ -323,6 +347,8 @@ export default function StoriesFilterBar({
 
       {/* ---- Search + sort row ---- */}
       <Box
+        component="section"
+        aria-label={desk.filterAriaLabel}
         sx={{
           display: "flex",
           flexDirection: "row",
@@ -334,7 +360,7 @@ export default function StoriesFilterBar({
         {/* Search box */}
         <TextField
           size="small"
-          placeholder="Search by title, population, or trigger..."
+          placeholder={desk.searchPlaceholder}
           value={localSearch}
           onChange={handleSearchInput}
           sx={{
@@ -362,7 +388,7 @@ export default function StoriesFilterBar({
                   size="small"
                   onClick={handleClearSearch}
                   edge="end"
-                  aria-label="Clear search"
+                  aria-label={desk.clearSearchAria}
                   sx={{ color: COLORS.textSecondary }}
                 >
                   <ClearIcon fontSize="small" />
@@ -378,8 +404,12 @@ export default function StoriesFilterBar({
           value={currentSortValue}
           onChange={handleSortChange}
           displayEmpty
+          renderValue={(value) => {
+            const opt = SORT_OPTIONS.find((o) => o.value === value);
+            return opt ? `${desk.sortLabelPrefix}${opt.label}` : "";
+          }}
           sx={{
-            minWidth: 150,
+            minWidth: 168,
             borderRadius: "10px",
             bgcolor: COLORS.surface,
             "& .MuiOutlinedInput-notchedOutline": {
@@ -392,10 +422,13 @@ export default function StoriesFilterBar({
               borderColor: COLORS.primary,
             },
             fontSize: "0.875rem",
+            color: COLORS.textSecondary,
+            fontWeight: 500,
           }}
         >
           {SORT_OPTIONS.map((opt) => (
             <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: "0.875rem" }}>
+              {desk.sortLabelPrefix}
               {opt.label}
             </MenuItem>
           ))}

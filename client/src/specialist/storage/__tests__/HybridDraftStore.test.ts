@@ -65,6 +65,12 @@ function makeStory(overrides: Partial<Story> = {}): Story {
     lastOpenedAt: overrides.lastOpenedAt ?? now,
     submittedAt: overrides.submittedAt ?? null,
     approvedAt: overrides.approvedAt ?? null,
+    pages: overrides.pages ?? null,
+    publishedAt: overrides.publishedAt ?? null,
+    publishedTemplateId: overrides.publishedTemplateId ?? null,
+    illustrationPages: overrides.illustrationPages ?? null,
+    currentVisualBibleVersion: overrides.currentVisualBibleVersion ?? null,
+    illustrationWorkspaceOpenedAt: overrides.illustrationWorkspaceOpenedAt ?? null,
   };
 }
 
@@ -255,14 +261,14 @@ describe("HybridDraftStore", () => {
       expect(mockApi.getStory).toHaveBeenCalledWith("same-id");
     });
 
-    it("excludes archived stories by default", async () => {
+    it("returns all local stories when API returns empty (UI filters archived)", async () => {
       const active = makeStory({ id: "active", status: "draft_brief" });
       const archived = makeStory({ id: "archived", status: "archived" });
       seedLocalStories([active, archived]);
 
       const stories = await store.listStories();
 
-      expect(stories.map((s) => s.id)).toEqual(["active"]);
+      expect(stories.map((s) => s.id).sort()).toEqual(["active", "archived"].sort());
     });
 
     it("returns only archived stories when statuses filter includes archived", async () => {

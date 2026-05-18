@@ -1,10 +1,10 @@
-// Story Brief UI strings — English (from types/storyBrief) + Hebrew (storyBriefUiHebrew).
-// Arabic uses Hebrew brief copy (RTL), matching app-wide ar → he fallback.
+// Story Brief UI strings — English (from types/storyBrief) + Hebrew + Arabic.
 
 import { useMemo } from "react";
 import * as SB from "../types/storyBrief";
 import type { SubmitGateItem } from "../validation/briefSubmitGate";
 import { useLanguage } from "./context/useLanguage";
+import { STORY_BRIEF_UI_AR } from "./storyBriefUiArabic";
 import { STORY_BRIEF_UI_HE } from "./storyBriefUiHebrew";
 import type { CopingToolCategoryUi, PopulationThinkingScaffoldUi, StoryBriefUi } from "./storyBriefUi.types";
 
@@ -166,6 +166,10 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     s2IntentionAriaBecause: "because",
     s2StrongExamples: "Strong examples",
     s2AvoidThis: "Avoid this",
+    s2IntentionExampleFeelCue: "feel",
+    s2IntentionExampleBecauseCue: "because",
+    s2IntentionExampleQuoteOpen: '"…',
+    s2IntentionExampleQuoteClose: '"',
     s2Field24: "Clinical creative vision",
     s2Field24Helper:
       "Describe one specific image, moment, or detail you see at the heart of this story. Not a mood — a scene. This image should support your therapeutic approach, not replace it. What is happening, who is there, what does the child notice?",
@@ -427,16 +431,19 @@ const STORY_BRIEF_UI_EN = buildEnglishStoryBriefUi();
 
 export function useStoryBriefUi(): StoryBriefUi {
   const { language } = useLanguage();
-  return useMemo(
-    () => (language === "en" ? STORY_BRIEF_UI_EN : STORY_BRIEF_UI_HE),
-    [language],
-  );
+  return useMemo(() => {
+    if (language === "en") return STORY_BRIEF_UI_EN;
+    if (language === "ar") return STORY_BRIEF_UI_AR;
+    return STORY_BRIEF_UI_HE;
+  }, [language]);
 }
 
 /** Locale for formatting dates in the brief chrome (saved draft / history). */
 export function useBriefDateLocale(): string {
   const { language } = useLanguage();
-  return language === "en" ? "en-US" : "he-IL";
+  if (language === "en") return "en-US";
+  if (language === "ar") return "ar-SA";
+  return "he-IL";
 }
 
 export function formatBriefSavedAt(timestamp: number, locale: string): string {
@@ -450,6 +457,10 @@ export function formatBriefSavedAt(timestamp: number, locale: string): string {
   if (locale.startsWith("he")) {
     if (isToday) return `היום ב-${time}`;
     return `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })} ב-${time}`;
+  }
+  if (locale.startsWith("ar")) {
+    if (isToday) return `اليوم في ${time}`;
+    return `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })} في ${time}`;
   }
   if (isToday) return `Today at ${time}`;
   return `${d.toLocaleDateString(locale, { month: "short", day: "numeric" })} at ${time}`;

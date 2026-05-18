@@ -13,6 +13,7 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import CheckIcon from "@mui/icons-material/Check";
 
+import type { Agent1ApprovedPartToken } from "../../../api/specialistStories";
 import type { StoryDraft } from "../../../types/story";
 import type { Agent1Result } from "../../../types/agent1Result";
 import type { StoryType } from "../../../types/storyBrief";
@@ -32,7 +33,12 @@ import {
   countUndismissedFlags,
   mustNeverFlaggedForIndex,
 } from "./shared";
-import { DRAFT_B, FONTS, RAIL_WIDTH_DEFAULT } from "./tokens";
+import { DRAFT_B, FONTS, MANUSCRIPT_MAX_WIDTH, RAIL_WIDTH_DEFAULT } from "./tokens";
+
+type SnackbarState = {
+  message: string;
+  severity: "success" | "error" | "info" | "warning";
+};
 
 const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
   fear_anxiety: "Fear & Anxiety",
@@ -70,7 +76,8 @@ export default function DraftTabB({
   const [regenDialogOpen, setRegenDialogOpen] = useState(false);
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenSubmitting, setRegenSubmitting] = useState(false);
-  const [snackbar, setSnackbar] = useState<string | null>(null);
+  const [promptGenerationSubmitting, setPromptGenerationSubmitting] = useState(false);
+  const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
   const [activeRailTab, setActiveRailTab] = useState<"safety" | "reasoning" | "tools">(() => {
@@ -85,7 +92,7 @@ export default function DraftTabB({
 
   const [hoveredFlagIndex, setHoveredFlagIndex] = useState<number | null>(null);
 
-  const [storyFont, setStoryFont] = useState<"serif" | "sans">(() => {
+  const [storyFont] = useState<"serif" | "sans">(() => {
     try {
       const v = sessionStorage.getItem(FONT_STORAGE_KEY);
       if (v === "sans" || v === "serif") return v;
@@ -145,7 +152,10 @@ export default function DraftTabB({
       setLastSavedAt(Date.now());
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to save.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to save.",
+        severity: "error",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -249,17 +259,32 @@ export default function DraftTabB({
         const opened = await draftStore.transitionStatus(story.id, "in_review");
         onStoryUpdate(opened);
       }
-      const updatedStory = await draftStore.transitionStatus(
+      const approvedParts: Agent1ApprovedPartToken[] = [];
+      if (!feedback.emotionalTruth?.trim()) {
+        approvedParts.push("emotionalTruth");
+      }
+      if (!feedback.blueprint?.trim()) {
+        approvedParts.push("blueprint");
+      }
+
+      const afterRevision = await draftStore.transitionStatus(
         story.id,
         "needs_revision",
         { feedback: trimmed },
       );
-      onStoryUpdate(updatedStory);
+      onStoryUpdate(afterRevision);
+
+      const finalStory = await draftStore.runAgent1Regeneration(story.id, {
+        feedbackText: trimmed,
+        approvedParts,
+      });
+      onStoryUpdate(finalStory);
       handleRegenDialogClose();
     } catch (err) {
-      setSnackbar(
-        err instanceof Error ? err.message : "Failed to request regeneration.",
-      );
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to request regeneration.",
+        severity: "error",
+      });
     } finally {
       setRegenSubmitting(false);
     }
@@ -274,7 +299,10 @@ export default function DraftTabB({
       const updatedStory = await draftStore.transitionStatus(story.id, "approved");
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to approve story.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to approve story.",
+        severity: "error",
+      });
     }
   }
 
@@ -283,8 +311,24 @@ export default function DraftTabB({
       const updatedStory = await draftStore.transitionStatus(story.id, "in_review");
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to reopen story.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to reopen story.",
+        severity: "error",
+      });
     }
+  }
+
+  async function handleGenerateImagePrompts() {
+    // Cleanup PR 1: the v1 "Generate image prompts" action moved the story to
+    // `prompt_review`. Phase 1 of the v2 illustration redesign will replace
+    // this with a transition to `illustration_workspace`. For now this is a
+    // no-op so the draft tab keeps building.
+    setSnackbar({
+      message:
+        "Illustration workspace is being rebuilt under the v2 spec — see docs/illustration/spec.md.",
+      severity: "info",
+    });
+    setPromptGenerationSubmitting(false);
   }
 
   async function handleRestore() {
@@ -292,7 +336,10 @@ export default function DraftTabB({
       const updatedStory = await draftStore.transitionStatus(story.id, "draft_brief");
       onStoryUpdate(updatedStory);
     } catch (err) {
-      setSnackbar(err instanceof Error ? err.message : "Failed to restore story.");
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to restore story.",
+        severity: "error",
+      });
     }
   }
 
@@ -355,6 +402,44 @@ export default function DraftTabB({
   }
 
   if (!story.agent1Result) {
+    // Story was manually authored — show currentDraft in the same manuscript layout,
+    // read-only, without the version timeline or right rail.
+    if (story.currentDraft) {
+      return (
+        <Box sx={{ background: DRAFT_B.paper, minHeight: "100%", display: "flex", flexDirection: "column" }}>
+          <Box sx={{ display: "flex", flex: 1 }}>
+            <Box sx={{ padding: "36px 48px 140px", display: "flex", justifyContent: "center", flex: 1 }}>
+              <Box sx={{ width: "100%", maxWidth: `${MANUSCRIPT_MAX_WIDTH}px`, position: "relative" }}>
+                <ManuscriptEditor
+                  title={story.currentDraft.title}
+                  body={story.currentDraft.body}
+                  onTitleChange={() => {}}
+                  onBodyChange={() => {}}
+                  textareaRef={textareaRef}
+                  readOnly={true}
+                  storyFont={storyFont}
+                  meta={{
+                    ageRange: story.ageRange != null ? AGE_RANGE_LABELS[story.ageRange] : "",
+                    storyTypeLabel: STORY_TYPE_LABELS[story.storyType] ?? "",
+                    copingToolLabel:
+                      story.brief.section3?.copingTool != null
+                        ? COPING_TOOL_LABELS[story.brief.section3.copingTool]
+                        : null,
+                  }}
+                  versionNumber={1}
+                  flags={[]}
+                  dismissedFlags={new Set()}
+                  hoveredFlagIndex={null}
+                  onFlagMarkerClick={() => {}}
+                  onParagraphHover={() => {}}
+                  mode="read"
+                />
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      );
+    }
     return (
       <Paper sx={{ p: 3, mt: 2 }}>
         <Typography variant="body2" color="text.secondary">
@@ -367,8 +452,10 @@ export default function DraftTabB({
   const displayedResult: Agent1Result =
     versions[selectedVersionIndex] ?? story.agent1Result;
 
-  const isReadOnly =
-    story.status === "approved" || story.status === "archived";
+  const isReadOnly = !(
+    story.status === "awaiting_review" ||
+    story.status === "in_review"
+  );
 
   const [targetMin, targetMax] = displayedResult.targetWordRange;
 
@@ -564,9 +651,32 @@ export default function DraftTabB({
                     {new Date(story.approvedAt).toLocaleString()}
                   </Typography>
                 ) : null}
-                <Button variant="text" size="small" onClick={() => void handleReopen()}>
-                  Reopen for editing
-                </Button>
+                {story.status === "approved" ? (
+                  <>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      disabled={promptGenerationSubmitting}
+                      onClick={() => void handleGenerateImagePrompts()}
+                    >
+                      {promptGenerationSubmitting ? (
+                        <>
+                          <CircularProgress size={14} thickness={5} color="inherit" sx={{ mr: 1 }} />
+                          Starting…
+                        </>
+                      ) : (
+                        "Generate image prompts"
+                      )}
+                    </Button>
+                    <Button variant="text" size="small" onClick={() => void handleReopen()}>
+                      Reopen for editing
+                    </Button>
+                  </>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    Image prompt generation in progress.
+                  </Typography>
+                )}
               </Box>
             )}
           </Box>
@@ -599,7 +709,7 @@ export default function DraftTabB({
       </Box>
 
       {/* ── Floating approve bar (sticky bottom) ──────────────────────── */}
-      {story.status !== "archived" && story.status !== "approved" && (
+      {(story.status === "awaiting_review" || story.status === "in_review") && (
         <ApproveBar
           checks={checks}
           canApprove={canApprove}
@@ -683,8 +793,8 @@ export default function DraftTabB({
         onClose={() => setSnackbar(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        <Alert severity="error" onClose={() => setSnackbar(null)} sx={{ width: "100%" }}>
-          {snackbar}
+        <Alert severity={snackbar?.severity ?? "info"} onClose={() => setSnackbar(null)} sx={{ width: "100%" }}>
+          {snackbar?.message}
         </Alert>
       </Snackbar>
     </Box>

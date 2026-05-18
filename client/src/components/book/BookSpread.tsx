@@ -137,8 +137,6 @@ ${BOOK_SHELL_CSS}
   padding: 4px 14px; font-family: 'Playfair Display', serif; font-size: 11px;
   letter-spacing: .14em; color: #824D5C; pointer-events: none;
 }
-.bs2-book.bs2-rtl .bs2-counter { left: auto; right: 20px; }
-
 .bs2-spine { width: 20px; height: 100%; flex-shrink: 0; z-index: 10; position: relative;
   background: linear-gradient(to right,#6F404D 0%,#5A3040 30%,#7A4858 50%,#5A3040 70%,#6F404D 100%);
   box-shadow: 2px 0 6px rgba(0,0,0,.22), -2px 0 6px rgba(0,0,0,.22); }
@@ -153,24 +151,18 @@ ${BOOK_SHELL_CSS}
 
 .bs2-right { width: 50%; height: 100%; position: relative; flex-shrink: 0; transform-style: preserve-3d; }
 
-.bs2-book.bs2-rtl { flex-direction: row-reverse; border-radius: 8px 4px 4px 8px; }
-.bs2-book.bs2-rtl .bs2-page-left { border-radius: 0 4px 4px 0; }
-.bs2-book.bs2-rtl .bs2-page-left::after { background: linear-gradient(to left, transparent 68%, rgba(90,48,64,.18) 85%, rgba(90,48,64,.3) 100%); }
-/* RTL: fan stacks stay inset from each edge (BOOK_SHELL_CSS); layout is symmetric.
-   Border radius flips to match RTL book orientation. */
-.bs2-book.bs2-rtl .bs2-flip { transform-origin: right center; }
-.bs2-book.bs2-rtl .bs2-flip.bs2-flipped { transform: rotateY(180deg); }
-.bs2-book.bs2-rtl .bs2-flip-back { transform: rotateY(-180deg); }
-.bs2-book.bs2-rtl .bs2-flip-front::after { background: linear-gradient(to left, rgba(30,15,5,.14) 0%, transparent 20%); }
-.bs2-book.bs2-rtl .bs2-fold-shadow { left: auto; right: 0; background: linear-gradient(to left, rgba(0,0,0,.2), transparent); }
+/* Hebrew/Arabic stories: keep spread layout image-left / text-right (same as LTR shell);
+   only the story body runs RTL. */
 .bs2-book.bs2-rtl .bs2-story-text { direction: rtl; font-family: 'Frank Ruhl Libre', serif; font-style: normal; }
 
 .bs2-under {
   position: absolute; inset: 0;
   background: linear-gradient(135deg,#F7F2EC 0%,#EFE7DE 100%);
   border-radius: 0 8px 8px 0; z-index: 1;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 44px 40px; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 44px 40px 48px;
+  overflow-x: hidden; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .bs2-under::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .6;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.038'/%3E%3C/svg%3E"); }
@@ -186,9 +178,11 @@ ${BOOK_SHELL_CSS}
 .bs2-flip-front {
   position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden;
   background: linear-gradient(135deg,#F7F2EC 0%,#EFE7DE 100%);
-  border-radius: 0 8px 8px 0; overflow: hidden;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 44px 40px;
+  border-radius: 0 8px 8px 0;
+  overflow-x: hidden; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  padding: 44px 40px 48px;
 }
 .bs2-flip-front::before { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: .6;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.038'/%3E%3C/svg%3E"); }
@@ -278,8 +272,6 @@ ${BOOK_SHELL_CSS}
     box-shadow: none;
     overflow: hidden;
   }
-  .bs2-book.bs2-rtl { flex-direction: row; }
-
   /* Illustration fills the entire screen */
   .bs2-page-left {
     position: absolute;
@@ -559,35 +551,35 @@ const CornerOrn = ({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) => (
 
 /* Inline icons — no external dep, streaming-safe */
 const Icon = {
-  close: () => (
+  Close: () => (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
       <path d="M5 5l10 10M15 5l-10 10" />
     </svg>
   ),
-  speaker: () => (
+  Speaker: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <path d="M3 8v4h3l4 3V5L6 8H3z" />
       <path d="M13 7a4 4 0 010 6" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
       <path d="M15 5a7 7 0 010 10" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
     </svg>
   ),
-  pause: () => (
+  Pause: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <rect x="5" y="4" width="3.4" height="12" rx="1" />
       <rect x="11.6" y="4" width="3.4" height="12" rx="1" />
     </svg>
   ),
-  play: () => (
+  Play: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <path d="M6 4l10 6-10 6V4z" />
     </svg>
   ),
-  stop: () => (
+  Stop: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <rect x="5" y="5" width="10" height="10" rx="1.5" />
     </svg>
   ),
-  autoplay: () => (
+  Autoplay: () => (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
       <circle cx="10" cy="10" r="7.5" />
       <path d="M8.5 7.2v5.6L13 10z" fill="currentColor" stroke="none" />
@@ -671,7 +663,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
       void node.offsetHeight;
       node.style.animation = "bs2-fadeIn .4s ease forwards";
     }
-  }, [page.pageNumber, page.textTemplate, page.imageUrl]);
+  }, [page]);
 
   const triggerFlip = useCallback(
     (direction: "next" | "prev") => {
@@ -727,7 +719,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     if (dragStartRef.current === null || isFlipping) return;
     const flipEl = flipRef.current;
     if (!flipEl) return;
-    const dx = isRTL ? dragStartRef.current - e.clientX : e.clientX - dragStartRef.current;
+    const dx = e.clientX - dragStartRef.current;
     const r = Math.max(0, Math.min(1, -dx / DRAG_RANGE));
     if (r > 0.02) {
       flipEl.style.transition = "none";
@@ -737,7 +729,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragStartRef.current === null) return;
     const flipEl = flipRef.current;
-    const dx = isRTL ? dragStartRef.current - e.clientX : e.clientX - dragStartRef.current;
+    const dx = e.clientX - dragStartRef.current;
     if (flipEl) {
       flipEl.style.transform = "";
       flipEl.style.transition = `transform ${FLIP_DURATION_MS}ms cubic-bezier(0.645,0.045,0.355,1)`;
@@ -752,7 +744,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     triggerFlip("next");
   };
 
-  // Mobile swipe-to-turn (RTL-aware)
+  // Mobile swipe-to-turn (spread is always image-left / text-right)
   const onMobileTouchStart = (e: React.TouchEvent) => {
     if (window.innerWidth > 768) return;
     swipeTouchRef.current = e.touches[0].clientX;
@@ -761,8 +753,8 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     if (window.innerWidth > 768 || swipeTouchRef.current === null) return;
     const dx = swipeTouchRef.current - e.changedTouches[0].clientX;
     if (Math.abs(dx) > 44) {
-      if (dx > 0) triggerFlip(isRTL ? "prev" : "next");
-      else        triggerFlip(isRTL ? "next" : "prev");
+      if (dx > 0) triggerFlip("next");
+      else triggerFlip("prev");
     }
     swipeTouchRef.current = null;
   };
@@ -802,7 +794,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.labels.close}
                 type="button"
               >
-                <Icon.close />
+                <Icon.Close />
               </button>
               <span className="bs2-mobile-controls-title">{title}</span>
               <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden />
@@ -817,7 +809,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.labels.read}
                 type="button"
               >
-                <Icon.speaker />
+                <Icon.Speaker />
               </button>
               <button
                 className="bs2-mobile-iconbtn"
@@ -826,7 +818,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.isPaused ? mobileControls.labels.resume : mobileControls.labels.pause}
                 type="button"
               >
-                {mobileControls.isPaused ? <Icon.play /> : <Icon.pause />}
+                {mobileControls.isPaused ? <Icon.Play /> : <Icon.Pause />}
               </button>
               <button
                 className="bs2-mobile-iconbtn"
@@ -835,7 +827,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.labels.stop}
                 type="button"
               >
-                <Icon.stop />
+                <Icon.Stop />
               </button>
               <button
                 className={`bs2-mobile-iconbtn ${mobileControls.autoRead ? "bs2-active" : ""}`}
@@ -844,7 +836,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-pressed={mobileControls.autoRead}
                 type="button"
               >
-                <Icon.autoplay />
+                <Icon.Autoplay />
               </button>
             </div>
 

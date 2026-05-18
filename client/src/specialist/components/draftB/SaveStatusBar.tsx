@@ -5,8 +5,13 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 
+import { useLanguage } from "../../../i18n/context/useLanguage";
+import {
+  dateLocaleForLang,
+  formatRelativeTimeMs,
+} from "../../../i18n/specialistRelativeTime";
+import { useSpecialistDeskUi } from "../../../i18n/specialistDeskUi";
 import { COLORS } from "../../../theme";
-import { formatRelativeTime } from "../StoryRow";
 import { DRAFT_B } from "./tokens";
 
 export interface SaveStatusBarProps {
@@ -28,6 +33,9 @@ export default function SaveStatusBar({
   onModeToggle,
   readOnly,
 }: SaveStatusBarProps) {
+  const desk = useSpecialistDeskUi();
+  const { language } = useLanguage();
+
   if (readOnly) return null;
 
   return (
@@ -70,7 +78,13 @@ export default function SaveStatusBar({
             <CheckCircleOutlineIcon sx={{ fontSize: 14, color: "text.secondary" }} />
             <Typography variant="body2" color="text.secondary">
               {lastSavedAt != null
-                ? `Saved ${formatRelativeTime(lastSavedAt)}`
+                ? desk.formatSavedAt(
+                    formatRelativeTimeMs(
+                      lastSavedAt,
+                      desk,
+                      dateLocaleForLang(language),
+                    ),
+                  )
                 : "All changes saved"}
             </Typography>
           </>

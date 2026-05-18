@@ -7,11 +7,12 @@
 // Deliberate divergences from the server:
 //   1. `Story.brief` is typed as `CompleteBrief` (the draft-friendly shape)
 //      instead of `StoryBrief` (the server shape). The server converts to
-//      StoryBrief internally for Agent 1.
+//      StoryBrief internally for generation.
 //   2. `createStoryForGeneration` factory is server-only and is not mirrored.
 
 import type { AgeRange, CompleteBrief, StoryType } from "./storyBrief";
 import type { Agent1Result } from "./agent1Result";
+import type { IllustrationJobType, IllustrationPage } from "./illustration";
 
 // ============================================================================
 // COLLECTION CONSTANT
@@ -23,6 +24,10 @@ export const STORIES_COLLECTION = "stories";
 // STATUS TYPES
 // ============================================================================
 
+// v2 illustration pipeline (docs/illustration/spec.md §9):
+//   approved → illustration_workspace → illustration_ready → published
+// v1's transient statuses (prompt_review, illustrating, illustration_review)
+// are removed.
 export const STORY_STATUSES = [
   "draft_brief",
   "generating",
@@ -30,6 +35,8 @@ export const STORY_STATUSES = [
   "in_review",
   "needs_revision",
   "approved",
+  "illustration_workspace",
+  "illustration_ready",
   "published",
   "archived",
 ] as const;
@@ -42,6 +49,18 @@ export const BRIEF_STATUSES = [
 ] as const;
 
 export type BriefStatus = (typeof BRIEF_STATUSES)[number];
+
+// ============================================================================
+// MANUSCRIPT PAGE TYPE
+// ============================================================================
+// Mirrors server/src/agent1/types/index.ts StoryPage. Pure manuscript shape;
+// illustration state lives in a separate Phase 1 type (IllustrationPage).
+
+export interface StoryPage {
+  pageNumber: number;
+  text: string;
+  wordCount: number;
+}
 
 // ============================================================================
 // SUPPORTING TYPES
@@ -63,7 +82,24 @@ export type EditHistoryEvent =
   | { kind: "agent1_generated"; version: number; succeeded: boolean }
   | { kind: "regeneration_requested"; feedback: string }
   | { kind: "archived" }
-  | { kind: "restored" };
+  | { kind: "restored" }
+  | { kind: "visual_bible_generated"; version: number; source: "llm" | "edit" }
+  | { kind: "visual_bible_edited"; version: number; fields: string[] }
+  | { kind: "visual_bible_regenerated"; version: number }
+  | {
+      kind: "scene_plan_generated";
+      pageNumber: number;
+      version: number;
+      withFeedback: boolean;
+      visualBibleVersion?: number;
+    }
+  | { kind: "image_generated"; pageNumber: number; version: number }
+  | { kind: "image_approved"; pageNumber: number; version: number }
+  | { kind: "image_rejected"; pageNumber: number; version: number; feedbackNote: string }
+  | { kind: "illustration_workspace_opened" }
+  | { kind: "illustration_ready_marked" }
+  | { kind: "published"; templateId: string }
+  | { kind: "job_cancelled"; jobId: string; jobType: IllustrationJobType };
 
 export interface EditHistoryEntry {
   /** UUID */
@@ -97,12 +133,27 @@ export interface Story {
   // Content
   /** On the client, briefs are always CompleteBrief (the draft-friendly
    *  shape with Partial<> sections). The server converts to StoryBrief
-   *  internally for Agent 1. */
+   *  internally for generation. */
   brief: CompleteBrief;
   agent1Result: Agent1Result | null;
   agent1Versions: Agent1Result[];
   currentDraft: StoryDraft | null;
+  /** Structured manuscript pages — null until first generation. v2: pure
+   *  manuscript; illustration state lives in a separate field added in Phase 1. */
+  pages: StoryPage[] | null;
   editHistory: EditHistoryEntry[];
+
+  // Illustration pipeline fields are introduced in Phase 1 of the v2 redesign
+  // (see docs/illustration/spec.md §10.6 / §10.7).
+
+  illustrationPages: IllustrationPage[] | null;
+  currentVisualBibleVersion: number | null;
+  illustrationWorkspaceOpenedAt: number | null;
+
+  /** ms since epoch when published to the public library (Phase 6). */
+  publishedAt: number | null;
+  /** `story_templates` document id after publish (Phase 6). */
+  publishedTemplateId: string | null;
 
   // Timestamps (ms since epoch for Firestore compatibility)
   createdAt: number;
@@ -122,22 +173,28 @@ interface Transition {
 }
 
 export const ALLOWED_TRANSITIONS: readonly Transition[] = [
-  { from: "draft_brief",     to: "generating" },
-  { from: "draft_brief",     to: "archived" },
-  { from: "generating",      to: "awaiting_review" },
-  { from: "generating",      to: "draft_brief" },
-  { from: "awaiting_review", to: "in_review" },
-  { from: "in_review",       to: "needs_revision" },
-  { from: "in_review",       to: "approved" },
-  { from: "in_review",       to: "archived" },
-  { from: "needs_revision",  to: "awaiting_review" },
-  { from: "needs_revision",  to: "in_review" },
-  { from: "approved",        to: "published" },
-  { from: "approved",        to: "in_review" },
-  { from: "approved",        to: "archived" },
-  { from: "published",       to: "archived" },
-  { from: "archived",        to: "draft_brief" },
-  { from: "archived",        to: "in_review" },
+  { from: "draft_brief",            to: "generating" },
+  { from: "draft_brief",            to: "archived" },
+  { from: "generating",             to: "awaiting_review" },
+  { from: "generating",             to: "draft_brief" },
+  { from: "awaiting_review",        to: "in_review" },
+  { from: "in_review",              to: "needs_revision" },
+  { from: "in_review",              to: "approved" },
+  { from: "in_review",              to: "archived" },
+  { from: "needs_revision",         to: "awaiting_review" },
+  { from: "needs_revision",         to: "in_review" },
+  { from: "approved",               to: "illustration_workspace" },
+  { from: "approved",               to: "in_review" },
+  { from: "approved",               to: "archived" },
+  { from: "illustration_workspace", to: "illustration_ready" },
+  { from: "illustration_workspace", to: "in_review" },
+  { from: "illustration_workspace", to: "archived" },
+  { from: "illustration_ready",     to: "illustration_workspace" },
+  { from: "illustration_ready",     to: "published" },
+  { from: "illustration_ready",     to: "archived" },
+  { from: "published",              to: "archived" },
+  { from: "archived",               to: "draft_brief" },
+  { from: "archived",               to: "in_review" },
 ] as const;
 
 export function isTransitionAllowed(

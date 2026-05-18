@@ -162,6 +162,14 @@ export interface StoryBriefUi {
   s2IntentionAriaBecause: string;
   s2StrongExamples: string;
   s2AvoidThis: string;
+  /** Inline intention examples (Section 2): cue before the feel clause, e.g. English "feel". */
+  s2IntentionExampleFeelCue: string;
+  /** Inline intention examples: cue before the because clause, e.g. English "because". */
+  s2IntentionExampleBecauseCue: string;
+  /** Opening wrapper for example line (e.g. `"` or «). */
+  s2IntentionExampleQuoteOpen: string;
+  /** Closing wrapper for example line. */
+  s2IntentionExampleQuoteClose: string;
   s2Field24: string;
   s2Field24Helper: string;
   s2Field24Placeholder: string;

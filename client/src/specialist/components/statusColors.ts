@@ -64,6 +64,20 @@ export const STATUS_CHIP_COLORS: Record<StoryStatus | "all", StatusColor> = {
     outlinedText: "#4a5f3f",
     dot: COLORS.success,
   },
+  illustration_workspace: {
+    filledBg: "#e7ecf1",
+    filledText: "#3d526a",
+    outlinedBorder: COLORS.primary,
+    outlinedText: "#3d526a",
+    dot: COLORS.primary,
+  },
+  illustration_ready: {
+    filledBg: "#eaf0e4",
+    filledText: "#4a5f3f",
+    outlinedBorder: COLORS.success,
+    outlinedText: "#4a5f3f",
+    dot: COLORS.success,
+  },
   published: {
     filledBg: "#eaf0e4",
     filledText: "#4a5f3f",

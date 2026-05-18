@@ -1,0 +1,12 @@
+{
+  "protagonist": "A young girl with a round face, warm brown skin, shoulder-length dark hair, wearing a simple long-sleeved shirt and sturdy shoes, carrying a well-worn backpack that seems to weigh on her small frame.",
+  "styleGuide": "Soft mixed media with watercolour washes and pencil line work, muted and naturalistic colour palette with moments of gentle warmth, featuring rounded, organic shapes that convey safety alongside angular, slightly unsettling forms that represent anxiety.",
+  "environmentRegistry": {
+    "hallway": "A long school corridor with beige walls, polished floors that reflect light, closed doors with metal handles, faint institutional smell conveyed through visual softness interrupted by hard geometric lines.",
+    "classroom_door": "A closed wooden door to Room 4 with a cold metal handle, positioned as a threshold between safety and the unknown, rendered with slight distortion to show Jana's perception of it as an obstacle.",
+    "classroom_interior": "A space filled with rows of desks, windows letting in natural light, a blue stripe painted along the lower wall, scattered with pencils and chairs, acoustically busy but visually organized, shown from Jana's low perspective.",
+    "window_view": "Natural daylight streaming through, creating a calm focal point of blue-toned light and shadow."
+  },
+  "palette": "Soft grey, warm beige, pale blue, muted green, subtle gold, deep breath-blue",
+  "generatedAt": 1777657609764
+}

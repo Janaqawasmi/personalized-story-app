@@ -7,6 +7,18 @@ npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Cursor (local IDE metadata)
+.cursor/
+**/.cursor/
+
+# Claude (local project metadata)
+.claude/
+**/.claude/
+
+# Claude / LLM call logs
+server/logs/
+**/logs/*.jsonl
+
 # macOS system files
 .DS_Store
 **/.DS_Store

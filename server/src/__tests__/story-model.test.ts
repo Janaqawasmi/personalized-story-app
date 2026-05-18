@@ -58,8 +58,17 @@ describe("isTransitionAllowed", () => {
     expect(isTransitionAllowed("in_review", "draft_brief")).toBe(false);
   });
 
-  test('approved → published is allowed', () => {
-    expect(isTransitionAllowed("approved", "published")).toBe(true);
+  test('approved → published is NOT allowed (must go through illustration pipeline)', () => {
+    expect(isTransitionAllowed("approved", "published")).toBe(false);
+  });
+
+  // v1 illustration transitions (approved → prompt_review, prompt_review →
+  // illustrating, illustrating → illustration_review, etc.) were removed in
+  // cleanup PR 1. Phase 1 of the v2 redesign reintroduces a `illustration_workspace`
+  // state — see docs/illustration/spec.md §9.3.
+
+  test('illustration_ready → published is allowed', () => {
+    expect(isTransitionAllowed("illustration_ready", "published")).toBe(true);
   });
 
   test('archived → draft_brief is allowed (restore)', () => {
@@ -129,6 +138,11 @@ describe("createStoryForGeneration", () => {
     expect(story.agent1Result).toBeNull();
   });
 
+  test("pages is null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.pages).toBeNull();
+  });
+
   test("agent1Versions is an empty array", () => {
     const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
     expect(story.agent1Versions).toEqual([]);
@@ -155,4 +169,13 @@ describe("createStoryForGeneration", () => {
     expect(story.storyType).toBe("fear_anxiety");
     expect(story.ageRange).toBe("7-9");
   });
+
+  test("v2 illustration workspace fields are null on initial creation", () => {
+    const story = createStoryForGeneration({ id: "s1", ownerUid: "u1", brief });
+    expect(story.illustrationPages).toBeNull();
+    expect(story.currentVisualBibleVersion).toBeNull();
+    expect(story.illustrationWorkspaceOpenedAt).toBeNull();
+  });
 });
+
+// v1 toPageIllustrations helper and its tests were removed in cleanup PR 1.

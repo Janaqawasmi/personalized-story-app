@@ -25,13 +25,18 @@ export interface ImageGenerationProvider {
 
   generateImage(params: {
     textPrompt: string;
-    referenceImage: Buffer | string;
-    referenceImageMediaType?: string;
-    style?: string;
-    outputFormat?: "png" | "jpeg" | "webp";
+    /** Required for deterministic audit; specialist v2 always passes an integer seed. */
+    seed: number;
+    /**
+     * Single reference image URL. Used by the **caregiver-side** personalization
+     * flow (child photo → personalised illustrations). The v2 specialist-side
+     * illustration pipeline (docs/illustration/spec.md) does NOT use this —
+     * specialist consistency is anchored in structured text only.
+     */
+    referenceImage?: string;
+    outputFormat?: "jpeg" | "png" | "webp";
     outputWidth?: number;
     outputHeight?: number;
-    additionalParams?: Record<string, unknown>;
   }): Promise<ImageGenerationResult>;
 }
 
@@ -41,5 +46,7 @@ export interface ImageGenerationResult {
   providerId: string;
   modelId: string;
   latencyMs: number;
+  /** Echo of the seed used for this generation (audit). */
+  seed: number;
   providerMetadata?: Record<string, unknown>;
 }

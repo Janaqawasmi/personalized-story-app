@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import type { StoryBrief } from '@/models/storyBrief.model';
 import {
   Step1IncoherentError,
+  type GenerateOptions,
   type LLMCallRecord,
   type PreCheckResult,
   type Step1Output,
@@ -27,11 +28,16 @@ type ExampleBankStatus =
 export async function runStoryArchitect(
   brief: StoryBrief,
   preCheckResult: PreCheckResult,
+  options?: GenerateOptions,
 ): Promise<{
   step1Output: Step1Output;
   exampleBankStatus: ExampleBankStatus;
 }> {
-  const { prompt, exampleBankStatus } = buildStep1Prompt(brief, preCheckResult);
+  const { prompt, exampleBankStatus } = buildStep1Prompt(
+    brief,
+    preCheckResult,
+    options,
+  );
   const promptHash = createHash('sha256').update(prompt).digest('hex');
 
   const attempt1 = await callLLM({
