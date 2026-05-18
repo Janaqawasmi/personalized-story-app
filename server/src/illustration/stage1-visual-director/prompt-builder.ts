@@ -38,9 +38,9 @@ ${manuscriptText}
 ## Output schema (JSON)
 {
   "characterSheet": "5-7 sentences. Full physical description of the protagonist — species/age/build, face, hair/fur, wardrobe, signature props, default posture. Be highly specific.",
-  "characterAnchor": "1-2 sentences. Verbatim compact anchor that will be embedded in every page prompt — face, eyes, clothing colours.",
+  "characterAnchor": "1-2 sentences. Verbatim compact anchor embedded in every page prompt — face, eyes, clothing colours. Commit to ONE specific colour per clothing item; never use 'or' between alternatives.",
   "styleGuide": "Medium, line quality, palette mood, level of stylisation.",
-  "consistencyAnchors": ["3 to 5 short phrases, 4-6 words each, each repeatable in a 1200-char prompt."],
+  "consistencyAnchors": ["3 to 5 short phrases, 4-6 words each. Each must describe a visually observable rendering characteristic — a technique (e.g. 'crosshatch shading'), a quality (e.g. 'soft edges'), or a constraint (e.g. 'muted saturation'). No abstract concepts like 'emotional truth'. Each repeatable in a 600-char prompt."],
   "environmentRegistry": {
     "<envKey>": {
       "atmosphere": "1 sentence: feeling, light quality, visual tone.",

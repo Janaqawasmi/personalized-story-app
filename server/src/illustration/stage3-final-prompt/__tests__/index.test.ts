@@ -52,7 +52,7 @@ describe("assembleFinalPrompt", () => {
       parentVisualBibleVersion: 2,
     });
     expect(fp.finalPromptString).toMatchInlineSnapshot(
-      `"No text, no letters, no words, no captions, no labels, no speech bubbles, no logos, wordless illustration. round face soft hair | blue cardigan. Setting: kitchen corner table two chairs. CHAR_ANCHOR In this scene: child seated straight back. Focal point: steam from mug. Lighting: warm lamp right soft shadow left. Color palette: navy, cream, soft gold, pale wood. Avoid: no text; no weapons; no photoreal skin pores. Children's book illustration."`,
+      `"Wordless children's book illustration in , round face soft hair and blue cardigan. CHAR_ANCHOR child seated straight back. The eye is drawn to steam from mug. kitchen corner table two chairs. warm lamp right soft shadow left. over shoulder medium. Color palette limited to navy, cream, soft gold, pale wood."`,
     );
   });
 
@@ -65,15 +65,13 @@ describe("assembleFinalPrompt", () => {
       parentVisualBibleVersion: 2,
     });
     expect(fp.promptOrder).toEqual([
-      "no-text",
-      "consistency",
-      "setting",
+      "style-lead",
       "character",
       "focal",
+      "setting",
       "lighting",
+      "composition",
       "palette",
-      "avoid",
-      "footer",
     ]);
   });
 
@@ -93,8 +91,8 @@ describe("assembleFinalPrompt", () => {
       parentScenePlanVersion: 1,
       parentVisualBibleVersion: 2,
     });
-    expect(fp.charCount).toBeGreaterThan(1200);
-    expect(fp.warnings).toContain("prompt exceeds 1200 chars");
+    expect(fp.charCount).toBeGreaterThan(900);
+    expect(fp.warnings).toContain("prompt exceeds 900 chars");
   });
 
   test("no reference-image instruction text", () => {
@@ -108,7 +106,32 @@ describe("assembleFinalPrompt", () => {
     expect(fp.finalPromptString.toLowerCase()).not.toContain("reference");
   });
 
-  test("injects spatialLayout when setting matches environmentRegistry key", () => {
+  test("does not include Avoid section", () => {
+    const fp = assembleFinalPrompt({
+      scenePlan: scenePlan as never,
+      visualBible: vb as never,
+      version: 1,
+      parentScenePlanVersion: 1,
+      parentVisualBibleVersion: 2,
+    });
+    expect(fp.finalPromptString).not.toContain("Avoid:");
+  });
+
+  test("styleGuide from visualBible appears in the prompt lead", () => {
+    const vbStyled = { ...vb, styleGuide: "soft watercolor with ink outlines" };
+    const fp = assembleFinalPrompt({
+      scenePlan: scenePlan as never,
+      visualBible: vbStyled as never,
+      version: 1,
+      parentScenePlanVersion: 1,
+      parentVisualBibleVersion: 2,
+    });
+    expect(fp.finalPromptString).toContain(
+      "Wordless children's book illustration in soft watercolor with ink outlines",
+    );
+  });
+
+  test("injects first spatialLayout sentence for wide shots when environment matches", () => {
     const vbWithEnv = {
       ...vb,
       environmentRegistry: {
@@ -124,6 +147,7 @@ describe("assembleFinalPrompt", () => {
       structuredPrompt: {
         ...scenePlan.structuredPrompt!,
         setting: "kitchen_morning, east window light, mug steam",
+        composition: "wide establishing shot from doorway",
       },
     };
     const fp = assembleFinalPrompt({
@@ -133,10 +157,40 @@ describe("assembleFinalPrompt", () => {
       parentScenePlanVersion: 1,
       parentVisualBibleVersion: 2,
     });
-    expect(fp.finalPromptString).toContain("Spatial layout (fixed for this location):");
-    expect(fp.finalPromptString).toContain(
-      "Sink under east window; round table center; fridge on north wall beside doorway.",
-    );
+    expect(fp.finalPromptString).toContain("east window light, mug steam.");
+    expect(fp.finalPromptString).toContain("Sink under east window;");
+    expect(fp.finalPromptString).not.toContain("round table center");
+    expect(fp.finalPromptString).not.toContain("Spatial layout");
+  });
+
+  test("skips spatial layout injection for close-up composition", () => {
+    const vbWithEnv = {
+      ...vb,
+      environmentRegistry: {
+        kitchen_morning: {
+          atmosphere: "quiet dawn kitchen",
+          spatialLayout:
+            "Sink under east window; round table center; fridge on north wall beside doorway.",
+        },
+      },
+    };
+    const sp = {
+      ...scenePlan,
+      structuredPrompt: {
+        ...scenePlan.structuredPrompt!,
+        setting: "kitchen_morning, east window light, mug steam",
+        composition: "extreme close-up on mug steam",
+      },
+    };
+    const fp = assembleFinalPrompt({
+      scenePlan: sp as never,
+      visualBible: vbWithEnv as never,
+      version: 1,
+      parentScenePlanVersion: 1,
+      parentVisualBibleVersion: 2,
+    });
+    expect(fp.finalPromptString).toContain("east window light, mug steam.");
+    expect(fp.finalPromptString).not.toContain("Sink under east window");
   });
 });
 

@@ -28,6 +28,7 @@ interface Props {
   onApprovePage: (pageNumber: number) => Promise<void>;
   onRejectPage: (pageNumber: number, note: string) => Promise<void>;
   onRegenerateScenePlan: (pageNumber: number, feedbackNote?: string) => Promise<void>;
+  onRegeneratePageImage: (pageNumber: number) => Promise<void>;
   onRegenerateAllScenePlans: () => Promise<void>;
   onGenerateAllPageImages: () => Promise<void>;
   onMarkReady: () => Promise<void>;
@@ -48,6 +49,7 @@ export default function WorkspacePreview({
   onApprovePage,
   onRejectPage,
   onRegenerateScenePlan,
+  onRegeneratePageImage,
   onRegenerateAllScenePlans,
   onGenerateAllPageImages,
   onMarkReady,
@@ -135,6 +137,7 @@ export default function WorkspacePreview({
         onApprovePage={onApprovePage}
         onRejectPage={onRejectPage}
         onRegenerateScenePlan={onRegenerateScenePlan}
+        onRegeneratePageImage={onRegeneratePageImage}
         onRegenerateAllScenePlans={onRegenerateAllScenePlans}
         onGenerateAllPageImages={onGenerateAllPageImages}
         onMarkReady={onMarkReady}

@@ -153,6 +153,7 @@ export interface SpecialistDeskUi {
   illActReject: string;
   illActReopen: string;
   illActRegen: string;
+  illActRegenerateImage: string;
   illNoImageHead: string;
   illNoImageHint: string;
   illDrawingPage: (pageIndex: number) => string;

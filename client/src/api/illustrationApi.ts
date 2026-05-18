@@ -40,6 +40,27 @@ export async function openIllustrationWorkspace(
   return { jobId: body.jobId, status: "pending" };
 }
 
+export async function regeneratePageImage(
+  storyId: string,
+  pageNumber: number,
+): Promise<{ jobId: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(
+    `${BASE}/${encodeURIComponent(storyId)}/pages/${pageNumber}/regenerate-image`,
+    { method: "POST", headers },
+  );
+  const body = (await res.json().catch(() => ({}))) as {
+    jobId?: string;
+    error?: string;
+    message?: string;
+  };
+  if (!res.ok) {
+    throw new Error(body.message || body.error || `Request failed (${res.status})`);
+  }
+  if (!body.jobId) throw new Error("Invalid server response for image regeneration");
+  return { jobId: body.jobId };
+}
+
 export async function generatePageImage(
   storyId: string,
   pageNumber: number,

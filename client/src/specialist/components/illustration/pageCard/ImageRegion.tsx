@@ -36,6 +36,7 @@ type Desk = Pick<
   | "illActReject"
   | "illStatusApproved"
   | "illActRegen"
+  | "illActRegenerateImage"
   | "illRejectIllustrationTitle"
   | "illRejectFeedbackLabel"
   | "headerCancel"
@@ -49,6 +50,11 @@ interface Props {
   onGenerate: () => void | Promise<void>;
   onApprove: () => void | Promise<void>;
   onReject: (feedbackNote: string) => void | Promise<void>;
+  onRegenerateImage: () => void | Promise<void>;
+}
+
+function canRegenerateImage(subStatus: PageCardViewModel["subStatus"]): boolean {
+  return subStatus === "awaiting_review" || subStatus === "approved" || subStatus === "needs_revision";
 }
 
 function ImageMetaStrip({ page }: { page: PageCardViewModel }) {
@@ -297,11 +303,31 @@ export default function ImageRegion({
 }
 
 export function PageImageFooterActions(props: Props) {
-  const { page, readOnly, desk, onGenerate, onApprove, onReject } = props;
+  const { page, readOnly, desk, onGenerate, onApprove, onReject, onRegenerateImage } = props;
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
   const [busy, setBusy] = useState(false);
   const disabled = readOnly || busy;
+  const showRegenerateImage =
+    !readOnly && page.imageUrl && canRegenerateImage(page.subStatus) && page.subStatus !== "generating_image";
+
+  const regenerateImageButton = showRegenerateImage ? (
+    <Button
+      variant="outlined"
+      disabled={disabled}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await Promise.resolve(onRegenerateImage());
+        } finally {
+          setBusy(false);
+        }
+      }}
+      sx={{ textTransform: "none", fontWeight: 600, borderColor: DRAFT_B.border }}
+    >
+      {desk.illActRegenerateImage}
+    </Button>
+  ) : null;
 
   const rejectDialog = (
     <Dialog open={rejectOpen} onClose={() => setRejectOpen(false)} fullWidth maxWidth="sm">
@@ -400,6 +426,7 @@ export function PageImageFooterActions(props: Props) {
           >
             {desk.illActReject}
           </Button>
+          {regenerateImageButton}
         </Stack>
         {rejectDialog}
       </>
@@ -407,14 +434,22 @@ export function PageImageFooterActions(props: Props) {
   }
 
   if (page.subStatus === "approved" && page.imageUrl) {
-    return <ChipTone tone="success" chipSize="md" label={desk.illStatusApproved} />;
+    return (
+      <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
+        <ChipTone tone="success" chipSize="md" label={desk.illStatusApproved} />
+        {regenerateImageButton}
+      </Stack>
+    );
   }
 
   if (page.subStatus === "needs_revision") {
     return (
-      <Button variant="outlined" disabled sx={{ textTransform: "none", fontWeight: 600 }}>
-        {desk.illActRegen}
-      </Button>
+      <Stack direction="row" flexWrap="wrap" gap={1} alignItems="center">
+        <Button variant="outlined" disabled sx={{ textTransform: "none", fontWeight: 600 }}>
+          {desk.illActRegen}
+        </Button>
+        {regenerateImageButton}
+      </Stack>
     );
   }
 

@@ -23,6 +23,7 @@ interface Props {
   onApprove: () => void;
   onReject: (feedbackNote: string) => void;
   onRegenerateScenePlan: (feedbackNote?: string) => Promise<void>;
+  onRegenerateImage: () => void | Promise<void>;
 }
 
 export default function PageCard({
@@ -34,6 +35,7 @@ export default function PageCard({
   onApprove,
   onReject,
   onRegenerateScenePlan,
+  onRegenerateImage,
 }: Props) {
   const desk = useSpecialistDeskUi();
 
@@ -50,6 +52,7 @@ export default function PageCard({
     onGenerate,
     onApprove,
     onReject,
+    onRegenerateImage,
   };
 
   const sceneDesk = {

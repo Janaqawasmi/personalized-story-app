@@ -6,6 +6,7 @@ import Typography from "@mui/material/Typography";
 import {
   approvePageImage,
   generatePageImage,
+  regeneratePageImage,
   markIllustrationReadyToPublish,
   openIllustrationWorkspace,
   regenerateScenePlan,
@@ -55,6 +56,18 @@ export default function IllustrationsTabV2({ story }: Props) {
       setActionError(null);
       try {
         await approvePageImage(story.id, pageNumber);
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : String(e));
+      }
+    },
+    [story.id],
+  );
+
+  const handleRegeneratePageImage = useCallback(
+    async (pageNumber: number) => {
+      setActionError(null);
+      try {
+        await regeneratePageImage(story.id, pageNumber);
       } catch (e) {
         setActionError(e instanceof Error ? e.message : String(e));
       }
@@ -218,6 +231,7 @@ export default function IllustrationsTabV2({ story }: Props) {
             onApprovePage={handleApprovePage}
             onRejectPage={handleRejectPage}
             onRegenerateScenePlan={handleRegenerateScenePlan}
+            onRegeneratePageImage={handleRegeneratePageImage}
             onRegenerateAllScenePlans={handleRegenerateAllScenePlans}
             onGenerateAllPageImages={handleGenerateAllPageImages}
             onMarkReady={handleMarkReady}

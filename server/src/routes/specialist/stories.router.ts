@@ -651,6 +651,66 @@ async function handleEnqueuePageImage(req: Request, res: Response): Promise<void
   res.status(200).json({ jobId, status: "pending" as const });
 }
 
+const PAGE_IMAGE_REGEN_STATUSES = new Set([
+  "awaiting_review",
+  "approved",
+  "needs_revision",
+]);
+
+async function handleRegeneratePageImage(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+  const storyId = req.params["storyId"] ?? "";
+  const rawPage = req.params["pageNumber"] ?? "";
+  const pageNumber = Number.parseInt(rawPage, 10);
+  if (!Number.isFinite(pageNumber)) {
+    res.status(400).json({ error: "INVALID_INPUT", message: "Invalid page number." });
+    return;
+  }
+
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+  if (story.status !== "illustration_workspace") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Image regeneration is only available in the illustration workspace.",
+    });
+    return;
+  }
+  const row = story.illustrationPages?.find((p) => p.pageNumber === pageNumber);
+  if (!row || row.currentScenePlanVersion === null) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Illustration page not found." });
+    return;
+  }
+  if (row.currentImageVersion === null || !PAGE_IMAGE_REGEN_STATUSES.has(row.status)) {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Page must have an existing image awaiting review, approved, or needing revision.",
+    });
+    return;
+  }
+
+  const idempotencyKey = `${storyId}:image-regen:${pageNumber}:sp${row.currentScenePlanVersion}:img${row.currentImageVersion}:${Date.now()}`;
+  const jobId = await enqueueJob({
+    storyId,
+    type: "image_generation",
+    pageNumber,
+    enqueuedBy: ownerUid,
+    inputRefs: {},
+    idempotencyKey,
+  });
+
+  await setIllustrationPagePendingImageJob(storyId, pageNumber, jobId);
+
+  res.status(202).json({ jobId });
+}
+
 async function handleApprovePageImage(req: Request, res: Response): Promise<void> {
   const ownerUid = req.user?.uid ?? "";
   if (!ownerUid) {
@@ -1140,6 +1200,7 @@ router.post("/:storyId/publish", handlePublishStory);
 router.post("/:storyId/jobs/:jobId/cancel", handleCancelIllustrationJob);
 router.post("/:storyId/visual-bible/regenerate", handlePostVisualBibleRegenerate);
 router.post("/:storyId/pages/:pageNumber/image", handleEnqueuePageImage);
+router.post("/:storyId/pages/:pageNumber/regenerate-image", handleRegeneratePageImage);
 router.post("/:storyId/pages/:pageNumber/image/approve", handleApprovePageImage);
 router.post("/:storyId/pages/:pageNumber/image/reject", handleRejectPageImage);
 router.post("/:storyId/pages/:pageNumber/scene-plan/regenerate", handleRegenerateScenePlan);
