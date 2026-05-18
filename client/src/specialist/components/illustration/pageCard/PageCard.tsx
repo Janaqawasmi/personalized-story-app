@@ -203,15 +203,7 @@ export default function PageCard({
               justifyContent: "center",
             }}
           >
-            <ImageRegion
-              storyId={storyId}
-              page={page}
-              readOnly={readOnly}
-              desk={desk}
-              onGenerate={onGenerate}
-              onApprove={onApprove}
-              onReject={onReject}
-            />
+            <ImageRegion {...imageProps} />
           </Box>
         </Box>
 

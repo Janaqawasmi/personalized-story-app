@@ -70,17 +70,23 @@ export default function DeveloperPanel({
     });
   }, [storyId]);
 
+  const img =
+    imageVersion === null
+      ? null
+      : images.find((i) => i.pageNumber === pageNumber && i.version === imageVersion) ?? null;
+
   const fpsForPage = finalPrompts.filter((f) => f.pageNumber === pageNumber);
   const forCurrentScenePlan = fpsForPage
     .filter((f) => f.parentScenePlanVersion === scenePlanVersion)
     .slice()
     .sort((a, b) => b.version - a.version);
-  const fp = forCurrentScenePlan[0] ?? null;
-
-  const img =
-    imageVersion === null
-      ? null
-      : images.find((i) => i.pageNumber === pageNumber && i.version === imageVersion) ?? null;
+  const fpForCurrentImage =
+    img?.parentFinalPromptId != null
+      ? (finalPrompts.find((f) => f.id === img.parentFinalPromptId) ?? null)
+      : null;
+  const fp = fpForCurrentImage ?? forCurrentScenePlan[0] ?? null;
+  const promptLinkedToCurrentImage =
+    img != null && fp != null && fp.id === img.parentFinalPromptId;
 
   const copy = async (text: string) => {
     try {
@@ -234,6 +240,11 @@ export default function DeveloperPanel({
                   sx={capMutedSx}
                 >
                   v{fp.version} · {fp.charCount} chars · order: {fp.promptOrder.join(" → ")}
+                  {promptLinkedToCurrentImage
+                    ? " · sent with current image"
+                    : img
+                      ? " · not linked to current image"
+                      : ""}
                 </Typography>
                 <Stack direction="row" gap={1}>
                   <Button
