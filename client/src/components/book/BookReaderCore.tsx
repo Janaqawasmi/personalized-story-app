@@ -73,10 +73,13 @@ export default function BookReaderCore({
       sx={{
         minHeight: chromeless ? 0 : "70vh",
         maxHeight: chromeless ? "none" : "90vh",
-        overflow: chromeless ? "visible" : "auto",
+        height: chromeless ? "100%" : "auto",
+        overflow: chromeless ? "hidden" : "auto",
         bgcolor: chromeless ? "transparent" : "background.default",
         direction: isRTL ? "rtl" : "ltr",
         position: "relative",
+        display: chromeless ? "flex" : "block",
+        flexDirection: chromeless ? "column" : undefined,
       }}
     >
       {!chromeless && onClose ? (
@@ -100,19 +103,54 @@ export default function BookReaderCore({
       ) : null}
 
       {showCover ? (
-        <BookCover
-          title={model.title}
-          onStart={() => {
-            setShowCover(false);
-            setSpreadIndex(0);
-          }}
-          language={storyLanguage}
-          uiLanguage={uiLanguage}
-          coverImage={model.coverImageUrl ?? undefined}
-          childName={model.childDisplayName ?? undefined}
-        />
+        chromeless ? (
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: "auto",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <BookCover
+              embedded
+              title={model.title}
+              onStart={() => {
+                setShowCover(false);
+                setSpreadIndex(0);
+              }}
+              language={storyLanguage}
+              uiLanguage={uiLanguage}
+              coverImage={model.coverImageUrl ?? undefined}
+              childName={model.childDisplayName ?? undefined}
+            />
+          </Box>
+        ) : (
+          <BookCover
+            title={model.title}
+            onStart={() => {
+              setShowCover(false);
+              setSpreadIndex(0);
+            }}
+            language={storyLanguage}
+            uiLanguage={uiLanguage}
+            coverImage={model.coverImageUrl ?? undefined}
+            childName={model.childDisplayName ?? undefined}
+          />
+        )
       ) : (
-        <Box sx={{ px: chromeless ? 0 : 2, pb: chromeless ? 2 : 4, pt: chromeless ? 0 : 2 }}>
+        <Box
+          sx={{
+            px: chromeless ? 0 : 2,
+            pb: chromeless ? 0 : 4,
+            pt: chromeless ? 0 : 2,
+            flex: chromeless ? 1 : undefined,
+            minHeight: chromeless ? 0 : undefined,
+            display: chromeless ? "flex" : "block",
+            flexDirection: chromeless ? "column" : undefined,
+          }}
+        >
           {!chromeless ? (
             <Box
               sx={{
@@ -150,9 +188,21 @@ export default function BookReaderCore({
             sx={{
               display: "flex",
               justifyContent: "center",
-              alignItems: "center",
+              alignItems: chromeless ? "stretch" : "center",
               width: "100%",
               mx: "auto",
+              flex: chromeless ? 1 : undefined,
+              minHeight: chromeless ? 0 : undefined,
+              ...(chromeless
+                ? {
+                    "& > *": {
+                      minHeight: 0,
+                      width: "100%",
+                      height: "100%",
+                      alignSelf: "stretch",
+                    },
+                  }
+                : {}),
             }}
           >
             <BookSpread

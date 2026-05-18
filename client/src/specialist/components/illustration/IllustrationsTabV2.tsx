@@ -140,9 +140,28 @@ export default function IllustrationsTabV2({ story }: Props) {
     );
   }
 
+  const isCenteredPanel =
+    vm.kind === "cta" ||
+    vm.kind === "pending" ||
+    vm.kind === "running" ||
+    vm.kind === "failed";
+
   return (
-    <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 4, pb: 8 }}>
-      <Stack spacing={3}>
+    <Box
+      sx={{
+        px: { xs: 2, sm: 3, md: 5 },
+        pt: 4,
+        pb: 8,
+        ...(isCenteredPanel && {
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: { xs: "55vh", sm: "calc(100vh - 280px)" },
+        }),
+      }}
+    >
+      <Stack spacing={3} sx={{ width: "100%", maxWidth: isCenteredPanel ? 720 : undefined }}>
         {actionError ? (
           <Typography variant="body2" color="error">
             {actionError}

@@ -50,27 +50,28 @@ export default function ApprovalPreviewDialog({
 
   return (
     <Dialog
+      fullScreen
       open={open}
       onClose={onClose}
-      maxWidth={false}
       aria-labelledby="approval-preview-dialog-title"
       slotProps={{
         backdrop: {
           sx: {
-            backgroundColor: "rgba(23,13,30,0.62)",
-            backdropFilter: "blur(8px)",
+            backgroundColor: COLORS.surface,
           },
         },
       }}
       PaperProps={{
         sx: {
-          width: "min(1080px, calc(100vw - 32px))",
-          maxHeight: "min(92vh, 900px)",
-          borderRadius: "18px",
+          m: 0,
+          width: "100%",
+          maxWidth: "100%",
+          height: "100%",
+          maxHeight: "100%",
+          borderRadius: 0,
           overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 30px 80px -20px rgba(0,0,0,.4)",
           bgcolor: COLORS.surface,
         },
       }}

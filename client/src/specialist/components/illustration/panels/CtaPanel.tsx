@@ -18,8 +18,7 @@ export default function CtaPanel({ pageCount, disabled, onOpen }: Props) {
   return (
     <Box
       sx={{
-        maxWidth: 720,
-        mx: "auto",
+        width: "100%",
         textAlign: "center",
         bgcolor: COLORS.surface,
         border: `1px solid ${DRAFT_B.border}`,
