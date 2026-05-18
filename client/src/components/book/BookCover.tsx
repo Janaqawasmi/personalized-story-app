@@ -275,14 +275,15 @@ export default function BookCover({
             <Typography
               component="div"
               sx={{
-                fontFamily: BOOK_FONTS.display,
+                fontFamily: isStoryRTL ? BOOK_FONTS.bodyRtl : BOOK_FONTS.display,
                 fontSize: { xs: 26, sm: 30, md: 34 },
                 fontWeight: 700,
-                fontStyle: "italic",
+                fontStyle: isStoryRTL ? "normal" : "italic",
                 color: BOOK_COLORS.cream,
                 letterSpacing: "-0.01em",
                 lineHeight: 1.05,
                 textShadow: "0 2px 12px rgba(0,0,0,0.45)",
+                direction: isStoryRTL ? "rtl" : "ltr",
               }}
             >
               {title}

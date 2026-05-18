@@ -551,35 +551,35 @@ const CornerOrn = ({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) => (
 
 /* Inline icons — no external dep, streaming-safe */
 const Icon = {
-  close: () => (
+  Close: () => (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
       <path d="M5 5l10 10M15 5l-10 10" />
     </svg>
   ),
-  speaker: () => (
+  Speaker: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <path d="M3 8v4h3l4 3V5L6 8H3z" />
       <path d="M13 7a4 4 0 010 6" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
       <path d="M15 5a7 7 0 010 10" stroke="currentColor" strokeWidth="1.4" fill="none" strokeLinecap="round" />
     </svg>
   ),
-  pause: () => (
+  Pause: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <rect x="5" y="4" width="3.4" height="12" rx="1" />
       <rect x="11.6" y="4" width="3.4" height="12" rx="1" />
     </svg>
   ),
-  play: () => (
+  Play: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <path d="M6 4l10 6-10 6V4z" />
     </svg>
   ),
-  stop: () => (
+  Stop: () => (
     <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <rect x="5" y="5" width="10" height="10" rx="1.5" />
     </svg>
   ),
-  autoplay: () => (
+  Autoplay: () => (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden>
       <circle cx="10" cy="10" r="7.5" />
       <path d="M8.5 7.2v5.6L13 10z" fill="currentColor" stroke="none" />
@@ -663,7 +663,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
       void node.offsetHeight;
       node.style.animation = "bs2-fadeIn .4s ease forwards";
     }
-  }, [page.pageNumber, page.textTemplate, page.imageUrl]);
+  }, [page]);
 
   const triggerFlip = useCallback(
     (direction: "next" | "prev") => {
@@ -794,7 +794,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.labels.close}
                 type="button"
               >
-                <Icon.close />
+                <Icon.Close />
               </button>
               <span className="bs2-mobile-controls-title">{title}</span>
               <div style={{ width: 38, height: 38, flexShrink: 0 }} aria-hidden />
@@ -809,7 +809,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.labels.read}
                 type="button"
               >
-                <Icon.speaker />
+                <Icon.Speaker />
               </button>
               <button
                 className="bs2-mobile-iconbtn"
@@ -818,7 +818,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.isPaused ? mobileControls.labels.resume : mobileControls.labels.pause}
                 type="button"
               >
-                {mobileControls.isPaused ? <Icon.play /> : <Icon.pause />}
+                {mobileControls.isPaused ? <Icon.Play /> : <Icon.Pause />}
               </button>
               <button
                 className="bs2-mobile-iconbtn"
@@ -827,7 +827,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-label={mobileControls.labels.stop}
                 type="button"
               >
-                <Icon.stop />
+                <Icon.Stop />
               </button>
               <button
                 className={`bs2-mobile-iconbtn ${mobileControls.autoRead ? "bs2-active" : ""}`}
@@ -836,7 +836,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                 aria-pressed={mobileControls.autoRead}
                 type="button"
               >
-                <Icon.autoplay />
+                <Icon.Autoplay />
               </button>
             </div>
 

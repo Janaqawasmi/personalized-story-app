@@ -86,8 +86,7 @@ export default function PendingPanel({ variant, progressHint, error, onRetry }: 
     return (
       <Box
         sx={{
-          maxWidth: 720,
-          mx: "auto",
+          width: "100%",
           bgcolor: COLORS.surface,
           border: `1px solid ${COLORS.error}`,
           borderRadius: "14px",
@@ -128,8 +127,7 @@ export default function PendingPanel({ variant, progressHint, error, onRetry }: 
   return (
     <Box
       sx={{
-        maxWidth: 720,
-        mx: "auto",
+        width: "100%",
         bgcolor: COLORS.surface,
         border: `1px solid ${DRAFT_B.border}`,
         borderRadius: "14px",
