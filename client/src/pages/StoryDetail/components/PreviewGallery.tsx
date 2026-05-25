@@ -9,9 +9,10 @@ import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
 import { SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
 import {
+  extractPreviewSpreadText,
   normalizeStoryLanguage,
   personalizeStoryTemplateString,
-  pickTextTemplateVariant,
+  resolveTemplatePageText,
 } from "../../../utils/storyPersonalization";
 
 /** framer-motion v11 + React 19: AnimatePresence return type includes `undefined`; cast for valid JSX. */
@@ -94,12 +95,12 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
   const resolvedSpreads = useMemo(() => {
     if (!spreads || spreads.length < 2) return null;
     return spreads.map((sp, idx) => {
-      let raw = pickLang(sp.text, language).trim();
+      const spreadText = pickLang(sp.text, language).trim() || extractPreviewSpreadText(sp);
+      let raw = spreadText;
       if (!raw && templatePages?.[idx]) {
-        const page = templatePages[idx];
-        const base = page.textTemplate ? pickTextTemplateVariant(page.textTemplate, publicVariant) : "";
-        raw = personalizeStoryTemplateString(base, childPlaceholder, publicVariant, langNorm);
+        raw = resolveTemplatePageText(templatePages[idx], publicVariant, spreadText);
       }
+      raw = personalizeStoryTemplateString(raw, childPlaceholder, publicVariant, langNorm);
       return { imageUrl: sp.imageUrl, body: raw };
     });
   }, [spreads, language, templatePages, childPlaceholder, langNorm]);

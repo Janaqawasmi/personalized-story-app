@@ -460,13 +460,15 @@ router.post(
 
 /**
  * GET /api/caregiver/previews/:previewId
+ *
+ * Any authenticated user who owns the preview may read it (same as POST /generate).
  */
 router.get(
   "/:previewId",
-  requireCaregiverAuth,
+  requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const caregiverUid = req.caregiverUser!.uid;
+      const ownerUid = req.user!.uid;
       const { previewId } = req.params;
 
       const previewDoc = await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId!).get();
@@ -481,7 +483,7 @@ router.get(
 
       const data = previewDoc.data()!;
 
-      if (data.caregiverUid !== caregiverUid) {
+      if (data.caregiverUid !== ownerUid) {
         res.status(403).json({
           success: false,
           error: "Access denied",
