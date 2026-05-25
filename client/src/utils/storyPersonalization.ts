@@ -62,15 +62,87 @@ const PRONOUN_MAPS: Record<"he" | "ar", Record<StoryGender, { subject: string; o
   },
 };
 
+export type TemplatePageTextSource = {
+  textTemplate?: unknown;
+  text?: unknown;
+  textVariants?: unknown;
+};
+
 /**
  * Accepts Firestore page `textTemplate` (masculine/feminine object or legacy string).
  */
 export function pickTextTemplateVariant(textTemplate: unknown, gender: StoryGender): string {
-  if (textTemplate && typeof textTemplate === "object" && "masculine" in textTemplate && "feminine" in textTemplate) {
-    const o = textTemplate as { masculine: string; feminine: string };
-    return gender === "female" ? o.feminine : o.masculine;
-  }
+  if (!textTemplate) return "";
   if (typeof textTemplate === "string") return textTemplate;
+  if (typeof textTemplate !== "object") return "";
+
+  const o = textTemplate as Record<string, unknown>;
+  const masculine =
+    (typeof o.masculine === "string" ? o.masculine : "") ||
+    (typeof o.male === "string" ? o.male : "");
+  const feminine =
+    (typeof o.feminine === "string" ? o.feminine : "") ||
+    (typeof o.female === "string" ? o.female : "");
+
+  if (masculine.trim() || feminine.trim()) {
+    const chosen = gender === "female" ? feminine || masculine : masculine || feminine;
+    return chosen.trim() ? chosen : masculine || feminine;
+  }
+
+  return "";
+}
+
+function pickTextVariantsLegacy(textVariants: unknown, gender: StoryGender): string {
+  if (!textVariants || typeof textVariants !== "object") return "";
+  const o = textVariants as { male?: string; female?: string };
+  const chosen = gender === "female" ? o.female : o.male;
+  if (typeof chosen === "string" && chosen.trim()) return chosen;
+  if (typeof o.male === "string" && o.male.trim()) return o.male;
+  if (typeof o.female === "string" && o.female.trim()) return o.female;
+  return "";
+}
+
+/** Reads catalog `previewSpreads[n]` text regardless of field naming. */
+export function extractPreviewSpreadText(spread: unknown): string {
+  if (!spread || typeof spread !== "object") return "";
+  const o = spread as Record<string, unknown>;
+  for (const key of ["text", "body", "content"] as const) {
+    const v = o[key];
+    if (typeof v === "string" && v.trim()) return v;
+  }
+  return "";
+}
+
+export function extractPreviewSpreadImageUrl(spread: unknown): string | undefined {
+  if (!spread || typeof spread !== "object") return undefined;
+  const o = spread as Record<string, unknown>;
+  for (const key of ["imageUrl", "image", "url"] as const) {
+    const v = o[key];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return undefined;
+}
+
+/**
+ * Resolves manuscript text from a template page, with optional preview-spread fallback.
+ */
+export function resolveTemplatePageText(
+  page: TemplatePageTextSource,
+  gender: StoryGender,
+  spreadTextFallback?: string,
+): string {
+  const fromTemplate = pickTextTemplateVariant(page.textTemplate, gender);
+  if (fromTemplate.trim()) return fromTemplate;
+
+  const fromVariants = pickTextVariantsLegacy(page.textVariants, gender);
+  if (fromVariants.trim()) return fromVariants;
+
+  if (typeof page.text === "string" && page.text.trim()) return page.text;
+
+  if (typeof spreadTextFallback === "string" && spreadTextFallback.trim()) {
+    return spreadTextFallback;
+  }
+
   return "";
 }
 
@@ -95,11 +167,18 @@ export function personalizeStoryTemplateString(
   return result;
 }
 
-export type RawReaderPage = {
+export type RawReaderPage = TemplatePageTextSource & {
   pageNumber: number;
-  textTemplate: unknown;
   imagePromptTemplate?: string;
   emotionalTone?: string;
+};
+
+export type ReaderPageBuilt = RawReaderPage & { textTemplate: string; imageUrl: string };
+
+export type PreviewReaderOverride = {
+  pageNumber: number;
+  personalizedText?: string;
+  imageUrl?: string;
 };
 
 /** First N spreads in reading order get full name/photo personalization; keep in sync with server preview generation. */
@@ -116,18 +195,56 @@ export function buildPersonalizedReaderPages(
     /** Only these spreads use the child's name and photo; later spreads use `lockedPlaceholderName` and template art only. */
     previewSpreadLimit?: number;
     lockedPlaceholderName?: string;
+    /** `previewSpreads[i].text` aligned to sorted template page index (catalog fallback). */
+    spreadTextFallbacks?: string[];
+    /** Published catalog preview illustration URLs (fallback when no child photo / generated art). */
+    spreadImageFallbacks?: Array<string | undefined>;
   }
-): Array<RawReaderPage & { textTemplate: string; imageUrl: string }> {
+): ReaderPageBuilt[] {
   const limit = opts.previewSpreadLimit ?? Number.POSITIVE_INFINITY;
   const lockedName = opts.lockedPlaceholderName ?? "…";
 
   return pages.map((page, index) => {
     const inPreview = index < limit;
-    const raw = pickTextTemplateVariant(page.textTemplate, opts.gender);
+    const spreadFallback = opts.spreadTextFallbacks?.[index];
+    const raw = resolveTemplatePageText(page, opts.gender, spreadFallback);
     const displayName = inPreview ? opts.childDisplayName : lockedName;
     const text = personalizeStoryTemplateString(raw, displayName, opts.gender, opts.language);
+    const spreadImage = inPreview ? opts.spreadImageFallbacks?.[index] : undefined;
     const personalImage = inPreview && opts.photoPreviewUrl ? opts.photoPreviewUrl : undefined;
-    const imageUrl = personalImage ?? opts.fallbackImageUrl(page.pageNumber);
+    // Child photo first for personalized preview spreads; catalog art is fallback only.
+    // Generated preview illustrations are applied later via applyPreviewOverridesToReaderPages.
+    const imageUrl = inPreview
+      ? personalImage || spreadImage?.trim() || opts.fallbackImageUrl(page.pageNumber)
+      : spreadImage?.trim() || opts.fallbackImageUrl(page.pageNumber);
+    return { ...page, textTemplate: text, imageUrl };
+  });
+}
+
+/**
+ * Merges server-generated preview pages (personalizedText + illustration URLs) into reader pages.
+ */
+export function applyPreviewOverridesToReaderPages(
+  pages: ReaderPageBuilt[],
+  overrides: PreviewReaderOverride[],
+  previewSpreadLimit: number = PREVIEW_SPREAD_LIMIT,
+): ReaderPageBuilt[] {
+  if (!overrides.length) return pages;
+  const byPage = new Map(overrides.map((o) => [o.pageNumber, o]));
+
+  return pages.map((page, index) => {
+    if (index >= previewSpreadLimit) return page;
+    const o = byPage.get(page.pageNumber);
+    if (!o) return page;
+
+    const text =
+      typeof o.personalizedText === "string" && o.personalizedText.trim()
+        ? o.personalizedText
+        : page.textTemplate;
+    const generatedImage =
+      typeof o.imageUrl === "string" && o.imageUrl.trim() ? o.imageUrl.trim() : undefined;
+    const imageUrl = generatedImage ?? page.imageUrl;
+
     return { ...page, textTemplate: text, imageUrl };
   });
 }

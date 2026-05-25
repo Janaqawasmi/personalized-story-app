@@ -11,7 +11,7 @@ import { SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
 import {
   normalizeStoryLanguage,
   personalizeStoryTemplateString,
-  pickTextTemplateVariant,
+  resolveTemplatePageText,
 } from "../../../utils/storyPersonalization";
 
 /** framer-motion v11 + React 19: AnimatePresence return type includes `undefined`; cast for valid JSX. */
@@ -97,7 +97,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
       let raw = pickLang(sp.text, language).trim();
       if (!raw && templatePages?.[idx]) {
         const page = templatePages[idx];
-        const base = page.textTemplate ? pickTextTemplateVariant(page.textTemplate, publicVariant) : "";
+        const base = resolveTemplatePageText(page, publicVariant);
         raw = personalizeStoryTemplateString(base, childPlaceholder, publicVariant, langNorm);
       }
       return { imageUrl: sp.imageUrl, body: raw };

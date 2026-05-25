@@ -13,8 +13,8 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
@@ -44,25 +44,25 @@ import {
   ttsGetVoices,
 } from "../utils/tts";
 import {
+  applyPreviewOverridesToReaderPages,
   buildPersonalizedReaderPages,
+  extractPreviewSpreadImageUrl,
+  extractPreviewSpreadText,
   getStoryPersonalizationStorageKey,
   normalizeStoryLanguage,
   resolveGenderForPreview,
   PREVIEW_SPREAD_LIMIT,
+  type ReaderPageBuilt,
 } from "../utils/storyPersonalization";
-
-type Page = {
-  pageNumber: number;
-  textTemplate: string;
-  imagePromptTemplate?: string;
-  imageUrl?: string;
-  emotionalTone?: string;
-};
+import {
+  loadPreviewReaderOverrides,
+  previewOverridesFromDocData,
+} from "../utils/readerPreviewLoader";
 
 type StoryTemplate = {
   id: string;
   title: string;
-  pages: Page[];
+  pages: ReaderPageBuilt[];
   language?: string;
   generationConfig?: {
     language?: string;
@@ -144,8 +144,9 @@ export default function BookReaderPage() {
     };
   }, []);
 
+  const previewIdFromQuery = searchParams.get("previewId");
   const previewId =
-    searchParams.get("previewId") ||
+    previewIdFromQuery ||
     (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
 
   const CURRENT_LANGUAGE = uiLanguage || getCurrentLanguage();
@@ -266,7 +267,13 @@ export default function BookReaderPage() {
           (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
         );
 
-        const pages: Page[] = buildPersonalizedReaderPages(sortedRaw, {
+        const previewSpreads = Array.isArray(data.previewSpreads) ? data.previewSpreads : [];
+        const spreadTextFallbacks = previewSpreads.map((sp: unknown) => extractPreviewSpreadText(sp));
+        const spreadImageFallbacks = previewSpreads.map((sp: unknown) =>
+          extractPreviewSpreadImageUrl(sp),
+        );
+
+        let pages = buildPersonalizedReaderPages(sortedRaw, {
           gender,
           childDisplayName: displayName,
           language: lang,
@@ -274,11 +281,30 @@ export default function BookReaderPage() {
           fallbackImageUrl: (pageNumber) => `/story-images/placeholders/${pageNumber}.jpg`,
           previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
           lockedPlaceholderName: t("pages.bookReader.lockedChildPlaceholder"),
+          spreadTextFallbacks,
+          spreadImageFallbacks,
         });
+
+        const activePreviewId =
+          previewIdFromQuery ||
+          (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
+
+        await auth.authStateReady();
+        const ownerUid = auth.currentUser?.uid;
+        if (activePreviewId && ownerUid) {
+          try {
+            const overrides = await loadPreviewReaderOverrides(activePreviewId, ownerUid);
+            pages = applyPreviewOverridesToReaderPages(pages, overrides, PREVIEW_SPREAD_LIMIT);
+          } catch (previewErr) {
+            console.warn("[BookReader] Failed to merge storyPreviews into reader pages:", previewErr);
+          }
+        }
 
         const resolvedCoverImage =
           (typeof data.coverImage === "string" && data.coverImage.trim()) ||
           (typeof data.coverImageUrl === "string" && data.coverImageUrl.trim()) ||
+          pages.find((p) => p.pageNumber === 1)?.imageUrl ||
+          pages[0]?.imageUrl ||
           undefined;
 
         setStory({
@@ -299,7 +325,8 @@ export default function BookReaderPage() {
     };
 
     fetchStory();
-  }, [storyId, CURRENT_LANGUAGE, navigate, t]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` / `navigate` are unstable; story load keys off ids only
+  }, [storyId, previewIdFromQuery]);
 
   useEffect(() => {
     if (!storyId) return;
@@ -309,6 +336,44 @@ export default function BookReaderPage() {
       localStorage.removeItem(personalizationKey);
     };
   }, [storyId]);
+
+  // Preview pages are written incrementally after POST /generate — refresh reader when ready.
+  useEffect(() => {
+    if (!previewId || !story?.id) return;
+
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+
+    void (async () => {
+      await auth.authStateReady();
+      const ownerUid = auth.currentUser?.uid;
+      if (!ownerUid || cancelled) return;
+
+      unsubscribe = onSnapshot(doc(db, "storyPreviews", previewId), async (snap) => {
+        if (cancelled || !snap.exists()) return;
+        const overrides = await previewOverridesFromDocData(snap.data(), ownerUid);
+        if (!overrides.some((o) => o.personalizedText?.trim())) return;
+
+        setStory((prev) =>
+          prev?.id === story.id
+            ? {
+                ...prev,
+                pages: applyPreviewOverridesToReaderPages(
+                  prev.pages,
+                  overrides,
+                  PREVIEW_SPREAD_LIMIT,
+                ),
+              }
+            : prev,
+        );
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, [previewId, story?.id]);
 
   useEffect(() => () => { ttsStop(); }, []);
 
