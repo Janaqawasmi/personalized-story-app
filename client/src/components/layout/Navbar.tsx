@@ -338,27 +338,7 @@ export default function Navbar({
                     sx={{ gap: 1.5, py: 1 }}
                   >
                     <AutoAwesomeOutlined sx={{ fontSize: 18, color: "#824D5C" }} />
-                    <Typography sx={{ fontSize: 14, color: "#824D5C" }}>
-                      {t("navbar.userMenu.myPreviews")}
-                    </Typography>
-                    {previewBadgeCount > 0 && (
-                      <Box
-                        sx={{
-                          marginInlineStart: "auto",
-                          fontSize: 10,
-                          fontWeight: 600,
-                          px: "7px",
-                          py: "2px",
-                          borderRadius: "999px",
-                          background: "#FBEAF0",
-                          color: "#72243E",
-                          border: "0.5px solid #ED93B1",
-                          lineHeight: 1.6,
-                        }}
-                      >
-                        {previewBadgeCount}
-                      </Box>
-                    )}
+                    <Typography sx={{ fontSize: 14 }}>{t("navbar.userMenu.myPreviews")}</Typography>
                   </MenuItem>
 
                   <MenuItem
