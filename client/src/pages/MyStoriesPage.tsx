@@ -149,28 +149,7 @@ export default function MyStoriesPage() {
           />
           <Tab
             value="previews"
-            label={
-              <Box sx={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                {t("pages.myStories.tabs.previews")}
-                {previews.length > 0 && (
-                  <Box
-                    sx={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      px: "7px",
-                      py: "1px",
-                      borderRadius: "999px",
-                      background: "#FBEAF0",
-                      color: "#824D5C",
-                      border: "0.5px solid #ED93B1",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {previews.length}
-                  </Box>
-                )}
-              </Box>
-            }
+            label={t("pages.myStories.tabs.previews")}
             icon={<AutoAwesomeOutlined sx={{ fontSize: 16 }} />}
             iconPosition="start"
           />
