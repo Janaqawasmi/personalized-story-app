@@ -240,6 +240,7 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
     animal_friend: "חבר חיה שמלווה",
     sibling_perspective: "אח או אחות שמציעים פרספקטיבה",
   },
+  LANGUAGE_LABELS: { en: "אנגלית", ar: "ערבית" },
 
   preBriefOverline: "לפני הבריף",
   preBriefTitle: "בחרו את העדשה שבה הסיפור מסתכל",
@@ -316,6 +317,10 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
   s1Field13: "אורך הסיפור",
   s1Field13Helper: "משפיע על תקציב העמודים. ברירת המחדל: רגיל.",
   s1PreviewPlaceholder: "בחרו טווח גיל למעלה כדי לראות פרטי סיפור.",
+  s1BriefLanguageLabel: "שפת הבריף",
+  s1BriefLanguageHelper: "השפה שבה אתם כותבים את הבריף. אינה משפיעה על הסיפור שייווצר.",
+  s1OutputLanguageLabel: "שפת הסיפור שייווצר",
+  s1OutputLanguageHelper: "השפה שבה ייכתב הסיפור שייווצר. בלתי תלויה בשפת הבריף.",
   s1MissingAge: "טווח גיל יעד",
   s1MissingPeak: "עוצמת עוצמה רגשית בשיא",
   ariaAgeRange: (label) => `טווח גיל ${label}`,

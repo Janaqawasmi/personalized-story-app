@@ -305,3 +305,35 @@ describe('buildPostValidationPrompt — pages-aware rendering', () => {
     expect(out).toContain('Pip was a small rabbit');
   });
 });
+
+// ─── Tests: output-language awareness ────────────────────────────────────────
+
+describe('buildPostValidationPrompt — output language', () => {
+  it('Arabic output → prompt notes the story is in Arabic', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2Output(),
+      makeMinimalBrief({ outputLanguage: 'ar' }),
+      'Approach.',
+    );
+    expect(out).toContain('written in Arabic');
+    expect(out).toContain('alignment note in English');
+  });
+
+  it('English output → no Arabic note', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2Output(),
+      makeMinimalBrief({ outputLanguage: 'en' }),
+      'Approach.',
+    );
+    expect(out).not.toContain('written in Arabic');
+  });
+
+  it('absent output language → no Arabic note', () => {
+    const out = buildPostValidationPrompt(
+      makeMockStep2Output(),
+      makeMinimalBrief(),
+      'Approach.',
+    );
+    expect(out).not.toContain('written in Arabic');
+  });
+});

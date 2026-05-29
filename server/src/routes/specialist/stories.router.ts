@@ -146,6 +146,8 @@ function normalizeIncomingBrief(raw: unknown, createdBy: string): StoryBrief | n
     status: "submitted",
     version: 1,
     storyType: String(wire.storyType ?? "") as StoryBrief["storyType"],
+    briefLanguage: wire.briefLanguage === "ar" ? "ar" : "en",
+    outputLanguage: wire.outputLanguage === "ar" ? "ar" : "en",
     ageAndScope: {
       ageRange: String(s1.ageRange ?? "3-5") as StoryBrief["ageAndScope"]["ageRange"],
       peakIntensity: String(s1.peakIntensity ?? "moderate") as StoryBrief["ageAndScope"]["peakIntensity"],

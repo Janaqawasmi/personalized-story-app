@@ -240,6 +240,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
     animal_friend: "رفيق حيوان",
     sibling_perspective: "أخ أو أخت يقدّمان زاوية",
   },
+  LANGUAGE_LABELS: { en: "الإنجليزية", ar: "العربية" },
 
   preBriefOverline: "قبل الموجز",
   preBriefTitle: "اختاروا العدسة التي ينظر من خلالها السرد",
@@ -316,6 +317,10 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   s1Field13: "طول القصة",
   s1Field13Helper: "يؤثر على ميزانية الصفحات. الافتراضي: اعتيادي.",
   s1PreviewPlaceholder: "اختاروا فئة عمر أعلاه لعرض تفاصيل القصة.",
+  s1BriefLanguageLabel: "لغة الموجز",
+  s1BriefLanguageHelper: "اللغة التي تكتبون بها هذا الموجز. لا تؤثر على القصة المُولّدة.",
+  s1OutputLanguageLabel: "لغة القصة المُولّدة",
+  s1OutputLanguageHelper: "اللغة التي ستُكتب بها القصة المُولّدة. مستقلة عن لغة الموجز.",
   s1MissingAge: "فئة العمر المستهدفة",
   s1MissingPeak: "ذروة الشدة العاطفية",
   ariaAgeRange: (label) => `فئة العمر ${label}`,
