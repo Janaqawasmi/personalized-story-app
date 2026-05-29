@@ -1,10 +1,78 @@
 import { Anthropic } from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import * as fs from "fs";
 import * as path from "path";
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 const client = new Anthropic({ maxRetries: 0 });
+
+// OpenAI is lazily constructed so that Anthropic-only runs (and tests) never
+// require OPENAI_API_KEY to be set. Only story versions authored by a GPT model
+// touch this client.
+let openaiClient: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ maxRetries: 0 });
+  }
+  return openaiClient;
+}
+
+/** Provider is inferred from the model id: anything starting with "gpt" is OpenAI. */
+function isOpenAIModel(model: string): boolean {
+  return model.startsWith("gpt");
+}
+
+interface ProviderCallResult {
+  text: string | undefined;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+async function callAnthropic(
+  model: string,
+  prompt: string,
+  maxTokens: number,
+): Promise<ProviderCallResult> {
+  const response = await client.messages.create({
+    model,
+    max_tokens: maxTokens,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  let text: string | undefined;
+  for (const block of response.content) {
+    if (block.type === "text") {
+      text = block.text;
+      break;
+    }
+  }
+
+  return {
+    text,
+    inputTokens: response.usage?.input_tokens ?? 0,
+    outputTokens: response.usage?.output_tokens ?? 0,
+  };
+}
+
+async function callOpenAI(
+  model: string,
+  prompt: string,
+  maxTokens: number,
+): Promise<ProviderCallResult> {
+  const response = await getOpenAI().chat.completions.create({
+    model,
+    max_completion_tokens: maxTokens,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const content = response.choices[0]?.message?.content;
+  return {
+    text: typeof content === "string" && content.length > 0 ? content : undefined,
+    inputTokens: response.usage?.prompt_tokens ?? 0,
+    outputTokens: response.usage?.completion_tokens ?? 0,
+  };
+}
 
 const LOG_PATH = path.resolve(process.cwd(), "logs", "agent1-calls.jsonl");
 
@@ -82,21 +150,11 @@ export async function callLLM(input: LLMCallInput): Promise<LLMCallOutput> {
   const startTime = Date.now();
 
   try {
-    const response = await client.messages.create({
-      model: input.model,
-      max_tokens: input.maxTokens,
-      messages: [{ role: "user", content: input.prompt }],
-    });
+    const { text, inputTokens, outputTokens } = isOpenAIModel(input.model)
+      ? await callOpenAI(input.model, input.prompt, input.maxTokens)
+      : await callAnthropic(input.model, input.prompt, input.maxTokens);
 
     const latencyMs = Date.now() - startTime;
-
-    let text: string | undefined;
-    for (const block of response.content) {
-      if (block.type === "text") {
-        text = block.text;
-        break;
-      }
-    }
 
     if (text === undefined) {
       appendLogLine({
@@ -104,17 +162,14 @@ export async function callLLM(input: LLMCallInput): Promise<LLMCallOutput> {
         step: input.step,
         model: input.model,
         attempt: input.attempt,
-        inputTokens: response.usage?.input_tokens,
-        outputTokens: response.usage?.output_tokens,
+        inputTokens,
+        outputTokens,
         latencyMs,
         success: false,
         errorMessage: "LLM response contained no text block",
       });
       throw new NoTextBlockError();
     }
-
-    const inputTokens = response.usage?.input_tokens ?? 0;
-    const outputTokens = response.usage?.output_tokens ?? 0;
 
     appendLogLine({
       timestamp: new Date().toISOString(),

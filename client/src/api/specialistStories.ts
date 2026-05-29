@@ -5,6 +5,7 @@
 
 import type { CompleteBrief } from "../types/storyBrief";
 import type { Story, StoryStatus } from "../types/story";
+import type { ModelChoice } from "../types/agent1Result";
 import { normalizeStoryFromApi } from "../utils/storyBriefFromApi";
 import { API_BASE, getAuthHeaders } from "./api";
 
@@ -121,6 +122,23 @@ export async function generateStory(
       throw new Error(errorMessage(json, "Invalid server response"));
     }
     return normalizeStoryFromApi(json.story);
+  } catch (err) {
+    return wrapNetworkError(err);
+  }
+}
+
+/** POST /api/specialist/stories/:storyId/generate-variant — generate an additional version with a different AI model. */
+export async function generateVariant(
+  storyId: string,
+  modelChoice: ModelChoice,
+): Promise<Story> {
+  try {
+    const headers = await getAuthHeaders();
+    const res = await fetch(
+      `${BASE}/${encodeURIComponent(storyId)}/generate-variant`,
+      { method: "POST", headers, body: JSON.stringify({ modelChoice }) },
+    );
+    return normalizeStoryFromApi(await handleResponse<Story>(res, "story"));
   } catch (err) {
     return wrapNetworkError(err);
   }

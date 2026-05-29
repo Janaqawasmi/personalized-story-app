@@ -7,6 +7,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Snackbar from "@mui/material/Snackbar";
 import TextField from "@mui/material/TextField";
@@ -15,7 +17,7 @@ import CheckIcon from "@mui/icons-material/Check";
 
 import type { Agent1ApprovedPartToken } from "../../../api/specialistStories";
 import type { StoryDraft } from "../../../types/story";
-import type { Agent1Result } from "../../../types/agent1Result";
+import type { Agent1Result, ModelChoice } from "../../../types/agent1Result";
 import type { StoryType } from "../../../types/storyBrief";
 import { AGE_RANGE_LABELS, COPING_TOOL_LABELS } from "../../../types/storyBrief";
 import { useNavigate, useParams } from "react-router-dom";
@@ -48,6 +50,12 @@ const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
   life_transitions: "Life Transitions",
 };
 
+/** On-demand model variants the specialist can add for comparison (Sonnet is the default flow). */
+const VARIANT_OPTIONS: { choice: ModelChoice; label: string }[] = [
+  { choice: "gpt", label: "GPT-5" },
+  { choice: "opus", label: "Opus 4.7" },
+];
+
 const FONT_STORAGE_KEY = "dammah.draftB.storyFont";
 const RAIL_TAB_STORAGE_KEY = "dammah.draftB.activeRailTab";
 
@@ -77,6 +85,8 @@ export default function DraftTabB({
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenSubmitting, setRegenSubmitting] = useState(false);
   const [promptGenerationSubmitting, setPromptGenerationSubmitting] = useState(false);
+  const [variantMenuAnchor, setVariantMenuAnchor] = useState<HTMLElement | null>(null);
+  const [variantSubmitting, setVariantSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
@@ -192,8 +202,17 @@ export default function DraftTabB({
   useEffect(() => {
     const result = versions[selectedVersionIndex] ?? story.agent1Result;
     if (!result) return;
-    setEditorTitle(story.currentDraft?.title ?? result.title);
-    setEditorBody(story.currentDraft?.body ?? result.story);
+    // The editable version is the canonical one backing `currentDraft`
+    // (`agent1Result`). Model variants are appended for side-by-side comparison
+    // and are shown read-only from their own output.
+    const isEditable = result.generationId === story.agent1Result?.generationId;
+    if (isEditable) {
+      setEditorTitle(story.currentDraft?.title ?? result.title);
+      setEditorBody(story.currentDraft?.body ?? result.story);
+    } else {
+      setEditorTitle(result.title);
+      setEditorBody(result.story);
+    }
     setHasUnsavedChanges(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when switching version index
   }, [selectedVersionIndex]);
@@ -303,6 +322,30 @@ export default function DraftTabB({
         message: err instanceof Error ? err.message : "Failed to approve story.",
         severity: "error",
       });
+    }
+  }
+
+  async function handleGenerateVariant(modelChoice: ModelChoice) {
+    setVariantMenuAnchor(null);
+    setVariantSubmitting(true);
+    const label =
+      VARIANT_OPTIONS.find((o) => o.choice === modelChoice)?.label ?? modelChoice;
+    try {
+      const updated = await draftStore.generateVariant(story.id, modelChoice);
+      onStoryUpdate(updated);
+      // Select the newly appended version so the specialist lands on it to compare.
+      setSelectedVersionIndex(Math.max(0, updated.agent1Versions.length - 1));
+      setSnackbar({
+        message: `Generated a ${label} version.`,
+        severity: "success",
+      });
+    } catch (err) {
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to generate version.",
+        severity: "error",
+      });
+    } finally {
+      setVariantSubmitting(false);
     }
   }
 
@@ -452,10 +495,21 @@ export default function DraftTabB({
   const displayedResult: Agent1Result =
     versions[selectedVersionIndex] ?? story.agent1Result;
 
-  const isReadOnly = !(
-    story.status === "awaiting_review" ||
-    story.status === "in_review"
+  // The canonical version backing `currentDraft`. Model variants are read-only
+  // comparison copies, so editing is only allowed on the editable version.
+  const isEditableVersionSelected =
+    displayedResult.generationId === story.agent1Result.generationId;
+
+  const isReadOnly =
+    !(story.status === "awaiting_review" || story.status === "in_review") ||
+    !isEditableVersionSelected;
+
+  const presentModelChoices = new Set(
+    versions.map((v) => v.modelChoice).filter(Boolean),
   );
+  const canAddVariant =
+    (story.status === "awaiting_review" || story.status === "in_review") &&
+    versions.length < MAX_VERSIONS;
 
   const [targetMin, targetMax] = displayedResult.targetWordRange;
 
@@ -555,6 +609,43 @@ export default function DraftTabB({
           targetRange={[targetMin, targetMax]}
           regenRemaining={regenRemaining}
         />
+
+        {canAddVariant && (
+          <Box sx={{ flexShrink: 0 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={variantSubmitting}
+              onClick={(e) => setVariantMenuAnchor(e.currentTarget)}
+            >
+              {variantSubmitting ? (
+                <>
+                  <CircularProgress size={14} thickness={5} color="inherit" sx={{ mr: 1 }} />
+                  Generating…
+                </>
+              ) : (
+                "Generate another version"
+              )}
+            </Button>
+            <Menu
+              anchorEl={variantMenuAnchor}
+              open={variantMenuAnchor !== null}
+              onClose={() => setVariantMenuAnchor(null)}
+            >
+              {VARIANT_OPTIONS.map((opt) => (
+                <MenuItem
+                  key={opt.choice}
+                  disabled={presentModelChoices.has(opt.choice)}
+                  onClick={() => void handleGenerateVariant(opt.choice)}
+                >
+                  {presentModelChoices.has(opt.choice)
+                    ? `${opt.label} (already generated)`
+                    : opt.label}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+        )}
       </Box>
 
       {/* ── Manuscript + right rail (CSS grid) ────────────────────────── */}

@@ -13,10 +13,9 @@ import { callLLM } from '@/agent1/shared/llm-client';
 import { buildStep1Prompt } from './prompt-builder';
 import { parseStep1Response } from './output-parser';
 
-// Model string is hardcoded for v1.0. When the model changes, this
-// line changes. Do not duplicate elsewhere in this module.
-// TODO: Switch to "claude-opus-4-6" (or newer) for production quality.
-// Using Sonnet during development to conserve API credits.
+// Default model for this step. Callers may override per-version (multi-model
+// generation) by passing `model`; the model id registry lives in
+// @/agent1/shared/models.
 const STEP1_MODEL = 'claude-sonnet-4-6';
 const STEP1_MAX_TOKENS = 4096;
 
@@ -29,6 +28,7 @@ export async function runStoryArchitect(
   brief: StoryBrief,
   preCheckResult: PreCheckResult,
   options?: GenerateOptions,
+  model: string = STEP1_MODEL,
 ): Promise<{
   step1Output: Step1Output;
   exampleBankStatus: ExampleBankStatus;
@@ -41,7 +41,7 @@ export async function runStoryArchitect(
   const promptHash = createHash('sha256').update(prompt).digest('hex');
 
   const attempt1 = await callLLM({
-    model: STEP1_MODEL,
+    model,
     prompt,
     maxTokens: STEP1_MAX_TOKENS,
     step: 'step1_architect',
@@ -50,7 +50,7 @@ export async function runStoryArchitect(
 
   const record1: LLMCallRecord = {
     step: 'step1_architect',
-    model: STEP1_MODEL,
+    model,
     inputTokens: attempt1.inputTokens,
     outputTokens: attempt1.outputTokens,
     latencyMs: attempt1.latencyMs,
@@ -68,7 +68,7 @@ export async function runStoryArchitect(
   }
 
   const attempt2 = await callLLM({
-    model: STEP1_MODEL,
+    model,
     prompt,
     maxTokens: STEP1_MAX_TOKENS,
     step: 'step1_architect',
@@ -77,7 +77,7 @@ export async function runStoryArchitect(
 
   const record2: LLMCallRecord = {
     step: 'step1_architect',
-    model: STEP1_MODEL,
+    model,
     inputTokens: attempt2.inputTokens,
     outputTokens: attempt2.outputTokens,
     latencyMs: attempt2.latencyMs,

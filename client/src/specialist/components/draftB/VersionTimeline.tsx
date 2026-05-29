@@ -97,9 +97,8 @@ export default function VersionTimeline({
             desk,
             dateLocaleForLang(language),
           );
-          const titleTop =
-            i === 0 ? "First draft" : isLatest ? "Current revision" : `Revision ${i}`;
-          const subtitleLine = isLatest ? `${rel} · current` : rel;
+          const titleTop = version.modelLabel ?? "Sonnet 4.6";
+          const subtitleLine = rel;
 
           return (
             <React.Fragment key={version.generationId ?? i}>
@@ -188,7 +187,7 @@ export default function VersionTimeline({
                 fontFamily: FONTS.sans,
               }}
             >
-              v{versions.length + 1} available via Regenerate
+              v{versions.length + 1} available
             </Typography>
           </>
         )}

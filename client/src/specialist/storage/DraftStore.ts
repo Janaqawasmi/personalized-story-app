@@ -9,6 +9,7 @@
 import type { Story, StoryStatus } from "../../types/story";
 import type { CompleteBrief } from "../../types/storyBrief";
 import type { Agent1RegenerationPayload } from "../../api/specialistStories";
+import type { ModelChoice } from "../../types/agent1Result";
 
 // ============================================================================
 // Filter
@@ -79,6 +80,12 @@ export interface DraftStore {
     storyId: string,
     payload: Agent1RegenerationPayload,
   ): Promise<Story>;
+
+  /**
+   * Generate an additional version of the story with a different AI model
+   * (`POST .../generate-variant`). Server-backed stories under review only;
+   * appends a labeled version without changing story status. */
+  generateVariant(storyId: string, modelChoice: ModelChoice): Promise<Story>;
 
   // ─── Status transitions ───────────────────────────────────────────────────
 
