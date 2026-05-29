@@ -30,6 +30,43 @@ function stripMarkdownFences(raw: string): string {
   return raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
 }
 
+// Repair invalid JSON string escapes. When authoring Arabic, the model
+// occasionally types the line-break escape as backslash + Arabic letter (e.g.
+// `\ن` instead of `\n`), because its intended `n` lands as the visually/phonetically
+// adjacent Arabic noon. JSON only permits \" \\ \/ \b \f \n \r \t \uXXXX, so a
+// single stray escape rejects the whole document. The model only ever uses `\n`
+// for line breaks in prose, so any non-conforming escape is treated as a botched
+// newline.
+function repairInvalidJsonEscapes(raw: string): string {
+  const SIMPLE_ESCAPES = '"\\/bfnrt';
+  let out = '';
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] !== '\\') {
+      out += raw[i];
+      continue;
+    }
+    const next = raw[i + 1];
+    if (next === undefined) {
+      out += '\\';
+      continue;
+    }
+    if (SIMPLE_ESCAPES.includes(next)) {
+      out += '\\' + next;
+      i++;
+      continue;
+    }
+    if (next === 'u' && /^[0-9a-fA-F]{4}$/.test(raw.slice(i + 2, i + 6))) {
+      out += raw.slice(i, i + 6);
+      i += 5;
+      continue;
+    }
+    // Invalid escape — the model meant a newline.
+    out += '\\n';
+    i++;
+  }
+  return out;
+}
+
 // ─── Parser ──────────────────────────────────────────────────────────────────
 
 export function parseStep2Response(
@@ -53,19 +90,25 @@ export function parseStep2Response(
   // ─── Parse JSON ────────────────────────────────────────────────────────────
 
   let parsed: AuthorJsonResponse;
+  const cleaned = stripMarkdownFences(rawResponse);
   try {
-    const cleaned = stripMarkdownFences(rawResponse);
     parsed = JSON.parse(cleaned) as AuthorJsonResponse;
   } catch {
-    // JSON parse failed — fall back to legacy TITLE/STORY text extraction so
-    // that a single bad generation doesn't hard-crash the pipeline.
-    return parseLegacyTextFormat(
-      rawResponse,
-      targetWordRange,
-      targetPageRange,
-      llmCallRecord,
-      promptHash,
-    );
+    try {
+      // Most parse failures are stray escape sequences (see repair helper).
+      // Repair and retry before giving up on structured output.
+      parsed = JSON.parse(repairInvalidJsonEscapes(cleaned)) as AuthorJsonResponse;
+    } catch {
+      // Still unparseable — fall back to legacy TITLE/STORY text extraction so
+      // that a single bad generation doesn't hard-crash the pipeline.
+      return parseLegacyTextFormat(
+        rawResponse,
+        targetWordRange,
+        targetPageRange,
+        llmCallRecord,
+        promptHash,
+      );
+    }
   }
 
   // ─── Validate structure ────────────────────────────────────────────────────

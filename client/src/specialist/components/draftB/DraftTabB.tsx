@@ -66,6 +66,7 @@ export default function DraftTabB({
   onUnsavedDraftChange,
 }: DraftTabProps) {
   const versions = story.agent1Versions;
+  const isRtl = story.brief.outputLanguage === "ar";
 
   const [selectedVersionIndex, setSelectedVersionIndex] = useState(
     versions.length - 1,
@@ -476,6 +477,7 @@ export default function DraftTabB({
                   onFlagMarkerClick={() => {}}
                   onParagraphHover={() => {}}
                   mode="read"
+                  isRtl={isRtl}
                 />
               </Box>
             </Box>
@@ -712,6 +714,7 @@ export default function DraftTabB({
               onFlagMarkerClick={handleFlagMarkerClick}
               onParagraphHover={setHoveredFlagIndex}
               mode={isReadOnly ? "read" : editorMode}
+              isRtl={isRtl}
             />
 
             {story.status === "approved" && (
