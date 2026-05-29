@@ -315,6 +315,9 @@ export default function DraftTabB({
         approvedParts,
       });
       onStoryUpdate(finalStory);
+      // Land on the freshly generated version; earlier versions stay in the
+      // timeline and remain selectable for comparison.
+      setSelectedVersionIndex(Math.max(0, finalStory.agent1Versions.length - 1));
       handleRegenDialogClose();
     } catch (err) {
       setSnackbar({
@@ -564,6 +567,14 @@ export default function DraftTabB({
   const regenCount = versions.length - 1;
   const regenRemaining = MAX_VERSIONS - versions.length;
 
+  // The version backing the working draft (`agent1Result`); gets the "current"
+  // marker in the timeline. Falls back to the latest version for legacy data.
+  const currentVersionIndex = (() => {
+    const id = story.agent1Result?.generationId;
+    const idx = versions.findIndex((v) => v.generationId === id);
+    return idx >= 0 ? idx : versions.length - 1;
+  })();
+
   const latestAgentOutput: Agent1Result | null =
     versions.length > 0 ? versions[versions.length - 1] : story.agent1Result;
   const willSnapshotEditsAsNewVersion =
@@ -624,6 +635,7 @@ export default function DraftTabB({
           wordCount={currentWordCount}
           targetRange={[targetMin, targetMax]}
           regenRemaining={regenRemaining}
+          currentVersionIndex={currentVersionIndex}
         />
 
         {canAddVariant && (

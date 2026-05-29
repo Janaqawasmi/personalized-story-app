@@ -7,7 +7,7 @@ import {
   TypeMismatchError,
   Step1IncoherentError,
 } from "@/agent1";
-import type { Agent1Result, ApprovedPart, GenerateOptions } from "@/agent1/types";
+import type { Agent1Result, ApprovedPart, GenerateOptions, StoryPage } from "@/agent1/types";
 import { MODEL_LABELS, isModelChoice } from "@/agent1/shared/models";
 import { firestore } from "@/config/firebase";
 import {
@@ -77,6 +77,52 @@ function buildSpecialistSnapshotFields(
     agent1Versions: [...story.agent1Versions, snapshot],
     agent1Result: snapshot,
   };
+}
+
+/** Words in a string (whitespace-delimited). */
+function countWordsInText(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** Split an edited manuscript body into pages on blank-line boundaries. */
+function splitBodyIntoPages(body: string): StoryPage[] {
+  return body
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .map((text, i) => ({
+      pageNumber: i + 1,
+      text,
+      wordCount: countWordsInText(text),
+    }));
+}
+
+/**
+ * Reconcile structured manuscript `pages` with the specialist's working
+ * `currentDraft` so downstream consumers (illustration, publish) use the
+ * approved, edited text rather than the original generated pages.
+ *
+ * Returns the pages to persist, or `null` when no change is needed:
+ *  - Draft matches the composed pages (no manual edits) → keep the original
+ *    structure intact (correctly handles multi-paragraph pages).
+ *  - Draft diverges from the generated pages → rebuild pages from the edited body.
+ *  - No structured pages yet (legacy text format) but a draft exists → derive them.
+ */
+function reconcilePagesFromDraft(story: Story): StoryPage[] | null {
+  const body = story.currentDraft?.body?.trim() ?? "";
+  if (!body) return null;
+
+  const pages = story.pages ?? [];
+  if (pages.length > 0) {
+    const composed = [...pages]
+      .sort((a, b) => a.pageNumber - b.pageNumber)
+      .map((p) => p.text.trim())
+      .join("\n\n")
+      .trim();
+    if (composed === body) return null; // no manual edits — keep page structure
+  }
+
+  return splitBodyIntoPages(body);
 }
 
 router.use(requireAuth);
@@ -474,6 +520,12 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
 
   if (to === "approved") {
     extraFields.approvedAt = now;
+    // Make the approved manuscript canonical: fold any manual edits living in
+    // `currentDraft` back into `pages` so illustration/publish use the edited text.
+    const reconciledPages = reconcilePagesFromDraft(story);
+    if (reconciledPages) {
+      extraFields.pages = reconciledPages;
+    }
   } else if (to === "in_review") {
     extraFields.lastOpenedAt = now;
   }

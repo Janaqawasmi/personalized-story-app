@@ -45,6 +45,8 @@ export interface VersionTimelineProps {
   wordCount: number;
   targetRange: readonly [number, number];
   regenRemaining: number;
+  /** Index of the version backing the working draft (gets the "current" marker). */
+  currentVersionIndex?: number;
 }
 
 export default function VersionTimeline({
@@ -53,6 +55,7 @@ export default function VersionTimeline({
   onSelect,
   wordCount,
   targetRange,
+  currentVersionIndex,
 }: VersionTimelineProps) {
   const desk = useSpecialistDeskUi();
   const { language } = useLanguage();
@@ -99,8 +102,11 @@ export default function VersionTimeline({
             desk,
             dateLocaleForLang(language),
           );
-          const titleTop = version.modelLabel ?? "Sonnet 4.6";
-          const subtitleLine = rel;
+          const modelLabel = version.modelLabel ?? "Sonnet 4.6";
+          const titleTop = `v${i + 1} · ${modelLabel}`;
+          const isCurrent =
+            currentVersionIndex != null ? i === currentVersionIndex : isLatest;
+          const subtitleLine = isCurrent ? `${rel} · current` : rel;
 
           return (
             <React.Fragment key={version.generationId ?? i}>
