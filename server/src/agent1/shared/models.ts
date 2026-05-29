@@ -32,3 +32,24 @@ export function isModelChoice(value: unknown): value is ModelChoice {
 export function resolveModelChoice(value: unknown): ModelChoice {
   return isModelChoice(value) ? value : DEFAULT_MODEL_CHOICE;
 }
+
+/**
+ * GPT-5 / o-series count reasoning tokens against max_completion_tokens. Values
+ * that work for Claude (e.g. 4096) can be exhausted before any visible content.
+ */
+export function isOpenAIReasoningModel(model: string): boolean {
+  return model.startsWith("o") || /^gpt-5/i.test(model);
+}
+
+/** Minimum completion budget for OpenAI reasoning models (Step 1–3). */
+export const OPENAI_REASONING_MIN_COMPLETION_TOKENS = 16_384;
+
+/** Boosted retry budget when the first OpenAI call returns no message content. */
+export const OPENAI_REASONING_RETRY_COMPLETION_TOKENS = 32_768;
+
+export function openAICompletionTokenBudget(model: string, requestedMax: number): number {
+  if (!isOpenAIReasoningModel(model)) {
+    return requestedMax;
+  }
+  return Math.max(requestedMax, OPENAI_REASONING_MIN_COMPLETION_TOKENS);
+}

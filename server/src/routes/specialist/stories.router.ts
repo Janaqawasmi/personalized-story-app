@@ -9,6 +9,7 @@ import {
 } from "@/agent1";
 import type { Agent1Result, ApprovedPart, GenerateOptions, StoryPage } from "@/agent1/types";
 import { MODEL_LABELS, isModelChoice } from "@/agent1/shared/models";
+import { NoTextBlockError } from "@/agent1/shared/llm-client";
 import { firestore } from "@/config/firebase";
 import {
   STORIES_COLLECTION,
@@ -1567,6 +1568,15 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+    if (error instanceof NoTextBlockError) {
+      res.status(502).json({
+        error: "AGENT1_FAILED",
+        message:
+          "The model returned no usable text. For GPT variants, ensure OPENAI_API_KEY is valid and try again.",
+        details: error.message,
+      });
+      return;
+    }
     if (error instanceof Step1IncoherentError) {
       res.status(502).json({
         error: "AGENT1_FAILED",
@@ -1697,6 +1707,15 @@ async function handleGenerateVariant(req: Request, res: Response): Promise<void>
     }
     if (error instanceof TypeMismatchError) {
       res.status(400).json({ error: "INVALID_INPUT", message: error.message });
+      return;
+    }
+    if (error instanceof NoTextBlockError) {
+      res.status(502).json({
+        error: "AGENT1_FAILED",
+        message:
+          "The model returned no usable text. For GPT variants, ensure OPENAI_API_KEY is valid and try again.",
+        details: error.message,
+      });
       return;
     }
     if (error instanceof Step1IncoherentError) {

@@ -1,7 +1,12 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import * as fs from "fs";
 import * as path from "path";
+import {
+  OPENAI_REASONING_RETRY_COMPLETION_TOKENS,
+  openAICompletionTokenBudget,
+} from "./models";
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -27,6 +32,7 @@ interface ProviderCallResult {
   text: string | undefined;
   inputTokens: number;
   outputTokens: number;
+  finishReason: string | undefined;
 }
 
 async function callAnthropic(
@@ -52,7 +58,29 @@ async function callAnthropic(
     text,
     inputTokens: response.usage?.input_tokens ?? 0,
     outputTokens: response.usage?.output_tokens ?? 0,
+    finishReason: undefined,
   };
+}
+
+/** Normalize OpenAI message.content (string or structured parts) to plain text. */
+export function extractOpenAIMessageText(
+  content: string | Array<{ type?: string; text?: string }> | null | undefined,
+): string | undefined {
+  if (typeof content === "string") {
+    const trimmed = content.trim();
+    return trimmed.length > 0 ? content : undefined;
+  }
+  if (!Array.isArray(content)) {
+    return undefined;
+  }
+  const parts: string[] = [];
+  for (const part of content) {
+    if (part?.type === "text" && typeof part.text === "string" && part.text.length > 0) {
+      parts.push(part.text);
+    }
+  }
+  const joined = parts.join("\n").trim();
+  return joined.length > 0 ? joined : undefined;
 }
 
 async function callOpenAI(
@@ -60,17 +88,26 @@ async function callOpenAI(
   prompt: string,
   maxTokens: number,
 ): Promise<ProviderCallResult> {
+  const maxCompletionTokens = openAICompletionTokenBudget(model, maxTokens);
+
+  const messages: ChatCompletionMessageParam[] = [{ role: "user", content: prompt }];
+
   const response = await getOpenAI().chat.completions.create({
     model,
-    max_completion_tokens: maxTokens,
-    messages: [{ role: "user", content: prompt }],
+    max_completion_tokens: maxCompletionTokens,
+    messages,
+    // GPT-5: lower reasoning burn so completion budget remains for visible output.
+    ...(model.includes("gpt-5") ? { reasoning_effort: "low" as const } : {}),
   });
 
-  const content = response.choices[0]?.message?.content;
+  const choice = response.choices[0];
+  const text = extractOpenAIMessageText(choice?.message?.content);
+
   return {
-    text: typeof content === "string" && content.length > 0 ? content : undefined,
+    text,
     inputTokens: response.usage?.prompt_tokens ?? 0,
     outputTokens: response.usage?.completion_tokens ?? 0,
+    finishReason: choice?.finish_reason ?? undefined,
   };
 }
 
@@ -122,10 +159,17 @@ function errorMessageFrom(err: unknown): string {
   return String(err);
 }
 
-class NoTextBlockError extends Error {
-  constructor() {
-    super("LLM response contained no text block");
+export class NoTextBlockError extends Error {
+  readonly finishReason: string | undefined;
+
+  constructor(finishReason: string | undefined = undefined) {
+    const detail =
+      finishReason === "length"
+        ? "LLM hit the completion token limit before producing visible output"
+        : "LLM response contained no text block";
+    super(detail);
     this.name = "NoTextBlockError";
+    this.finishReason = finishReason;
   }
 }
 
@@ -150,7 +194,7 @@ export async function callLLM(input: LLMCallInput): Promise<LLMCallOutput> {
   const startTime = Date.now();
 
   try {
-    const { text, inputTokens, outputTokens } = isOpenAIModel(input.model)
+    const { text, inputTokens, outputTokens, finishReason } = isOpenAIModel(input.model)
       ? await callOpenAI(input.model, input.prompt, input.maxTokens)
       : await callAnthropic(input.model, input.prompt, input.maxTokens);
 
@@ -166,9 +210,26 @@ export async function callLLM(input: LLMCallInput): Promise<LLMCallOutput> {
         outputTokens,
         latencyMs,
         success: false,
-        errorMessage: "LLM response contained no text block",
+        errorMessage: finishReason
+          ? `LLM response contained no text block (finish_reason=${finishReason})`
+          : "LLM response contained no text block",
       });
-      throw new NoTextBlockError();
+
+      if (
+        isOpenAIModel(input.model) &&
+        input.attempt === 1 &&
+        openAICompletionTokenBudget(input.model, input.maxTokens) <
+          OPENAI_REASONING_RETRY_COMPLETION_TOKENS
+      ) {
+        await delay(1000);
+        return callLLM({
+          ...input,
+          maxTokens: OPENAI_REASONING_RETRY_COMPLETION_TOKENS,
+          attempt: 2,
+        });
+      }
+
+      throw new NoTextBlockError(finishReason);
     }
 
     appendLogLine({
