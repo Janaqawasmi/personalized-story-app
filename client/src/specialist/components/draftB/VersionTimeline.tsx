@@ -57,7 +57,9 @@ export default function VersionTimeline({
   const desk = useSpecialistDeskUi();
   const { language } = useLanguage();
   const [min, max] = targetRange;
-  const outOfRange = wordCount < min || wordCount > max;
+  // Match the server's drift band (output-parser computeDrift): flag red only
+  // below min * 0.7 or above max * 1.3, not at the strict range edges.
+  const outOfRange = wordCount < min * 0.7 || wordCount > max * 1.3;
 
   return (
     <>

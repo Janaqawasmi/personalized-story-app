@@ -522,8 +522,10 @@ export default function DraftTabB({
     mustNeverFlaggedForIndex(i, item, flags),
   ).length;
 
+  // Match the server's drift band (output-parser computeDrift): a draft only
+  // counts as out of range below targetMin * 0.7 or above targetMax * 1.3.
   const wordCountOutOfRange =
-    currentWordCount < targetMin || currentWordCount > targetMax;
+    currentWordCount < targetMin * 0.7 || currentWordCount > targetMax * 1.3;
 
   const checks = [
     { ok: !hasUnsavedChanges, label: "Edits saved" },
