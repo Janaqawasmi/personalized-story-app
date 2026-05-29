@@ -148,11 +148,15 @@ export default function DraftTabB({
     .filter(Boolean).length;
 
   const handleSave = useCallback(async () => {
+    const sourceGenerationId = (
+      versions[selectedVersionIndex] ?? story.agent1Result
+    )?.generationId;
     const draft: StoryDraft = {
       title: editorTitle,
       body: editorBody,
       wordCount: currentWordCount,
       updatedAt: Date.now(),
+      ...(sourceGenerationId ? { sourceGenerationId } : {}),
     };
     setIsSaving(true);
     try {
@@ -170,7 +174,16 @@ export default function DraftTabB({
     } finally {
       setIsSaving(false);
     }
-  }, [story.id, editorTitle, editorBody, currentWordCount, onStoryUpdate]);
+  }, [
+    story.id,
+    story.agent1Result,
+    versions,
+    selectedVersionIndex,
+    editorTitle,
+    editorBody,
+    currentWordCount,
+    onStoryUpdate,
+  ]);
 
   useEffect(() => {
     onUnsavedDraftChange?.(hasUnsavedChanges);
@@ -203,13 +216,16 @@ export default function DraftTabB({
   useEffect(() => {
     const result = versions[selectedVersionIndex] ?? story.agent1Result;
     if (!result) return;
-    // The editable version is the canonical one backing `currentDraft`
-    // (`agent1Result`). Model variants are appended for side-by-side comparison
-    // and are shown read-only from their own output.
-    const isEditable = result.generationId === story.agent1Result?.generationId;
-    if (isEditable) {
-      setEditorTitle(story.currentDraft?.title ?? result.title);
-      setEditorBody(story.currentDraft?.body ?? result.story);
+    // `currentDraft` holds the specialist's working edits, tagged with the
+    // version they were derived from. Show those edits only when the selected
+    // version is their source; otherwise show that version's own output so each
+    // model version can be compared and edited independently. Legacy drafts
+    // (no sourceGenerationId) belong to the canonical `agent1Result` version.
+    const draftSource =
+      story.currentDraft?.sourceGenerationId ?? story.agent1Result?.generationId;
+    if (story.currentDraft && draftSource === result.generationId) {
+      setEditorTitle(story.currentDraft.title);
+      setEditorBody(story.currentDraft.body);
     } else {
       setEditorTitle(result.title);
       setEditorBody(result.story);
@@ -497,14 +513,10 @@ export default function DraftTabB({
   const displayedResult: Agent1Result =
     versions[selectedVersionIndex] ?? story.agent1Result;
 
-  // The canonical version backing `currentDraft`. Model variants are read-only
-  // comparison copies, so editing is only allowed on the editable version.
-  const isEditableVersionSelected =
-    displayedResult.generationId === story.agent1Result.generationId;
-
-  const isReadOnly =
-    !(story.status === "awaiting_review" || story.status === "in_review") ||
-    !isEditableVersionSelected;
+  const isReadOnly = !(
+    story.status === "awaiting_review" ||
+    story.status === "in_review"
+  );
 
   const presentModelChoices = new Set(
     versions.map((v) => v.modelChoice).filter(Boolean),
