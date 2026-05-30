@@ -1,4 +1,5 @@
 import type { CrossFieldValidation, StoryBrief } from "@/models/storyBrief.model";
+import type { ModelChoice } from "@/agent1/shared/models";
 
 // Caller input
 export type ApprovedPart =
@@ -22,6 +23,8 @@ export type RerunFeedback = {
 export type GenerateOptions = {
   retryPolicy?: RetryPolicy;
   feedback?: RerunFeedback;
+  /** Which AI model authors this version. Defaults to Sonnet when omitted. */
+  modelChoice?: ModelChoice;
 };
 
 // Inter-step types
@@ -149,6 +152,10 @@ export type PostValidationResult = {
 // Public output
 export type Agent1Result = {
   generationId: string;
+  // Which AI model authored this version. Optional for backward compatibility
+  // with versions generated before multi-model support.
+  modelChoice?: ModelChoice;
+  modelLabel?: string;
   // Step 1
   emotionalTruth: string;
   blueprint: BlueprintPoint[];

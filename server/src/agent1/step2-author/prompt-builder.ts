@@ -11,7 +11,9 @@ import { buildStep2SectionG } from './prompt-sections/section-g-obligation-tiers
 import { buildStep2SectionH } from './prompt-sections/section-h-hard-constraints';
 import { buildStep2SectionI } from './prompt-sections/section-i-few-shot';
 import { buildStep2SectionJ } from './prompt-sections/section-j-output-format';
+import { buildStep2SectionK } from './prompt-sections/section-k-language';
 import { getStoryExample } from './few-shot-retriever';
+import type { StoryFewShotResult } from './prompt-sections/section-i-few-shot';
 
 type ExampleBankStatus =
   | 'examples_used'
@@ -31,7 +33,12 @@ export function buildStep2Prompt(
   const sectionG = buildStep2SectionG(step1Output.compressionMetadata);
   const sectionH = buildStep2SectionH(brief);
 
-  const fewShotResult = getStoryExample(brief.ageAndScope.ageRange);
+  // Arabic output forces cold-start: the example bank is English-only, so
+  // including it risks English prose bleeding into the Arabic story.
+  const fewShotResult: StoryFewShotResult =
+    brief.outputLanguage === 'ar'
+      ? { example: null, sourceAgeRange: brief.ageAndScope.ageRange, crossBucket: false }
+      : getStoryExample(brief.ageAndScope.ageRange);
   const sectionI = buildStep2SectionI(
     fewShotResult,
     brief.storyType,
@@ -39,6 +46,7 @@ export function buildStep2Prompt(
   );
 
   const sectionJ = buildStep2SectionJ(brief);
+  const sectionK = buildStep2SectionK(brief);
 
   const prompt = [
     sectionA,
@@ -51,7 +59,10 @@ export function buildStep2Prompt(
     sectionH,
     sectionI,
     sectionJ,
-  ].join('\n\n');
+    sectionK,
+  ]
+    .filter((block) => block.length > 0)
+    .join('\n\n');
 
   let exampleBankStatus: ExampleBankStatus;
   if (fewShotResult.example !== null && !fewShotResult.crossBucket) {

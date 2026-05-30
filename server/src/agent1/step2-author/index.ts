@@ -7,9 +7,9 @@ import { callLLM } from '@/agent1/shared/llm-client';
 import { buildStep2Prompt } from './prompt-builder';
 import { parseStep2Response } from './output-parser';
 
-// Model string is a constant. Do not duplicate elsewhere in this module.
-// TODO: Switch to "claude-opus-4-6" (or newer) for production quality.
-// Using Sonnet during development to conserve API credits.
+// Default model for this step. Callers may override per-version (multi-model
+// generation) by passing `model`; the model id registry lives in
+// @/agent1/shared/models.
 const STEP2_MODEL = 'claude-sonnet-4-6';
 
 type ExampleBankStatus =
@@ -20,13 +20,14 @@ type ExampleBankStatus =
 export async function runAuthor(
   brief: StoryBrief,
   step1Output: Step1Output,
+  model: string = STEP2_MODEL,
 ): Promise<{ step2Output: Step2Output; exampleBankStatus: ExampleBankStatus }> {
   const { prompt, exampleBankStatus } = buildStep2Prompt(brief, step1Output);
 
   const promptHash = createHash('sha256').update(prompt).digest('hex');
 
   const llmResult = await callLLM({
-    model: STEP2_MODEL,
+    model,
     prompt,
     maxTokens: 8192,
     step: 'step2_author',
@@ -35,7 +36,7 @@ export async function runAuthor(
 
   const llmCallRecord: LLMCallRecord = {
     step: 'step2_author',
-    model: STEP2_MODEL,
+    model,
     inputTokens: llmResult.inputTokens,
     outputTokens: llmResult.outputTokens,
     latencyMs: llmResult.latencyMs,

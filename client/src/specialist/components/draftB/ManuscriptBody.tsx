@@ -60,6 +60,7 @@ export interface ManuscriptBodyProps {
   hoveredFlagIndex: number | null;
   onFlagMarkerClick: (flagIndex: number) => void;
   onParagraphHover: (index: number | null) => void;
+  isRtl?: boolean;
 }
 
 export default function ManuscriptBody({
@@ -70,6 +71,7 @@ export default function ManuscriptBody({
   hoveredFlagIndex,
   onFlagMarkerClick,
   onParagraphHover,
+  isRtl = false,
 }: ManuscriptBodyProps) {
   const [debouncedBody, setDebouncedBody] = useState(body);
 
@@ -95,7 +97,8 @@ export default function ManuscriptBody({
         const text = para;
         const firstChar = text[0] ?? "";
         const rest = text.slice(1);
-        const showDropCap = storyFont === "serif" && pi === 0 && firstChar.length > 0;
+        const showDropCap =
+          !isRtl && storyFont === "serif" && pi === 0 && firstChar.length > 0;
 
         const undismissedHere = anchorIndices.filter((fi) => !dismissedFlags.has(fi));
         const highlighted =
@@ -106,12 +109,13 @@ export default function ManuscriptBody({
           <p
             key={pi}
             className={anchorClassNames}
+            dir={isRtl ? "rtl" : "ltr"}
             style={{
               fontFamily,
               fontSize: "16.5px",
               lineHeight: "1.85",
-              textAlign: "justify",
-              hyphens: "auto",
+              textAlign: isRtl ? "right" : "justify",
+              hyphens: isRtl ? "none" : "auto",
               background: highlighted ? "#fdeaea" : "transparent",
               transition: "background 120ms ease",
               padding: highlighted ? "0 4px" : 0,

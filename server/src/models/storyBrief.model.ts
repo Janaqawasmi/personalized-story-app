@@ -46,6 +46,14 @@ export const STORY_LENGTHS = ["short", "standard", "extended"] as const;
 export type StoryLength = (typeof STORY_LENGTHS)[number];
 
 // ---------------------------------------------------------------------------
+// Language — brief input language and generated-story output language.
+// Independent of each other: an English brief may produce an Arabic story.
+// ---------------------------------------------------------------------------
+
+export const STORY_LANGUAGES = ["en", "ar"] as const;
+export type StoryLanguage = (typeof STORY_LANGUAGES)[number];
+
+// ---------------------------------------------------------------------------
 // Section 3 — Therapeutic Architecture
 // ---------------------------------------------------------------------------
 
@@ -362,6 +370,15 @@ export interface StoryBrief {
   version: number;
   lockedAt?: Timestamp;
   lockedByDraftId?: string;
+
+  // ── Language ─────────────────────────────────────────────────────────────
+  /** Language the specialist wrote the brief in. Metadata only — Claude reads
+   *  either language natively, so no brief translation is performed. Defaults
+   *  to "en" when absent (legacy briefs). */
+  briefLanguage?: StoryLanguage;
+  /** Language the generated story must be written in. The only load-bearing
+   *  language input: it drives the Step 2 author prompt. Defaults to "en". */
+  outputLanguage?: StoryLanguage;
 
   // ── Pre-brief ────────────────────────────────────────────────────────────
   /** Story type selector. Routes the entire form. */

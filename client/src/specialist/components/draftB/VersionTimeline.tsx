@@ -45,6 +45,8 @@ export interface VersionTimelineProps {
   wordCount: number;
   targetRange: readonly [number, number];
   regenRemaining: number;
+  /** Index of the version backing the working draft (gets the "current" marker). */
+  currentVersionIndex?: number;
 }
 
 export default function VersionTimeline({
@@ -53,11 +55,14 @@ export default function VersionTimeline({
   onSelect,
   wordCount,
   targetRange,
+  currentVersionIndex,
 }: VersionTimelineProps) {
   const desk = useSpecialistDeskUi();
   const { language } = useLanguage();
   const [min, max] = targetRange;
-  const outOfRange = wordCount < min || wordCount > max;
+  // Match the server's drift band (output-parser computeDrift): flag red only
+  // below min * 0.7 or above max * 1.3, not at the strict range edges.
+  const outOfRange = wordCount < min * 0.7 || wordCount > max * 1.3;
 
   return (
     <>
@@ -97,9 +102,11 @@ export default function VersionTimeline({
             desk,
             dateLocaleForLang(language),
           );
-          const titleTop =
-            i === 0 ? "First draft" : isLatest ? "Current revision" : `Revision ${i}`;
-          const subtitleLine = isLatest ? `${rel} · current` : rel;
+          const modelLabel = version.modelLabel ?? "Sonnet 4.6";
+          const titleTop = `v${i + 1} · ${modelLabel}`;
+          const isCurrent =
+            currentVersionIndex != null ? i === currentVersionIndex : isLatest;
+          const subtitleLine = isCurrent ? `${rel} · current` : rel;
 
           return (
             <React.Fragment key={version.generationId ?? i}>
@@ -188,7 +195,7 @@ export default function VersionTimeline({
                 fontFamily: FONTS.sans,
               }}
             >
-              v{versions.length + 1} available via Regenerate
+              v{versions.length + 1} available
             </Typography>
           </>
         )}

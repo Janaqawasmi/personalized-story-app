@@ -202,6 +202,40 @@ describe('parseStep2Response — JSON format: wordCount boundary (3-5 short: min
   });
 });
 
+// ─── Tests: invalid-escape repair (Arabic generation) ───────────────────────
+// When authoring Arabic the model sometimes types the newline escape as
+// backslash + Arabic noon (`\ن`) instead of `\n`, which is an illegal JSON
+// escape and rejects the whole document. The parser repairs these before
+// falling back to legacy text extraction.
+
+describe('parseStep2Response — invalid escape repair', () => {
+  // Raw response with a botched `\ن` escape between two sentences, as observed
+  // in real Arabic generations. Built as a raw string (not via JSON.stringify)
+  // so the malformed escape survives into the parser.
+  const ARABIC_BROKEN =
+    '```json\n' +
+    '{\n' +
+    '  "title": "الحجر الدافئ",\n' +
+    '  "pages": [\n' +
+    '    { "pageNumber": 1, "text": "كان هناك أبوه.\\ننفس المعطف، نفس الوجه." }\n' +
+    '  ]\n' +
+    '}\n' +
+    '```';
+
+  it('test 27: recovers structured output despite the invalid escape', () => {
+    const result = parse(ARABIC_BROKEN);
+    expect(result.title).toBe('الحجر الدافئ');
+    expect(result.pages).toHaveLength(1);
+  });
+
+  it('test 28: the botched escape becomes a real newline, not a fallback dump', () => {
+    const result = parse(ARABIC_BROKEN);
+    expect(result.pages![0]!.text).toBe('كان هناك أبوه.\nنفس المعطف، نفس الوجه.');
+    // Legacy fallback would have left the raw fence as the title.
+    expect(result.title).not.toMatch(/```/);
+  });
+});
+
 // ─── Tests: legacy fallback (TITLE/STORY text format) ────────────────────────
 // These test the fallback path that handles old-format responses gracefully.
 

@@ -13,13 +13,14 @@ export async function runPostValidation(
   step2Output: Step2Output,
   brief: StoryBrief,
   approachInstruction: string,
+  model: string = POST_VALIDATION_MODEL,
 ): Promise<PostValidationResult> {
   try {
     const prompt = buildPostValidationPrompt(step2Output, brief, approachInstruction);
     const promptHash = createHash('sha256').update(prompt).digest('hex');
 
     const llmResult = await callLLM({
-      model: POST_VALIDATION_MODEL,
+      model,
       prompt,
       maxTokens: 2048,
       step: 'step3_post_validation',
@@ -28,7 +29,7 @@ export async function runPostValidation(
 
     const llmCallRecord: LLMCallRecord = {
       step: 'step3_post_validation',
-      model: POST_VALIDATION_MODEL,
+      model,
       inputTokens: llmResult.inputTokens,
       outputTokens: llmResult.outputTokens,
       latencyMs: llmResult.latencyMs,
@@ -48,7 +49,7 @@ export async function runPostValidation(
       promptHash: '',
       llmCallRecord: {
         step: 'step3_post_validation',
-        model: POST_VALIDATION_MODEL,
+        model,
         inputTokens: 0,
         outputTokens: 0,
         latencyMs: 0,
