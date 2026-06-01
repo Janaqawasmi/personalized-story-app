@@ -1206,6 +1206,9 @@ router.post("/:storyId/generate-variant", handleGenerateVariant);
 /** Max Agent 1 versions per story (default + reruns + model variants share this cap). */
 const MAX_AGENT1_VERSIONS = 3;
 
+/** Wall-clock cap for the full Agent 1 pipeline (three sequential LLM calls). */
+const AGENT1_GENERATE_TIMEOUT_MS = 180_000;
+
 const AGENT1_APPROVED_PART_CODES = new Set<string>([
   "emotionalTruth",
   "blueprint",
@@ -1420,10 +1423,11 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
   await firestore.collection(STORIES_COLLECTION).doc(storyId).set(story);
 
   try {
-    const TIMEOUT_MS = 120_000;
-
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("AGENT1_TIMEOUT")), TIMEOUT_MS);
+      setTimeout(
+        () => reject(new Error("AGENT1_TIMEOUT")),
+        AGENT1_GENERATE_TIMEOUT_MS,
+      );
     });
 
     const agent1Result: Agent1Result = await Promise.race([
@@ -1661,9 +1665,11 @@ async function handleGenerateVariant(req: Request, res: Response): Promise<void>
   }
 
   try {
-    const TIMEOUT_MS = 120_000;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("AGENT1_TIMEOUT")), TIMEOUT_MS);
+      setTimeout(
+        () => reject(new Error("AGENT1_TIMEOUT")),
+        AGENT1_GENERATE_TIMEOUT_MS,
+      );
     });
 
     const agent1Result: Agent1Result = await Promise.race([

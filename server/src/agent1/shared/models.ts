@@ -13,7 +13,7 @@ export const DEFAULT_MODEL_CHOICE: ModelChoice = "sonnet";
 /** Maps a ModelChoice to the concrete model id sent to the provider SDK. */
 export const MODEL_IDS: Record<ModelChoice, string> = {
   sonnet: "claude-sonnet-4-6",
-  gpt: "gpt-5",
+  gpt: "gpt-5.4",
   opus: "claude-opus-4-7",
 };
 

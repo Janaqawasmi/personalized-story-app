@@ -400,7 +400,13 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   illDlgTitle: "Preview for approval",
   illDlgSubtitle: (title, pageCount) =>
     `\u201C${title}\u201D · ${pageCount} pages · final version`,
+  illDlgPartialSubtitle: (title, pageCount, illustratedCount) =>
+    `\u201C${title}\u201D · ${illustratedCount} of ${pageCount} pages illustrated · work in progress`,
+  illDlgManuscriptSubtitle: (title, pageCount) =>
+    `\u201C${title}\u201D · ${pageCount} pages · manuscript only (no illustrations yet)`,
   illDlgAllApproved: "All pages approved",
+  illDlgWorkInProgress: "Work in progress",
+  illDlgManuscriptOnly: "Manuscript only",
   illDlgSpread: (n, t) => `Spread ${n} of ${t}`,
   illDlgExport: "Export PDF",
   illDlgPublish: "Publish the book",
@@ -487,6 +493,9 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   workspaceCreateRevisionFailed: "Failed to create revision.",
 
   headerBackToStories: "Stories",
+  headerPreviewBook: "Preview book",
+  headerPreviewBookDisabledTooltip:
+    "Add story text (generate or save a draft) to preview as a book.",
   headerStoryTitleAria: "Story title",
   headerClickToEditTitle: "Click to edit title",
   headerStatusAria: (s) => `Status: ${s}`,
@@ -688,7 +697,13 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   illDlgTitle: "תצוגה מקדימה לאישור",
   illDlgSubtitle: (title, pageCount) =>
     `\u201C${title}\u201D · ${pageCount} עמודים · גרסה סופית`,
+  illDlgPartialSubtitle: (title, pageCount, illustratedCount) =>
+    `\u201C${title}\u201D · ${illustratedCount} מתוך ${pageCount} עמודים מצוירים · בעבודה`,
+  illDlgManuscriptSubtitle: (title, pageCount) =>
+    `\u201C${title}\u201D · ${pageCount} עמודים · כתב בלבד (עדיין ללא איורים)`,
   illDlgAllApproved: "כל העמודים אושרו",
+  illDlgWorkInProgress: "בעבודה",
+  illDlgManuscriptOnly: "כתב בלבד",
   illDlgSpread: (n, total) => `כפולה ${n} מתוך ${total}`,
   illDlgExport: "ייצוא PDF",
   illDlgPublish: "פרסם את הספר",
@@ -775,6 +790,9 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   workspaceCreateRevisionFailed: "לא ניתן ליצור מהדורה חדשה.",
 
   headerBackToStories: "סיפורים",
+  headerPreviewBook: "תצוגת ספר",
+  headerPreviewBookDisabledTooltip:
+    "הוסיפו טקסט לסיפור (הפקה או שמירת טיוטה) כדי לצפות כספר.",
   headerStoryTitleAria: "כותרת הסיפור",
   headerClickToEditTitle: "לחצו לעריכת הכותרת",
   headerStatusAria: (s) => `סטטוס: ${s}`,
@@ -978,7 +996,13 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   illDlgTitle: "معاينة الاعتماد",
   illDlgSubtitle: (title, pageCount) =>
     `\u201C${title}\u201D · ${pageCount} صفحة · النسخة النهائية`,
+  illDlgPartialSubtitle: (title, pageCount, illustratedCount) =>
+    `\u201C${title}\u201D · ${illustratedCount} من ${pageCount} صفحة موضّحة · قيد العمل`,
+  illDlgManuscriptSubtitle: (title, pageCount) =>
+    `\u201C${title}\u201D · ${pageCount} صفحة · نص فقط (لا توضيحات بعد)`,
   illDlgAllApproved: "جميع الصفحات معتمدة",
+  illDlgWorkInProgress: "قيد العمل",
+  illDlgManuscriptOnly: "نص فقط",
   illDlgSpread: (n, total) => `الورقة ${n} من ${total}`,
   illDlgExport: "تصدير PDF",
   illDlgPublish: "انشر الكتاب",
@@ -1065,6 +1089,9 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   workspaceCreateRevisionFailed: "تعذّر إنشاء مراجعة جديدة.",
 
   headerBackToStories: "القصص",
+  headerPreviewBook: "معاينة الكتاب",
+  headerPreviewBookDisabledTooltip:
+    "أضيفوا نص القصة (توليد أو حفظ مسودة) لمعاينته ككتاب.",
   headerStoryTitleAria: "عنوان القصة",
   headerClickToEditTitle: "انقروا لتعديل العنوان",
   headerStatusAria: (s) => `الحالة: ${s}`,

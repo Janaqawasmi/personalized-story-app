@@ -33,6 +33,7 @@ import type { StoryType } from "../../types/storyBrief";
 import { normalizeStoryStatusForDisplay } from "../utils/storyPipeline";
 import { DRAFT_B, FONTS } from "./draftB/tokens";
 import { STATUS_CHIP_COLORS } from "./statusColors";
+import StoryBookPreviewButton from "./StoryBookPreviewButton";
 
 /** Vertical rhythm tuned to Direction B editorial header mock */
 const HEADER_PAD_TOP = "10px";
@@ -304,6 +305,8 @@ export default function WorkspaceHeader({
               "& .MuiChip-label": { px: 1.125 },
             }}
           />
+
+          <StoryBookPreviewButton story={story} />
 
           <IconButton
             size="small"

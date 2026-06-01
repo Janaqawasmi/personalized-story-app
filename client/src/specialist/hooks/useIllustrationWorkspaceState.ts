@@ -19,7 +19,7 @@ import { STORIES_COLLECTION } from "../../types/story";
 import { useAuth } from "../../contexts/AuthContext";
 import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
 import type { BookReaderModel } from "../../components/book/BookReaderModel";
-import { storyToReaderModel } from "../../components/book/storyToReaderModel";
+import { buildSpecialistBookPreviewModel } from "../../components/book/storyToReaderModel";
 
 const JOBS = "illustrationJobs";
 const IMAGES = "images";
@@ -359,8 +359,9 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
         visualBibles.find((v) => v.version === vbv) ?? null;
       const visualBibleVersionsDesc = [...visualBibles].sort((a, b) => b.version - a.version);
       const visualBibleRegenJob = latestVisualBibleRegenJob(jobs);
-      const previewModel =
-        allApproved || story.status === "published" ? storyToReaderModel(story, images) : null;
+      const previewModel = buildSpecialistBookPreviewModel(story, images, {
+        imagePolicy: "latest",
+      });
       return {
         kind: "ready",
         visualBibleVersion: vbv,
