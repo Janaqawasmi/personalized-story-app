@@ -173,7 +173,15 @@ export interface SpecialistDeskUi {
   illGalReopen: string;
   illDlgTitle: string;
   illDlgSubtitle: (title: string, pageCount: number) => string;
+  illDlgPartialSubtitle: (
+    title: string,
+    pageCount: number,
+    illustratedCount: number,
+  ) => string;
+  illDlgManuscriptSubtitle: (title: string, pageCount: number) => string;
   illDlgAllApproved: string;
+  illDlgWorkInProgress: string;
+  illDlgManuscriptOnly: string;
   illDlgSpread: (spreadIndex: number, totalSpreads: number) => string;
   illDlgExport: string;
   illDlgPublish: string;
@@ -252,6 +260,8 @@ export interface SpecialistDeskUi {
   workspaceCreateRevisionFailed: string;
 
   headerBackToStories: string;
+  headerPreviewBook: string;
+  headerPreviewBookDisabledTooltip: string;
   headerStoryTitleAria: string;
   headerClickToEditTitle: string;
   headerStatusAria: (statusLabel: string) => string;
