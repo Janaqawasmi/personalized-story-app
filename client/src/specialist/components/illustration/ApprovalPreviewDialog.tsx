@@ -17,10 +17,14 @@ import { COLORS, DESIGN_TOKENS } from "../../../theme";
 import { DRAFT_B, FONTS } from "../draftB/tokens";
 import { ChipTone } from "./shared/ChipTone";
 
+export type BookPreviewDialogVariant = "final" | "work_in_progress" | "manuscript_only";
+
 interface Props {
   open: boolean;
   onClose: () => void;
   model: BookReaderModel | null;
+  /** Controls header chip and subtitle — not all previews are fully illustrated. */
+  variant?: BookPreviewDialogVariant;
   /** When set, primary footer action opens the publish flow (e.g. close preview + open publish dialog). */
   onPublishFromPreview?: () => void;
 }
@@ -29,6 +33,7 @@ export default function ApprovalPreviewDialog({
   open,
   onClose,
   model,
+  variant = "final",
   onPublishFromPreview,
 }: Props) {
   const desk = useSpecialistDeskUi();
@@ -43,7 +48,21 @@ export default function ApprovalPreviewDialog({
   }, [open, model]);
 
   const pageCount = model?.pages.length ?? 0;
+  const illustratedCount = model?.pages.filter((p) => p.imageUrl).length ?? 0;
   const displayTitle = model?.title?.trim() ? model.title : desk.untitledStory;
+  const subtitle =
+    variant === "work_in_progress"
+      ? desk.illDlgPartialSubtitle(displayTitle, pageCount, illustratedCount)
+      : variant === "manuscript_only"
+        ? desk.illDlgManuscriptSubtitle(displayTitle, pageCount)
+        : desk.illDlgSubtitle(displayTitle, pageCount);
+  const statusChipLabel =
+    variant === "final"
+      ? desk.illDlgAllApproved
+      : variant === "manuscript_only"
+        ? desk.illDlgManuscriptOnly
+        : desk.illDlgWorkInProgress;
+  const statusChipTone = variant === "final" ? "success" : "neutral";
   const canNav = !!model && pageCount > 0 && !showCover;
   const canGoPrev = canNav && spreadIndex > 0;
   const canGoNext = canNav && spreadIndex < pageCount - 1;
@@ -105,10 +124,15 @@ export default function ApprovalPreviewDialog({
                 {desk.illDlgTitle}
               </Typography>
               <Typography sx={{ color: DRAFT_B.inkMuted, fontSize: 12.5, mt: 0.25 }}>
-                {desk.illDlgSubtitle(displayTitle, pageCount)}
+                {subtitle}
               </Typography>
             </Box>
-            <ChipTone tone="success" chipSize="sm" label={desk.illDlgAllApproved} sx={{ flexShrink: 0 }} />
+            <ChipTone
+              tone={statusChipTone}
+              chipSize="sm"
+              label={statusChipLabel}
+              sx={{ flexShrink: 0 }}
+            />
             <IconButton onClick={onClose} aria-label={desk.illDlgClose} edge="end" sx={{ flexShrink: 0 }}>
               <CloseIcon />
             </IconButton>

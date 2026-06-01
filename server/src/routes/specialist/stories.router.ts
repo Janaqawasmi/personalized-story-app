@@ -7,7 +7,9 @@ import {
   TypeMismatchError,
   Step1IncoherentError,
 } from "@/agent1";
-import type { Agent1Result, ApprovedPart, GenerateOptions } from "@/agent1/types";
+import type { Agent1Result, ApprovedPart, GenerateOptions, StoryPage } from "@/agent1/types";
+import { MODEL_LABELS, isModelChoice } from "@/agent1/shared/models";
+import { NoTextBlockError } from "@/agent1/shared/llm-client";
 import { firestore } from "@/config/firebase";
 import {
   STORIES_COLLECTION,
@@ -78,6 +80,52 @@ function buildSpecialistSnapshotFields(
   };
 }
 
+/** Words in a string (whitespace-delimited). */
+function countWordsInText(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** Split an edited manuscript body into pages on blank-line boundaries. */
+function splitBodyIntoPages(body: string): StoryPage[] {
+  return body
+    .split(/\n\s*\n/)
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .map((text, i) => ({
+      pageNumber: i + 1,
+      text,
+      wordCount: countWordsInText(text),
+    }));
+}
+
+/**
+ * Reconcile structured manuscript `pages` with the specialist's working
+ * `currentDraft` so downstream consumers (illustration, publish) use the
+ * approved, edited text rather than the original generated pages.
+ *
+ * Returns the pages to persist, or `null` when no change is needed:
+ *  - Draft matches the composed pages (no manual edits) → keep the original
+ *    structure intact (correctly handles multi-paragraph pages).
+ *  - Draft diverges from the generated pages → rebuild pages from the edited body.
+ *  - No structured pages yet (legacy text format) but a draft exists → derive them.
+ */
+function reconcilePagesFromDraft(story: Story): StoryPage[] | null {
+  const body = story.currentDraft?.body?.trim() ?? "";
+  if (!body) return null;
+
+  const pages = story.pages ?? [];
+  if (pages.length > 0) {
+    const composed = [...pages]
+      .sort((a, b) => a.pageNumber - b.pageNumber)
+      .map((p) => p.text.trim())
+      .join("\n\n")
+      .trim();
+    if (composed === body) return null; // no manual edits — keep page structure
+  }
+
+  return splitBodyIntoPages(body);
+}
+
 router.use(requireAuth);
 router.use(requireRole("specialist", "admin"));
 
@@ -146,6 +194,8 @@ function normalizeIncomingBrief(raw: unknown, createdBy: string): StoryBrief | n
     status: "submitted",
     version: 1,
     storyType: String(wire.storyType ?? "") as StoryBrief["storyType"],
+    briefLanguage: wire.briefLanguage === "ar" ? "ar" : "en",
+    outputLanguage: wire.outputLanguage === "ar" ? "ar" : "en",
     ageAndScope: {
       ageRange: String(s1.ageRange ?? "3-5") as StoryBrief["ageAndScope"]["ageRange"],
       peakIntensity: String(s1.peakIntensity ?? "moderate") as StoryBrief["ageAndScope"]["peakIntensity"],
@@ -471,6 +521,12 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
 
   if (to === "approved") {
     extraFields.approvedAt = now;
+    // Make the approved manuscript canonical: fold any manual edits living in
+    // `currentDraft` back into `pages` so illustration/publish use the edited text.
+    const reconciledPages = reconcilePagesFromDraft(story);
+    if (reconciledPages) {
+      extraFields.pages = reconciledPages;
+    }
   } else if (to === "in_review") {
     extraFields.lastOpenedAt = now;
   }
@@ -1145,6 +1201,13 @@ router.post("/:storyId/pages/:pageNumber/image/reject", handleRejectPageImage);
 router.post("/:storyId/pages/:pageNumber/scene-plan/regenerate", handleRegenerateScenePlan);
 router.get("/:storyId/pages/:pageNumber/history", handleGetPageIllustrationHistory);
 router.post("/:storyId/generate", handleGenerate); // from R2
+router.post("/:storyId/generate-variant", handleGenerateVariant);
+
+/** Max Agent 1 versions per story (default + reruns + model variants share this cap). */
+const MAX_AGENT1_VERSIONS = 3;
+
+/** Wall-clock cap for the full Agent 1 pipeline (three sequential LLM calls). */
+const AGENT1_GENERATE_TIMEOUT_MS = 180_000;
 
 const AGENT1_APPROVED_PART_CODES = new Set<string>([
   "emotionalTruth",
@@ -1360,10 +1423,11 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
   await firestore.collection(STORIES_COLLECTION).doc(storyId).set(story);
 
   try {
-    const TIMEOUT_MS = 120_000;
-
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("AGENT1_TIMEOUT")), TIMEOUT_MS);
+      setTimeout(
+        () => reject(new Error("AGENT1_TIMEOUT")),
+        AGENT1_GENERATE_TIMEOUT_MS,
+      );
     });
 
     const agent1Result: Agent1Result = await Promise.race([
@@ -1508,6 +1572,15 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       });
       return;
     }
+    if (error instanceof NoTextBlockError) {
+      res.status(502).json({
+        error: "AGENT1_FAILED",
+        message:
+          "The model returned no usable text. For GPT variants, ensure OPENAI_API_KEY is valid and try again.",
+        details: error.message,
+      });
+      return;
+    }
     if (error instanceof Step1IncoherentError) {
       res.status(502).json({
         error: "AGENT1_FAILED",
@@ -1532,4 +1605,147 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     });
   }
 }
+
+// Generates an additional story version with a different AI model from the same
+// stored brief, and appends it to agent1Versions for side-by-side comparison.
+// Unlike /generate this does NOT change story status or the current draft — the
+// specialist stays on the review screen while the new version is added.
+async function handleGenerateVariant(req: Request, res: Response): Promise<void> {
+  const ownerUid = req.user?.uid ?? "";
+  if (!ownerUid) {
+    res.status(401).json({ error: "UNAUTHENTICATED", message: "Could not determine user identity." });
+    return;
+  }
+
+  const storyId = req.params["storyId"] ?? "";
+  const story = await readAndVerifyOwnership(storyId, ownerUid);
+  if (!story) {
+    res.status(404).json({ error: "NOT_FOUND", message: "Story not found." });
+    return;
+  }
+
+  if (story.status !== "awaiting_review" && story.status !== "in_review") {
+    res.status(409).json({
+      error: "INVALID_STATE",
+      message: "Model variants can only be generated while a draft is under review.",
+    });
+    return;
+  }
+
+  const rawChoice = (req.body as { modelChoice?: unknown })?.modelChoice;
+  if (!isModelChoice(rawChoice)) {
+    res.status(400).json({
+      error: "INVALID_INPUT",
+      message: "Request body must include 'modelChoice' as one of: sonnet, gpt, opus.",
+    });
+    return;
+  }
+  const modelChoice = rawChoice;
+
+  if (story.agent1Versions.length >= MAX_AGENT1_VERSIONS) {
+    res.status(409).json({
+      error: "REGEN_LIMIT",
+      message:
+        "This story already has the maximum number of versions. Open a new revision from the brief.",
+    });
+    return;
+  }
+
+  if (story.agent1Versions.some((v) => v.modelChoice === modelChoice)) {
+    res.status(409).json({
+      error: "DUPLICATE_MODEL",
+      message: `A version generated with ${MODEL_LABELS[modelChoice]} already exists for this story.`,
+    });
+    return;
+  }
+
+  const brief = story.brief;
+  if (brief.status !== "submitted") {
+    brief.status = "submitted";
+  }
+
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(
+        () => reject(new Error("AGENT1_TIMEOUT")),
+        AGENT1_GENERATE_TIMEOUT_MS,
+      );
+    });
+
+    const agent1Result: Agent1Result = await Promise.race([
+      generateStoryDraftFromBrief(brief, { modelChoice }),
+      timeoutPromise,
+    ]);
+
+    const now = Date.now();
+    const generatedEvent = {
+      id: crypto.randomUUID(),
+      at: now,
+      byUid: ownerUid,
+      event: {
+        kind: "agent1_generated" as const,
+        version: story.agent1Versions.length + 1,
+        succeeded: true,
+      },
+    };
+
+    await firestore
+      .collection(STORIES_COLLECTION)
+      .doc(storyId)
+      .update({
+        agent1Versions: [...story.agent1Versions, agent1Result],
+        updatedAt: now,
+        editHistory: [...story.editHistory, generatedEvent],
+      });
+
+    const finalDoc = await firestore.collection(STORIES_COLLECTION).doc(storyId).get();
+    const finalStory = hydrateStoryFromFirestore(storyId, finalDoc.data() as Record<string, unknown>);
+
+    res.status(200).json({ story: finalStory });
+  } catch (error: unknown) {
+    if (error instanceof BriefNotReadyError) {
+      res.status(400).json({ error: "INVALID_INPUT", message: error.message });
+      return;
+    }
+    if (error instanceof UnsupportedStoryTypeError) {
+      res.status(400).json({ error: "INVALID_INPUT", message: error.message });
+      return;
+    }
+    if (error instanceof TypeMismatchError) {
+      res.status(400).json({ error: "INVALID_INPUT", message: error.message });
+      return;
+    }
+    if (error instanceof NoTextBlockError) {
+      res.status(502).json({
+        error: "AGENT1_FAILED",
+        message:
+          "The model returned no usable text. For GPT variants, ensure OPENAI_API_KEY is valid and try again.",
+        details: error.message,
+      });
+      return;
+    }
+    if (error instanceof Step1IncoherentError) {
+      res.status(502).json({
+        error: "AGENT1_FAILED",
+        message: "Variant generation failed after retries. Please try again.",
+      });
+      return;
+    }
+    if (error instanceof Error && error.message === "AGENT1_TIMEOUT") {
+      res.status(504).json({
+        error: "AGENT1_TIMEOUT",
+        message: "Variant generation timed out. Please try again.",
+      });
+      return;
+    }
+
+    console.error("Unexpected error in /generate-variant:", error);
+    res.status(500).json({
+      error: "INTERNAL_ERROR",
+      message: "An unexpected error occurred during variant generation.",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+}
+
 export default router;

@@ -22,12 +22,14 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   PEAK_INTENSITY_LABELS: {
     very_gentle: "لطيف جدًا",
     moderate: "متوسط",
-    significant: "كبير",
+    significant: "شديد",
   },
   PEAK_INTENSITY_DEFINITIONS: {
-    very_gentle: "البطل يشعر بعدم راحة أو عدم يقين؛ عدم الراحة قصيرة",
-    moderate: "البطل يشعر بضيق حقيقي ضمن قوس داعمة",
-    significant: "البطل يشعر بالإرهاق قبل الحل",
+    very_gentle:
+      "يشعر البطل بعدم الارتياح أو عدم اليقين، ويكون الشعور بالانزعاج قصيرًا.",
+    moderate: "يمر البطل بضيق حقيقي ولكن ضمن مسار قصصي متوازن ومحدود.",
+    significant:
+      "يكون البطل في حالة ضغط أو انفعال قوي ومؤثر قبل الوصول إلى الحل النهائي.",
   },
   STORY_LENGTH_LABELS: {
     short: "قصير",
@@ -240,6 +242,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
     animal_friend: "رفيق حيوان",
     sibling_perspective: "أخ أو أخت يقدّمان زاوية",
   },
+  LANGUAGE_LABELS: { en: "الإنجليزية", ar: "العربية" },
 
   preBriefOverline: "قبل الموجز",
   preBriefTitle: "اختاروا العدسة التي ينظر من خلالها السرد",
@@ -310,12 +313,17 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
     "يحدد نطاق العمر تعقيد اللغة وملاءمة أدوات التأقلم والمعايير البنيوية. حددوا النطاق قبل المحتوى السريري.",
   s1Field11: "فئة العمر المستهدفة",
   s1Field12: "ذروة الشدة العاطفية",
-  s1Field12Helper: "تحدد شدة ضيق البطل قبل الحل.",
+  s1Field12Helper:
+    "تحدد مدى مقدار الضيق أو التوتر الذي يشعر به البطل قبل الوصول إلى الحل النهائي.",
   s1IntensityWarningTitle: "شدة كبيرة مع أعمار 3–5",
   s1IntensityWarningFooter: "يمكنكم المتابعة، لكن سيُطلب تأكيد قبل إرسال الموجز.",
   s1Field13: "طول القصة",
   s1Field13Helper: "يؤثر على ميزانية الصفحات. الافتراضي: اعتيادي.",
   s1PreviewPlaceholder: "اختاروا فئة عمر أعلاه لعرض تفاصيل القصة.",
+  s1BriefLanguageLabel: "لغة الموجز",
+  s1BriefLanguageHelper: "اللغة التي تكتبون بها هذا الموجز. لا تؤثر على القصة المُولّدة.",
+  s1OutputLanguageLabel: "لغة القصة المُولّدة",
+  s1OutputLanguageHelper: "اللغة التي ستُكتب بها القصة المُولّدة. مستقلة عن لغة الموجز.",
   s1MissingAge: "فئة العمر المستهدفة",
   s1MissingPeak: "ذروة الشدة العاطفية",
   ariaAgeRange: (label) => `فئة العمر ${label}`,

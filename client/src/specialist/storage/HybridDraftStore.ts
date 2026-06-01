@@ -12,6 +12,7 @@ import type { CompleteBrief } from "../../types/storyBrief";
 import { createEmptyBrief } from "../../types/storyBrief";
 import * as apiClient from "../../api/specialistStories";
 import type { Agent1RegenerationPayload } from "../../api/specialistStories";
+import type { ModelChoice } from "../../types/agent1Result";
 import { buildSpecialistSnapshotFields } from "../utils/specialistVersionSnapshot";
 import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
 
@@ -322,6 +323,23 @@ export class HybridDraftStore implements DraftStore {
       current.parentStoryId ?? undefined,
       payload,
     );
+    this.notifyStoryListeners(storyId, serverStory);
+    this.notifyListListeners();
+    return serverStory;
+  }
+
+  async generateVariant(
+    storyId: string,
+    modelChoice: ModelChoice,
+  ): Promise<Story> {
+    const registry = loadRegistry();
+    if (registry.stories[storyId]) {
+      throw new Error(
+        "Model variants run on the server. Submit the brief first.",
+      );
+    }
+
+    const serverStory = await apiClient.generateVariant(storyId, modelChoice);
     this.notifyStoryListeners(storyId, serverStory);
     this.notifyListListeners();
     return serverStory;

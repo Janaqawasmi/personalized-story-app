@@ -52,8 +52,15 @@ export type LLMCallRecord = {
   promptHash: string;
 };
 
+/** Which AI model authored a version. Mirrors server ModelChoice. */
+export type ModelChoice = "sonnet" | "gpt" | "opus";
+
 export type Agent1Result = {
   generationId: string;
+  // Which AI model authored this version. Optional for versions generated
+  // before multi-model support.
+  modelChoice?: ModelChoice;
+  modelLabel?: string;
   // Step 1
   emotionalTruth: string;
   blueprint: BlueprintPoint[];

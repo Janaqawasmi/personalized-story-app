@@ -87,6 +87,11 @@ export type StoryLength = (typeof STORY_LENGTHS)[number];
 
 export const STORY_LENGTH_DEFAULT: StoryLength = "standard";
 
+// Brief input language and generated-story output language. Independent:
+// an English brief may produce an Arabic story. Mirrors the server union.
+export const STORY_LANGUAGES = ["en", "ar"] as const;
+export type StoryLanguage = (typeof STORY_LANGUAGES)[number];
+
 export const STORY_LENGTH_LABELS: Record<StoryLength, string> = {
   short: "Short",
   standard: "Standard",
@@ -711,6 +716,10 @@ export interface PersonalizationConfig {
 
 export interface CompleteBrief {
   storyType: StoryType | null;
+  /** Language the specialist is writing the brief in. Metadata only. */
+  briefLanguage?: StoryLanguage;
+  /** Language the generated story must be written in. Drives Step 2 author. */
+  outputLanguage?: StoryLanguage;
   section1: Partial<AgeAndScope>;
   section2: Partial<ClinicalFoundation>;
   section3: Partial<TherapeuticArchitecture>;
@@ -733,6 +742,8 @@ export interface CompleteBrief {
 export function createEmptyBrief(): CompleteBrief {
   return {
     storyType: null,
+    briefLanguage: "en",
+    outputLanguage: "en",
     section1: {},
     section2: {},
     section3: {},

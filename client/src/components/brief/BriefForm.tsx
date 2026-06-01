@@ -64,6 +64,7 @@ import {
   type StoryWorld,
   type PersonalizationConfig,
   type CompleteBrief,
+  type StoryLanguage,
   type StoryType,
 } from "../../types/storyBrief";
 import { evaluateBriefSubmitGate, type SubmitGateItem } from "../../validation/briefSubmitGate";
@@ -625,6 +626,14 @@ function BriefFormInner(props: Props) {
     );
   }
 
+  function updateLanguage(updates: {
+    briefLanguage?: StoryLanguage;
+    outputLanguage?: StoryLanguage;
+  }) {
+    touchUserInteraction();
+    setDraft((d) => ({ ...d, ...updates }));
+  }
+
   function updateSection2(updates: Partial<ClinicalFoundation>) {
     touchUserInteraction();
     setDraft((d) => ({ ...d, section2: { ...d.section2, ...updates } }));
@@ -939,6 +948,9 @@ function BriefFormInner(props: Props) {
           <Section1AgeAndScope
             value={draft.section1}
             onChange={updateSection1}
+            briefLanguage={draft.briefLanguage ?? "en"}
+            outputLanguage={draft.outputLanguage ?? "en"}
+            onLanguageChange={updateLanguage}
             onContinue={() => saveAndAdvance(2)}
             onBack={() => goBack(0)}
           />

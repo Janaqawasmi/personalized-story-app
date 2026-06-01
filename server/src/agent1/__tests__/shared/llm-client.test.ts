@@ -1,14 +1,31 @@
 import * as fs from "fs";
-import { callLLM } from "@/agent1/shared/llm-client";
+import {
+  callLLM,
+  extractOpenAIMessageText,
+  NoTextBlockError,
+} from "@/agent1/shared/llm-client";
 
 /** Stable ref for the SDK `messages.create` mock (survives `clearMocks`). */
 var mockMessagesCreate: jest.Mock;
+var mockChatCompletionsCreate: jest.Mock;
 
 jest.mock("@anthropic-ai/sdk", () => {
   mockMessagesCreate = jest.fn();
   return {
     Anthropic: jest.fn().mockImplementation(() => ({
       messages: { create: mockMessagesCreate },
+    })),
+  };
+});
+
+jest.mock("openai", () => {
+  mockChatCompletionsCreate = jest.fn();
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({
+      chat: {
+        completions: { create: mockChatCompletionsCreate },
+      },
     })),
   };
 });
@@ -37,9 +54,31 @@ const baseInput = {
   attempt: 1,
 };
 
+describe("extractOpenAIMessageText", () => {
+  it("accepts non-empty strings", () => {
+    expect(extractOpenAIMessageText(" hello ")).toBe(" hello ");
+  });
+
+  it("joins structured text parts", () => {
+    expect(
+      extractOpenAIMessageText([
+        { type: "text", text: "line one" },
+        { type: "text", text: "line two" },
+      ]),
+    ).toBe("line one\nline two");
+  });
+
+  it("returns undefined for empty or missing content", () => {
+    expect(extractOpenAIMessageText("")).toBeUndefined();
+    expect(extractOpenAIMessageText(null)).toBeUndefined();
+    expect(extractOpenAIMessageText([])).toBeUndefined();
+  });
+});
+
 describe("callLLM", () => {
   beforeEach(() => {
     getMessagesCreateMock().mockReset();
+    mockChatCompletionsCreate.mockReset();
     appendFileSyncMock.mockReset();
     mkdirSyncMock.mockReset();
     appendFileSyncMock.mockImplementation(() => {});
@@ -192,6 +231,77 @@ describe("callLLM", () => {
 
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe("OpenAI (gpt-5)", () => {
+    const gptInput = {
+      ...baseInput,
+      model: "gpt-5",
+      maxTokens: 4096,
+    };
+
+    it("uses raised max_completion_tokens and returns message text", async () => {
+      mockChatCompletionsCreate.mockResolvedValue({
+        choices: [{ message: { content: "architect output" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 100, completion_tokens: 500 },
+      });
+
+      const out = await callLLM(gptInput);
+
+      expect(out.text).toBe("architect output");
+      expect(mockChatCompletionsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: "gpt-5",
+          max_completion_tokens: 16_384,
+          reasoning_effort: "low",
+        }),
+      );
+      expect(getMessagesCreateMock()).not.toHaveBeenCalled();
+    });
+
+    it("retries with a higher token budget when the first response has no content", async () => {
+      jest.useFakeTimers();
+      mockChatCompletionsCreate
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: "" }, finish_reason: "length" }],
+          usage: { prompt_tokens: 100, completion_tokens: 16_384 },
+        })
+        .mockResolvedValueOnce({
+          choices: [{ message: { content: "after retry" }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 100, completion_tokens: 2000 },
+        });
+
+      const p = callLLM(gptInput);
+      await Promise.resolve();
+      await jest.advanceTimersByTimeAsync(1000);
+      const out = await p;
+
+      expect(out.text).toBe("after retry");
+      expect(mockChatCompletionsCreate).toHaveBeenCalledTimes(2);
+      expect(mockChatCompletionsCreate.mock.calls[1]![0]).toMatchObject({
+        max_completion_tokens: 32_768,
+      });
+      jest.useRealTimers();
+    });
+
+    it("throws NoTextBlockError when both OpenAI attempts have no content", async () => {
+      jest.useFakeTimers();
+      try {
+        mockChatCompletionsCreate.mockResolvedValue({
+          choices: [{ message: { content: null }, finish_reason: "length" }],
+          usage: { prompt_tokens: 50, completion_tokens: 32_768 },
+        });
+
+        const p = callLLM(gptInput);
+        const expectReject = expect(p).rejects.toBeInstanceOf(NoTextBlockError);
+        await Promise.resolve();
+        await jest.advanceTimersByTimeAsync(1000);
+        await expectReject;
+        expect(mockChatCompletionsCreate).toHaveBeenCalledTimes(2);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 

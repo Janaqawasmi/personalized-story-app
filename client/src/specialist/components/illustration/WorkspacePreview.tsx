@@ -59,10 +59,13 @@ export default function WorkspacePreview({
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const canPreview =
-    !!previewModel &&
-    (story.status === "illustration_ready" ||
-      (story.status === "illustration_workspace" && allApproved));
+  const canPreview = !!previewModel;
+  const previewVariant =
+    allApproved || story.status === "published" || story.status === "illustration_ready"
+      ? ("final" as const)
+      : previewModel && previewModel.pages.some((p) => p.imageUrl)
+        ? ("work_in_progress" as const)
+        : ("manuscript_only" as const);
 
   const showMarkReady =
     story.status === "illustration_workspace" && allApproved && !readOnly;
@@ -146,6 +149,7 @@ export default function WorkspacePreview({
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         model={previewModel}
+        variant={previewVariant}
         onPublishFromPreview={
           showPublish
             ? () => {

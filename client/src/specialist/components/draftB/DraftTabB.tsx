@@ -7,6 +7,8 @@ import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
 import Paper from "@mui/material/Paper";
 import Snackbar from "@mui/material/Snackbar";
 import TextField from "@mui/material/TextField";
@@ -15,7 +17,7 @@ import CheckIcon from "@mui/icons-material/Check";
 
 import type { Agent1ApprovedPartToken } from "../../../api/specialistStories";
 import type { StoryDraft } from "../../../types/story";
-import type { Agent1Result } from "../../../types/agent1Result";
+import type { Agent1Result, ModelChoice } from "../../../types/agent1Result";
 import type { StoryType } from "../../../types/storyBrief";
 import { AGE_RANGE_LABELS, COPING_TOOL_LABELS } from "../../../types/storyBrief";
 import { useNavigate, useParams } from "react-router-dom";
@@ -48,6 +50,12 @@ const STORY_TYPE_LABELS: Partial<Record<StoryType, string>> = {
   life_transitions: "Life Transitions",
 };
 
+/** On-demand model variants the specialist can add for comparison (Sonnet is the default flow). */
+const VARIANT_OPTIONS: { choice: ModelChoice; label: string }[] = [
+  { choice: "gpt", label: "GPT-5" },
+  { choice: "opus", label: "Opus 4.7" },
+];
+
 const FONT_STORAGE_KEY = "dammah.draftB.storyFont";
 const RAIL_TAB_STORAGE_KEY = "dammah.draftB.activeRailTab";
 
@@ -58,6 +66,7 @@ export default function DraftTabB({
   onUnsavedDraftChange,
 }: DraftTabProps) {
   const versions = story.agent1Versions;
+  const isRtl = story.brief.outputLanguage === "ar";
 
   const [selectedVersionIndex, setSelectedVersionIndex] = useState(
     versions.length - 1,
@@ -77,6 +86,8 @@ export default function DraftTabB({
   const [regenFeedback, setRegenFeedback] = useState("");
   const [regenSubmitting, setRegenSubmitting] = useState(false);
   const [promptGenerationSubmitting, setPromptGenerationSubmitting] = useState(false);
+  const [variantMenuAnchor, setVariantMenuAnchor] = useState<HTMLElement | null>(null);
+  const [variantSubmitting, setVariantSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState<SnackbarState | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
 
@@ -137,11 +148,15 @@ export default function DraftTabB({
     .filter(Boolean).length;
 
   const handleSave = useCallback(async () => {
+    const sourceGenerationId = (
+      versions[selectedVersionIndex] ?? story.agent1Result
+    )?.generationId;
     const draft: StoryDraft = {
       title: editorTitle,
       body: editorBody,
       wordCount: currentWordCount,
       updatedAt: Date.now(),
+      ...(sourceGenerationId ? { sourceGenerationId } : {}),
     };
     setIsSaving(true);
     try {
@@ -159,7 +174,16 @@ export default function DraftTabB({
     } finally {
       setIsSaving(false);
     }
-  }, [story.id, editorTitle, editorBody, currentWordCount, onStoryUpdate]);
+  }, [
+    story.id,
+    story.agent1Result,
+    versions,
+    selectedVersionIndex,
+    editorTitle,
+    editorBody,
+    currentWordCount,
+    onStoryUpdate,
+  ]);
 
   useEffect(() => {
     onUnsavedDraftChange?.(hasUnsavedChanges);
@@ -192,8 +216,20 @@ export default function DraftTabB({
   useEffect(() => {
     const result = versions[selectedVersionIndex] ?? story.agent1Result;
     if (!result) return;
-    setEditorTitle(story.currentDraft?.title ?? result.title);
-    setEditorBody(story.currentDraft?.body ?? result.story);
+    // `currentDraft` holds the specialist's working edits, tagged with the
+    // version they were derived from. Show those edits only when the selected
+    // version is their source; otherwise show that version's own output so each
+    // model version can be compared and edited independently. Legacy drafts
+    // (no sourceGenerationId) belong to the canonical `agent1Result` version.
+    const draftSource =
+      story.currentDraft?.sourceGenerationId ?? story.agent1Result?.generationId;
+    if (story.currentDraft && draftSource === result.generationId) {
+      setEditorTitle(story.currentDraft.title);
+      setEditorBody(story.currentDraft.body);
+    } else {
+      setEditorTitle(result.title);
+      setEditorBody(result.story);
+    }
     setHasUnsavedChanges(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only reset when switching version index
   }, [selectedVersionIndex]);
@@ -279,6 +315,9 @@ export default function DraftTabB({
         approvedParts,
       });
       onStoryUpdate(finalStory);
+      // Land on the freshly generated version; earlier versions stay in the
+      // timeline and remain selectable for comparison.
+      setSelectedVersionIndex(Math.max(0, finalStory.agent1Versions.length - 1));
       handleRegenDialogClose();
     } catch (err) {
       setSnackbar({
@@ -303,6 +342,30 @@ export default function DraftTabB({
         message: err instanceof Error ? err.message : "Failed to approve story.",
         severity: "error",
       });
+    }
+  }
+
+  async function handleGenerateVariant(modelChoice: ModelChoice) {
+    setVariantMenuAnchor(null);
+    setVariantSubmitting(true);
+    const label =
+      VARIANT_OPTIONS.find((o) => o.choice === modelChoice)?.label ?? modelChoice;
+    try {
+      const updated = await draftStore.generateVariant(story.id, modelChoice);
+      onStoryUpdate(updated);
+      // Select the newly appended version so the specialist lands on it to compare.
+      setSelectedVersionIndex(Math.max(0, updated.agent1Versions.length - 1));
+      setSnackbar({
+        message: `Generated a ${label} version.`,
+        severity: "success",
+      });
+    } catch (err) {
+      setSnackbar({
+        message: err instanceof Error ? err.message : "Failed to generate version.",
+        severity: "error",
+      });
+    } finally {
+      setVariantSubmitting(false);
     }
   }
 
@@ -433,6 +496,7 @@ export default function DraftTabB({
                   onFlagMarkerClick={() => {}}
                   onParagraphHover={() => {}}
                   mode="read"
+                  isRtl={isRtl}
                 />
               </Box>
             </Box>
@@ -457,6 +521,13 @@ export default function DraftTabB({
     story.status === "in_review"
   );
 
+  const presentModelChoices = new Set(
+    versions.map((v) => v.modelChoice).filter(Boolean),
+  );
+  const canAddVariant =
+    (story.status === "awaiting_review" || story.status === "in_review") &&
+    versions.length < MAX_VERSIONS;
+
   const [targetMin, targetMax] = displayedResult.targetWordRange;
 
   const flags = displayedResult.postValidationFlags ?? [];
@@ -466,8 +537,10 @@ export default function DraftTabB({
     mustNeverFlaggedForIndex(i, item, flags),
   ).length;
 
+  // Match the server's drift band (output-parser computeDrift): a draft only
+  // counts as out of range below targetMin * 0.7 or above targetMax * 1.3.
   const wordCountOutOfRange =
-    currentWordCount < targetMin || currentWordCount > targetMax;
+    currentWordCount < targetMin * 0.7 || currentWordCount > targetMax * 1.3;
 
   const checks = [
     { ok: !hasUnsavedChanges, label: "Edits saved" },
@@ -493,6 +566,14 @@ export default function DraftTabB({
 
   const regenCount = versions.length - 1;
   const regenRemaining = MAX_VERSIONS - versions.length;
+
+  // The version backing the working draft (`agent1Result`); gets the "current"
+  // marker in the timeline. Falls back to the latest version for legacy data.
+  const currentVersionIndex = (() => {
+    const id = story.agent1Result?.generationId;
+    const idx = versions.findIndex((v) => v.generationId === id);
+    return idx >= 0 ? idx : versions.length - 1;
+  })();
 
   const latestAgentOutput: Agent1Result | null =
     versions.length > 0 ? versions[versions.length - 1] : story.agent1Result;
@@ -554,7 +635,45 @@ export default function DraftTabB({
           wordCount={currentWordCount}
           targetRange={[targetMin, targetMax]}
           regenRemaining={regenRemaining}
+          currentVersionIndex={currentVersionIndex}
         />
+
+        {canAddVariant && (
+          <Box sx={{ flexShrink: 0 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={variantSubmitting}
+              onClick={(e) => setVariantMenuAnchor(e.currentTarget)}
+            >
+              {variantSubmitting ? (
+                <>
+                  <CircularProgress size={14} thickness={5} color="inherit" sx={{ mr: 1 }} />
+                  Generating…
+                </>
+              ) : (
+                "Generate another version"
+              )}
+            </Button>
+            <Menu
+              anchorEl={variantMenuAnchor}
+              open={variantMenuAnchor !== null}
+              onClose={() => setVariantMenuAnchor(null)}
+            >
+              {VARIANT_OPTIONS.map((opt) => (
+                <MenuItem
+                  key={opt.choice}
+                  disabled={presentModelChoices.has(opt.choice)}
+                  onClick={() => void handleGenerateVariant(opt.choice)}
+                >
+                  {presentModelChoices.has(opt.choice)
+                    ? `${opt.label} (already generated)`
+                    : opt.label}
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+        )}
       </Box>
 
       {/* ── Manuscript + right rail (CSS grid) ────────────────────────── */}
@@ -621,6 +740,7 @@ export default function DraftTabB({
               onFlagMarkerClick={handleFlagMarkerClick}
               onParagraphHover={setHoveredFlagIndex}
               mode={isReadOnly ? "read" : editorMode}
+              isRtl={isRtl}
             />
 
             {story.status === "approved" && (

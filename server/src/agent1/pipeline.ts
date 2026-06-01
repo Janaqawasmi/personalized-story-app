@@ -21,6 +21,11 @@ import { runPreCheck } from "@/agent1/pre-check";
 import { runStoryArchitect } from "@/agent1/step1-architect";
 import { runAuthor } from "@/agent1/step2-author";
 import { runPostValidation } from "@/agent1/step3-post-validation";
+import {
+  MODEL_IDS,
+  MODEL_LABELS,
+  resolveModelChoice,
+} from "@/agent1/shared/models";
 
 const BRIEF_COLLECTION = "dammaStoryBriefs";
 
@@ -56,18 +61,22 @@ export async function executePipelineWithBrief(
     throw new TypeMismatchError(fieldType);
   }
 
+  const modelChoice = resolveModelChoice(options?.modelChoice);
+  const modelId = MODEL_IDS[modelChoice];
+
   const preCheckResult = runPreCheck(brief);
 
   const { step1Output, exampleBankStatus: step1ExampleStatus } =
-    await runStoryArchitect(brief, preCheckResult, options);
+    await runStoryArchitect(brief, preCheckResult, options, modelId);
 
   const { step2Output, exampleBankStatus: step2ExampleStatus } =
-    await runAuthor(brief, step1Output);
+    await runAuthor(brief, step1Output, modelId);
 
   const postValidationResult = await runPostValidation(
     step2Output,
     brief,
     step1Output.approachInstruction,
+    modelId,
   );
 
   const generationId = uuidv4();
@@ -91,6 +100,10 @@ export async function executePipelineWithBrief(
 
   const result: Agent1Result = {
     generationId,
+
+    // Which model authored this version
+    modelChoice,
+    modelLabel: MODEL_LABELS[modelChoice],
 
     // Step 1
     emotionalTruth: step1Output.emotionalTruth,
