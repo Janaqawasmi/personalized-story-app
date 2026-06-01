@@ -215,7 +215,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           icon={<CircularProgress size={18} color="inherit" />}
           sx={{ mb: 2, borderRadius: 2 }}
         >
-          AI is drafting your therapeutic story. This usually takes 30–60 seconds.
+          AI is drafting your therapeutic story. This usually takes 1–3 minutes.
         </Alert>
         <SubmittedBriefReadView
           brief={story.brief}
