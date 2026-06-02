@@ -20,7 +20,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   },
   AGE_RANGE_LABELS: SB.AGE_RANGE_LABELS,
   PEAK_INTENSITY_LABELS: {
-    very_gentle: "لطيف جدًا",
+    very_gentle: "خفيف جدًا",
     moderate: "متوسط",
     significant: "شديد",
   },
@@ -33,7 +33,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   },
   STORY_LENGTH_LABELS: {
     short: "قصير",
-    standard: "اعتيادي",
+    standard: "متوسط",
     extended: "موسّع",
   },
   STORY_LENGTH_PREVIEWS: {
@@ -71,10 +71,11 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
     },
   },
   TRIGGER_LABELS: {
-    fear_anxiety: "المحفّز المحدد",
+    fear_anxiety: "الموقف المُحفِّز",
   },
   TRIGGER_NUDGE: "يمكنكم إضافة ما يراه الطفل أو يسمعه أو يشعر به في هذه اللحظة.",
-  INTENTION_NUDGE: "ربما هذا قصير جدًا على الوكيل. يمكن جعل النصف الثاني أكثر تحديدًا.",
+  INTENTION_NUDGE:
+    "قد يحتاج هذا الوصف إلى مزيد من التحديد. حاولوا توضيح الأثر الذي تريدون أن تتركه القصة لدى الطفل.",
   INTENTION_GOOD_EXAMPLES: {
     fear_anxiety: [
       {
@@ -151,7 +152,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   COPING_TOOL_LABELS: {
     deep_breathing: "تنفس عميق",
     counting: "عدّ",
-    grounding_through_senses: "ارْباط بالحواس",
+    grounding_through_senses: "التأريض عبر الحواس",
     positive_self_talk: "حديث ذاتي إيجابي",
     visualization: "تخيّل مرئي",
     routine_awareness: "وعي بالروتين",
@@ -188,7 +189,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   },
   PROTAGONIST_GENDER_LABELS: {
     boy: "صبي",
-    girl: "بنت",
+    girl: "فتاة",
     kept_open: "يُترك مفتوحًا",
   },
   PROTAGONIST_GENDER_NOTE: {
@@ -259,12 +260,14 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   draftSavedSnackbar: "تم حفظ المسودة",
   submitErrorGeneric: "حدث خطأ أثناء الإرسال. حاولوا مرة أخرى.",
 
-  complexityMeterTitle: "عبء القصة",
+  complexityMeterTitle: "مستوى تعقيد القصة",
   complexityMeterAria: (expanded) =>
-    expanded ? "عبء القصة — التفاصيل ظاهرة" : "عبء القصة — انقروا أو مرّوا لعرض التفاصيل",
+    expanded
+      ? "مستوى تعقيد القصة — التفاصيل ظاهرة"
+      : "مستوى تعقيد القصة — انقروا أو مرّوا لعرض التفاصيل",
   complexityTotalApprox: (pages) => {
     const t = pages % 1 === 0 ? String(pages) : pages.toFixed(1);
-    return `إجمالي العبء التقريبي: ${t} صفحات`;
+    return `إجمالي التعقيد التقريبي: ${t} صفحات`;
   },
   complexityBudgetSummary: (min, max, lengthLabel, ageLabel) =>
     `${min}–${max} صفحة (${lengthLabel}، أعمار ${ageLabel})`,
@@ -286,7 +289,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
       `يمكن إطالة القصة أو تخفيف التعقيد — مثل إزالة شخصية ثانوية أو تغيير الجهة الداعمة أو ضبط مستوى الخجل.`
     );
   },
-  preSubmitComplexityBreakdownHeading: "ما الذي يزيد العبء",
+  preSubmitComplexityBreakdownHeading: "ما الذي يزيد تعقيد القصة",
   preSubmitComplexitySubmitAnyway: "إرسال على أي حال",
   preSubmitComplexityGoBack: "عودة للتعديل",
 
@@ -318,7 +321,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   s1IntensityWarningTitle: "شدة كبيرة مع أعمار 3–5",
   s1IntensityWarningFooter: "يمكنكم المتابعة، لكن سيُطلب تأكيد قبل إرسال الموجز.",
   s1Field13: "طول القصة",
-  s1Field13Helper: "يؤثر على ميزانية الصفحات. الافتراضي: اعتيادي.",
+  s1Field13Helper: "يؤثر على ميزانية الصفحات. الافتراضي: متوسط.",
   s1PreviewPlaceholder: "اختاروا فئة عمر أعلاه لعرض تفاصيل القصة.",
   s1BriefLanguageLabel: "لغة الموجز",
   s1BriefLanguageHelper: "اللغة التي تكتبون بها هذا الموجز. لا تؤثر على القصة المُولّدة.",
@@ -356,14 +359,14 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
   s2Field24Helper:
     "صِفوا صورة واحدة أو لحظة أو تفصيلًا محددًا في قلب القصة. لا مزاجًا — مشهدًا. يجب أن تدعم الجهة العلاجية لا أن تحل محلها. ماذا يحدث، من هناك، ما الذي يلاحظه الطفل؟",
   s2Field24Placeholder: "مثلًا: الطفل يجد بابًا صغيرًا متوهجًا في نهاية ممر…",
-  s2Field25: "أمر حقيقي واحد",
+  s2Field25: "تفصيل حقيقي واحد",
   s2Field25Helper:
-    "فكّروا بطفل عملتم معه وكانت قصة كهذه لتفيده. دون تعريف — تفصيل جسدي أو عاطفي واحد تتذكرونه: إيماءة، عادة، جملة، نظرة.",
+    "فكّروا بطفل عملتم معه وكانت قصة كهذه لتفيده. دون أي معلومات تعريفية، اذكروا تفصيلًا جسديًا أو عاطفيًا واحدًا تتذكرونه: إيماءة، عادة، عبارة متكررة، أو نظرة.",
   s2Field25Placeholder: "اتركوه فارغًا للتخطي، أو صِفوا تفصيلًا حقيقيًا صغيرًا…",
   s2MissingPopulation: "العاطفة الجماعية للفئة",
   s2MissingIntention: "النية العلاجية",
   s2MissingCreative: "الرؤية الإبداعية السريرية",
-  fallbackTriggerLabel: "المحفّز المحدد",
+  fallbackTriggerLabel: "الموقف المُحفِّز",
 
   s3Overline: "القسم 3 من 5",
   s3Title: "البنية العلاجية",
@@ -557,10 +560,10 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
     "1.2": { label: "ذروة الشدة العاطفية", section: "القسم 1 — العمر ونطاق القصة" },
     "1.3": { label: "طول القصة", section: "القسم 1 — العمر ونطاق القصة" },
     "2.1": { label: "العاطفة الجماعية للفئة", section: "القسم 2 — الأساس السريري" },
-    "2.2": { label: "المحفّز المحدد", section: "القسم 2 — الأساس السريري" },
+    "2.2": { label: "الموقف المُحفِّز", section: "القسم 2 — الأساس السريري" },
     "2.3": { label: "النية العلاجية", section: "القسم 2 — الأساس السريري" },
     "2.4": { label: "الرؤية الإبداعية السريرية", section: "القسم 2 — الأساس السريري" },
-    "2.5": { label: "أمر حقيقي واحد", section: "القسم 2 — الأساس السريري" },
+    "2.5": { label: "تفصيل حقيقي واحد", section: "القسم 2 — الأساس السريري" },
     "3.1": { label: "النهج العلاجي الأساسي", section: "القسم 3 — البنية العلاجية" },
     "3.2": { label: "النهج الداعم", section: "القسم 3 — البنية العلاجية" },
     "3.3": { label: "بعد الخجل", section: "القسم 3 — البنية العلاجية" },
