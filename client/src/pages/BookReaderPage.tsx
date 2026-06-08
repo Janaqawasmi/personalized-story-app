@@ -65,19 +65,10 @@ import {
   readerPagesFingerprint,
 } from "../utils/readerPagesFingerprint";
 
-type Page = {
-  pageNumber: number;
-  textTemplate: string;
-  imagePromptTemplate?: string;
-  imageUrl?: string;
-  imageFallbackUrl?: string;
-  emotionalTone?: string;
-};
-
 type StoryTemplate = {
   id: string;
   title: string;
-  pages: Page[];
+  pages: ReaderPageBuilt[];
   language?: string;
   generationConfig?: {
     language?: string;
@@ -293,8 +284,10 @@ export default function BookReaderPage() {
         const photo = session.data?.photoPreviewUrl?.trim() || undefined;
 
         const previewSpreads: unknown[] = Array.isArray(data.previewSpreads) ? data.previewSpreads : [];
-        const spreadTextFallbacks = previewSpreads.map((sp) => extractPreviewSpreadText(sp));
-        const spreadImageFallbacks = previewSpreads.map((sp) => extractPreviewSpreadImageUrl(sp));
+        const spreadTextFallbacks = previewSpreads.map((sp: unknown) => extractPreviewSpreadText(sp));
+        const spreadImageFallbacks = previewSpreads.map((sp: unknown) =>
+          extractPreviewSpreadImageUrl(sp),
+        );
 
         const sortedRaw = (data.pages || []).sort(
           (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
@@ -312,21 +305,34 @@ export default function BookReaderPage() {
           spreadImageFallbacks,
         });
 
-        const resolvedPreviewId =
-          previewIdFromQuery || localStorage.getItem(`dammah.preview.${storyId}`);
+        const activePreviewId =
+          previewIdFromQuery ||
+          (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
 
         await auth.authStateReady();
         const ownerUid = auth.currentUser?.uid;
-        if (resolvedPreviewId && ownerUid) {
-          const overrides = await loadPreviewReaderOverrides(resolvedPreviewId, ownerUid);
-          if (overrides.length) {
-            pages = applyPreviewOverridesToReaderPages(pages, overrides);
+        if (activePreviewId && ownerUid) {
+          try {
+            const overrides = await loadPreviewReaderOverrides(activePreviewId, ownerUid);
+            if (overrides.length) {
+              pages = applyPreviewOverridesToReaderPages(
+                pages,
+                overrides,
+                PREVIEW_SPREAD_LIMIT,
+              );
+            }
+          } catch (previewErr) {
+            console.warn(
+              "[BookReader] Failed to merge storyPreviews into reader pages:",
+              previewErr,
+            );
           }
         }
 
         const resolvedCoverImage =
           (typeof data.coverImage === "string" && data.coverImage.trim()) ||
           (typeof data.coverImageUrl === "string" && data.coverImageUrl.trim()) ||
+          pages.find((p) => p.pageNumber === 1)?.imageUrl ||
           pages[0]?.imageUrl ||
           undefined;
 
@@ -368,40 +374,46 @@ export default function BookReaderPage() {
     if (!previewId || !story?.id) return;
 
     let cancelled = false;
+    let unsub: (() => void) | undefined;
 
-    const unsub = onSnapshot(doc(db, "storyPreviews", previewId), (snap) => {
-      if (!snap.exists() || cancelled) return;
+    void (async () => {
+      await auth.authStateReady();
+      if (cancelled) return;
 
-      if (previewSnapshotTimerRef.current) {
-        clearTimeout(previewSnapshotTimerRef.current);
-      }
+      unsub = onSnapshot(doc(db, "storyPreviews", previewId), (snap) => {
+        if (!snap.exists() || cancelled) return;
 
-      previewSnapshotTimerRef.current = setTimeout(async () => {
-        if (cancelled) return;
-        await auth.authStateReady();
-        const ownerUid = auth.currentUser?.uid;
-        if (!ownerUid || cancelled) return;
+        if (previewSnapshotTimerRef.current) {
+          clearTimeout(previewSnapshotTimerRef.current);
+        }
 
-        const overrides = await previewOverridesFromDocData(snap.data(), ownerUid);
-        const hasUpdate = overrides.some(
-          (o: PreviewReaderOverride) => o.personalizedText?.trim() || o.imageUrl?.trim()
-        );
-        if (!hasUpdate || cancelled) return;
+        previewSnapshotTimerRef.current = setTimeout(async () => {
+          if (cancelled) return;
+          const ownerUid = auth.currentUser?.uid;
+          if (!ownerUid || cancelled) return;
 
-        setStory((prev) => {
-          if (!prev) return prev;
-          const pages = applyPreviewOverridesToReaderPages(
-            prev.pages as ReaderPageBuilt[],
-            overrides
+          const overrides = await previewOverridesFromDocData(snap.data(), ownerUid);
+          const hasUpdate = overrides.some(
+            (o: PreviewReaderOverride) => o.personalizedText?.trim() || o.imageUrl?.trim(),
           );
-          const fp = readerPagesFingerprint(pages);
-          if (fp === pagesFingerprintRef.current) return prev;
-          pagesFingerprintRef.current = fp;
-          preloadReaderImages(collectReaderImageUrls(pages));
-          return { ...prev, pages };
-        });
-      }, 280);
-    });
+          if (!hasUpdate || cancelled) return;
+
+          setStory((prev) => {
+            if (!prev || prev.id !== story.id) return prev;
+            const pages = applyPreviewOverridesToReaderPages(
+              prev.pages,
+              overrides,
+              PREVIEW_SPREAD_LIMIT,
+            );
+            const fp = readerPagesFingerprint(pages);
+            if (fp === pagesFingerprintRef.current) return prev;
+            pagesFingerprintRef.current = fp;
+            preloadReaderImages(collectReaderImageUrls(pages));
+            return { ...prev, pages };
+          });
+        }, 280);
+      });
+    })();
 
     return () => {
       cancelled = true;
@@ -409,7 +421,7 @@ export default function BookReaderPage() {
         clearTimeout(previewSnapshotTimerRef.current);
         previewSnapshotTimerRef.current = null;
       }
-      unsub();
+      unsub?.();
     };
   }, [previewId, story?.id]);
 
