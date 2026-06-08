@@ -15,45 +15,12 @@ import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup, LockedFilter } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
 import SuggestStoryBanner from "../components/SuggestStoryBanner";
-
-const storyGridSx = {
-  display: "grid",
-  gridTemplateColumns: {
-    xs: "1fr",
-    sm: "repeat(2, 1fr)",
-    md: "repeat(3, 1fr)",
-    lg: "repeat(4, 1fr)",
-  },
-  gap: 2.5,
-};
-
-const pageHeaderTitleSx = {
-  fontFamily: "'Playfair Display', serif",
-  fontSize: { xs: "24px", md: "28px" },
-  fontWeight: 600,
-  color: "#1a1a1a",
-  mb: 0.5,
-};
-
-const countBadgeSx = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "2px 10px",
-  borderRadius: "20px",
-  backgroundColor: "#f5ece9",
-  color: "#824D5C",
-  fontSize: "12px",
-  fontWeight: 600,
-};
-
-const breadcrumbBoxSx = {
-  display: "flex",
-  alignItems: "center",
-  gap: "6px",
-  mb: 1.5,
-  fontSize: "13px",
-  color: "#888888",
-};
+import {
+  storyCatalogGridSx,
+  catalogPageHeaderTitleSx,
+  catalogCountBadgeSx,
+  catalogBreadcrumbSx,
+} from "../components/catalog/catalogStyles";
 
 export default function AgeResultsPage() {
   const { ageId } = useParams<{ ageId: string }>();
@@ -77,28 +44,37 @@ export default function AgeResultsPage() {
   }, [location.key, location.pathname, location.state?.category, location.state?.fromMegaMenu]);
 
   useEffect(() => {
-    if (!ageId) return;
+    if (!ageId || !data) return;
+    let cancelled = false;
 
     const situationIds = selectedCategory
-      ? data?.situations
+      ? data.situations
           .filter((s) => s.topicKey === selectedCategory && s.active)
-          .map((s) => s.id) || []
+          .map((s) => s.id)
       : undefined;
 
-    fetchStoriesWithFilters({
-      ageGroup: ageId,
-      categoryId: selectedCategory || undefined,
-      topicId: selectedTopic || undefined,
-      situationIds: selectedCategory && !selectedTopic ? situationIds : undefined,
-    }).then((results) => {
+    void fetchStoriesWithFilters(
+      {
+        ageGroup: ageId,
+        categoryId: selectedCategory || undefined,
+        topicId: selectedTopic || undefined,
+        situationIds: selectedCategory && !selectedTopic ? situationIds : undefined,
+      },
+      language,
+    ).then((results) => {
+      if (cancelled) return;
       setStories(
         results.map((s) => ({
-          id: s.id,
+          ...s,
           title: s.title ?? t("search.storyWithoutName"),
-        }))
+        })),
       );
     });
-  }, [ageId, selectedCategory, selectedTopic, data, t]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ageId, selectedCategory, selectedTopic, data, language]);
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };
 
@@ -183,7 +159,7 @@ export default function AgeResultsPage() {
 
   return (
     <Container maxWidth="xl" sx={containerSx}>
-      <Box sx={breadcrumbBoxSx}>
+      <Box sx={catalogBreadcrumbSx}>
         <Link
           component={RouterLink}
           to={withLang("/books", language)}
@@ -197,14 +173,14 @@ export default function AgeResultsPage() {
       </Box>
 
       <Box sx={{ mb: 2.5 }}>
-        <Typography component="h1" sx={pageHeaderTitleSx}>
+        <Typography component="h1" sx={catalogPageHeaderTitleSx}>
           {pageTitle}
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
           <Typography sx={{ fontSize: "14px", color: "#4A4A4A" }}>
             {t("pages.ageResults.storiesFound", { count: stories.length })}
           </Typography>
-          <Box component="span" sx={countBadgeSx}>
+          <Box component="span" sx={catalogCountBadgeSx}>
             {stories.length} {t("catalog.stories")}
           </Box>
         </Box>
@@ -213,7 +189,7 @@ export default function AgeResultsPage() {
       <FilterBar lockedFilters={lockedFilters} groups={groups} />
 
       {stories.length > 0 ? (
-        <Box sx={storyGridSx}>
+        <Box sx={storyCatalogGridSx}>
           {stories.map((story) => (
             <StoryGridCard
               key={story.id}

@@ -5,7 +5,7 @@ import { useLangNavigate } from "../../i18n/navigation";
 import { useLanguage } from "../../i18n/context/useLanguage";
 import { useFeaturedStories } from "../../hooks/useFeaturedStories";
 import { STORY_TOPIC_TAG_STYLES, type StoryTopic } from "../../constants/topicColors";
-import StoryGridCard from "../story/StoryGridCard";
+import StoryGridCard from "../StoryGridCard";
 
 type FilterValue = "all" | StoryTopic;
 
@@ -242,15 +242,19 @@ export default function FeaturedStoriesSection() {
                 }}
               >
                 <StoryGridCard
-                  id={story.id}
-                  title={story.title}
-                  ageRange={story.ageRange}
-                  topic={story.topic}
-                  description={story.description}
-                  price={story.price}
-                  isNew={story.isNew}
-                  coverGradient={story.coverGradient}
-                  coverImage={story.coverImage}
+                  story={{
+                    id: story.id,
+                    title: story.title,
+                    shortDescription: story.description,
+                    price: story.price,
+                    isNew: story.isNew,
+                    coverGradient: story.coverGradient,
+                    coverImage: story.coverImage,
+                    ageRange: story.ageRange,
+                    topicKey: story.topic,
+                    topicLabel: t(`home.featured.filter_${story.topic}`),
+                  }}
+                  variant="featured"
                   onClick={handleCardClick}
                 />
               </Box>

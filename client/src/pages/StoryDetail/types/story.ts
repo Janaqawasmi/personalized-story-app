@@ -18,16 +18,18 @@ export interface StoryTemplatePageVM {
 
 export interface StoryDetailVM {
   id: string;
-  title: Record<string, string>;
-  subtitle: Record<string, string>;
-  description: Record<string, string>;
+  /** Resolved for current UI language at map time (see `mapFirestoreToStoryDetailVM`). */
+  title: string;
+  subtitle: string;
+  description: string;
   coverUrl: string;
   ageRange: string;
   /** Raw Firestore age key (e.g. `3_6`) for matching related stories. */
   ageGroupRaw: string;
   primaryTopic: string;
   topicKey: string;
-  topicLabel: Record<string, string>;
+  /** Resolved for current UI language at map time. */
+  topicLabel: string;
   priceDigital?: number;
   pricePrint?: number;
   currency: string;

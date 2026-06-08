@@ -9,7 +9,9 @@
       "search": "بحث"
     },
     "userMenu": {
+      "sectionLibrary": "مكتبتي",
       "myStories": "قصصي",
+      "myPreviews": "معاينتي",
       "favorites": "المفضلة",
       "adminPanel": "لوحة الإدارة",
       "logout": "تسجيل الخروج"
@@ -341,9 +343,34 @@
       "fallbackStoryTitle": "قصة"
     },
     "myStories": {
-      "title": "قصصي",
-      "message": "ستظهر هنا مكتبة القصص التي تم شراؤها والتي تم إنشاؤها.",
-      "browseStoriesLink": "تصفح القصص"
+      "title": "مكتبتي",
+      "subtitle": "قصصك المشتراة، والمعاينات المخصصة، والمفضلات المحفوظة.",
+      "tabs": {
+        "purchased": "المشتريات",
+        "previews": "معايناتي",
+        "favorites": "المفضلة"
+      },
+      "purchased": {
+        "emptyTitle": "لا توجد قصص مشتراة بعد",
+        "emptyBody": "عند شراء قصة كاملة ستظهر هنا.",
+        "browseCta": "تصفح القصص"
+      },
+      "previews": {
+        "emptyTitle": "لا توجد معاينات محفوظة بعد",
+        "emptyBody": "خصص أي قصة لإنشاء معاينة مجانية — ستُحفظ هنا.",
+        "browseCta": "استكشف القصص",
+        "savedBadge": "معاينة محفوظة",
+        "untitledStory": "قصة مخصصة",
+        "personalizedFor": "مخصص لـ {name}",
+        "readCta": "اقرأ المعاينة",
+        "buyCta": "اشترِ القصة كاملة",
+        "opening": "جارٍ الفتح..."
+      },
+      "favorites": {
+        "emptyTitle": "لا توجد مفضلات بعد",
+        "emptyBody": "اضغط على القلب في أي قصة لحفظها هنا لاحقًا.",
+        "browseCta": "تصفح القصص"
+      }
     }
   },
   "book": {
@@ -507,7 +534,9 @@
       "personalizedFor": "مخصّص لـ",
       "addToCart": "أضف إلى السلة",
       "back": "← تعديل التفاصيل",
-      "loadingPreview": "جارٍ التحميل..."
+      "loadingPreview": "جارٍ التحميل...",
+      "previousPreviewNotice": "لديك معاينة شخصية محفوظة من قبل.",
+      "viewPreviousPreview": "عرضها"
     },
     "celebrateName": "قصة {name} جاهزة.",
     "celebrateSub": "كل كلمة، كل رسم توضيحي — مصنوع من أجل {name}. الاستعداد لشيء خاص حقا.",

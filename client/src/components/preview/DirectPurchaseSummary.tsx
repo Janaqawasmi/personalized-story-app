@@ -10,6 +10,9 @@ interface DirectPurchaseSummaryProps {
   storyTitle: string;
   onAddToCart: () => void;
   onBack: () => void;
+  existingPreviewId?: string | null;
+  existingTemplateId?: string | null;
+  onViewExistingPreview?: () => void;
 }
 
 export function DirectPurchaseSummary({
@@ -17,11 +20,55 @@ export function DirectPurchaseSummary({
   storyTitle,
   onAddToCart,
   onBack,
+  existingPreviewId = null,
+  existingTemplateId = null,
+  onViewExistingPreview,
 }: DirectPurchaseSummaryProps) {
   const t = useTranslation();
 
   return (
     <Box sx={{ maxWidth: 560, mx: "auto", px: 3, py: 6 }} dir="auto">
+      {existingPreviewId && existingTemplateId ? (
+        <Box
+          sx={{
+            mb: 3,
+            p: "14px 18px",
+            borderRadius: "12px",
+            background: "linear-gradient(135deg, rgba(130,77,92,0.06), rgba(130,77,92,0.02))",
+            border: "1px solid rgba(130,77,92,0.18)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            flexWrap: "wrap",
+          }}
+        >
+          <Typography sx={{ fontSize: 13, color: "#5a4a52", lineHeight: 1.5 }}>
+            ✨ {t("personalize.directPurchase.previousPreviewNotice")}
+          </Typography>
+          {onViewExistingPreview ? (
+            <Button
+              size="small"
+              onClick={() => onViewExistingPreview()}
+              sx={{
+                textTransform: "none",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#824D5C",
+                px: 2,
+                py: 0.5,
+                border: "1px solid rgba(130,77,92,0.3)",
+                borderRadius: "8px",
+                whiteSpace: "nowrap",
+                "&:hover": { background: "rgba(130,77,92,0.08)" },
+              }}
+            >
+              {t("personalize.directPurchase.viewPreviousPreview")}
+            </Button>
+          ) : null}
+        </Box>
+      ) : null}
+
       <Stack spacing={3} alignItems="center">
         <Typography variant="h4" component="h1" textAlign="center">
           {t("personalize.directPurchase.title")}

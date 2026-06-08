@@ -9,7 +9,7 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, useLayoutEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
@@ -57,7 +57,13 @@ import {
 import {
   loadPreviewReaderOverrides,
   previewOverridesFromDocData,
+  type PreviewReaderOverride,
 } from "../utils/readerPreviewLoader";
+import { preloadReaderImages } from "../utils/readerImageCache";
+import {
+  collectReaderImageUrls,
+  readerPagesFingerprint,
+} from "../utils/readerPagesFingerprint";
 
 type StoryTemplate = {
   id: string;
@@ -120,6 +126,9 @@ export default function BookReaderPage() {
   const spreadIndexRef = useRef(spreadIndex);
   const lastUnlockedSpreadIndexRef = useRef(0);
   const shouldClearPersonalizationRef = useRef(true);
+  const storyLoadStartedRef = useRef(false);
+  const pagesFingerprintRef = useRef("");
+  const previewSnapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>("");
   const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
@@ -170,6 +179,8 @@ export default function BookReaderPage() {
   useEffect(() => {
     hasAutoScrolledToPreviewCTARef.current = false;
     setPreviewUnlockOverlayOpen(false);
+    storyLoadStartedRef.current = false;
+    pagesFingerprintRef.current = "";
   }, [storyId]);
 
   useEffect(() => {
@@ -207,7 +218,7 @@ export default function BookReaderPage() {
     return () => window.clearTimeout(timeoutId);
   }, [loading, showCover, showInstructions, story, previewUnlockOverlayOpen, isFullScreen, isMobile]);
 
-  // Personalization gate + story load (unchanged)
+  // Personalization gate + story load
   useEffect(() => {
     if (!storyId) {
       setError("Story ID is missing");
@@ -235,22 +246,31 @@ export default function BookReaderPage() {
       return;
     }
 
+    let cancelled = false;
+
     const fetchStory = async () => {
+      const showLoadingScreen = !storyLoadStartedRef.current;
+      if (showLoadingScreen) setLoading(true);
+      setError(null);
       try {
         const storyRef = doc(db, "story_templates", storyId);
         const storySnap = await getDoc(storyRef);
 
         if (!storySnap.exists()) {
-          setError("Story not found");
-          setLoading(false);
+          if (!cancelled) {
+            setError("Story not found");
+            setLoading(false);
+          }
           return;
         }
 
         const data = storySnap.data();
 
         if (data.status !== "approved") {
-          setError("Story is not approved");
-          setLoading(false);
+          if (!cancelled) {
+            setError("Story is not approved");
+            setLoading(false);
+          }
           return;
         }
 
@@ -263,17 +283,17 @@ export default function BookReaderPage() {
           : placeholderName;
         const photo = session.data?.photoPreviewUrl?.trim() || undefined;
 
-        const sortedRaw = (data.pages || []).sort(
-          (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
-        );
-
-        const previewSpreads = Array.isArray(data.previewSpreads) ? data.previewSpreads : [];
+        const previewSpreads: unknown[] = Array.isArray(data.previewSpreads) ? data.previewSpreads : [];
         const spreadTextFallbacks = previewSpreads.map((sp: unknown) => extractPreviewSpreadText(sp));
         const spreadImageFallbacks = previewSpreads.map((sp: unknown) =>
           extractPreviewSpreadImageUrl(sp),
         );
 
-        let pages = buildPersonalizedReaderPages(sortedRaw, {
+        const sortedRaw = (data.pages || []).sort(
+          (a: { pageNumber: number }, b: { pageNumber: number }) => a.pageNumber - b.pageNumber
+        );
+
+        let pages: ReaderPageBuilt[] = buildPersonalizedReaderPages(sortedRaw, {
           gender,
           childDisplayName: displayName,
           language: lang,
@@ -294,9 +314,18 @@ export default function BookReaderPage() {
         if (activePreviewId && ownerUid) {
           try {
             const overrides = await loadPreviewReaderOverrides(activePreviewId, ownerUid);
-            pages = applyPreviewOverridesToReaderPages(pages, overrides, PREVIEW_SPREAD_LIMIT);
+            if (overrides.length) {
+              pages = applyPreviewOverridesToReaderPages(
+                pages,
+                overrides,
+                PREVIEW_SPREAD_LIMIT,
+              );
+            }
           } catch (previewErr) {
-            console.warn("[BookReader] Failed to merge storyPreviews into reader pages:", previewErr);
+            console.warn(
+              "[BookReader] Failed to merge storyPreviews into reader pages:",
+              previewErr,
+            );
           }
         }
 
@@ -307,26 +336,107 @@ export default function BookReaderPage() {
           pages[0]?.imageUrl ||
           undefined;
 
-        setStory({
-          id: storySnap.id,
-          title: data.title || t("search.storyWithoutName"),
-          pages,
-          language: storyLanguage,
-          status: data.status,
-          coverImage: resolvedCoverImage,
-          childName: displayName,
-        });
-      } catch (err: any) {
-        console.error("Error fetching story:", err);
-        setError(err.message || "Failed to load story");
+        if (!cancelled) {
+          pagesFingerprintRef.current = readerPagesFingerprint(pages);
+          preloadReaderImages([
+            ...collectReaderImageUrls(pages),
+            ...(resolvedCoverImage ? [resolvedCoverImage] : []),
+          ]);
+          setStory({
+            id: storySnap.id,
+            title: data.title || t("search.storyWithoutName"),
+            pages,
+            language: storyLanguage,
+            status: data.status,
+            coverImage: resolvedCoverImage,
+            childName: displayName,
+          });
+          storyLoadStartedRef.current = true;
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error("Error fetching story:", err);
+          setError(err instanceof Error ? err.message : "Failed to load story");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     fetchStory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` / `navigate` are unstable; story load keys off ids only
+    return () => {
+      cancelled = true;
+    };
   }, [storyId, previewIdFromQuery]);
+
+  // Live Firestore updates when preview generation completes (debounced, skip no-op writes)
+  useEffect(() => {
+    if (!previewId || !story?.id) return;
+
+    let cancelled = false;
+    let unsub: (() => void) | undefined;
+
+    void (async () => {
+      await auth.authStateReady();
+      if (cancelled) return;
+
+      unsub = onSnapshot(doc(db, "storyPreviews", previewId), (snap) => {
+        if (!snap.exists() || cancelled) return;
+
+        if (previewSnapshotTimerRef.current) {
+          clearTimeout(previewSnapshotTimerRef.current);
+        }
+
+        previewSnapshotTimerRef.current = setTimeout(async () => {
+          if (cancelled) return;
+          const ownerUid = auth.currentUser?.uid;
+          if (!ownerUid || cancelled) return;
+
+          const overrides = await previewOverridesFromDocData(snap.data(), ownerUid);
+          const hasUpdate = overrides.some(
+            (o: PreviewReaderOverride) => o.personalizedText?.trim() || o.imageUrl?.trim(),
+          );
+          if (!hasUpdate || cancelled) return;
+
+          setStory((prev) => {
+            if (!prev || prev.id !== story.id) return prev;
+            const pages = applyPreviewOverridesToReaderPages(
+              prev.pages,
+              overrides,
+              PREVIEW_SPREAD_LIMIT,
+            );
+            const fp = readerPagesFingerprint(pages);
+            if (fp === pagesFingerprintRef.current) return prev;
+            pagesFingerprintRef.current = fp;
+            preloadReaderImages(collectReaderImageUrls(pages));
+            return { ...prev, pages };
+          });
+        }, 280);
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      if (previewSnapshotTimerRef.current) {
+        clearTimeout(previewSnapshotTimerRef.current);
+        previewSnapshotTimerRef.current = null;
+      }
+      unsub?.();
+    };
+  }, [previewId, story?.id]);
+
+  // Preload neighbor spreads whenever the reader index moves
+  useLayoutEffect(() => {
+    if (!story?.pages.length) return;
+    const indices = [spreadIndex - 1, spreadIndex, spreadIndex + 1, spreadIndex + 2].filter(
+      (i) => i >= 0 && i < story.pages.length
+    );
+    const urls = indices.flatMap((i) => {
+      const p = story.pages[i];
+      return [p.imageUrl, p.imageFallbackUrl, `/story-images/placeholders/${p.pageNumber}.jpg`];
+    });
+    preloadReaderImages(urls);
+  }, [story, spreadIndex]);
 
   useEffect(() => {
     if (!storyId) return;
@@ -336,44 +446,6 @@ export default function BookReaderPage() {
       localStorage.removeItem(personalizationKey);
     };
   }, [storyId]);
-
-  // Preview pages are written incrementally after POST /generate — refresh reader when ready.
-  useEffect(() => {
-    if (!previewId || !story?.id) return;
-
-    let cancelled = false;
-    let unsubscribe: (() => void) | undefined;
-
-    void (async () => {
-      await auth.authStateReady();
-      const ownerUid = auth.currentUser?.uid;
-      if (!ownerUid || cancelled) return;
-
-      unsubscribe = onSnapshot(doc(db, "storyPreviews", previewId), async (snap) => {
-        if (cancelled || !snap.exists()) return;
-        const overrides = await previewOverridesFromDocData(snap.data(), ownerUid);
-        if (!overrides.some((o) => o.personalizedText?.trim())) return;
-
-        setStory((prev) =>
-          prev?.id === story.id
-            ? {
-                ...prev,
-                pages: applyPreviewOverridesToReaderPages(
-                  prev.pages,
-                  overrides,
-                  PREVIEW_SPREAD_LIMIT,
-                ),
-              }
-            : prev,
-        );
-      });
-    })();
-
-    return () => {
-      cancelled = true;
-      unsubscribe?.();
-    };
-  }, [previewId, story?.id]);
 
   useEffect(() => () => { ttsStop(); }, []);
 
@@ -585,6 +657,71 @@ export default function BookReaderPage() {
 
   const isMobileReaderActive = isMobile && !showCover && !showInstructions;
 
+  const tt = useCallback(
+    (k: string, fallback: string) => {
+      try {
+        const v = (t as (key: string) => string)(k);
+        return v && v !== k ? v : fallback;
+      } catch {
+        return fallback;
+      }
+    },
+    [t]
+  );
+
+  const currentPage = useMemo(
+    () => story?.pages?.[spreadIndex] ?? null,
+    [story?.pages, spreadIndex]
+  );
+  const nextSpreadPage = useMemo(
+    () => story?.pages?.[spreadIndex + 1],
+    [story?.pages, spreadIndex]
+  );
+
+  const mobileControlsProps = useMemo(
+    () =>
+      isMobileReaderActive
+        ? {
+            onClose: handleClose,
+            onReadStory: handleReadStory,
+            onPauseResume: handlePauseResume,
+            onStopReading: handleStopReading,
+            onToggleAutoRead: () => setAutoRead((p) => !p),
+            autoRead,
+            isReading,
+            isPaused,
+            voices: voicesForCurrentLang,
+            selectedVoiceName,
+            onSelectVoice: setSelectedVoiceName,
+            labels: {
+              close: tt("pages.bookReader.close", "Close"),
+              read: tt("pages.bookReader.readStory", "Read story"),
+              pause: tt("pages.bookReader.pause", "Pause"),
+              resume: tt("pages.bookReader.resume", "Resume"),
+              stop: tt("pages.bookReader.stop", "Stop"),
+              autoRead: autoRead
+                ? tt("pages.bookReader.autoReadOn", "Auto-read on")
+                : tt("pages.bookReader.autoReadOff", "Auto-read off"),
+              voice: tt("pages.bookReader.voice", "Voice"),
+              voiceAuto: tt("pages.bookReader.voiceAuto", "Auto (best)"),
+            },
+          }
+        : undefined,
+    [
+      isMobileReaderActive,
+      autoRead,
+      isReading,
+      isPaused,
+      voicesForCurrentLang,
+      selectedVoiceName,
+      tt,
+      handleClose,
+      handleReadStory,
+      handlePauseResume,
+      handleStopReading,
+    ]
+  );
+
   // Hide Sienna widget on mobile reader to avoid overlap with nav arrows
   useEffect(() => {
     if (!isMobileReaderActive) return;
@@ -622,45 +759,16 @@ export default function BookReaderPage() {
     );
   }
 
-  const currentPage = story.pages[spreadIndex];
   const canGoPrev = spreadIndex > 0;
   const canGoNext = spreadIndex < story.pages.length - 1;
 
-  // Mobile-only labels — falls back to English text if a translation key is missing
-  const tt = (k: string, fallback: string) => {
-    try {
-      const v = (t as any)(k);
-      return v && v !== k ? v : fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
-  const mobileControlsProps = isMobileReaderActive ? {
-    onClose: handleClose,
-    onReadStory: handleReadStory,
-    onPauseResume: handlePauseResume,
-    onStopReading: handleStopReading,
-    onToggleAutoRead: () => setAutoRead((p) => !p),
-    autoRead,
-    isReading,
-    isPaused,
-    voices: voicesForCurrentLang,
-    selectedVoiceName,
-    onSelectVoice: setSelectedVoiceName,
-    labels: {
-      close: tt("pages.bookReader.close", "Close"),
-      read: tt("pages.bookReader.readStory", "Read story"),
-      pause: tt("pages.bookReader.pause", "Pause"),
-      resume: tt("pages.bookReader.resume", "Resume"),
-      stop: tt("pages.bookReader.stop", "Stop"),
-      autoRead: autoRead
-        ? tt("pages.bookReader.autoReadOn", "Auto-read on")
-        : tt("pages.bookReader.autoReadOff", "Auto-read off"),
-      voice: tt("pages.bookReader.voice", "Voice"),
-      voiceAuto: tt("pages.bookReader.voiceAuto", "Auto (best)"),
-    },
-  } : undefined;
+  if (!currentPage) {
+    return (
+      <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default, px: 3 }}>
+        <Typography sx={{ color: theme.palette.text.secondary, textAlign: "center" }}>{t("pages.bookReader.noPages")}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <>
@@ -704,7 +812,7 @@ export default function BookReaderPage() {
               canGoNext={canGoNext}
               canGoPrev={canGoPrev}
               isFullScreen={isFullScreen}
-              nextPage={story.pages[spreadIndex + 1]}
+              nextPage={nextSpreadPage}
               mobileControls={mobileControlsProps}
             />
 
@@ -993,7 +1101,7 @@ export default function BookReaderPage() {
                     canGoNext={canGoNext}
                     canGoPrev={canGoPrev}
                     isFullScreen={isFullScreen}
-                    nextPage={story.pages[spreadIndex + 1]}
+                    nextPage={nextSpreadPage}
                   />
 
                   {previewUnlockOverlayOpen && spreadIndex === lastUnlockedSpreadIndex ? (

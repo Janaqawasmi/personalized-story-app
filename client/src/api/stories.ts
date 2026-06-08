@@ -14,19 +14,48 @@ function normalizeAgeGroup(value?: string): string | null {
     .replace(/[–-]/g, "_"); // dash or en-dash → underscore
 }
 
+type UiLang = "en" | "he" | "ar";
+
+function isUiLang(s: string): s is UiLang {
+  return s === "en" || s === "he" || s === "ar";
+}
+
 /**
- * Resolves a value that may be a plain string, a LocalizedString ({he, ar}),
- * or undefined into a display string. Falls back through: current page language,
- * Hebrew, Arabic, first available value, or undefined.
+ * Resolves the active catalog UI language. Prefer the explicit `lang` argument
+ * (from React i18n); otherwise read `<html lang>`; default English.
  */
-export function resolveLocalizedField(value: unknown): string | undefined {
+export function effectiveCatalogLang(lang?: string): UiLang {
+  if (lang && isUiLang(lang)) return lang;
+  if (typeof document !== "undefined") {
+    const raw = (document.documentElement.lang || "").toLowerCase();
+    const two = raw.slice(0, 2);
+    if (isUiLang(two)) return two;
+  }
+  return "en";
+}
+
+/**
+ * Resolves a plain string, `{ en, he, ar }` map, or undefined to one display string.
+ * Order: requested language → English → Hebrew → Arabic → first non-empty value.
+ */
+export function resolveLocalizedField(value: unknown, lang?: string): string | undefined {
   if (value == null) return undefined;
   if (typeof value === "string") return value;
   if (typeof value === "object" && !Array.isArray(value)) {
     const obj = value as Record<string, string>;
-    // Detect page language from <html dir> or default to Hebrew
-    const pageLang = document.documentElement.lang === "ar" ? "ar" : "he";
-    return obj[pageLang] || obj["he"] || obj["ar"] || Object.values(obj)[0] || undefined;
+    const l = effectiveCatalogLang(lang);
+    const pick = (key: string): string | undefined => {
+      const v = obj[key];
+      return typeof v === "string" && v.trim() ? v : undefined;
+    };
+    return (
+      pick(l) ??
+      pick("en") ??
+      pick("he") ??
+      pick("ar") ??
+      (Object.values(obj).find((v) => typeof v === "string" && v.trim()) as string | undefined) ??
+      undefined
+    );
   }
   return undefined;
 }
@@ -48,9 +77,9 @@ export type Story = {
 
 /**
  * Maps raw Firestore document data to a Story object,
- * resolving any localized fields ({he, ar}) to plain strings.
+ * resolving localized fields to plain strings for the given UI language.
  */
-function mapDocToStory(doc: { id: string; data: () => Record<string, any> }): Story {
+function mapDocToStory(doc: { id: string; data: () => Record<string, any> }, lang: string): Story {
   const data = doc.data();
   const readAmount = (value: unknown): number | undefined => {
     if (typeof value === "number" && Number.isFinite(value)) return value;
@@ -70,10 +99,10 @@ function mapDocToStory(doc: { id: string; data: () => Record<string, any> }): St
 
   return {
     id: doc.id,
-    title: resolveLocalizedField(data.title) || data.title || "",
+    title: resolveLocalizedField(data.title, lang) || data.title || "",
     pricing: digital != null || print != null ? { digital, print } : undefined,
     currency: typeof data.currency === "string" ? data.currency : undefined,
-    shortDescription: resolveLocalizedField(data.shortDescription),
+    shortDescription: resolveLocalizedField(data.shortDescription, lang),
     coverImage: data.coverImage || data.coverImageUrl,
     targetAgeGroup: data.targetAgeGroup || data.ageGroup || data.generationConfig?.targetAgeGroup,
     topicKey: data.topicKey || data.primaryTopic,
@@ -94,7 +123,8 @@ const PUBLIC_STORY_CONSTRAINTS = [
 /**
  * Fetch stories by age group
  */
-export async function fetchStoriesByAge(ageGroup: string): Promise<Story[]> {
+export async function fetchStoriesByAge(ageGroup: string, lang?: string): Promise<Story[]> {
+  const uiLang = effectiveCatalogLang(lang);
   // Try both top-level and nested ageGroup fields
   const q1 = query(
     collection(db, "story_templates"),
@@ -126,15 +156,14 @@ export async function fetchStoriesByAge(ageGroup: string): Promise<Story[]> {
     new Map(allDocs.map((doc) => [doc.id, doc])).values()
   );
 
-  return uniqueDocs.map(mapDocToStory);
+  return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
 }
 
 /**
  * Fetch stories by category (topic)
  */
-export async function fetchStoriesByCategory(
-  categoryId: string
-): Promise<Story[]> {
+export async function fetchStoriesByCategory(categoryId: string, lang?: string): Promise<Story[]> {
+  const uiLang = effectiveCatalogLang(lang);
   // Try both primaryTopic and topicKey fields
   const q1 = query(
     collection(db, "story_templates"),
@@ -156,13 +185,14 @@ export async function fetchStoriesByCategory(
     new Map(allDocs.map((doc) => [doc.id, doc])).values()
   );
 
-  return uniqueDocs.map(mapDocToStory);
+  return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
 }
 
 /**
  * Fetch stories by topic (situation)
  */
-export async function fetchStoriesByTopic(topicId: string): Promise<Story[]> {
+export async function fetchStoriesByTopic(topicId: string, lang?: string): Promise<Story[]> {
+  const uiLang = effectiveCatalogLang(lang);
   // Try both specificSituation and topicKey fields
   const q1 = query(
     collection(db, "story_templates"),
@@ -184,7 +214,7 @@ export async function fetchStoriesByTopic(topicId: string): Promise<Story[]> {
     new Map(allDocs.map((doc) => [doc.id, doc])).values()
   );
 
-  return uniqueDocs.map(mapDocToStory);
+  return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
 }
 
 /**
@@ -192,12 +222,16 @@ export async function fetchStoriesByTopic(topicId: string): Promise<Story[]> {
  * Note: When filtering by categoryId, you should pass situationIds array
  * to properly filter stories that belong to situations within that category
  */
-export async function fetchStoriesWithFilters(filters: {
-  ageGroup?: string;
-  categoryId?: string;
-  topicId?: string;
-  situationIds?: string[]; // For category filtering - all situation IDs in that category
-}): Promise<Story[]> {
+export async function fetchStoriesWithFilters(
+  filters: {
+    ageGroup?: string;
+    categoryId?: string;
+    topicId?: string;
+    situationIds?: string[]; // For category filtering - all situation IDs in that category
+  },
+  lang?: string,
+): Promise<Story[]> {
+  const uiLang = effectiveCatalogLang(lang);
   console.log("[fetchStoriesWithFilters] auth:", {
     uid: auth.currentUser?.uid,
     email: auth.currentUser?.email,
@@ -216,7 +250,7 @@ export async function fetchStoriesWithFilters(filters: {
       const snapshot = await getDocs(baseQ);
       let allStories: (Story & Record<string, any>)[] = snapshot.docs.map((doc) => ({
         ...(doc.data()),
-        ...mapDocToStory(doc),
+        ...mapDocToStory(doc, uiLang),
       }));
 
       // Filter by ageGroup in any location (normalize both sides for comparison)
@@ -270,7 +304,7 @@ export async function fetchStoriesWithFilters(filters: {
       const uniqueDocs = Array.from(
         new Map(allDocs.map((doc) => [doc.id, doc])).values()
       );
-      return uniqueDocs.map(mapDocToStory);
+      return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
     } else if (filters.situationIds && filters.situationIds.length > 0) {
       console.log("[fetchStoriesWithFilters] branch: situationIds");
       // Filter by category - get stories for all situations in that category
@@ -282,7 +316,7 @@ export async function fetchStoriesWithFilters(filters: {
           where("specificSituation", "in", filters.situationIds)
         );
         const snapshot = await getDocs(q1);
-        return snapshot.docs.map(mapDocToStory);
+        return snapshot.docs.map((doc) => mapDocToStory(doc, uiLang));
       } else {
         // If more than 10, fetch all and filter client-side
         const baseQ = query(
@@ -291,7 +325,7 @@ export async function fetchStoriesWithFilters(filters: {
         );
         const snapshot = await getDocs(baseQ);
         const allStories = snapshot.docs.map((doc) => ({
-          ...mapDocToStory(doc),
+          ...mapDocToStory(doc, uiLang),
           specificSituation: doc.data().specificSituation as string | undefined,
         }));
         return allStories.filter(
@@ -317,7 +351,7 @@ export async function fetchStoriesWithFilters(filters: {
       const uniqueDocs = Array.from(
         new Map(allDocs.map((doc) => [doc.id, doc])).values()
       );
-      return uniqueDocs.map(mapDocToStory);
+      return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
     }
 
     // No filters - return all approved + active stories
@@ -327,7 +361,7 @@ export async function fetchStoriesWithFilters(filters: {
       ...PUBLIC_STORY_CONSTRAINTS,
     );
     const snapshot = await getDocs(baseQ);
-    return snapshot.docs.map(mapDocToStory);
+    return snapshot.docs.map((doc) => mapDocToStory(doc, uiLang));
   } catch (err) {
     console.error("[fetchStoriesWithFilters] Firestore error:", err);
     throw err;

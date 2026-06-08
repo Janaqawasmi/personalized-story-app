@@ -3,17 +3,22 @@ import {
   useRef,
   useState,
   useCallback,
+  memo,
   forwardRef,
   useImperativeHandle,
 } from "react";
 import { Box } from "@mui/material";
 import { BOOK_SHELL_CSS } from "./bookTokens";
+import { useReaderSpreadImage } from "../../hooks/useReaderSpreadImage";
+import { preloadReaderImages } from "../../utils/readerImageCache";
 
 type Page = {
   pageNumber: number;
   textTemplate: string;
   imagePromptTemplate?: string;
   imageUrl?: string;
+  /** Tried when `imageUrl` fails to load (catalog spread, prior photo, etc.). */
+  imageFallbackUrl?: string;
   emotionalTone?: string;
 };
 
@@ -62,7 +67,7 @@ export type BookSpreadHandle = {
   flipPrev: () => void;
 };
 
-const FLIP_DURATION_MS = 850;
+const FLIP_DURATION_MS = 720;
 const DRAG_THRESHOLD = 70;
 const DRAG_RANGE = 280;
 const MOBILE_CONTROLS_AUTO_HIDE_MS = 3500;
@@ -604,10 +609,10 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   ref
 ) {
   const flipRef = useRef<HTMLDivElement | null>(null);
-  const textRef = useRef<HTMLDivElement | null>(null);
   const [isFlipping, setIsFlipping] = useState(false);
-  const [displayedPage, setDisplayedPage] = useState<Page>(page);
   const dragStartRef = useRef<number | null>(null);
+  const placeholderUrl = `/story-images/placeholders/${page.pageNumber}.jpg`;
+  const displayImageUrl = useReaderSpreadImage(page, placeholderUrl);
   const swipeTouchRef = useRef<number | null>(null);
 
   /* Mobile controls toggle state */
@@ -654,16 +659,14 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
     el.textContent = BOOK_CSS;
   }, []);
 
-  // Keep displayed page in sync; animate text fade-in when it changes
   useEffect(() => {
-    setDisplayedPage(page);
-    const node = textRef.current;
-    if (node) {
-      node.style.animation = "none";
-      void node.offsetHeight;
-      node.style.animation = "bs2-fadeIn .4s ease forwards";
-    }
-  }, [page]);
+    if (!nextPage) return;
+    preloadReaderImages([
+      nextPage.imageUrl,
+      nextPage.imageFallbackUrl,
+      `/story-images/placeholders/${nextPage.pageNumber}.jpg`,
+    ]);
+  }, [nextPage?.pageNumber, nextPage?.imageUrl, nextPage?.imageFallbackUrl]);
 
   const triggerFlip = useCallback(
     (direction: "next" | "prev") => {
@@ -762,8 +765,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   const sceneClass = `bs2-scene ${showControls ? "bs2-controls-open" : ""}`.trim();
   const bookClass = `bs2-book ${isRTL ? "bs2-rtl" : ""} ${isFullScreen ? "bs2-fullscreen" : ""}`.trim();
 
-  const imageUrl = displayedPage.imageUrl;
-  const fallbackText = displayedPage.imagePromptTemplate;
+  const fallbackText = page.imagePromptTemplate;
   const underText = nextPage?.textTemplate ?? "";
   const voicesForCurrentLang = mobileControls?.voices ?? [];
 
@@ -899,15 +901,15 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
           role="button"
           aria-label="Previous page"
         >
-          {imageUrl ? (
-            <img src={imageUrl} alt="" />
+          {displayImageUrl ? (
+            <img src={displayImageUrl} alt="" decoding="async" loading="eager" />
           ) : (
             <div className="bs2-img-placeholder">{fallbackText || ""}</div>
           )}
           <div style={{ position:"absolute", inset:0, top:0, bottom:0, left:0, width:20, background:"linear-gradient(to right,rgba(60,28,40,.16),transparent)", zIndex:3, pointerEvents:"none" }} />
           {!isFullScreen && (
             <div className="bs2-counter">
-              {displayedPage.pageNumber} / {totalPages}
+              {page.pageNumber} / {totalPages}
             </div>
           )}
         </div>
@@ -937,7 +939,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
             </div>
             {isFullScreen && (
               <div className="bs2-counter" style={{ left: "auto", right: 20, bottom: 18 }}>
-                {displayedPage.pageNumber} / {totalPages}
+                {page.pageNumber} / {totalPages}
               </div>
             )}
           </div>
@@ -960,10 +962,10 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
               <CornerOrn pos="bl" />
               <CornerOrn pos="br" />
               <div style={{ position:"absolute", inset:0, top:0, bottom:0, right:0, width:20, background:"linear-gradient(to left,rgba(60,28,40,.1),transparent)", zIndex:3, pointerEvents:"none" }} />
-              <div className="bs2-text-content" ref={textRef}>
+              <div key={page.pageNumber} className="bs2-text-content bs2-text-anim">
                 <div className="bs2-title-label">{title}</div>
                 <div className="bs2-ornament" />
-                <p className="bs2-story-text">{displayedPage.textTemplate}</p>
+                <p className="bs2-story-text">{page.textTemplate}</p>
                 <div className="bs2-ornament b" />
               </div>
 
@@ -980,7 +982,7 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
                   <div
                     className="bs2-mobile-progress-fill"
                     style={{
-                      width: `${(displayedPage.pageNumber / totalPages) * 100}%`,
+                      width: `${(page.pageNumber / totalPages) * 100}%`,
                     }}
                   />
                 </div>
@@ -1044,4 +1046,23 @@ const BookSpread = forwardRef<BookSpreadHandle, BookSpreadProps>(function BookSp
   );
 });
 
-export default BookSpread;
+function bookSpreadPropsAreEqual(prev: BookSpreadProps, next: BookSpreadProps): boolean {
+  return (
+    prev.page.pageNumber === next.page.pageNumber &&
+    prev.page.textTemplate === next.page.textTemplate &&
+    prev.page.imageUrl === next.page.imageUrl &&
+    prev.page.imageFallbackUrl === next.page.imageFallbackUrl &&
+    prev.title === next.title &&
+    prev.isRTL === next.isRTL &&
+    prev.totalPages === next.totalPages &&
+    prev.canGoNext === next.canGoNext &&
+    prev.canGoPrev === next.canGoPrev &&
+    prev.isFullScreen === next.isFullScreen &&
+    prev.nextPage?.pageNumber === next.nextPage?.pageNumber &&
+    prev.nextPage?.textTemplate === next.nextPage?.textTemplate &&
+    prev.nextPage?.imageUrl === next.nextPage?.imageUrl &&
+    prev.mobileControls === next.mobileControls
+  );
+}
+
+export default memo(BookSpread, bookSpreadPropsAreEqual);

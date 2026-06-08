@@ -1,5 +1,34 @@
 import type { FaqItemVM, PreviewSpreadVM, StoryDetailStatus, StoryDetailVM } from "../types/story";
 
+/** Single locale string from Firestore map `{ en, he, ar }` or legacy flat string. */
+export function pickLocalized(field: unknown, lang: string): string {
+  if (field == null || field === "") return "";
+  if (typeof field === "object" && !Array.isArray(field)) {
+    const o = field as Record<string, string>;
+    const fromLang = o[lang];
+    if (typeof fromLang === "string" && fromLang.trim()) return fromLang;
+    const en = o.en ?? "";
+    const he = o.he ?? "";
+    const ar = o.ar ?? "";
+    if (en.trim()) return en;
+    if (he.trim()) return he;
+    if (ar.trim()) return ar;
+    const first = Object.values(o).find((v) => typeof v === "string" && v.trim());
+    return typeof first === "string" ? first : "";
+  }
+  if (typeof field === "string") return field;
+  return "";
+}
+
+function pickTopicLabel(data: Record<string, any>, lang: string): string {
+  const sources = [data.displayTopic, data.specificSituation, data.primaryTopic, data.topicKey];
+  for (const src of sources) {
+    const s = pickLocalized(src, lang);
+    if (s.trim()) return s;
+  }
+  return "";
+}
+
 function formatAgeGroup(ageGroup?: string): string {
   if (!ageGroup) return "";
   return ageGroup.replace(/_/g, "–").replace(/-/g, "–");
@@ -55,7 +84,7 @@ function mapFaq(raw: unknown): FaqItemVM[] {
     .filter((x) => x.question.en || x.question.he || x.answer.en || x.answer.he);
 }
 
-export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any>): StoryDetailVM {
+export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any>, lang: string): StoryDetailVM {
   const digital = readAmount(data?.pricing?.digital) ?? readAmount(data?.pricing?.digitalPrice);
   const print = readAmount(data?.pricing?.print);
 
@@ -69,19 +98,11 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
   const hasPrintPrice = typeof print === "number" && Number.isFinite(print);
   const printAvailable = data.printAvailable !== false && hasPrintPrice;
 
-  const title = toLangRecord(data.title);
-  const shortDesc = toLangRecord(data.shortDescription);
-  const subtitle = toLangRecord(data.subtitle);
-  const mergedSubtitle =
-    subtitle.en || subtitle.he || subtitle.ar
-      ? subtitle
-      : shortDesc;
-
   return {
     id,
-    title,
-    subtitle: mergedSubtitle,
-    description: shortDesc,
+    title: pickLocalized(data.title, lang),
+    subtitle: pickLocalized(data.subtitle, lang),
+    description: pickLocalized(data.shortDescription, lang),
     coverUrl: (typeof data.coverImage === "string" && data.coverImage) || (typeof data.coverImageUrl === "string" && data.coverImageUrl) || "",
     ageRange: formatAgeGroup(data.ageGroup || data.targetAgeGroup || data.generationConfig?.targetAgeGroup),
     ageGroupRaw:
@@ -91,7 +112,7 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
       "",
     primaryTopic: typeof data.primaryTopic === "string" ? data.primaryTopic : "",
     topicKey: typeof data.topicKey === "string" ? data.topicKey : "",
-    topicLabel: toLangRecord(data.displayTopic || data.specificSituation || data.primaryTopic || data.topicKey),
+    topicLabel: pickTopicLabel(data, lang),
     priceDigital: digital,
     pricePrint: print,
     currency: typeof data.currency === "string" ? data.currency : "ILS",

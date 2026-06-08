@@ -1,84 +1,149 @@
 import {
   applyPreviewOverridesToReaderPages,
   buildPersonalizedReaderPages,
+  pickTextTemplateVariant,
   resolveTemplatePageText,
+  personalizeStoryTemplateString,
+  PREVIEW_SPREAD_LIMIT,
 } from "../storyPersonalization";
 
-describe("resolveTemplatePageText", () => {
-  it("reads masculine/feminine textTemplate", () => {
-    expect(
-      resolveTemplatePageText(
-        { textTemplate: { masculine: "He went", feminine: "She went" } },
-        "male",
-      ),
-    ).toBe("He went");
+describe("pickTextTemplateVariant", () => {
+  it("selects feminine variant", () => {
+    const t = { masculine: "He ran", feminine: "She ran" };
+    expect(pickTextTemplateVariant(t, "female")).toBe("She ran");
+    expect(pickTextTemplateVariant(t, "male")).toBe("He ran");
   });
 
-  it("reads textTemplate with only one variant filled", () => {
-    expect(
-      resolveTemplatePageText({ textTemplate: { masculine: "Shared line", feminine: "" } }, "female"),
-    ).toBe("Shared line");
+  it("falls back to single filled variant", () => {
+    const t = { masculine: "", feminine: "Only she" };
+    expect(pickTextTemplateVariant(t, "male")).toBe("Only she");
   });
 
-  it("reads legacy textVariants", () => {
-    expect(
-      resolveTemplatePageText(
-        { textVariants: { male: "Boy text", female: "Girl text" } },
-        "female",
-      ),
-    ).toBe("Girl text");
-  });
-
-  it("falls back to previewSpread text", () => {
-    expect(resolveTemplatePageText({}, "male", "Spread fallback")).toBe("Spread fallback");
+  it("supports male/female keys", () => {
+    const t = { male: "Boy text", female: "Girl text" };
+    expect(pickTextTemplateVariant(t, "female")).toBe("Girl text");
   });
 });
 
-describe("buildPersonalizedReaderPages + preview overrides", () => {
-  it("uses spread fallback when page textTemplate is empty", () => {
-    const pages = buildPersonalizedReaderPages(
-      [{ pageNumber: 1, textTemplate: {} }],
+describe("resolveTemplatePageText", () => {
+  it("uses legacy textVariants", () => {
+    const page = { textVariants: { male: "Boy {{CHILD_NAME}}", female: "Girl {{CHILD_NAME}}" } };
+    expect(resolveTemplatePageText(page, "male")).toBe("Boy {{CHILD_NAME}}");
+  });
+
+  it("uses previewSpread text fallback", () => {
+    const page = { textTemplate: { masculine: "", feminine: "" } };
+    expect(resolveTemplatePageText(page, "male", "Spread fallback")).toBe("Spread fallback");
+  });
+
+  it("uses plain page.text", () => {
+    expect(resolveTemplatePageText({ text: "Plain story" }, "male")).toBe("Plain story");
+  });
+});
+
+describe("buildPersonalizedReaderPages", () => {
+  const pages = [{ pageNumber: 1, textTemplate: { masculine: "{{CHILD_NAME}}", feminine: "{{CHILD_NAME}}" } }];
+
+  it("personalizes name from empty textTemplate via spread fallback", () => {
+    const emptyPages = [{ pageNumber: 1, textTemplate: { masculine: "", feminine: "" } }];
+    const built = buildPersonalizedReaderPages(emptyPages, {
+      gender: "male",
+      childDisplayName: "Noa",
+      language: "he",
+      spreadTextFallbacks: ["Hello {{CHILD_NAME}}"],
+      fallbackImageUrl: () => "/placeholder.jpg",
+      previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
+    });
+    expect(built[0].textTemplate).toBe("Hello Noa");
+  });
+
+  it("prefers child photo over catalog spread image", () => {
+    const built = buildPersonalizedReaderPages(pages, {
+      gender: "male",
+      childDisplayName: "Noa",
+      language: "he",
+      photoPreviewUrl: "blob:child-photo",
+      spreadImageFallbacks: ["https://catalog.example/page1.jpg"],
+      fallbackImageUrl: () => "/placeholder.jpg",
+      previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
+    });
+    expect(built[0].imageUrl).toBe("blob:child-photo");
+    expect(built[0].imageFallbackUrl).toBe("https://catalog.example/page1.jpg");
+  });
+
+  it("uses catalog spread when no child photo", () => {
+    const built = buildPersonalizedReaderPages(pages, {
+      gender: "male",
+      childDisplayName: "Noa",
+      language: "he",
+      spreadImageFallbacks: ["https://catalog.example/page1.jpg"],
+      fallbackImageUrl: () => "/placeholder.jpg",
+      previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
+    });
+    expect(built[0].imageUrl).toBe("https://catalog.example/page1.jpg");
+  });
+});
+
+describe("applyPreviewOverridesToReaderPages", () => {
+  it("replaces text with personalizedText from preview doc", () => {
+    const built = buildPersonalizedReaderPages(
+      [{ pageNumber: 1, textTemplate: "Template {{CHILD_NAME}}" }],
       {
         gender: "male",
         childDisplayName: "Noa",
         language: "he",
-        spreadTextFallbacks: ["Hello {{CHILD_NAME}}"],
-        fallbackImageUrl: () => "/placeholder.jpg",
-        previewSpreadLimit: 2,
-      },
+        fallbackImageUrl: () => "/p.jpg",
+      }
     );
-    expect(pages[0].textTemplate).toContain("Noa");
+    const merged = applyPreviewOverridesToReaderPages(built, [
+      { pageNumber: 1, personalizedText: "Server finalized text" },
+    ]);
+    expect(merged[0].textTemplate).toBe("Server finalized text");
   });
 
-  it("prefers child photo over catalog previewSpread image on preview spreads", () => {
-    const pages = buildPersonalizedReaderPages(
+  it("keeps generated image when override provides imageUrl", () => {
+    const built = buildPersonalizedReaderPages(
       [{ pageNumber: 1, textTemplate: "Hi" }],
       {
         gender: "male",
         childDisplayName: "Noa",
         language: "he",
-        photoPreviewUrl: "blob:child-photo",
-        spreadImageFallbacks: ["https://example.com/catalog.jpg"],
-        fallbackImageUrl: () => "/placeholder.jpg",
-        previewSpreadLimit: 2,
-      },
+        photoPreviewUrl: "blob:photo",
+        fallbackImageUrl: () => "/p.jpg",
+        previewSpreadLimit: PREVIEW_SPREAD_LIMIT,
+      }
     );
-    expect(pages[0].imageUrl).toBe("blob:child-photo");
+    const merged = applyPreviewOverridesToReaderPages(built, [
+      { pageNumber: 1, imageUrl: "https://storage.example/ai-page1.jpg" },
+    ]);
+    expect(merged[0].imageUrl).toBe("https://storage.example/ai-page1.jpg");
+    expect(merged[0].imageFallbackUrl).toBe("blob:photo");
   });
 
-  it("applies preview personalizedText over built pages", () => {
+  it("skips empty overrides", () => {
     const built = buildPersonalizedReaderPages(
-      [{ pageNumber: 1, textTemplate: { masculine: "x", feminine: "x" } }],
+      [{ pageNumber: 1, textTemplate: "Hi" }],
       {
         gender: "male",
         childDisplayName: "Noa",
         language: "he",
-        fallbackImageUrl: () => "/placeholder.jpg",
-      },
+        fallbackImageUrl: () => "/p.jpg",
+      }
     );
-    const merged = applyPreviewOverridesToReaderPages(built, [
-      { pageNumber: 1, personalizedText: "Ready preview line." },
-    ]);
-    expect(merged[0].textTemplate).toBe("Ready preview line.");
+    const merged = applyPreviewOverridesToReaderPages(built, [{ pageNumber: 1 }]);
+    expect(merged[0].imageUrl).toBe("/p.jpg");
+  });
+});
+
+describe("personalizeStoryTemplateString", () => {
+  it("substitutes child name and pronouns", () => {
+    const out = personalizeStoryTemplateString(
+      "{{CHILD_NAME}} — {{PRONOUN_SUBJECT}}",
+      "דני",
+      "male",
+      "he"
+    );
+    expect(out).toContain("דני");
+    expect(out).toContain("הוא");
   });
 });

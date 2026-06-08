@@ -3,60 +3,52 @@ import { getDownloadURL, ref } from "firebase/storage";
 import { db, storage } from "../firebase";
 import type { PreviewReaderOverride } from "./storyPersonalization";
 
-type PreviewDocPage = {
-  pageNumber: number;
-  personalizedText?: string;
-  generatedImagePath?: string | null;
-};
+export type { PreviewReaderOverride };
 
-async function resolveGeneratedImageUrl(path: string | null | undefined): Promise<string | undefined> {
+/** Avoid repeated getDownloadURL calls on every Firestore snapshot. */
+const storageDownloadUrlByPath = new Map<string, string>();
+
+async function resolveStorageDownloadUrl(path: string | null | undefined): Promise<string | undefined> {
   const trimmed = path?.trim();
   if (!trimmed) return undefined;
+  const cached = storageDownloadUrlByPath.get(trimmed);
+  if (cached) return cached;
   try {
-    return await getDownloadURL(ref(storage, trimmed));
+    const url = await getDownloadURL(ref(storage, trimmed));
+    storageDownloadUrlByPath.set(trimmed, url);
+    return url;
   } catch (err) {
     console.warn("[reader] Could not resolve preview image:", err);
     return undefined;
   }
 }
 
-async function overridesFromPreviewPages(
-  pages: PreviewDocPage[],
-): Promise<PreviewReaderOverride[]> {
-  const overrides: PreviewReaderOverride[] = [];
-  for (const p of pages) {
-    const imageUrl = await resolveGeneratedImageUrl(p.generatedImagePath);
-    overrides.push({
-      pageNumber: p.pageNumber,
-      personalizedText: p.personalizedText,
-      imageUrl,
-    });
-  }
-  return overrides;
-}
-
 export async function previewOverridesFromDocData(
-  data: { caregiverUid?: string; pages?: PreviewDocPage[] },
+  data: Record<string, unknown> | undefined,
   ownerUid: string,
 ): Promise<PreviewReaderOverride[]> {
-  if (data.caregiverUid !== ownerUid) return [];
-  return overridesFromPreviewPages(data.pages ?? []);
-}
+  if (!data || data.caregiverUid !== ownerUid) return [];
+  const pages = Array.isArray(data.pages) ? data.pages : [];
+  const overrides: PreviewReaderOverride[] = [];
 
-async function loadFromFirestore(
-  previewId: string,
-  ownerUid: string,
-): Promise<PreviewReaderOverride[]> {
-  const snap = await getDoc(doc(db, "storyPreviews", previewId));
-  if (!snap.exists()) {
-    return [];
+  for (const p of pages) {
+    if (!p || typeof p !== "object") continue;
+    const page = p as Record<string, unknown>;
+    const pageNumber = typeof page.pageNumber === "number" ? page.pageNumber : 0;
+    const override: PreviewReaderOverride = { pageNumber };
+
+    if (typeof page.personalizedText === "string" && page.personalizedText.trim()) {
+      override.personalizedText = page.personalizedText.trim();
+    }
+
+    if (typeof page.generatedImagePath === "string" && page.generatedImagePath) {
+      const url = await resolveStorageDownloadUrl(page.generatedImagePath);
+      if (url) override.imageUrl = url;
+    }
+    overrides.push(override);
   }
 
-  const data = snap.data();
-  return previewOverridesFromDocData(
-    { caregiverUid: data.caregiverUid as string, pages: data.pages as PreviewDocPage[] },
-    ownerUid,
-  );
+  return overrides;
 }
 
 /**
@@ -68,7 +60,9 @@ export async function loadPreviewReaderOverrides(
   ownerUid: string,
 ): Promise<PreviewReaderOverride[]> {
   try {
-    return await loadFromFirestore(previewId, ownerUid);
+    const snap = await getDoc(doc(db, "storyPreviews", previewId));
+    if (!snap.exists()) return [];
+    return previewOverridesFromDocData(snap.data(), ownerUid);
   } catch (err) {
     console.warn("[reader] Firestore preview load failed:", err);
     return [];
