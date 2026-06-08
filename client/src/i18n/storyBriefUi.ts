@@ -64,6 +64,7 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     NARRATIVE_DISTANCE_LABELS: SB.NARRATIVE_DISTANCE_LABELS,
     NARRATIVE_DISTANCE_DEFINITIONS: SB.NARRATIVE_DISTANCE_DEFINITIONS,
     SUPPORTING_CHARACTER_LABELS: SB.SUPPORTING_CHARACTER_LABELS,
+    LANGUAGE_LABELS: { en: "English", ar: "Arabic" },
 
     preBriefOverline: "Pre-brief",
     preBriefTitle: "Choose the lens this story looks through",
@@ -142,6 +143,10 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     s1Field13: "Story length",
     s1Field13Helper: "Affects the available page budget. Default is Standard.",
     s1PreviewPlaceholder: "Select an age range above to see story details.",
+    s1BriefLanguageLabel: "Brief language",
+    s1BriefLanguageHelper: "The language you are writing this brief in. Does not affect the generated story.",
+    s1OutputLanguageLabel: "Story output language",
+    s1OutputLanguageHelper: "The language the generated story will be written in. Independent of the brief language.",
     s1MissingAge: "Target age range",
     s1MissingPeak: "Peak emotional intensity",
     ariaAgeRange: (label) => `Age range ${label}`,

@@ -10,6 +10,7 @@ import type {
   ResolutionCompleteness,
   ShameDimension,
   SomaticExpression,
+  StoryLanguage,
   StoryLength,
   StoryType,
   SupportingCharacter,
@@ -80,6 +81,7 @@ export interface StoryBriefUi {
   NARRATIVE_DISTANCE_LABELS: Record<NarrativeDistance, string>;
   NARRATIVE_DISTANCE_DEFINITIONS: Record<NarrativeDistance, string>;
   SUPPORTING_CHARACTER_LABELS: Record<SupportingCharacter, string>;
+  LANGUAGE_LABELS: Record<StoryLanguage, string>;
 
   preBriefOverline: string;
   preBriefTitle: string;
@@ -140,6 +142,10 @@ export interface StoryBriefUi {
   s1Field13: string;
   s1Field13Helper: string;
   s1PreviewPlaceholder: string;
+  s1BriefLanguageLabel: string;
+  s1BriefLanguageHelper: string;
+  s1OutputLanguageLabel: string;
+  s1OutputLanguageHelper: string;
   s1MissingAge: string;
   s1MissingPeak: string;
   ariaAgeRange: (label: string) => string;

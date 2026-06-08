@@ -71,10 +71,15 @@ export function buildPostValidationPrompt(
       ? 'When referencing a passage, include the page number: e.g. "[Page 2] ..."'
       : '';
 
+  const languageNote =
+    brief.outputLanguage === 'ar'
+      ? '\nThe story below is written in Arabic. Read it in Arabic. Quote any flagged passage verbatim in Arabic (max 15 words). Write all of your reasoning and the alignment note in English.'
+      : '';
+
   return `You are a clinical safety reviewer. Two jobs: check hard constraints,
 write an alignment note.
 NOT judging quality. NOT judging whether the story lectures.
-Checking specific rules and providing a clinical read.
+Checking specific rules and providing a clinical read.${languageNote}
 THE STORY:
 ${step2Output.title}
 ${storyBody}

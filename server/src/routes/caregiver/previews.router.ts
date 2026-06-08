@@ -461,7 +461,7 @@ router.post(
 /**
  * GET /api/caregiver/previews/:previewId
  *
- * Any authenticated user who owns the preview may read it (same as POST /generate).
+ * Same auth model as POST /generate: any signed-in user may read a preview they own.
  */
 router.get(
   "/:previewId",

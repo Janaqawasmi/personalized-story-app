@@ -148,7 +148,7 @@ export function buildStep2SectionE(brief: StoryBrief): string {
 STORY LENGTH: ${STORY_LENGTH_LABELS[ageAndScope.storyLength]}
 Target word count: ${totalWordsLow}–${totalWordsHigh} words
 Target page count: ${pagesLow}–${pagesHigh} pages
-Write to the word range. A shorter story that works is better than a longer story that drifts.`;
+Write to the word range, aiming for its middle. Develop each beat fully enough to land the emotional arc — do not cut the story short of the range. Do not pad with filler to reach it either.`;
 
   const block2 = `VOCABULARY AND COMPLEXITY:
 ${getAgeRangeRules(ageAndScope.ageRange)}`;

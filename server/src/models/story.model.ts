@@ -67,6 +67,13 @@ export interface StoryDraft {
   wordCount: number;
   /** ms since epoch */
   updatedAt: number;
+  /**
+   * The `Agent1Result.generationId` of the version these working edits are
+   * derived from. Lets the workspace edit any model version (Sonnet, GPT,
+   * Opus) while keeping a single working draft. Absent on legacy drafts, which
+   * are treated as belonging to the canonical `agent1Result` version.
+   */
+  sourceGenerationId?: string;
 }
 
 export type EditHistoryEvent =

@@ -5,7 +5,11 @@
       "Bash(npx tsc *)",
       "Bash(npx jest *)",
       "WebFetch(domain:docs.byteplus.com)",
-      "WebFetch(domain:bytedance.larkoffice.com)"
+      "WebFetch(domain:bytedance.larkoffice.com)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('test:', p.scripts.test\\); console.log\\('jest key:', JSON.stringify\\(p.jest||'none'\\)\\)\")",
+      "Bash(set CI=true)",
+      "Bash(npx react-scripts *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('openai:', \\(p.dependencies||{}\\).openai, \\(p.devDependencies||{}\\).openai\\)\")"
     ]
   }
 }

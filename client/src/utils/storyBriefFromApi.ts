@@ -49,6 +49,8 @@ function canonicalStoryBriefToComplete(b: Record<string, unknown>): CompleteBrie
 
   const out: CompleteBrief = {
     storyType: coerceStoryType(b.storyType),
+    briefLanguage: b.briefLanguage === "ar" ? "ar" : "en",
+    outputLanguage: b.outputLanguage === "ar" ? "ar" : "en",
     section1: {
       ...(typeof ageAndScope.ageRange === "string" ? { ageRange: ageAndScope.ageRange as CompleteBrief["section1"]["ageRange"] } : {}),
       ...(typeof ageAndScope.peakIntensity === "string"

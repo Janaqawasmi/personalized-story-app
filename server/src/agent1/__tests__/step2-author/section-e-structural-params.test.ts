@@ -147,9 +147,9 @@ describe('buildStep2SectionE — age range and targets', () => {
     );
   });
 
-  it('contains the "Write to the word range." guidance', () => {
+  it('contains the "Write to the word range" guidance aiming for the middle', () => {
     const out = buildStep2SectionE(makeMinimalBrief());
-    expect(out).toContain('Write to the word range.');
+    expect(out).toContain('Write to the word range, aiming for its middle.');
   });
 });
 

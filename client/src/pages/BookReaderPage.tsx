@@ -14,7 +14,7 @@ import { useParams } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { auth, db } from "../firebase";
 import CloseIcon from "@mui/icons-material/Close";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";

@@ -1,5 +1,5 @@
 import { doc, getDoc } from "firebase/firestore";
-import { ref, getDownloadURL } from "firebase/storage";
+import { getDownloadURL, ref } from "firebase/storage";
 import { db, storage } from "../firebase";
 import type { PreviewReaderOverride } from "./storyPersonalization";
 
@@ -8,34 +8,24 @@ export type { PreviewReaderOverride };
 /** Avoid repeated getDownloadURL calls on every Firestore snapshot. */
 const storageDownloadUrlByPath = new Map<string, string>();
 
-async function resolveStorageDownloadUrl(path: string): Promise<string | undefined> {
-  const cached = storageDownloadUrlByPath.get(path);
+async function resolveStorageDownloadUrl(path: string | null | undefined): Promise<string | undefined> {
+  const trimmed = path?.trim();
+  if (!trimmed) return undefined;
+  const cached = storageDownloadUrlByPath.get(trimmed);
   if (cached) return cached;
   try {
-    const url = await getDownloadURL(ref(storage, path));
-    storageDownloadUrlByPath.set(path, url);
+    const url = await getDownloadURL(ref(storage, trimmed));
+    storageDownloadUrlByPath.set(trimmed, url);
     return url;
-  } catch {
+  } catch (err) {
+    console.warn("[reader] Could not resolve preview image:", err);
     return undefined;
-  }
-}
-
-export async function loadPreviewReaderOverrides(
-  previewId: string,
-  ownerUid: string
-): Promise<PreviewReaderOverride[]> {
-  try {
-    const snap = await getDoc(doc(db, "storyPreviews", previewId));
-    if (!snap.exists()) return [];
-    return previewOverridesFromDocData(snap.data(), ownerUid);
-  } catch {
-    return [];
   }
 }
 
 export async function previewOverridesFromDocData(
   data: Record<string, unknown> | undefined,
-  ownerUid: string
+  ownerUid: string,
 ): Promise<PreviewReaderOverride[]> {
   if (!data || data.caregiverUid !== ownerUid) return [];
   const pages = Array.isArray(data.pages) ? data.pages : [];
@@ -59,4 +49,22 @@ export async function previewOverridesFromDocData(
   }
 
   return overrides;
+}
+
+/**
+ * Loads preview manuscript + illustration overrides via Firestore only.
+ * (Matches security rules; avoids repeat caregiver-only REST calls in the reader.)
+ */
+export async function loadPreviewReaderOverrides(
+  previewId: string,
+  ownerUid: string,
+): Promise<PreviewReaderOverride[]> {
+  try {
+    const snap = await getDoc(doc(db, "storyPreviews", previewId));
+    if (!snap.exists()) return [];
+    return previewOverridesFromDocData(snap.data(), ownerUid);
+  } catch (err) {
+    console.warn("[reader] Firestore preview load failed:", err);
+    return [];
+  }
 }

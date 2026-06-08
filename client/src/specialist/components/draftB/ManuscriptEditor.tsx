@@ -28,6 +28,7 @@ export interface ManuscriptEditorProps {
   onFlagMarkerClick: (flagIndex: number) => void;
   onParagraphHover: (index: number | null) => void;
   mode: "read" | "edit";
+  isRtl?: boolean;
 }
 
 function MetaSeparator() {
@@ -62,6 +63,7 @@ export default function ManuscriptEditor({
   onFlagMarkerClick,
   onParagraphHover,
   mode,
+  isRtl = false,
 }: ManuscriptEditorProps) {
   const segments: string[] = [];
   if (meta.ageRange) segments.push(`AGES ${meta.ageRange}`);
@@ -109,6 +111,7 @@ export default function ManuscriptEditor({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           readOnly={readOnly}
+          dir={isRtl ? "rtl" : "ltr"}
           style={{
             width: "100%",
             border: "none",
@@ -155,6 +158,7 @@ export default function ManuscriptEditor({
             hoveredFlagIndex={hoveredFlagIndex}
             onFlagMarkerClick={onFlagMarkerClick}
             onParagraphHover={onParagraphHover}
+            isRtl={isRtl}
           />
         ) : (
           <TextField
@@ -169,6 +173,7 @@ export default function ManuscriptEditor({
               readOnly,
               disableUnderline: true,
             }}
+            inputProps={{ dir: isRtl ? "rtl" : "ltr" }}
             sx={{
               "& .MuiInputBase-root": { padding: 0 },
               "& .MuiInputBase-input": {
