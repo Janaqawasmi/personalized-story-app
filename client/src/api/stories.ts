@@ -217,18 +217,63 @@ export async function fetchStoriesByTopic(topicId: string, lang?: string): Promi
   return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
 }
 
+export interface StoryFilters {
+  ageGroup?: string;
+  categoryId?: string;
+  topicId?: string;
+  situationIds?: string[]; // For category filtering - all situation IDs in that category
+}
+
 /**
- * Fetch stories with multiple filters
- * Note: When filtering by categoryId, you should pass situationIds array
- * to properly filter stories that belong to situations within that category
+ * Client-side taxonomy match for a single story.
+ *
+ * Catalog stories are tagged by clinical DOMAIN: `primaryTopic` / `topicKey`
+ * hold the brief `storyType` (e.g. "fear_anxiety"), which equals a
+ * referenceData topic id. The brief has no structured "situation" field — its
+ * trigger is free text stored in `specificSituation`. So:
+ *
+ *  - Selecting a specific topic/situation (`topicId`) matches on the
+ *    situation/topic value.
+ *  - Selecting a category matches on the DOMAIN (`primaryTopic`/`topicKey`)
+ *    OR on an explicitly-tagged situation (`situationIds`). The OR is what
+ *    fixes published stories not showing under category browse — previously
+ *    only the situation-id path was used and domain-tagged stories never
+ *    matched.
+ */
+function matchesTaxonomy(story: Story & Record<string, any>, filters: StoryFilters): boolean {
+  if (filters.topicId) {
+    return (
+      story.specificSituation === filters.topicId ||
+      story.topicKey === filters.topicId ||
+      story.primaryTopic === filters.topicId
+    );
+  }
+
+  const hasCategory = Boolean(filters.categoryId);
+  const hasSituations = Boolean(filters.situationIds && filters.situationIds.length > 0);
+  if (!hasCategory && !hasSituations) return true;
+
+  const byDomain =
+    hasCategory &&
+    (story.primaryTopic === filters.categoryId || story.topicKey === filters.categoryId);
+  const bySituation =
+    hasSituations &&
+    Boolean(story.specificSituation) &&
+    filters.situationIds!.includes(story.specificSituation);
+  return Boolean(byDomain || bySituation);
+}
+
+/**
+ * Fetch stories with multiple filters.
+ *
+ * All public catalog reads go through the single approved+active query (which
+ * Firestore rules require), then age + taxonomy filters are applied
+ * client-side. This avoids Firestore's lack of cross-field OR queries and
+ * keeps the matching rules in one place. The pilot catalog is small, so a
+ * single read + in-memory filter is appropriate.
  */
 export async function fetchStoriesWithFilters(
-  filters: {
-    ageGroup?: string;
-    categoryId?: string;
-    topicId?: string;
-    situationIds?: string[]; // For category filtering - all situation IDs in that category
-  },
+  filters: StoryFilters,
   lang?: string,
 ): Promise<Story[]> {
   const uiLang = effectiveCatalogLang(lang);
@@ -239,129 +284,25 @@ export async function fetchStoriesWithFilters(
   console.log("[fetchStoriesWithFilters] filters:", filters);
 
   try {
-    if (filters.ageGroup) {
-      console.log("[fetchStoriesWithFilters] branch: ageGroup + client-side filter");
-      // Try multiple ageGroup field locations
-      // Note: Firestore doesn't support OR queries easily, so we'll fetch and filter client-side
-      const baseQ = query(
-        collection(db, "story_templates"),
-        ...PUBLIC_STORY_CONSTRAINTS,
-      );
-      const snapshot = await getDocs(baseQ);
-      let allStories: (Story & Record<string, any>)[] = snapshot.docs.map((doc) => ({
-        ...(doc.data()),
-        ...mapDocToStory(doc, uiLang),
-      }));
-
-      // Filter by ageGroup in any location (normalize both sides for comparison)
-      const normalizedFilterAge = normalizeAgeGroup(filters.ageGroup);
-      allStories = allStories.filter((story) => {
-        const storyAge = story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup;
-        const normalizedStoryAge = normalizeAgeGroup(storyAge);
-        return normalizedStoryAge === normalizedFilterAge;
-      });
-
-      // Apply topic/situation filters if needed
-      if (filters.topicId) {
-        allStories = allStories.filter(
-          (story) =>
-            story.specificSituation === filters.topicId ||
-            story.topicKey === filters.topicId
-        );
-      } else if (filters.situationIds && filters.situationIds.length > 0) {
-        allStories = allStories.filter(
-          (story) =>
-            story.specificSituation &&
-            filters.situationIds?.includes(story.specificSituation)
-        );
-      } else if (filters.categoryId) {
-        allStories = allStories.filter(
-          (story) =>
-            story.primaryTopic === filters.categoryId ||
-            story.topicKey === filters.categoryId
-        );
-      }
-
-      return allStories;
-    }
-
-    // If no ageGroup filter, use Firestore queries
-    if (filters.topicId) {
-      console.log("[fetchStoriesWithFilters] branch: topicId");
-      // Filter by specific topic (situation)
-      const q1 = query(
-        collection(db, "story_templates"),
-        ...PUBLIC_STORY_CONSTRAINTS,
-        where("specificSituation", "==", filters.topicId)
-      );
-      const q2 = query(
-        collection(db, "story_templates"),
-        ...PUBLIC_STORY_CONSTRAINTS,
-        where("topicKey", "==", filters.topicId)
-      );
-      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-      const allDocs = [...snap1.docs, ...snap2.docs];
-      const uniqueDocs = Array.from(
-        new Map(allDocs.map((doc) => [doc.id, doc])).values()
-      );
-      return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
-    } else if (filters.situationIds && filters.situationIds.length > 0) {
-      console.log("[fetchStoriesWithFilters] branch: situationIds");
-      // Filter by category - get stories for all situations in that category
-      // Firestore 'in' query supports up to 10 items
-      if (filters.situationIds.length <= 10) {
-        const q1 = query(
-          collection(db, "story_templates"),
-          ...PUBLIC_STORY_CONSTRAINTS,
-          where("specificSituation", "in", filters.situationIds)
-        );
-        const snapshot = await getDocs(q1);
-        return snapshot.docs.map((doc) => mapDocToStory(doc, uiLang));
-      } else {
-        // If more than 10, fetch all and filter client-side
-        const baseQ = query(
-          collection(db, "story_templates"),
-          ...PUBLIC_STORY_CONSTRAINTS,
-        );
-        const snapshot = await getDocs(baseQ);
-        const allStories = snapshot.docs.map((doc) => ({
-          ...mapDocToStory(doc, uiLang),
-          specificSituation: doc.data().specificSituation as string | undefined,
-        }));
-        return allStories.filter(
-          (story) =>
-            story.specificSituation &&
-            filters.situationIds?.includes(story.specificSituation)
-        );
-      }
-    } else if (filters.categoryId) {
-      // Filter by category (primaryTopic)
-      const q1 = query(
-        collection(db, "story_templates"),
-        ...PUBLIC_STORY_CONSTRAINTS,
-        where("primaryTopic", "==", filters.categoryId)
-      );
-      const q2 = query(
-        collection(db, "story_templates"),
-        ...PUBLIC_STORY_CONSTRAINTS,
-        where("topicKey", "==", filters.categoryId)
-      );
-      const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
-      const allDocs = [...snap1.docs, ...snap2.docs];
-      const uniqueDocs = Array.from(
-        new Map(allDocs.map((doc) => [doc.id, doc])).values()
-      );
-      return uniqueDocs.map((doc) => mapDocToStory(doc, uiLang));
-    }
-
-    // No filters - return all approved + active stories
-    console.log("[fetchStoriesWithFilters] branch: no filters");
-    const baseQ = query(
-      collection(db, "story_templates"),
-      ...PUBLIC_STORY_CONSTRAINTS,
-    );
+    const baseQ = query(collection(db, "story_templates"), ...PUBLIC_STORY_CONSTRAINTS);
     const snapshot = await getDocs(baseQ);
-    return snapshot.docs.map((doc) => mapDocToStory(doc, uiLang));
+    let stories: (Story & Record<string, any>)[] = snapshot.docs.map((doc) => ({
+      ...doc.data(),
+      ...mapDocToStory(doc, uiLang),
+    }));
+
+    if (filters.ageGroup) {
+      const normalizedFilterAge = normalizeAgeGroup(filters.ageGroup);
+      stories = stories.filter((story) => {
+        const storyAge =
+          story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup;
+        return normalizeAgeGroup(storyAge) === normalizedFilterAge;
+      });
+    }
+
+    stories = stories.filter((story) => matchesTaxonomy(story, filters));
+
+    return stories;
   } catch (err) {
     console.error("[fetchStoriesWithFilters] Firestore error:", err);
     throw err;

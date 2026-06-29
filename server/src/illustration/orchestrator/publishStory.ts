@@ -1,5 +1,4 @@
 import { Timestamp } from "firebase-admin/firestore";
-import type { AgeGroup } from "@/shared/types/common";
 import type { StoryTemplate, StoryTemplatePage } from "@/shared/types/storyTemplate";
 import { admin, firestore } from "@/config/firebase";
 import {
@@ -25,21 +24,6 @@ function hydrateStory(storyId: string, data: Record<string, unknown> | undefined
   const story = { id: storyId, ...data } as Story;
   fillIllustrationV2DocDefaults(story);
   return story;
-}
-
-function ageRangeToTemplateAgeGroup(ageRange: AgeRange): AgeGroup {
-  switch (ageRange) {
-    case "3-5":
-      return "3_6";
-    case "5-7":
-      return "3_6";
-    case "7-9":
-      return "6_9";
-    case "9-12":
-      return "9_12";
-    default:
-      return "6_9";
-  }
 }
 
 function slugifyTitle(title: string): string {
@@ -117,8 +101,10 @@ export async function publishStory(params: {
   }
 
   const brief = story.brief;
+  // Store the exact brief ageRange so the public catalog age filter matches the
+  // Specialist Dashboard 1:1 (no lossy bucketing — 3-5 and 5-7 stay distinct).
   const ageRange = brief.ageAndScope.ageRange;
-  const ageGroup = ageRangeToTemplateAgeGroup(ageRange);
+  const ageGroup = ageRange;
   const language: "ar" | "he" = "he";
   const isPersonalizable = brief.storyWorld.personalization === true;
 
@@ -175,7 +161,13 @@ export async function publishStory(params: {
     he: body.shortDescriptionHe?.trim() || creative || story.title,
     ar: body.shortDescriptionAr?.trim() || creative || story.title,
   };
-  const primaryTopic = brief.therapeuticArchitecture.primaryApproach;
+  // Catalog taxonomy key = the therapeutic DOMAIN (brief.storyType, e.g.
+  // "fear_anxiety"), which matches the public catalog's referenceData topic
+  // ids. Previously this was wrongly set to the therapeutic *approach*
+  // (e.g. "graduated_exposure"), which is not a catalog topic, so published
+  // stories never matched category/mega-menu browse. See task investigation.
+  const primaryApproach = brief.therapeuticArchitecture.primaryApproach;
+  const primaryTopic = brief.storyType;
   const displayTopic = {
     he:
       body.displayTopicHe?.trim() ||
@@ -200,6 +192,7 @@ export async function publishStory(params: {
     title: story.title,
     status: "approved",
     primaryTopic,
+    topicKey: primaryTopic,
     specificSituation: brief.clinicalFoundation.trigger,
     ageGroup,
     generationConfig: {
@@ -207,7 +200,7 @@ export async function publishStory(params: {
       targetAgeGroup: ageRange,
       length: brief.ageAndScope.storyLength,
       tone: brief.therapeuticArchitecture.shameDimension,
-      emphasis: primaryTopic,
+      emphasis: primaryApproach,
     },
     approvedBy: uid,
     approvedAt: nowIso,
@@ -226,6 +219,30 @@ export async function publishStory(params: {
     previewPageCount: 2,
     totalPageCount: templatePages.length,
   };
+
+  // Validate the public fields the catalog UI depends on before writing.
+  // A story that lands in `story_templates` without these will silently fail
+  // to render / filter on the public site, so fail loudly here instead.
+  const missingPublicFields: string[] = [];
+  if (!template.title?.trim()) missingPublicFields.push("title");
+  if (!template.coverImageUrl?.trim()) missingPublicFields.push("coverImageUrl");
+  if (!template.primaryTopic?.trim()) missingPublicFields.push("primaryTopic (storyType)");
+  if (!template.ageGroup?.trim()) missingPublicFields.push("ageGroup");
+  if (template.pages.length === 0) missingPublicFields.push("pages");
+  if (missingPublicFields.length > 0) {
+    throw new PublishStoryError(
+      "NOT_READY",
+      `Cannot publish: missing required public fields: ${missingPublicFields.join(", ")}`,
+    );
+  }
+
+  console.info(
+    `[publishStory] writing template collection=${COLLECTIONS.STORY_TEMPLATES} ` +
+      `templateId=${templateId} storyId=${storyId} status=${template.status} ` +
+      `isActive=${template.isActive} primaryTopic=${template.primaryTopic} ` +
+      `topicKey=${template.topicKey} ageGroup=${template.ageGroup} ` +
+      `language=${language} pages=${template.pages.length}`,
+  );
 
   const batch = firestore.batch();
   batch.set(templateRef, template as unknown as Record<string, unknown>);
