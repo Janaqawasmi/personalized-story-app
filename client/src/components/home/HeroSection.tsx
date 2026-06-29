@@ -1,113 +1,19 @@
+import { useRef, useState } from "react";
 import { Box, Typography, Button, Stack } from "@mui/material";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useLanguage } from "../../i18n/context/useLanguage";
-import StarField from "./StarField";
+import videoPoster from "../../assets/video-poster.jpeg";
 
-function FloatChip({
-  label,
-  color,
-  sx,
-}: {
-  label: string;
-  color: string;
-  sx?: object;
-}) {
-  return (
-    <Box
-      sx={{
-        position: "absolute",
-        background: "#fff",
-        borderRadius: "40px",
-        px: 1.75,
-        py: 0.75,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-        fontSize: "12px",
-        fontWeight: 700,
-        color,
-        whiteSpace: "nowrap",
-        zIndex: 10,
-        animation: "floatChip 4s ease-in-out infinite",
-        ...sx,
-      }}
-    >
-      {label}
-    </Box>
-  );
-}
-
-function BookCardInner({
-  title,
-  subtitle,
-  bg,
-  sx,
-}: {
-  title: string;
-  subtitle: string;
-  bg: string;
-  sx?: object;
-}) {
-  return (
-    <Box
-      sx={{
-        position: "absolute",
-        borderRadius: "16px",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.22)",
-        overflow: "hidden",
-        cursor: "pointer",
-        transition: "transform 0.4s ease",
-        "&:hover": { transform: "scale(1.04) !important" },
-        background: bg,
-        ...sx,
-      }}
-    >
-      <Box
-        sx={{
-          width: "100%",
-          height: "100%",
-          p: "20px 16px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          position: "relative",
-        }}
-      >
-        <StarField count={18} />
-        <Typography
-          sx={{
-            fontFamily: "Playfair Display, serif",
-            fontSize: "14px",
-            fontWeight: 700,
-            color: "#fff",
-            lineHeight: 1.3,
-            position: "relative",
-            zIndex: 2,
-            whiteSpace: "pre-line",
-          }}
-        >
-          {title}
-        </Typography>
-        <Typography
-          sx={{
-            fontSize: "11px",
-            color: "rgba(255,255,255,0.6)",
-            position: "relative",
-            zIndex: 2,
-          }}
-        >
-          {subtitle}
-        </Typography>
-      </Box>
-    </Box>
-  );
-}
+const VIDEO_SRC = `${process.env.PUBLIC_URL}/assets/dammah-intro.mp4`;
 
 export default function HeroSection() {
   const t = useTranslation();
   const navigate = useLangNavigate();
   const { isRTL } = useLanguage();
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [showPlayOverlay, setShowPlayOverlay] = useState(true);
 
-  const rot = (deg: number) => (isRTL ? -deg : deg);
   const ctaArrow = isRTL ? "←" : "→";
 
   return (
@@ -269,7 +175,6 @@ export default function HeroSection() {
               textTransform: "none",
               borderColor: "#D0C8C0",
               color: "text.primary",
-              // Ensure consistent icon/text spacing in both LTR and RTL.
               columnGap: 1.25,
               "& .MuiButton-startIcon": {
                 margin: 0,
@@ -332,7 +237,7 @@ export default function HeroSection() {
           display: { xs: "none", md: "flex" },
           alignItems: "center",
           justifyContent: "center",
-          p: "48px 48px 48px 24px",
+          p: { md: "32px 32px 32px 16px", lg: "40px 40px 40px 20px" },
           background: "linear-gradient(135deg, #f9f4ef 0%, #ede5dc 100%)",
           overflow: "hidden",
           "&::before": {
@@ -342,79 +247,86 @@ export default function HeroSection() {
             right: "-100px",
             width: "400px",
             height: "400px",
-            background: "radial-gradient(circle, rgba(130,77,92,0.08) 0%, transparent 70%)",
+            background:
+              "radial-gradient(circle, rgba(130,77,92,0.06) 0%, transparent 70%)",
             borderRadius: "50%",
           },
         }}
       >
-        <FloatChip
-          label={`😊 ${t("home.hero.chip_confidence")}`}
-          color="#824D5C"
-          sx={
-            isRTL
-              ? { top: "8%", left: "5%", animationDelay: "0s" }
-              : { top: "8%", right: "5%", animationDelay: "0s" }
-          }
-        />
-        <FloatChip
-          label={`📖 ${t("home.hero.chip_free_spreads")}`}
-          color="#617891"
-          sx={
-            isRTL
-              ? { bottom: "20%", right: "0%", animationDelay: "1.5s" }
-              : { bottom: "20%", left: "0%", animationDelay: "1.5s" }
-          }
-        />
-        <FloatChip
-          label={`✨ ${t("home.hero.chip_cbt")}`}
-          color="#4d7c4d"
-          sx={
-            isRTL
-              ? { top: "45%", left: "-2%", animationDelay: "0.8s" }
-              : { top: "45%", right: "-2%", animationDelay: "0.8s" }
-          }
-        />
+        <Box
+          sx={{
+            position: "relative",
+            zIndex: 2,
+            width: "100%",
+          }}
+        >
+          <Box
+            sx={{
+              width: "100%",
+              borderRadius: "20px",
+              overflow: "hidden",
+              border: "2px solid rgba(130,77,92,0.14)",
+              boxShadow:
+                "0 24px 64px rgba(60,28,40,0.14), 0 8px 24px rgba(60,28,40,0.08)",
+              background: "#1a0a14",
+              aspectRatio: "16/9",
+              position: "relative",
+            }}
+          >
+            <Box
+              component="video"
+              ref={videoRef}
+              muted
+              loop
+              playsInline
+              preload="none"
+              poster={videoPoster}
+              onPlaying={() => setShowPlayOverlay(false)}
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            >
+              <source src={VIDEO_SRC} type="video/mp4" />
+            </Box>
 
-        <Box sx={{ position: "relative", width: 340, height: 400 }}>
-          <BookCardInner
-            title={"The Brave\nLittle Heart"}
-            subtitle="Ages 4–8 · Confidence"
-            bg="linear-gradient(145deg, #4a1a2a, #1a0a14)"
-            sx={{
-              width: 175,
-              height: 235,
-              top: "50%",
-              left: "68%",
-              transform: `translate(-50%,-50%) rotate(${rot(7)}deg)`,
-              zIndex: 1,
-            }}
-          />
-          <BookCardInner
-            title={"Mia and the\nWorry Cloud"}
-            subtitle="Ages 3–7 · Anxiety"
-            bg="linear-gradient(145deg, #1a3a2a, #0d2418)"
-            sx={{
-              width: 180,
-              height: 240,
-              top: "52%",
-              left: "32%",
-              transform: `translate(-50%,-50%) rotate(${rot(-10)}deg)`,
-              zIndex: 2,
-            }}
-          />
-          <BookCardInner
-            title={"Noah Finds\nHis Courage"}
-            subtitle="Ages 4–9 · Fear"
-            bg="linear-gradient(145deg, #2d1b69, #0f2847)"
-            sx={{
-              width: 200,
-              height: 260,
-              top: "50%",
-              left: "50%",
-              transform: `translate(-50%,-52%) rotate(${rot(-3)}deg)`,
-              zIndex: 3,
-            }}
-          />
+            {showPlayOverlay && (
+              <Box
+                onClick={() => void videoRef.current?.play()}
+                sx={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  zIndex: 2,
+                  "&:hover .play-icon": { transform: "scale(1.1)" },
+                }}
+              >
+                <Box
+                  className="play-icon"
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: "50%",
+                    background: "rgba(255,255,255,0.15)",
+                    border: "2px solid rgba(255,255,255,0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: "18px",
+                    transition: "transform 0.2s",
+                  }}
+                >
+                  ▶
+                </Box>
+              </Box>
+            )}
+          </Box>
         </Box>
       </Box>
     </Box>
