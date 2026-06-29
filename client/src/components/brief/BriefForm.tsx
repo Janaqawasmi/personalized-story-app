@@ -43,6 +43,7 @@ import Section3TherapeuticArchitecture from "./Section3TherapeuticArchitecture";
 import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
+import BriefLanguagePickerField from "./BriefLanguagePickerField";
 import ComplexityMeter from "./ComplexityMeter";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
@@ -56,6 +57,8 @@ import {
   omitUiOnlyBriefFields,
   PERSONALIZATION_DEFAULT,
   STORY_LENGTH_DEFAULT,
+  dashboardLanguageToBriefLanguage,
+  dashboardLanguageToDefaultOutputLanguage,
   type AgeAndScope,
   type BriefDefaultsLocaleOptions,
   type ClinicalFoundation,
@@ -215,14 +218,18 @@ const CARD_SELECTED_BG = "#EEF2F5";
 
 interface StoryTypeSelectorProps {
   selected: StoryType | null;
+  outputLanguage: StoryLanguage;
   onSelect: (type: StoryType) => void;
+  onOutputLanguageChange: (lang: StoryLanguage) => void;
   onBegin: () => void;
   compact?: boolean;
 }
 
 function StoryTypeSelector({
   selected,
+  outputLanguage,
   onSelect,
+  onOutputLanguageChange,
   onBegin,
   compact = false,
 }: StoryTypeSelectorProps) {
@@ -337,6 +344,15 @@ function StoryTypeSelector({
           );
         })}
       </Stack>
+
+      <BriefLanguagePickerField
+        id="output-language-label"
+        label={ui.s1OutputLanguageLabel}
+        helper={ui.s1OutputLanguageHelper}
+        value={outputLanguage}
+        onChange={onOutputLanguageChange}
+        mb={4}
+      />
 
       {/* Begin button */}
       <Box display="flex" justifyContent="flex-end">
@@ -477,7 +493,16 @@ function BriefFormInner(props: Props) {
   useEffect(() => {
     if (!draftId && !storageAdapter) return;
     const existing = adapter.load() ?? createEmptyBrief();
-    const normalized = normalizeBriefDefaults(existing, briefLocaleOpts);
+    const pristine =
+      !existing.storyType && !existing.section1?.ageRange && existing.savedAt == null;
+    const base = pristine
+      ? {
+          ...existing,
+          briefLanguage: dashboardLanguageToBriefLanguage(language),
+          outputLanguage: dashboardLanguageToDefaultOutputLanguage(language),
+        }
+      : existing;
+    const normalized = normalizeBriefDefaults(base, briefLocaleOpts);
     setDraft(normalized);
     adapter.save(normalized);
     if (normalized.storyType) {
@@ -492,6 +517,17 @@ function BriefFormInner(props: Props) {
   useEffect(() => {
     setDraft((d) => normalizeBriefDefaults(d, briefLocaleOpts));
   }, [briefLocaleOpts]);
+
+  // Hidden metadata: briefLanguage always follows the dashboard URL language.
+  useEffect(() => {
+    const briefLanguage = dashboardLanguageToBriefLanguage(language);
+    setDraft((d) => {
+      if (d.briefLanguage === briefLanguage) return d;
+      const next = normalizeBriefDefaults({ ...d, briefLanguage }, briefLocaleOpts);
+      adapter.save(next);
+      return next;
+    });
+  }, [language, adapter, briefLocaleOpts]);
 
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
   // Also record highest section opened for progress (1–5).
@@ -585,12 +621,16 @@ function BriefFormInner(props: Props) {
     );
   }
 
-  function updateLanguage(updates: {
-    briefLanguage?: StoryLanguage;
-    outputLanguage?: StoryLanguage;
-  }) {
+  function updateOutputLanguage(outputLanguage: StoryLanguage) {
     touchUserInteraction();
-    setDraft((d) => ({ ...d, ...updates }));
+    setDraft((d) => {
+      const next = normalizeBriefDefaults(
+        { ...d, outputLanguage, savedAt: d.savedAt ?? Date.now() },
+        briefLocaleOpts,
+      );
+      adapter.save(next);
+      return next;
+    });
   }
 
   function updateSection2(updates: Partial<ClinicalFoundation>) {
@@ -800,11 +840,13 @@ function BriefFormInner(props: Props) {
       <BriefPageShell embedded={embedded}>
         <StoryTypeSelector
           selected={draft.storyType}
+          outputLanguage={draft.outputLanguage ?? "en"}
           compact={embedded}
           onSelect={(type: StoryType) => {
             touchUserInteraction();
             setDraft((d) => ({ ...d, storyType: type }));
           }}
+          onOutputLanguageChange={updateOutputLanguage}
           onBegin={() => {
             if (draft.storyType) saveAndAdvance(1);
           }}
@@ -895,9 +937,6 @@ function BriefFormInner(props: Props) {
           <Section1AgeAndScope
             value={draft.section1}
             onChange={updateSection1}
-            briefLanguage={draft.briefLanguage ?? "en"}
-            outputLanguage={draft.outputLanguage ?? "en"}
-            onLanguageChange={updateLanguage}
             onContinue={() => saveAndAdvance(2)}
             onBack={() => goBack(0)}
           />

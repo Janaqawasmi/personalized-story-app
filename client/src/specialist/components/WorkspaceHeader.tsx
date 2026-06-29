@@ -85,6 +85,8 @@ export default function WorkspaceHeader({
   const statusLabels = desk.statusLabels;
   const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
   const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
+  const outputLanguageLabels = briefUi.LANGUAGE_LABELS;
+  const outputLanguage = story.brief?.outputLanguage;
 
   // ---- Title editing ----
   const [editing, setEditing] = useState(false);
@@ -384,6 +386,22 @@ export default function WorkspaceHeader({
             }}
           />
         )}
+        {outputLanguage ? (
+          <Chip
+            label={outputLanguageLabels[outputLanguage]}
+            size="small"
+            variant="outlined"
+            sx={{
+              borderColor: DRAFT_B.border,
+              color: DRAFT_B.inkSoft,
+              fontSize: "0.72rem",
+              height: 24,
+              fontWeight: 500,
+              letterSpacing: "0.01em",
+              "& .MuiChip-label": { px: 1.125 },
+            }}
+          />
+        ) : null}
         {story.ageRange ? (
           <Chip
             label={`${desk.agesChipPrefix} ${ageRangeLabels[story.ageRange]}`}

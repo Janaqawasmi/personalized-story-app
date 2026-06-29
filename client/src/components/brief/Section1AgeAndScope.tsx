@@ -27,13 +27,11 @@ import BriefValidationSummary, {
 import {
   AGE_RANGES,
   PEAK_INTENSITIES,
-  STORY_LANGUAGES,
   STORY_LENGTHS,
   STORY_LENGTH_DEFAULT,
   type AgeAndScope,
   type AgeRange,
   type PeakIntensity,
-  type StoryLanguage,
   type StoryLength,
 } from "../../types/storyBrief";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
@@ -54,15 +52,6 @@ interface Props {
   value: Partial<AgeAndScope>;
   /** Called whenever any field changes; merges the update into parent state. */
   onChange: (updates: Partial<AgeAndScope>) => void;
-  /** Brief input language (top-level brief field; defaults to "en"). */
-  briefLanguage: StoryLanguage;
-  /** Generated-story output language (top-level brief field; defaults to "en"). */
-  outputLanguage: StoryLanguage;
-  /** Called when either language selector changes. */
-  onLanguageChange: (updates: {
-    briefLanguage?: StoryLanguage;
-    outputLanguage?: StoryLanguage;
-  }) => void;
   /** Called when the psychologist clicks "Save & continue". */
   onContinue: () => void;
   /** Optional — renders a Back button when provided. */
@@ -189,9 +178,6 @@ function SelectedDot({ selected }: { selected: boolean }) {
 export default function Section1AgeAndScope({
   value,
   onChange,
-  briefLanguage,
-  outputLanguage,
-  onLanguageChange,
   onContinue,
   onBack,
 }: Props) {
@@ -432,87 +418,6 @@ export default function Section1AgeAndScope({
                 {ui.s1PreviewPlaceholder}
               </Typography>
             )}
-          </Box>
-        </FieldGroup>
-
-        <Divider />
-
-        {/* ═══════════════════════════════════════════════════════════════
-            Language — brief input language and generated-story output language
-        ═══════════════════════════════════════════════════════════════ */}
-        <FieldGroup id="field-1-brief-language-label" label={ui.s1BriefLanguageLabel}>
-          <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            {ui.s1BriefLanguageHelper}
-          </Typography>
-          <Box display="flex" gap={1.5} sx={{ "@media (max-width: 480px)": { flexDirection: "column" } }}>
-            {STORY_LANGUAGES.map((lang) => {
-              const selected = briefLanguage === lang;
-              return (
-                <OptionCard
-                  key={lang}
-                  selected={selected}
-                  onClick={() => onLanguageChange({ briefLanguage: lang })}
-                  flex
-                  ariaLabel={ui.LANGUAGE_LABELS[lang]}
-                >
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    gap={1}
-                    px={2}
-                    py={2}
-                    width="100%"
-                  >
-                    <SelectedDot selected={selected} />
-                    <Typography
-                      fontWeight={selected ? 700 : 500}
-                      color={selected ? COLORS.primary : COLORS.textPrimary}
-                    >
-                      {ui.LANGUAGE_LABELS[lang]}
-                    </Typography>
-                  </Box>
-                </OptionCard>
-              );
-            })}
-          </Box>
-        </FieldGroup>
-
-        <FieldGroup id="field-1-output-language-label" label={ui.s1OutputLanguageLabel}>
-          <Typography variant="caption" color={COLORS.textSecondary} display="block" mb={1.5}>
-            {ui.s1OutputLanguageHelper}
-          </Typography>
-          <Box display="flex" gap={1.5} sx={{ "@media (max-width: 480px)": { flexDirection: "column" } }}>
-            {STORY_LANGUAGES.map((lang) => {
-              const selected = outputLanguage === lang;
-              return (
-                <OptionCard
-                  key={lang}
-                  selected={selected}
-                  onClick={() => onLanguageChange({ outputLanguage: lang })}
-                  flex
-                  ariaLabel={ui.LANGUAGE_LABELS[lang]}
-                >
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    gap={1}
-                    px={2}
-                    py={2}
-                    width="100%"
-                  >
-                    <SelectedDot selected={selected} />
-                    <Typography
-                      fontWeight={selected ? 700 : 500}
-                      color={selected ? COLORS.primary : COLORS.textPrimary}
-                    >
-                      {ui.LANGUAGE_LABELS[lang]}
-                    </Typography>
-                  </Box>
-                </OptionCard>
-              );
-            })}
           </Box>
         </FieldGroup>
 

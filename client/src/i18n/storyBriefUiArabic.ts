@@ -243,7 +243,7 @@ export const STORY_BRIEF_UI_AR: StoryBriefUi = {
     animal_friend: "رفيق حيوان",
     sibling_perspective: "أخ أو أخت يقدّمان زاوية",
   },
-  LANGUAGE_LABELS: { en: "الإنجليزية", ar: "العربية" },
+  LANGUAGE_LABELS: { en: "الإنجليزية", he: "العبرية", ar: "العربية" },
 
   preBriefOverline: "قبل الموجز",
   preBriefTitle: "اختاروا العدسة التي ينظر من خلالها السرد",

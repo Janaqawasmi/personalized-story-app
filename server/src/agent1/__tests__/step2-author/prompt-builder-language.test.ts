@@ -127,4 +127,19 @@ describe('buildStep2Prompt — output language', () => {
     expect(mockGetStoryExample).not.toHaveBeenCalled();
     expect(exampleBankStatus).toBe('cold_start_no_examples');
   });
+
+  it('Hebrew brief → language directive present', () => {
+    const { prompt } = buildStep2Prompt(makeBrief('he'), makeStep1Output());
+    expect(prompt).toContain('OUTPUT LANGUAGE');
+    expect(prompt).toContain('Hebrew');
+  });
+
+  it('Hebrew brief → forces cold-start (few-shot NOT consulted)', () => {
+    const { exampleBankStatus } = buildStep2Prompt(
+      makeBrief('he'),
+      makeStep1Output(),
+    );
+    expect(mockGetStoryExample).not.toHaveBeenCalled();
+    expect(exampleBankStatus).toBe('cold_start_no_examples');
+  });
 });

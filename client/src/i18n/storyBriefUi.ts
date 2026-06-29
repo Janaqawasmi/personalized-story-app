@@ -64,7 +64,7 @@ export function buildEnglishStoryBriefUi(): StoryBriefUi {
     NARRATIVE_DISTANCE_LABELS: SB.NARRATIVE_DISTANCE_LABELS,
     NARRATIVE_DISTANCE_DEFINITIONS: SB.NARRATIVE_DISTANCE_DEFINITIONS,
     SUPPORTING_CHARACTER_LABELS: SB.SUPPORTING_CHARACTER_LABELS,
-    LANGUAGE_LABELS: { en: "English", ar: "Arabic" },
+    LANGUAGE_LABELS: { en: "English", he: "Hebrew", ar: "Arabic" },
 
     preBriefOverline: "Pre-brief",
     preBriefTitle: "Choose the lens this story looks through",

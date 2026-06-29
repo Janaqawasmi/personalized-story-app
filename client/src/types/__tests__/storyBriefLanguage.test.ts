@@ -1,4 +1,4 @@
-import { createEmptyBrief, omitUiOnlyBriefFields } from "../storyBrief";
+import { createEmptyBrief, omitUiOnlyBriefFields, dashboardLanguageToBriefLanguage, dashboardLanguageToDefaultOutputLanguage, coerceStoryLanguage } from "../storyBrief";
 import type { CompleteBrief } from "../storyBrief";
 
 describe("brief language fields", () => {
@@ -31,5 +31,19 @@ describe("brief language fields", () => {
       outputLanguage: "ar",
     };
     expect(brief.briefLanguage).not.toBe(brief.outputLanguage);
+  });
+
+  it("maps dashboard UI language to brief and output defaults", () => {
+    expect(dashboardLanguageToBriefLanguage("ar")).toBe("ar");
+    expect(dashboardLanguageToBriefLanguage("he")).toBe("he");
+    expect(dashboardLanguageToBriefLanguage("en")).toBe("en");
+    expect(dashboardLanguageToDefaultOutputLanguage("ar")).toBe("ar");
+    expect(dashboardLanguageToDefaultOutputLanguage("he")).toBe("he");
+    expect(dashboardLanguageToDefaultOutputLanguage("en")).toBe("en");
+  });
+
+  it("coerces wire values to supported story languages", () => {
+    expect(coerceStoryLanguage("he")).toBe("he");
+    expect(coerceStoryLanguage("fr")).toBe("en");
   });
 });
