@@ -118,7 +118,9 @@
       "trust_text": "have created personalized stories for their children",
       "chip_confidence": "Boosts confidence",
       "chip_free_spreads": "2 free spreads",
-      "chip_cbt": "CBT-based stories"
+      "chip_cbt": "CBT-based stories",
+      "video_label": "How it works",
+      "video_caption": "Watch how DAMMAH creates your child's personalized story"
     },
     "categories": {
       "label": "Stories for every emotion",
