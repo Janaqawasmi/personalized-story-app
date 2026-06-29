@@ -17,7 +17,7 @@
 //   3. No live story preview (deferred post-pilot).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -43,10 +43,10 @@ import Section3TherapeuticArchitecture from "./Section3TherapeuticArchitecture";
 import Section4StoryWorld from "./Section4StoryWorld";
 import Section5PersonalizationConfig from "./Section5PersonalizationConfig";
 import BriefProgressIndicator from "./BriefProgressIndicator";
+import BriefLanguagePickerField from "./BriefLanguagePickerField";
 import ComplexityMeter from "./ComplexityMeter";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
-import BriefFeedbackPanel from "./BriefFeedbackPanel";
 import { submitDammaStoryBriefForm } from "../../api/dammaStoryBrief";
 
 import {
@@ -57,6 +57,8 @@ import {
   omitUiOnlyBriefFields,
   PERSONALIZATION_DEFAULT,
   STORY_LENGTH_DEFAULT,
+  dashboardLanguageToBriefLanguage,
+  dashboardLanguageToDefaultOutputLanguage,
   type AgeAndScope,
   type BriefDefaultsLocaleOptions,
   type ClinicalFoundation,
@@ -90,9 +92,6 @@ import { calculateComplexityLoad, type ComplexityLoadResult } from "../../servic
  */
 const BRIEF_FORM_MAX_WIDTH = 840;
 
-/** Sum of brief max width + gap + feedback column for the 2-column md layout (brief + feedback). */
-const BRIEF_MD_LAYOUT_MAX_WIDTH_PX = BRIEF_FORM_MAX_WIDTH + 24 + 400;
-
 /** Page canvas behind the card: frost base + soft wash so the white surface reads as a focused document. */
 const BRIEF_PAGE_BG_LAYERS = [
   "linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 38%)",
@@ -123,82 +122,36 @@ const briefPaperSx = {
   `,
 };
 
-/**
- * Story brief main column + feedback column (md+).
- * When `railStickyTopPx` is set (sections 1–5), feedback sticks under the app header.
- */
-function BriefPageWithSidebar({
-  briefId,
-  activeStep,
-  personalization,
-  sideRailTop,
-  railStickyTopPx,
+const briefEmbeddedPaperSx = {
+  mx: "auto",
+  p: { xs: 2.5, sm: 3.25, md: 3.75 },
+  boxShadow: `
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 12px 36px -18px rgba(97, 120, 145, 0.14)
+  `,
+};
+
+/** Centered brief form page shell. */
+function BriefPageShell({
+  embedded = false,
   children,
 }: {
-  briefId: string | null;
-  activeStep: number | null;
-  personalization: "yes" | "no";
-  /** Optional narrow column between brief and feedback (reserved). */
-  sideRailTop?: React.ReactNode;
-  /** When set on md+, sticky offset for feedback rail (navbar clearance). */
-  railStickyTopPx?: number;
+  embedded?: boolean;
   children: React.ReactNode;
 }) {
+  if (embedded) {
+    return (
+      <Paper elevation={0} sx={{ ...briefPaperSx, ...briefEmbeddedPaperSx, width: "100%" }}>
+        {children}
+      </Paper>
+    );
+  }
+
   return (
     <Box component="main" sx={briefPageSx}>
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: { md: BRIEF_MD_LAYOUT_MAX_WIDTH_PX },
-          mx: "auto",
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          alignItems: "flex-start",
-          gap: { xs: 3, md: 3 },
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            ...briefPaperSx,
-            flex: "1 1 auto",
-            minWidth: 0,
-            mx: { xs: "auto", md: 0 },
-          }}
-        >
-          {children}
-        </Paper>
-
-        {sideRailTop ? (
-          <Box
-            sx={{
-              display: { xs: "none", md: "flex" },
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              width: 96,
-              flexShrink: 0,
-              alignSelf: "flex-start",
-              boxSizing: "border-box",
-              px: { md: 2.75 },
-              ...(railStickyTopPx != null && {
-                position: "sticky",
-                top: railStickyTopPx,
-              }),
-            }}
-          >
-            {sideRailTop}
-          </Box>
-        ) : null}
-
-        <BriefFeedbackPanel
-          briefId={briefId}
-          activeStep={activeStep}
-          personalization={personalization}
-          stickyTopPx={railStickyTopPx}
-          embeddedInStickyRail={false}
-        />
-      </Box>
+      <Paper elevation={0} sx={{ ...briefPaperSx, mx: "auto" }}>
+        {children}
+      </Paper>
     </Box>
   );
 }
@@ -246,6 +199,11 @@ interface Props {
   /** When false, skip the built-in success screen after submit. */
   showSubmitSuccess?: boolean;
   /**
+   * Workspace embedding: skip the full-page canvas and use a single card aligned
+   * with the specialist dashboard tab panel.
+   */
+  embedded?: boolean;
+  /**
    * Fired when the specialist edits the brief (any section), selects a story type, or advances —
    * not on initial load from storage.
    */
@@ -260,21 +218,27 @@ const CARD_SELECTED_BG = "#EEF2F5";
 
 interface StoryTypeSelectorProps {
   selected: StoryType | null;
+  outputLanguage: StoryLanguage;
   onSelect: (type: StoryType) => void;
+  onOutputLanguageChange: (lang: StoryLanguage) => void;
   onBegin: () => void;
+  compact?: boolean;
 }
 
 function StoryTypeSelector({
   selected,
+  outputLanguage,
   onSelect,
+  onOutputLanguageChange,
   onBegin,
+  compact = false,
 }: StoryTypeSelectorProps) {
   const ui = useStoryBriefUi();
 
   return (
     <Box>
       {/* Header */}
-      <Box mb={5}>
+      <Box mb={compact ? 3.5 : 5}>
         <Typography variant="overline" display="block" color={COLORS.textSecondary} letterSpacing={1} mb={0.5}>
           {ui.preBriefOverline}
         </Typography>
@@ -381,6 +345,15 @@ function StoryTypeSelector({
         })}
       </Stack>
 
+      <BriefLanguagePickerField
+        id="output-language-label"
+        label={ui.s1OutputLanguageLabel}
+        helper={ui.s1OutputLanguageHelper}
+        value={outputLanguage}
+        onChange={onOutputLanguageChange}
+        mb={4}
+      />
+
       {/* Begin button */}
       <Box display="flex" justifyContent="flex-end">
         <Button
@@ -434,13 +407,17 @@ function legacyAdapter(draftId: string): BriefFormStorageAdapter {
 // ============================================================================
 
 function BriefFormInner(props: Props) {
-  const { onSubmit, storageAdapter, onUserInteraction, showSubmitSuccess = true } = props;
+  const {
+    onSubmit,
+    storageAdapter,
+    onUserInteraction,
+    showSubmitSuccess = true,
+    embedded = false,
+  } = props;
 
   const touchUserInteraction = useCallback(() => {
     onUserInteraction?.();
   }, [onUserInteraction]);
-  const [searchParams] = useSearchParams();
-  const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
   const { draftId, lang } = useParams<{ draftId: string; lang: string }>();
   const navigate = useNavigate();
 
@@ -489,8 +466,6 @@ function BriefFormInner(props: Props) {
   /** Fixed AppBar (Navbar.tsx height) + small gap — keeps section scroll targets clear of the main header. */
   const briefScrollTopOffsetPx = isMdDown ? 124 : 108;
 
-  const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
-
   const {
     resetComplexitySession,
     shouldShowPreSubmitWarning,
@@ -518,7 +493,16 @@ function BriefFormInner(props: Props) {
   useEffect(() => {
     if (!draftId && !storageAdapter) return;
     const existing = adapter.load() ?? createEmptyBrief();
-    const normalized = normalizeBriefDefaults(existing, briefLocaleOpts);
+    const pristine =
+      !existing.storyType && !existing.section1?.ageRange && existing.savedAt == null;
+    const base = pristine
+      ? {
+          ...existing,
+          briefLanguage: dashboardLanguageToBriefLanguage(language),
+          outputLanguage: dashboardLanguageToDefaultOutputLanguage(language),
+        }
+      : existing;
+    const normalized = normalizeBriefDefaults(base, briefLocaleOpts);
     setDraft(normalized);
     adapter.save(normalized);
     if (normalized.storyType) {
@@ -533,6 +517,17 @@ function BriefFormInner(props: Props) {
   useEffect(() => {
     setDraft((d) => normalizeBriefDefaults(d, briefLocaleOpts));
   }, [briefLocaleOpts]);
+
+  // Hidden metadata: briefLanguage always follows the dashboard URL language.
+  useEffect(() => {
+    const briefLanguage = dashboardLanguageToBriefLanguage(language);
+    setDraft((d) => {
+      if (d.briefLanguage === briefLanguage) return d;
+      const next = normalizeBriefDefaults({ ...d, briefLanguage }, briefLocaleOpts);
+      adapter.save(next);
+      return next;
+    });
+  }, [language, adapter, briefLocaleOpts]);
 
   // When changing sections, persist UI defaults into draft (avoids setState on every keystroke).
   // Also record highest section opened for progress (1–5).
@@ -626,12 +621,16 @@ function BriefFormInner(props: Props) {
     );
   }
 
-  function updateLanguage(updates: {
-    briefLanguage?: StoryLanguage;
-    outputLanguage?: StoryLanguage;
-  }) {
+  function updateOutputLanguage(outputLanguage: StoryLanguage) {
     touchUserInteraction();
-    setDraft((d) => ({ ...d, ...updates }));
+    setDraft((d) => {
+      const next = normalizeBriefDefaults(
+        { ...d, outputLanguage, savedAt: d.savedAt ?? Date.now() },
+        briefLocaleOpts,
+      );
+      adapter.save(next);
+      return next;
+    });
   }
 
   function updateSection2(updates: Partial<ClinicalFoundation>) {
@@ -824,17 +823,13 @@ function BriefFormInner(props: Props) {
 
   if (showSubmitSuccess && submitSuccess) {
     return (
-      <BriefPageWithSidebar
-        briefId={feedbackBriefId}
-        activeStep={null}
-        personalization="yes"
-      >
+      <BriefPageShell embedded={embedded}>
         <BriefSubmitSuccess
           briefId={submitSuccess.briefId}
           jsonText={submitSuccess.jsonText}
           onCreateAnother={handleCreateAnotherBrief}
         />
-      </BriefPageWithSidebar>
+      </BriefPageShell>
     );
   }
 
@@ -842,22 +837,21 @@ function BriefFormInner(props: Props) {
 
   if (activeStep === 0) {
     return (
-      <BriefPageWithSidebar
-        briefId={feedbackBriefId}
-        activeStep={0}
-        personalization="yes"
-      >
+      <BriefPageShell embedded={embedded}>
         <StoryTypeSelector
           selected={draft.storyType}
+          outputLanguage={draft.outputLanguage ?? "en"}
+          compact={embedded}
           onSelect={(type: StoryType) => {
             touchUserInteraction();
             setDraft((d) => ({ ...d, storyType: type }));
           }}
+          onOutputLanguageChange={updateOutputLanguage}
           onBegin={() => {
             if (draft.storyType) saveAndAdvance(1);
           }}
         />
-      </BriefPageWithSidebar>
+      </BriefPageShell>
     );
   }
 
@@ -869,12 +863,7 @@ function BriefFormInner(props: Props) {
 
   return (
     <>
-    <BriefPageWithSidebar
-      briefId={feedbackBriefId}
-      activeStep={activeStep}
-      personalization={personalization}
-      railStickyTopPx={briefScrollTopOffsetPx}
-    >
+    <BriefPageShell embedded={embedded}>
       {/* ── Form header with save indicator ────────────────────────── */}
       <Box
         display="flex"
@@ -882,8 +871,8 @@ function BriefFormInner(props: Props) {
         justifyContent="space-between"
         flexWrap="wrap"
         gap={1}
-        pb={2}
-        mb={2.5}
+        pb={embedded ? 1.5 : 2}
+        mb={embedded ? 2 : 2.5}
         ref={sectionTopRef}
         sx={{
           borderBottom: "1px solid rgba(208, 200, 192, 0.45)",
@@ -922,8 +911,8 @@ function BriefFormInner(props: Props) {
         {/* ── Progress indicator ─────────────────────────────────────── */}
         <Box
           sx={{
-            mb: { xs: 3, md: 4 },
-            py: 2,
+            mb: embedded ? 2.5 : { xs: 3, md: 4 },
+            py: embedded ? 1.5 : 2,
             px: { xs: 0.75, sm: 1.5 },
             borderRadius: 2,
             bgcolor: "rgba(97, 120, 145, 0.04)",
@@ -948,9 +937,6 @@ function BriefFormInner(props: Props) {
           <Section1AgeAndScope
             value={draft.section1}
             onChange={updateSection1}
-            briefLanguage={draft.briefLanguage ?? "en"}
-            outputLanguage={draft.outputLanguage ?? "en"}
-            onLanguageChange={updateLanguage}
             onContinue={() => saveAndAdvance(2)}
             onBack={() => goBack(0)}
           />
@@ -1000,7 +986,7 @@ function BriefFormInner(props: Props) {
             submitting={submitting}
           />
         )}
-    </BriefPageWithSidebar>
+    </BriefPageShell>
 
       {/* §21 Layer 1 — story load: horizontal strip at top of brief card (scrolls with content). */}
 

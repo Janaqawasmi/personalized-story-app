@@ -50,8 +50,13 @@ export type StoryLength = (typeof STORY_LENGTHS)[number];
 // Independent of each other: an English brief may produce an Arabic story.
 // ---------------------------------------------------------------------------
 
-export const STORY_LANGUAGES = ["en", "ar"] as const;
+export const STORY_LANGUAGES = ["en", "he", "ar"] as const;
 export type StoryLanguage = (typeof STORY_LANGUAGES)[number];
+
+export function coerceStoryLanguage(value: unknown): StoryLanguage {
+  if (value === "en" || value === "he" || value === "ar") return value;
+  return "en";
+}
 
 // ---------------------------------------------------------------------------
 // Section 3 — Therapeutic Architecture

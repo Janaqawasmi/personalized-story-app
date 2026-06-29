@@ -36,11 +36,13 @@ import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useSpecialistUi } from "../../i18n/specialistUi";
 import { draftStore } from "../storage";
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 const POLL_INTERVAL_MS = 5000;
+
+const briefTabContentSx = {
+  width: "100%",
+  maxWidth: 840,
+  mx: "auto",
+} as const;
 
 // ---------------------------------------------------------------------------
 // Props
@@ -209,11 +211,11 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
 
   if (story.status === "generating" && !generationFailed) {
     return (
-      <Box sx={{ mt: 2 }}>
+      <Stack spacing={2.5} sx={briefTabContentSx}>
         <Alert
           severity="info"
           icon={<CircularProgress size={18} color="inherit" />}
-          sx={{ mb: 2, borderRadius: 2 }}
+          sx={{ borderRadius: 2 }}
         >
           AI is drafting your therapeutic story. This usually takes 1–3 minutes.
         </Alert>
@@ -222,7 +224,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           emptyLabel={sp.reviewFieldEmpty}
           specialistUi={sp}
         />
-      </Box>
+      </Stack>
     );
   }
 
@@ -230,9 +232,9 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
 
   if (story.briefStatus === "draft" || generationFailed) {
     return (
-      <Box sx={{ mt: 2 }}>
+      <Stack spacing={2.5} sx={briefTabContentSx}>
         {generationFailed && (
-          <Alert severity="error" sx={{ mb: 2, borderRadius: 2 }}>
+          <Alert severity="error" sx={{ borderRadius: 2 }}>
             Generation failed. You can edit the brief and try submitting again.
           </Alert>
         )}
@@ -242,11 +244,8 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
             elevation={0}
             sx={{
               position: "relative",
+              p: 2.5,
               pr: 5,
-              pt: 2,
-              pb: 2,
-              px: 2,
-              mb: 2,
               borderRadius: 2,
               border: "1px solid rgba(208, 200, 192, 0.55)",
               bgcolor: "rgba(97, 120, 145, 0.06)",
@@ -256,7 +255,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
               size="small"
               aria-label="Dismiss"
               onClick={() => setWelcomeDismissed(true)}
-              sx={{ position: "absolute", top: 8, right: 8 }}
+              sx={{ position: "absolute", top: 10, right: 10 }}
             >
               <CloseIcon fontSize="small" />
             </IconButton>
@@ -275,7 +274,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: "block", mb: 1.5, fontWeight: 500 }}
+            sx={{ fontWeight: 500 }}
           >
             {desk.formatSavedAt(
               formatRelativeTimeMs(
@@ -291,9 +290,10 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           storageAdapter={storageAdapter}
           onSubmit={handleSubmit}
           showSubmitSuccess={false}
+          embedded
           onUserInteraction={() => setWelcomeDismissed(true)}
         />
-      </Box>
+      </Stack>
     );
   }
 
@@ -308,11 +308,11 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
     : null;
 
   return (
-    <Box sx={{ mt: 2 }}>
+    <Stack spacing={2.5} sx={briefTabContentSx}>
       {/* Locked banner */}
       <Alert
         severity="warning"
-        sx={{ mb: 2, borderRadius: 2 }}
+        sx={{ borderRadius: 2 }}
         action={
           <Button color="inherit" size="small" onClick={() => void handleNewRevision()}>
             Open new revision
@@ -336,7 +336,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
       </Alert>
 
       {/* View as JSON */}
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+      <Stack direction="row" alignItems="center" spacing={1}>
         <Link
           component="button"
           variant="body2"
@@ -407,6 +407,6 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </Stack>
   );
 }

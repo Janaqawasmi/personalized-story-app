@@ -33,10 +33,10 @@ export function buildStep2Prompt(
   const sectionG = buildStep2SectionG(step1Output.compressionMetadata);
   const sectionH = buildStep2SectionH(brief);
 
-  // Arabic output forces cold-start: the example bank is English-only, so
-  // including it risks English prose bleeding into the Arabic story.
+  // Non-English output forces cold-start: the example bank is English-only, so
+  // including it risks English prose bleeding into the target-language story.
   const fewShotResult: StoryFewShotResult =
-    brief.outputLanguage === 'ar'
+    brief.outputLanguage === 'ar' || brief.outputLanguage === 'he'
       ? { example: null, sourceAgeRange: brief.ageAndScope.ageRange, crossBucket: false }
       : getStoryExample(brief.ageAndScope.ageRange);
   const sectionI = buildStep2SectionI(

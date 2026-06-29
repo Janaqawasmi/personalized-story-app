@@ -66,7 +66,8 @@ export default function DraftTabB({
   onUnsavedDraftChange,
 }: DraftTabProps) {
   const versions = story.agent1Versions;
-  const isRtl = story.brief.outputLanguage === "ar";
+  const isRtl =
+    story.brief.outputLanguage === "ar" || story.brief.outputLanguage === "he";
 
   const [selectedVersionIndex, setSelectedVersionIndex] = useState(
     versions.length - 1,

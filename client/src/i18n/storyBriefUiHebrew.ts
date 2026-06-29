@@ -240,7 +240,7 @@ export const STORY_BRIEF_UI_HE: StoryBriefUi = {
     animal_friend: "חבר חיה שמלווה",
     sibling_perspective: "אח או אחות שמציעים פרספקטיבה",
   },
-  LANGUAGE_LABELS: { en: "אנגלית", ar: "ערבית" },
+  LANGUAGE_LABELS: { en: "אנגלית", he: "עברית", ar: "ערבית" },
 
   preBriefOverline: "לפני הבריף",
   preBriefTitle: "בחרו את העדשה שבה הסיפור מסתכל",

@@ -5,7 +5,7 @@
 // Normalize API payloads so the brief tab shows database content correctly.
 
 import type { CompleteBrief, StoryType } from "../types/storyBrief";
-import { STORY_TYPES, SOMATIC_EXPRESSIONS, createEmptyBrief } from "../types/storyBrief";
+import { STORY_TYPES, SOMATIC_EXPRESSIONS, createEmptyBrief, coerceStoryLanguage } from "../types/storyBrief";
 import type { Story } from "../types/story";
 import { parseStoredBrief } from "./parseStoredBrief";
 
@@ -49,8 +49,8 @@ function canonicalStoryBriefToComplete(b: Record<string, unknown>): CompleteBrie
 
   const out: CompleteBrief = {
     storyType: coerceStoryType(b.storyType),
-    briefLanguage: b.briefLanguage === "ar" ? "ar" : "en",
-    outputLanguage: b.outputLanguage === "ar" ? "ar" : "en",
+    briefLanguage: coerceStoryLanguage(b.briefLanguage),
+    outputLanguage: coerceStoryLanguage(b.outputLanguage),
     section1: {
       ...(typeof ageAndScope.ageRange === "string" ? { ageRange: ageAndScope.ageRange as CompleteBrief["section1"]["ageRange"] } : {}),
       ...(typeof ageAndScope.peakIntensity === "string"

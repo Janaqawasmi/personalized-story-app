@@ -62,6 +62,18 @@ describe('buildStep2SectionK', () => {
     expect(out).toContain('Arabic');
   });
 
+  it('Hebrew output → contains the OUTPUT LANGUAGE directive', () => {
+    const out = buildStep2SectionK(makeBrief('he'));
+    expect(out).toContain('OUTPUT LANGUAGE');
+    expect(out).toContain('Hebrew');
+  });
+
+  it('Hebrew output → instructs original prose, not translation', () => {
+    const out = buildStep2SectionK(makeBrief('he'));
+    expect(out).toContain('NOT a translation');
+    expect(out).toContain('never translate word-by-word');
+  });
+
   it('Arabic output → instructs original prose, not translation', () => {
     const out = buildStep2SectionK(makeBrief('ar'));
     expect(out).toContain('NOT a translation');

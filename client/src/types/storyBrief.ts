@@ -89,8 +89,31 @@ export const STORY_LENGTH_DEFAULT: StoryLength = "standard";
 
 // Brief input language and generated-story output language. Independent:
 // an English brief may produce an Arabic story. Mirrors the server union.
-export const STORY_LANGUAGES = ["en", "ar"] as const;
+export const STORY_LANGUAGES = ["en", "he", "ar"] as const;
 export type StoryLanguage = (typeof STORY_LANGUAGES)[number];
+
+/** Site UI language (`he` | `en` | `ar`) — broader than story output languages. */
+export type DashboardLanguage = "he" | "en" | "ar";
+
+/** Coerce wire / legacy values to a supported story language. */
+export function coerceStoryLanguage(value: unknown): StoryLanguage {
+  if (value === "en" || value === "he" || value === "ar") return value;
+  return "en";
+}
+
+/** Default brief-input language from dashboard UI language. */
+export function dashboardLanguageToBriefLanguage(lang: DashboardLanguage): StoryLanguage {
+  if (lang === "ar") return "ar";
+  if (lang === "he") return "he";
+  return "en";
+}
+
+/** Default finished-story language for a new brief on the story-setup step. */
+export function dashboardLanguageToDefaultOutputLanguage(lang: DashboardLanguage): StoryLanguage {
+  if (lang === "ar") return "ar";
+  if (lang === "he") return "he";
+  return "en";
+}
 
 export const STORY_LENGTH_LABELS: Record<StoryLength, string> = {
   short: "Short",
