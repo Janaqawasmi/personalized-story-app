@@ -17,7 +17,7 @@
 //   3. No live story preview (deferred post-pilot).
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -46,7 +46,6 @@ import BriefProgressIndicator from "./BriefProgressIndicator";
 import ComplexityMeter from "./ComplexityMeter";
 import { HardBlockSubmitDialog, HardWarningSubmitDialog } from "./BriefSubmitGateModals";
 import BriefSubmitSuccess from "./BriefSubmitSuccess";
-import BriefFeedbackPanel from "./BriefFeedbackPanel";
 import { submitDammaStoryBriefForm } from "../../api/dammaStoryBrief";
 
 import {
@@ -90,9 +89,6 @@ import { calculateComplexityLoad, type ComplexityLoadResult } from "../../servic
  */
 const BRIEF_FORM_MAX_WIDTH = 840;
 
-/** Sum of brief max width + gap + feedback column for the 2-column md layout (brief + feedback). */
-const BRIEF_MD_LAYOUT_MAX_WIDTH_PX = BRIEF_FORM_MAX_WIDTH + 24 + 400;
-
 /** Page canvas behind the card: frost base + soft wash so the white surface reads as a focused document. */
 const BRIEF_PAGE_BG_LAYERS = [
   "linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(255, 255, 255, 0) 38%)",
@@ -123,82 +119,13 @@ const briefPaperSx = {
   `,
 };
 
-/**
- * Story brief main column + feedback column (md+).
- * When `railStickyTopPx` is set (sections 1–5), feedback sticks under the app header.
- */
-function BriefPageWithSidebar({
-  briefId,
-  activeStep,
-  personalization,
-  sideRailTop,
-  railStickyTopPx,
-  children,
-}: {
-  briefId: string | null;
-  activeStep: number | null;
-  personalization: "yes" | "no";
-  /** Optional narrow column between brief and feedback (reserved). */
-  sideRailTop?: React.ReactNode;
-  /** When set on md+, sticky offset for feedback rail (navbar clearance). */
-  railStickyTopPx?: number;
-  children: React.ReactNode;
-}) {
+/** Centered brief form page shell. */
+function BriefPageShell({ children }: { children: React.ReactNode }) {
   return (
     <Box component="main" sx={briefPageSx}>
-      <Box
-        sx={{
-          width: "100%",
-          maxWidth: { md: BRIEF_MD_LAYOUT_MAX_WIDTH_PX },
-          mx: "auto",
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          alignItems: "flex-start",
-          gap: { xs: 3, md: 3 },
-        }}
-      >
-        <Paper
-          elevation={0}
-          sx={{
-            ...briefPaperSx,
-            flex: "1 1 auto",
-            minWidth: 0,
-            mx: { xs: "auto", md: 0 },
-          }}
-        >
-          {children}
-        </Paper>
-
-        {sideRailTop ? (
-          <Box
-            sx={{
-              display: { xs: "none", md: "flex" },
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              width: 96,
-              flexShrink: 0,
-              alignSelf: "flex-start",
-              boxSizing: "border-box",
-              px: { md: 2.75 },
-              ...(railStickyTopPx != null && {
-                position: "sticky",
-                top: railStickyTopPx,
-              }),
-            }}
-          >
-            {sideRailTop}
-          </Box>
-        ) : null}
-
-        <BriefFeedbackPanel
-          briefId={briefId}
-          activeStep={activeStep}
-          personalization={personalization}
-          stickyTopPx={railStickyTopPx}
-          embeddedInStickyRail={false}
-        />
-      </Box>
+      <Paper elevation={0} sx={{ ...briefPaperSx, mx: "auto" }}>
+        {children}
+      </Paper>
     </Box>
   );
 }
@@ -439,8 +366,6 @@ function BriefFormInner(props: Props) {
   const touchUserInteraction = useCallback(() => {
     onUserInteraction?.();
   }, [onUserInteraction]);
-  const [searchParams] = useSearchParams();
-  const briefIdFromUrl = searchParams.get("briefId")?.trim() || null;
   const { draftId, lang } = useParams<{ draftId: string; lang: string }>();
   const navigate = useNavigate();
 
@@ -488,8 +413,6 @@ function BriefFormInner(props: Props) {
   const isMdDown = useMediaQuery(theme.breakpoints.down("md"));
   /** Fixed AppBar (Navbar.tsx height) + small gap — keeps section scroll targets clear of the main header. */
   const briefScrollTopOffsetPx = isMdDown ? 124 : 108;
-
-  const feedbackBriefId = submitSuccess?.briefId ?? briefIdFromUrl;
 
   const {
     resetComplexitySession,
@@ -824,17 +747,13 @@ function BriefFormInner(props: Props) {
 
   if (showSubmitSuccess && submitSuccess) {
     return (
-      <BriefPageWithSidebar
-        briefId={feedbackBriefId}
-        activeStep={null}
-        personalization="yes"
-      >
+      <BriefPageShell>
         <BriefSubmitSuccess
           briefId={submitSuccess.briefId}
           jsonText={submitSuccess.jsonText}
           onCreateAnother={handleCreateAnotherBrief}
         />
-      </BriefPageWithSidebar>
+      </BriefPageShell>
     );
   }
 
@@ -842,11 +761,7 @@ function BriefFormInner(props: Props) {
 
   if (activeStep === 0) {
     return (
-      <BriefPageWithSidebar
-        briefId={feedbackBriefId}
-        activeStep={0}
-        personalization="yes"
-      >
+      <BriefPageShell>
         <StoryTypeSelector
           selected={draft.storyType}
           onSelect={(type: StoryType) => {
@@ -857,7 +772,7 @@ function BriefFormInner(props: Props) {
             if (draft.storyType) saveAndAdvance(1);
           }}
         />
-      </BriefPageWithSidebar>
+      </BriefPageShell>
     );
   }
 
@@ -869,12 +784,7 @@ function BriefFormInner(props: Props) {
 
   return (
     <>
-    <BriefPageWithSidebar
-      briefId={feedbackBriefId}
-      activeStep={activeStep}
-      personalization={personalization}
-      railStickyTopPx={briefScrollTopOffsetPx}
-    >
+    <BriefPageShell>
       {/* ── Form header with save indicator ────────────────────────── */}
       <Box
         display="flex"
@@ -1000,7 +910,7 @@ function BriefFormInner(props: Props) {
             submitting={submitting}
           />
         )}
-    </BriefPageWithSidebar>
+    </BriefPageShell>
 
       {/* §21 Layer 1 — story load: horizontal strip at top of brief card (scrolls with content). */}
 
