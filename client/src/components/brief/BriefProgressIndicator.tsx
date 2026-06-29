@@ -50,7 +50,7 @@ export default function BriefProgressIndicator({
     <Box
       role="navigation"
       aria-label={ui.progressNavAriaLabel}
-      sx={{ mb: { xs: 4, md: 5 } }}
+      sx={{ mb: 0 }}
     >
       <Box
         display="flex"

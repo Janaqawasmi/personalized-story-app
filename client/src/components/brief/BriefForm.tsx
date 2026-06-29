@@ -119,8 +119,31 @@ const briefPaperSx = {
   `,
 };
 
+const briefEmbeddedPaperSx = {
+  mx: "auto",
+  p: { xs: 2.5, sm: 3.25, md: 3.75 },
+  boxShadow: `
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 12px 36px -18px rgba(97, 120, 145, 0.14)
+  `,
+};
+
 /** Centered brief form page shell. */
-function BriefPageShell({ children }: { children: React.ReactNode }) {
+function BriefPageShell({
+  embedded = false,
+  children,
+}: {
+  embedded?: boolean;
+  children: React.ReactNode;
+}) {
+  if (embedded) {
+    return (
+      <Paper elevation={0} sx={{ ...briefPaperSx, ...briefEmbeddedPaperSx, width: "100%" }}>
+        {children}
+      </Paper>
+    );
+  }
+
   return (
     <Box component="main" sx={briefPageSx}>
       <Paper elevation={0} sx={{ ...briefPaperSx, mx: "auto" }}>
@@ -173,6 +196,11 @@ interface Props {
   /** When false, skip the built-in success screen after submit. */
   showSubmitSuccess?: boolean;
   /**
+   * Workspace embedding: skip the full-page canvas and use a single card aligned
+   * with the specialist dashboard tab panel.
+   */
+  embedded?: boolean;
+  /**
    * Fired when the specialist edits the brief (any section), selects a story type, or advances —
    * not on initial load from storage.
    */
@@ -189,19 +217,21 @@ interface StoryTypeSelectorProps {
   selected: StoryType | null;
   onSelect: (type: StoryType) => void;
   onBegin: () => void;
+  compact?: boolean;
 }
 
 function StoryTypeSelector({
   selected,
   onSelect,
   onBegin,
+  compact = false,
 }: StoryTypeSelectorProps) {
   const ui = useStoryBriefUi();
 
   return (
     <Box>
       {/* Header */}
-      <Box mb={5}>
+      <Box mb={compact ? 3.5 : 5}>
         <Typography variant="overline" display="block" color={COLORS.textSecondary} letterSpacing={1} mb={0.5}>
           {ui.preBriefOverline}
         </Typography>
@@ -361,7 +391,13 @@ function legacyAdapter(draftId: string): BriefFormStorageAdapter {
 // ============================================================================
 
 function BriefFormInner(props: Props) {
-  const { onSubmit, storageAdapter, onUserInteraction, showSubmitSuccess = true } = props;
+  const {
+    onSubmit,
+    storageAdapter,
+    onUserInteraction,
+    showSubmitSuccess = true,
+    embedded = false,
+  } = props;
 
   const touchUserInteraction = useCallback(() => {
     onUserInteraction?.();
@@ -747,7 +783,7 @@ function BriefFormInner(props: Props) {
 
   if (showSubmitSuccess && submitSuccess) {
     return (
-      <BriefPageShell>
+      <BriefPageShell embedded={embedded}>
         <BriefSubmitSuccess
           briefId={submitSuccess.briefId}
           jsonText={submitSuccess.jsonText}
@@ -761,9 +797,10 @@ function BriefFormInner(props: Props) {
 
   if (activeStep === 0) {
     return (
-      <BriefPageShell>
+      <BriefPageShell embedded={embedded}>
         <StoryTypeSelector
           selected={draft.storyType}
+          compact={embedded}
           onSelect={(type: StoryType) => {
             touchUserInteraction();
             setDraft((d) => ({ ...d, storyType: type }));
@@ -784,7 +821,7 @@ function BriefFormInner(props: Props) {
 
   return (
     <>
-    <BriefPageShell>
+    <BriefPageShell embedded={embedded}>
       {/* ── Form header with save indicator ────────────────────────── */}
       <Box
         display="flex"
@@ -792,8 +829,8 @@ function BriefFormInner(props: Props) {
         justifyContent="space-between"
         flexWrap="wrap"
         gap={1}
-        pb={2}
-        mb={2.5}
+        pb={embedded ? 1.5 : 2}
+        mb={embedded ? 2 : 2.5}
         ref={sectionTopRef}
         sx={{
           borderBottom: "1px solid rgba(208, 200, 192, 0.45)",
@@ -832,8 +869,8 @@ function BriefFormInner(props: Props) {
         {/* ── Progress indicator ─────────────────────────────────────── */}
         <Box
           sx={{
-            mb: { xs: 3, md: 4 },
-            py: 2,
+            mb: embedded ? 2.5 : { xs: 3, md: 4 },
+            py: embedded ? 1.5 : 2,
             px: { xs: 0.75, sm: 1.5 },
             borderRadius: 2,
             bgcolor: "rgba(97, 120, 145, 0.04)",

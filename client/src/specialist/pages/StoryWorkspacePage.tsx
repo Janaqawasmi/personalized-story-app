@@ -428,7 +428,7 @@ export default function StoryWorkspacePage() {
             aria-labelledby={`tab-${activeTab}`}
           >
             {activeTab === "brief" && (
-              <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 3, pb: 6 }}>
+              <Box sx={{ px: { xs: 2, sm: 3, md: 5 }, pt: 2.5, pb: 5 }}>
                 <BriefTab
                   story={story}
                   onStoryUpdate={setStory}
