@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { columnTitle, itemStyle, activeItem } from "./columnStyles";
 import { useTranslation } from "../../i18n/useTranslation";
 
-const AGE_GROUPS = ["0–3", "3–6", "6–9", "9–12"];
+const AGE_GROUPS = ["3–5", "5–7", "7–9", "9–12"];
 
 export default function AgeColumn({
   selected,

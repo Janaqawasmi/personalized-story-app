@@ -1,4 +1,6 @@
-export type AgeId = "0-3" | "3-6" | "6-9" | "9-12" | null;
+// Age ranges are the single source of truth shared with the Specialist
+// Dashboard story brief (AGE_RANGES in storyBrief.model.ts).
+export type AgeId = "3-5" | "5-7" | "7-9" | "9-12" | null;
 
 // 🔑 Firestore → מזהים דינמיים
 export type CategoryId = string;

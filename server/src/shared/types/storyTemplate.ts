@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { AgeGroup } from "./common";
+import type { AgeRange } from "../../models/storyBrief.model";
 
 export interface LocalizedString {
   ar?: string;
@@ -27,9 +27,25 @@ export interface StoryTemplate {
   briefId: string;
   title: string;
   status: "approved";
+  /**
+   * Stable catalog taxonomy key = the therapeutic DOMAIN (brief `storyType`,
+   * e.g. "fear_anxiety"). This is the value the public catalog filters on
+   * (category browse, mega-menu). It must match a `referenceData/topics` id.
+   * NOTE: this is the clinical *domain*, NOT the therapeutic *approach*.
+   */
   primaryTopic: string;
+  /**
+   * Mirror of `primaryTopic` (the domain key). The public catalog matches
+   * stories on either `primaryTopic` or `topicKey`, so both are written.
+   */
+  topicKey?: string;
   specificSituation: string;
-  ageGroup: AgeGroup;
+  /**
+   * Story target age range. Stored as the exact brief `ageRange`
+   * ("3-5" | "5-7" | "7-9" | "9-12") so the public catalog age filter matches
+   * the Specialist Dashboard 1:1. NOT the caregiver child-age band (`AgeGroup`).
+   */
+  ageGroup: AgeRange;
   generationConfig: {
     language: "ar" | "he";
     targetAgeGroup: string;
