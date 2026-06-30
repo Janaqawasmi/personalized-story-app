@@ -23,12 +23,47 @@ export const PREVIEW_SPREAD_LIMIT = 2;
 
 export class PreviewQuotaError extends Error {
   constructor(
-    public code: "FREE_PREVIEW_ALREADY_USED" | "TEMPLATE_NOT_FOUND" | "TEMPLATE_INACTIVE",
+    public code:
+      | "FREE_PREVIEW_ALREADY_USED"
+      | "TEMPLATE_NOT_FOUND"
+      | "TEMPLATE_INACTIVE"
+      | "PERSONALIZATION_DISABLED"
+      | "VISUAL_PERSONALIZATION_NOT_READY",
     message: string,
     public existingPreviewId?: string
   ) {
     super(message);
     this.name = "PreviewQuotaError";
+  }
+}
+
+/**
+ * Derived eligibility conditions (Phase 2+).
+ * canPersonalize           = personalizationEnabled === true
+ * canUseVisualPersonalization = personalizationEnabled && visualPersonalizationEnabled && visualPersonalizationReady
+ *
+ * All three flags default to false when absent (backward-compat with pre-Phase-1 templates).
+ */
+function assertPersonalizationEligible(
+  template: { personalizationEnabled?: boolean; visualPersonalizationEnabled?: boolean; visualPersonalizationReady?: boolean },
+  requireVisual: boolean,
+): void {
+  if (template.personalizationEnabled !== true) {
+    throw new PreviewQuotaError(
+      "PERSONALIZATION_DISABLED",
+      "This story does not support personalization.",
+    );
+  }
+  if (requireVisual) {
+    const canUseVisual =
+      template.visualPersonalizationEnabled === true &&
+      template.visualPersonalizationReady === true;
+    if (!canUseVisual) {
+      throw new PreviewQuotaError(
+        "VISUAL_PERSONALIZATION_NOT_READY",
+        "Visual (photo-based) personalization is not available for this story yet.",
+      );
+    }
   }
 }
 
@@ -158,6 +193,9 @@ export async function createDirectPurchasePreview(
     throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
   }
 
+  // Phase 2 eligibility: photo upload implies visual personalization request.
+  assertPersonalizationEligible(template, /* requireVisual= */ true);
+
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
   const now = admin.firestore.Timestamp.now();
 
@@ -247,6 +285,9 @@ export async function generatePreview(
   if (!template.isActive || !template.isPublished) {
     throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
   }
+
+  // Phase 2 eligibility: photo upload implies visual personalization request.
+  assertPersonalizationEligible(template, /* requireVisual= */ true);
 
   const caregiverRef = db.collection(COLLECTIONS.CAREGIVERS).doc(caregiverUid);
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();

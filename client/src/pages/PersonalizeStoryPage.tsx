@@ -580,6 +580,9 @@ export default function PersonalizeStoryPage() {
 
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [eligibility, setEligibility] = useState<
+    "loading" | "ok" | "not_active" | "not_personalizable" | "not_ready"
+  >("loading");
   const [activeStep, setActiveStep] = useState(0);
   const [personalization, setPersonalization] = useState<Partial<StoryPersonalizationData>>({
     childName: "",
@@ -696,6 +699,26 @@ export default function PersonalizeStoryPage() {
         }
 
         const data = storySnap.data();
+
+        // Eligibility check order (conservative; all conditions must pass for "ok").
+        const isActive = data.isActive !== false && data.status === "approved";
+        if (!isActive) {
+          setEligibility("not_active");
+          setLoading(false);
+          return;
+        }
+        if (data.personalizationEnabled !== true) {
+          setEligibility("not_personalizable");
+          setLoading(false);
+          return;
+        }
+        if (data.textPersonalizationReady !== true) {
+          setEligibility("not_ready");
+          setLoading(false);
+          return;
+        }
+
+        setEligibility("ok");
         setStory({
           id: storySnap.id,
           title: data.title || t("personalize.story"),
@@ -1001,6 +1024,42 @@ export default function PersonalizeStoryPage() {
         }}
       >
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Eligibility block: show a clear message and prevent access to the wizard.
+  if (eligibility !== "ok" && eligibility !== "loading") {
+    const messageKey =
+      eligibility === "not_active"
+        ? "personalize.notAvailable.notActive"
+        : eligibility === "not_personalizable"
+        ? "personalize.notAvailable.notPersonalizable"
+        : "personalize.notAvailable.notReady";
+    return (
+      <Box
+        dir={direction}
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 3,
+          p: 4,
+          textAlign: "center",
+        }}
+      >
+        <Typography sx={{ fontSize: "18px", fontWeight: 600, color: "#333" }}>
+          {t(messageKey)}
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={() => navigate("/books")}
+          sx={{ textTransform: "none", borderRadius: "10px", fontWeight: 600 }}
+        >
+          {t("personalize.notAvailable.backToLibrary")}
+        </Button>
       </Box>
     );
   }

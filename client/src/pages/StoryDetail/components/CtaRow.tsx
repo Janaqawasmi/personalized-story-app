@@ -1,6 +1,7 @@
-import { Box, Button, IconButton, GlobalStyles, useTheme } from "@mui/material";
+import { Box, Button, Chip, IconButton, GlobalStyles, useTheme } from "@mui/material";
 import { motion } from "framer-motion";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -13,6 +14,7 @@ interface CtaRowProps {
   onFavoriteToggle: () => void;
   isFavorite: boolean;
   status: string;
+  personalizationEnabled: boolean;
   favoriteLoading: boolean;
   reducedMotion: boolean;
 }
@@ -22,12 +24,76 @@ export default function CtaRow({
   onFavoriteToggle,
   isFavorite,
   status,
+  personalizationEnabled,
   favoriteLoading,
   reducedMotion,
 }: CtaRowProps) {
   const t = useTranslation();
   const theme = useTheme();
   const comingSoon = status === "coming_soon";
+
+  const favoriteButton = (
+    <IconButton
+      onClick={onFavoriteToggle}
+      disabled={favoriteLoading}
+      aria-label={isFavorite ? t("cta.removeFavorite") : t("cta.addFavorite")}
+      sx={{
+        width: 52,
+        height: 52,
+        borderRadius: SDRadii.cta,
+        flexShrink: 0,
+        ...(isFavorite
+          ? {
+              border: `1px solid ${COLORS.secondary}`,
+              backgroundColor: colorWithAlpha(COLORS.secondary, 0.08),
+              color: COLORS.secondary,
+            }
+          : {
+              border: `1px solid ${COLORS.border}`,
+              backgroundColor: COLORS.surface,
+              color: COLORS.textSecondary,
+            }),
+      }}
+    >
+      {reducedMotion ? (
+        isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />
+      ) : (
+        <motion.div
+          animate={isFavorite ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          style={{ display: "flex" }}
+        >
+          {isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+        </motion.div>
+      )}
+    </IconButton>
+  );
+
+  // Story does not support personalization: show a "fixed story" indicator
+  // instead of the Personalize CTA so the user understands why.
+  if (!personalizationEnabled && !comingSoon) {
+    return (
+      <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <Chip
+          icon={<LockOutlinedIcon sx={{ fontSize: 15 }} />}
+          label={t("storyDetail.fixedStory")}
+          size="small"
+          sx={{
+            flex: 1,
+            height: 44,
+            borderRadius: SDRadii.cta,
+            border: `1px solid ${COLORS.border}`,
+            backgroundColor: COLORS.surface,
+            color: COLORS.textSecondary,
+            fontSize: "14px",
+            fontWeight: 500,
+            "& .MuiChip-icon": { color: COLORS.textSecondary },
+          }}
+        />
+        {favoriteButton}
+      </Box>
+    );
+  }
 
   return (
     <>
@@ -74,40 +140,7 @@ export default function CtaRow({
           {comingSoon ? t("pricing.notifyMe") : t("storyDetail.personalize")}
         </Button>
 
-        <IconButton
-          onClick={onFavoriteToggle}
-          disabled={favoriteLoading}
-          aria-label={isFavorite ? t("cta.removeFavorite") : t("cta.addFavorite")}
-          sx={{
-            width: 52,
-            height: 52,
-            borderRadius: SDRadii.cta,
-            flexShrink: 0,
-            ...(isFavorite
-              ? {
-                  border: `1px solid ${COLORS.secondary}`,
-                  backgroundColor: colorWithAlpha(COLORS.secondary, 0.08),
-                  color: COLORS.secondary,
-                }
-              : {
-                  border: `1px solid ${COLORS.border}`,
-                  backgroundColor: COLORS.surface,
-                  color: COLORS.textSecondary,
-                }),
-          }}
-        >
-          {reducedMotion ? (
-            isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />
-          ) : (
-            <motion.div
-              animate={isFavorite ? { scale: [1, 1.2, 1] } : { scale: 1 }}
-              transition={{ type: "spring", stiffness: 300, damping: 15 }}
-              style={{ display: "flex" }}
-            >
-              {isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-            </motion.div>
-          )}
-        </IconButton>
+        {favoriteButton}
       </Box>
     </>
   );

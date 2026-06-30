@@ -209,6 +209,16 @@ router.post(
           });
           return;
         }
+        if (
+          err.code === "PERSONALIZATION_DISABLED" ||
+          err.code === "VISUAL_PERSONALIZATION_NOT_READY"
+        ) {
+          res.status(422).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
       }
       console.error("[previews.generate] unexpected error", err);
       res.status(500).json({
@@ -300,6 +310,16 @@ router.post(
       if (err instanceof PreviewQuotaError) {
         if (err.code === "TEMPLATE_NOT_FOUND" || err.code === "TEMPLATE_INACTIVE") {
           res.status(404).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (
+          err.code === "PERSONALIZATION_DISABLED" ||
+          err.code === "VISUAL_PERSONALIZATION_NOT_READY"
+        ) {
+          res.status(422).json({
             success: false,
             error: { code: err.code, message: err.message },
           });

@@ -6,11 +6,19 @@ interface StickyMobileCtaProps {
   visible: boolean;
   title: string;
   price: string;
+  personalizationEnabled: boolean;
   onPersonalize: () => void;
   onPreviewClick: () => void;
 }
 
-export default function StickyMobileCta({ visible, title, price, onPersonalize, onPreviewClick }: StickyMobileCtaProps) {
+export default function StickyMobileCta({
+  visible,
+  title,
+  price,
+  personalizationEnabled,
+  onPersonalize,
+  onPreviewClick,
+}: StickyMobileCtaProps) {
   const t = useTranslation();
   const theme = useTheme();
 
@@ -62,26 +70,29 @@ export default function StickyMobileCta({ visible, title, price, onPersonalize, 
         >
           {t("preview.preview")}
         </Button>
-        <Button
-          variant="contained"
-          disableElevation
-          onClick={onPersonalize}
-          sx={{
-            background: COLORS.secondary,
-            color: COLORS.surface,
-            fontSize: "13px",
-            fontWeight: 700,
-            borderRadius: "10px",
-            textTransform: "none",
-            py: 1,
-            px: 1.75,
-            "&:hover": {
-              background: theme.palette.secondary.dark,
-            },
-          }}
-        >
-          {t("storyDetail.personalize")}
-        </Button>
+
+        {personalizationEnabled && (
+          <Button
+            variant="contained"
+            disableElevation
+            onClick={onPersonalize}
+            sx={{
+              background: COLORS.secondary,
+              color: COLORS.surface,
+              fontSize: "13px",
+              fontWeight: 700,
+              borderRadius: "10px",
+              textTransform: "none",
+              py: 1,
+              px: 1.75,
+              "&:hover": {
+                background: theme.palette.secondary.dark,
+              },
+            }}
+          >
+            {t("storyDetail.personalize")}
+          </Button>
+        )}
       </Box>
     </Box>
   );

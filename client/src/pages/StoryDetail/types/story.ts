@@ -40,6 +40,12 @@ export interface StoryDetailVM {
   /** First pages from Firestore — used only to fill preview text when CMS spread text is empty. */
   templatePages?: StoryTemplatePageVM[];
   storyLanguage?: string;
+  /**
+   * true only when the Firestore template has personalizationEnabled === true.
+   * Defaults to false for pre-Phase-1 templates that don't have the field.
+   * Controls whether the Personalize CTA is shown and the wizard is accessible.
+   */
+  personalizationEnabled: boolean;
 }
 
 export interface RelatedStoryCardVM {

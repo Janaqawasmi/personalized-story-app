@@ -124,5 +124,7 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
       ? data.pages.map((p: any) => ({ textTemplate: p?.textTemplate }))
       : undefined,
     storyLanguage: data.language || data.generationConfig?.language,
+    // Default false for pre-Phase-1 templates that don't have this field.
+    personalizationEnabled: data.personalizationEnabled === true,
   };
 }

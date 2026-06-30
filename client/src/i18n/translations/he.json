@@ -543,6 +543,12 @@
     "celebrateName": "הסיפור של {name} מוכן.",
     "celebrateSub": "כל מילה וכל איור — נעשו עבור {name}. למסע מיוחד באמת.",
     "celebrateTagPhoto": "תמונה מוכנה",
+    "notAvailable": {
+      "notPersonalizable": "סיפור זה אינו תומך בהתאמה אישית",
+      "notReady": "התאמה אישית עבור סיפור זה תהיה זמינה בקרוב",
+      "notActive": "סיפור זה אינו זמין כעת",
+      "backToLibrary": "חזרה לספרייה"
+    },
     "leftPersonalizing": "מתאימים אישית",
     "leftYourChild": "הילד/ה שלכם",
     "leftWaitingName": "מחכים לשם…",
@@ -666,6 +672,7 @@
     "backToCatalog": "חזרה לקטלוג",
     "breadcrumb": "סיפור מותאם אישית",
     "personalize": "התאימו את הסיפור",
+    "fixedStory": "סיפור קבוע",
     "therapistApproved": "מאושר מטפלים",
     "galleryLabel": "הצצה לתוך הסיפור",
     "previewPlaceholderChildName": "הילד שלכם",

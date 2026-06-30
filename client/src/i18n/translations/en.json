@@ -543,6 +543,12 @@
     "celebrateName": "{name}'s story is ready.",
     "celebrateSub": "Every word, every illustration — made for {name}. Get ready for something truly special.",
     "celebrateTagPhoto": "Photo ready",
+    "notAvailable": {
+      "notPersonalizable": "This story does not support personalization",
+      "notReady": "Personalization for this story is coming soon",
+      "notActive": "This story is not available right now",
+      "backToLibrary": "Back to library"
+    },
     "leftPersonalizing": "Personalizing",
     "leftYourChild": "Your child",
     "leftWaitingName": "Waiting for a name…",
@@ -666,6 +672,7 @@
     "backToCatalog": "Back to catalog",
     "breadcrumb": "Personalized story",
     "personalize": "Personalize this story",
+    "fixedStory": "Fixed story",
     "therapistApproved": "Therapist approved",
     "galleryLabel": "See Inside the Story",
     "previewPlaceholderChildName": "Your child",

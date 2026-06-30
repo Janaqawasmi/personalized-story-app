@@ -543,6 +543,12 @@
     "celebrateName": "قصة {name} جاهزة.",
     "celebrateSub": "كل كلمة، كل رسم توضيحي — مصنوع من أجل {name}. الاستعداد لشيء خاص حقا.",
     "celebrateTagPhoto": "الصورة جاهزة",
+    "notAvailable": {
+      "notPersonalizable": "هذه القصة لا تدعم التخصيص",
+      "notReady": "التخصيص لهذه القصة سيكون متاحاً قريباً",
+      "notActive": "هذه القصة غير متاحة الآن",
+      "backToLibrary": "العودة إلى المكتبة"
+    },
     "leftPersonalizing": "إضفاء الطابع الشخصي",
     "leftYourChild": "طفلك",
     "leftWaitingName": "في انتظار الاسم…",
@@ -666,6 +672,7 @@
     "backToCatalog": "العودة إلى الكتالوج",
     "breadcrumb": "قصة شخصية",
     "personalize": "إضفاء الطابع الشخصي على هذه القصة",
+    "fixedStory": "قصة ثابتة",
     "therapistApproved": "وافق المعالج",
     "galleryLabel": "انظر داخل القصة",
     "previewPlaceholderChildName": "طفلك",
