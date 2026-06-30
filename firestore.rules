@@ -49,6 +49,16 @@ service cloud.firestore {
       // Admin dashboard (client) can update review workflow; otherwise server SDK
       allow create, delete: if false;
       allow update: if isSpecialistOrAdmin();
+
+      // Text variant review docs — specialist/admin only, never exposed to caregivers.
+      // The server API (Admin SDK) manages writes; the specialist client reads through
+      // the /api/specialist/templates/:id/text-variants REST endpoint, not directly.
+      // This rule is defense-in-depth: the catch-all already denies access, but an
+      // explicit rule prevents accidental exposure if the catch-all is ever relaxed.
+      match /textVariants/{pageNumber} {
+        allow read: if isSpecialistOrAdmin();
+        allow write: if false;
+      }
     }
 
     // ────────────────────────────────────────────────────

@@ -165,6 +165,23 @@ function parseLLMVariants(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Model selection
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Model used for text variant generation.
+ * Override with TEXT_VARIANT_MODEL env var (e.g. "claude-sonnet-4-6" for
+ * higher-quality Hebrew/Arabic morphological adaptation).
+ * Default: claude-haiku-4-5-20251001 (fast, cheap, adequate for structured
+ * rewrite tasks with a strict JSON output contract).
+ */
+function getVariantModel(): string {
+  return (
+    process.env.TEXT_VARIANT_MODEL ?? "claude-haiku-4-5-20251001"
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Validation helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -172,6 +189,21 @@ const CHILD_NAME_PLACEHOLDER = "{{CHILD_NAME}}";
 
 function variantHasPlaceholder(text: string): boolean {
   return text.includes(CHILD_NAME_PLACEHOLDER);
+}
+
+function assertVariantValid(text: string, label: string): void {
+  if (!text || text.trim().length === 0) {
+    throw new TextVariantError(
+      "VALIDATION_FAILED",
+      `${label} variant is empty.`,
+    );
+  }
+  if (!variantHasPlaceholder(text)) {
+    throw new TextVariantError(
+      "VALIDATION_FAILED",
+      `${label} variant is missing {{CHILD_NAME}}.`,
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,7 +272,7 @@ export async function generateTextVariants(templateId: string): Promise<void> {
     const prompt = buildVariantPrompt(pageInputs, language);
     // Use Haiku for cost-efficient structured rewrite; not complex creative generation.
     const result = await callLLM({
-      model: "claude-haiku-4-5-20251001",
+      model: getVariantModel(),
       prompt,
       maxTokens: 8000,
       step: "text_variant_generation",
@@ -376,18 +408,8 @@ export async function approveTextVariant(
 
   const doc = snap.data() as TextVariantDoc;
 
-  if (!variantHasPlaceholder(doc.masculine)) {
-    throw new TextVariantError(
-      "VALIDATION_FAILED",
-      `Page ${pageNumber} masculine variant is missing {{CHILD_NAME}}.`,
-    );
-  }
-  if (!variantHasPlaceholder(doc.feminine)) {
-    throw new TextVariantError(
-      "VALIDATION_FAILED",
-      `Page ${pageNumber} feminine variant is missing {{CHILD_NAME}}.`,
-    );
-  }
+  assertVariantValid(doc.masculine, `Page ${pageNumber} masculine`);
+  assertVariantValid(doc.feminine, `Page ${pageNumber} feminine`);
 
   await docRef.update({
     reviewStatus: "approved",
@@ -433,7 +455,7 @@ export async function finalizeTextVariants(
   });
 
   const notApproved: number[] = [];
-  const missingPlaceholder: string[] = [];
+  const invalidVariants: string[] = [];
 
   for (const pn of pageNumbers) {
     const v = variantMap.get(pn);
@@ -441,11 +463,16 @@ export async function finalizeTextVariants(
       notApproved.push(pn);
       continue;
     }
-    if (!variantHasPlaceholder(v.masculine)) {
-      missingPlaceholder.push(`page ${pn} masculine`);
+    // Non-empty + {{CHILD_NAME}} checks (mirrors approveTextVariant validation).
+    if (!v.masculine || v.masculine.trim().length === 0) {
+      invalidVariants.push(`page ${pn} masculine (empty)`);
+    } else if (!variantHasPlaceholder(v.masculine)) {
+      invalidVariants.push(`page ${pn} masculine (missing {{CHILD_NAME}})`);
     }
-    if (!variantHasPlaceholder(v.feminine)) {
-      missingPlaceholder.push(`page ${pn} feminine`);
+    if (!v.feminine || v.feminine.trim().length === 0) {
+      invalidVariants.push(`page ${pn} feminine (empty)`);
+    } else if (!variantHasPlaceholder(v.feminine)) {
+      invalidVariants.push(`page ${pn} feminine (missing {{CHILD_NAME}})`);
     }
   }
 
@@ -455,10 +482,10 @@ export async function finalizeTextVariants(
       `Pages not yet approved: ${notApproved.join(", ")}.`,
     );
   }
-  if (missingPlaceholder.length > 0) {
+  if (invalidVariants.length > 0) {
     throw new TextVariantError(
       "VALIDATION_FAILED",
-      `Missing {{CHILD_NAME}} in: ${missingPlaceholder.join(", ")}.`,
+      `Invalid variants at finalize: ${invalidVariants.join(", ")}.`,
     );
   }
 
