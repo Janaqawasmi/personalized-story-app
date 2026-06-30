@@ -6,7 +6,8 @@ interface StickyMobileCtaProps {
   visible: boolean;
   title: string;
   price: string;
-  personalizationEnabled: boolean;
+  /** Derived: all four gates pass — show the Personalize button. */
+  canStartPersonalization: boolean;
   onPersonalize: () => void;
   onPreviewClick: () => void;
 }
@@ -15,7 +16,7 @@ export default function StickyMobileCta({
   visible,
   title,
   price,
-  personalizationEnabled,
+  canStartPersonalization,
   onPersonalize,
   onPreviewClick,
 }: StickyMobileCtaProps) {
@@ -71,7 +72,7 @@ export default function StickyMobileCta({
           {t("preview.preview")}
         </Button>
 
-        {personalizationEnabled && (
+        {canStartPersonalization && (
           <Button
             variant="contained"
             disableElevation

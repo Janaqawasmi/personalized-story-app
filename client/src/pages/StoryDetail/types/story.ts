@@ -41,11 +41,34 @@ export interface StoryDetailVM {
   templatePages?: StoryTemplatePageVM[];
   storyLanguage?: string;
   /**
-   * true only when the Firestore template has personalizationEnabled === true.
-   * Defaults to false for pre-Phase-1 templates that don't have the field.
-   * Controls whether the Personalize CTA is shown and the wizard is accessible.
+   * Author/specialist intent: story supports personalization in general.
+   * Defaults to false for pre-Phase-1 templates.
+   * When false the story is permanently "fixed" — show the Fixed story chip.
    */
   personalizationEnabled: boolean;
+  /**
+   * Technical gate: text variants reviewed and ready for use.
+   * Defaults to false; flipped in Phase 3.
+   */
+  textPersonalizationReady: boolean;
+  /**
+   * Author/specialist intent: story supports child-photo-based visual personalization.
+   * Intent flag only — does NOT mean the technical data is ready.
+   * Defaults to false.
+   */
+  visualPersonalizationEnabled: boolean;
+  /**
+   * Technical gate: Visual Bible + structured prompts captured at publish time.
+   * Defaults to false.
+   */
+  visualPersonalizationReady: boolean;
+  /**
+   * Derived: true only when the full wizard flow (name + photo) can run end-to-end.
+   * Computed in mapFirestoreToStoryDetailVM — never stored in Firestore.
+   *   = personalizationEnabled && textPersonalizationReady
+   *     && visualPersonalizationEnabled && visualPersonalizationReady
+   */
+  canStartPersonalization: boolean;
 }
 
 export interface RelatedStoryCardVM {

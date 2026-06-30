@@ -117,6 +117,7 @@ export default function HeroInfo({
         isFavorite={isFavorite}
         status={story.status}
         personalizationEnabled={story.personalizationEnabled}
+        canStartPersonalization={story.canStartPersonalization}
         favoriteLoading={favoriteLoading}
         reducedMotion={reducedMotion}
       />

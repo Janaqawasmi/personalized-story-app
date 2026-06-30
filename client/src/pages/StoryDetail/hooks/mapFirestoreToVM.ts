@@ -126,5 +126,14 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
     storyLanguage: data.language || data.generationConfig?.language,
     // Default false for pre-Phase-1 templates that don't have this field.
     personalizationEnabled: data.personalizationEnabled === true,
+    textPersonalizationReady: data.textPersonalizationReady === true,
+    visualPersonalizationEnabled: data.visualPersonalizationEnabled === true,
+    visualPersonalizationReady: data.visualPersonalizationReady === true,
+    // Derived: all four gates must pass before the wizard can run end-to-end.
+    canStartPersonalization:
+      data.personalizationEnabled === true &&
+      data.textPersonalizationReady === true &&
+      data.visualPersonalizationEnabled === true &&
+      data.visualPersonalizationReady === true,
   };
 }

@@ -2,6 +2,7 @@ import { Box, Button, Chip, IconButton, GlobalStyles, useTheme } from "@mui/mate
 import { motion } from "framer-motion";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -14,7 +15,14 @@ interface CtaRowProps {
   onFavoriteToggle: () => void;
   isFavorite: boolean;
   status: string;
+  /** Author intent: story is designed to support personalization in general. */
   personalizationEnabled: boolean;
+  /**
+   * Derived: all four gates pass — the full wizard can run.
+   *   = personalizationEnabled && textPersonalizationReady
+   *     && visualPersonalizationEnabled && visualPersonalizationReady
+   */
+  canStartPersonalization: boolean;
   favoriteLoading: boolean;
   reducedMotion: boolean;
 }
@@ -25,6 +33,7 @@ export default function CtaRow({
   isFavorite,
   status,
   personalizationEnabled,
+  canStartPersonalization,
   favoriteLoading,
   reducedMotion,
 }: CtaRowProps) {
@@ -69,8 +78,7 @@ export default function CtaRow({
     </IconButton>
   );
 
-  // Story does not support personalization: show a "fixed story" indicator
-  // instead of the Personalize CTA so the user understands why.
+  // Permanently fixed: author never intended this story to support personalization.
   if (!personalizationEnabled && !comingSoon) {
     return (
       <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
@@ -88,6 +96,31 @@ export default function CtaRow({
             fontSize: "14px",
             fontWeight: 500,
             "& .MuiChip-icon": { color: COLORS.textSecondary },
+          }}
+        />
+        {favoriteButton}
+      </Box>
+    );
+  }
+
+  // Intended to be personalizable but not all readiness gates are open yet.
+  if (personalizationEnabled && !canStartPersonalization && !comingSoon) {
+    return (
+      <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <Chip
+          icon={<AccessTimeOutlinedIcon sx={{ fontSize: 15 }} />}
+          label={t("storyDetail.personalizationComingSoon")}
+          size="small"
+          sx={{
+            flex: 1,
+            height: 44,
+            borderRadius: SDRadii.cta,
+            border: `1px solid ${colorWithAlpha(COLORS.primary, 0.35)}`,
+            backgroundColor: colorWithAlpha(COLORS.primary, 0.05),
+            color: COLORS.primary,
+            fontSize: "14px",
+            fontWeight: 500,
+            "& .MuiChip-icon": { color: COLORS.primary },
           }}
         />
         {favoriteButton}

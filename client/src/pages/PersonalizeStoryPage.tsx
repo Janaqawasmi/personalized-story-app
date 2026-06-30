@@ -712,7 +712,13 @@ export default function PersonalizeStoryPage() {
           setLoading(false);
           return;
         }
-        if (data.textPersonalizationReady !== true) {
+        // The wizard requires text AND visual personalization to both be ready.
+        // Visual checks: intent flag + technical readiness gate.
+        if (
+          data.textPersonalizationReady !== true ||
+          data.visualPersonalizationEnabled !== true ||
+          data.visualPersonalizationReady !== true
+        ) {
           setEligibility("not_ready");
           setLoading(false);
           return;

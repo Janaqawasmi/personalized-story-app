@@ -88,7 +88,7 @@ export default function StoryDetailPage() {
       window.location.href = `mailto:hello@dammah.app?subject=${subject}`;
       return;
     }
-    if (!storyVm.personalizationEnabled) return;
+    if (!storyVm.canStartPersonalization) return;
     navigate(`/stories/${storyVm.id}/personalize`);
   };
 
@@ -221,7 +221,7 @@ export default function StoryDetailPage() {
         visible={stickyVisible}
         title={localTitle}
         price={stickyPriceLine}
-        personalizationEnabled={storyVm.personalizationEnabled}
+        canStartPersonalization={storyVm.canStartPersonalization}
         onPersonalize={handlePersonalize}
         onPreviewClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth" })}
       />
