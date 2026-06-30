@@ -13,6 +13,7 @@ import {
   buildImagePrompt,
 } from "./personalization.service";
 import { AgeGroup, Gender } from "../shared/types/common";
+import { ILLUSTRATION_STYLE_IDS, IllustrationStyleId } from "../shared/types/visualStyles";
 
 const PHOTO_RETAIN_HOURS = 48;
 
@@ -28,7 +29,9 @@ export class PreviewQuotaError extends Error {
       | "TEMPLATE_NOT_FOUND"
       | "TEMPLATE_INACTIVE"
       | "PERSONALIZATION_DISABLED"
-      | "VISUAL_PERSONALIZATION_NOT_READY",
+      | "TEXT_PERSONALIZATION_NOT_READY"
+      | "VISUAL_PERSONALIZATION_NOT_READY"
+      | "INVALID_ILLUSTRATION_STYLE",
     message: string,
     public existingPreviewId?: string
   ) {
@@ -38,20 +41,31 @@ export class PreviewQuotaError extends Error {
 }
 
 /**
- * Derived eligibility conditions (Phase 2+).
- * canPersonalize           = personalizationEnabled === true
- * canUseVisualPersonalization = personalizationEnabled && visualPersonalizationEnabled && visualPersonalizationReady
+ * Derived eligibility conditions (Phase 2+/Phase 4).
+ * Checks: personalizationEnabled, textPersonalizationReady, and (when requireVisual)
+ * visualPersonalizationEnabled + visualPersonalizationReady.
  *
- * All three flags default to false when absent (backward-compat with pre-Phase-1 templates).
+ * All flags default to false when absent (backward-compat with pre-Phase-1 templates).
  */
 function assertPersonalizationEligible(
-  template: { personalizationEnabled?: boolean; visualPersonalizationEnabled?: boolean; visualPersonalizationReady?: boolean },
+  template: {
+    personalizationEnabled?: boolean;
+    textPersonalizationReady?: boolean;
+    visualPersonalizationEnabled?: boolean;
+    visualPersonalizationReady?: boolean;
+  },
   requireVisual: boolean,
 ): void {
   if (template.personalizationEnabled !== true) {
     throw new PreviewQuotaError(
       "PERSONALIZATION_DISABLED",
       "This story does not support personalization.",
+    );
+  }
+  if (template.textPersonalizationReady !== true) {
+    throw new PreviewQuotaError(
+      "TEXT_PERSONALIZATION_NOT_READY",
+      "Text personalization variants have not been finalized for this story yet.",
     );
   }
   if (requireVisual) {
@@ -67,6 +81,31 @@ function assertPersonalizationEligible(
   }
 }
 
+/**
+ * Validates that the chosen illustration style is one allowed by this template.
+ * Falls back to all known styles when the template has no per-story allow-list.
+ */
+function assertIllustrationStyle(
+  template: { allowedIllustrationStyles?: IllustrationStyleId[] },
+  styleId: string | undefined,
+): void {
+  if (!styleId) {
+    throw new PreviewQuotaError(
+      "INVALID_ILLUSTRATION_STYLE",
+      "Illustration style is required.",
+    );
+  }
+  const allowed: readonly string[] = template.allowedIllustrationStyles?.length
+    ? template.allowedIllustrationStyles
+    : ILLUSTRATION_STYLE_IDS;
+  if (!allowed.includes(styleId)) {
+    throw new PreviewQuotaError(
+      "INVALID_ILLUSTRATION_STYLE",
+      `Invalid illustration style: "${styleId}".`,
+    );
+  }
+}
+
 export interface GeneratePreviewInput {
   caregiverUid: string;
   templateId: string;
@@ -76,6 +115,8 @@ export interface GeneratePreviewInput {
   dedicationName?: string;
   photoBuffer: Buffer;
   photoMimeType: string;
+  /** Internal illustration style ID chosen by the caregiver (Phase 4+). */
+  selectedIllustrationStyle?: string;
 }
 
 function getImageProvider(): ImageGenerationProvider {
@@ -158,6 +199,8 @@ export interface CreateDirectPurchasePreviewInput {
   dedicationName?: string | null;
   photoBuffer: Buffer;
   photoMimeType: string;
+  /** Internal illustration style ID chosen by the caregiver (Phase 4+). */
+  selectedIllustrationStyle?: string;
 }
 
 /**
@@ -176,6 +219,7 @@ export async function createDirectPurchasePreview(
     dedicationName,
     photoBuffer,
     photoMimeType,
+    selectedIllustrationStyle,
   } = input;
 
   const templateDoc = await db
@@ -193,8 +237,8 @@ export async function createDirectPurchasePreview(
     throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
   }
 
-  // Phase 2 eligibility: photo upload implies visual personalization request.
   assertPersonalizationEligible(template, /* requireVisual= */ true);
+  assertIllustrationStyle(template, selectedIllustrationStyle);
 
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
   const now = admin.firestore.Timestamp.now();
@@ -228,6 +272,7 @@ export async function createDirectPurchasePreview(
     purchaseId: null,
     personalizedStoryId: null,
     kind: "direct_purchase",
+    ...(selectedIllustrationStyle !== undefined ? { selectedIllustrationStyle } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -241,12 +286,13 @@ export async function createDirectPurchasePreview(
     mimeType: photoMimeType,
   });
 
-  const retainUntil = new Date(Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000).toISOString();
+  const photoExpiresAt = Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000;
   await previewRef.update({
     photoPath,
     photoStatus: "uploaded",
     photoUploadedAt: new Date().toISOString(),
-    photoRetainUntil: retainUntil,
+    photoRetainUntil: new Date(photoExpiresAt).toISOString(),
+    childPhotoExpiresAt: photoExpiresAt,
     updatedAt: admin.firestore.Timestamp.now(),
   });
 
@@ -269,6 +315,7 @@ export async function generatePreview(
     dedicationName,
     photoBuffer,
     photoMimeType,
+    selectedIllustrationStyle,
   } = input;
 
   const templateDoc = await db
@@ -286,8 +333,8 @@ export async function generatePreview(
     throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
   }
 
-  // Phase 2 eligibility: photo upload implies visual personalization request.
   assertPersonalizationEligible(template, /* requireVisual= */ true);
+  assertIllustrationStyle(template, selectedIllustrationStyle);
 
   const caregiverRef = db.collection(COLLECTIONS.CAREGIVERS).doc(caregiverUid);
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
@@ -338,6 +385,7 @@ export async function generatePreview(
       purchaseId: null,
       personalizedStoryId: null,
       kind: "preview" satisfies PreviewKind,
+      ...(selectedIllustrationStyle !== undefined ? { selectedIllustrationStyle } : {}),
       createdAt: now,
       updatedAt: now,
     };
@@ -375,10 +423,13 @@ export async function generatePreview(
     });
 
     const nowIso = new Date().toISOString();
+    const photoExpiresAt = Date.now() + PHOTO_RETAIN_HOURS * 60 * 60 * 1000;
     await previewRef.update({
       photoPath,
       photoStatus: "uploaded",
       photoUploadedAt: nowIso,
+      photoRetainUntil: new Date(photoExpiresAt).toISOString(),
+      childPhotoExpiresAt: photoExpiresAt,
       status: "generating",
       generationStatus: "in_progress",
       generationStartedAt: nowIso,

@@ -890,6 +890,7 @@ export default function PersonalizeStoryPage() {
           childGender: completePersonalization.gender,
           childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
           photoFile: completePersonalization.photoFile!,
+          selectedIllustrationStyle: completePersonalization.visualStyle,
         });
         setDirectPurchaseResult({
           previewId,
@@ -913,6 +914,7 @@ export default function PersonalizeStoryPage() {
         childGender: completePersonalization.gender,
         childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
         photoFile: completePersonalization.photoFile!,
+        selectedIllustrationStyle: completePersonalization.visualStyle,
       });
       console.log("[handleComplete] Preview API succeeded ✅", result);
       try {

@@ -8,6 +8,7 @@ import {
   generatePreview,
   PreviewQuotaError,
 } from "../../services/preview.service";
+import { isValidIllustrationStyleId } from "../../shared/types/visualStyles";
 import multer from "multer";
 
 const router = Router();
@@ -137,12 +138,13 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.user!.uid;
-      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
+      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName, selectedIllustrationStyle } = req.body as {
         templateId?: string;
         childFirstName?: string;
         childGender?: string;
         childAgeGroup?: string;
         dedicationName?: string;
+        selectedIllustrationStyle?: string;
       };
 
       if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
@@ -177,6 +179,14 @@ router.post(
         return;
       }
 
+      if (selectedIllustrationStyle !== undefined && !isValidIllustrationStyleId(selectedIllustrationStyle)) {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_ILLUSTRATION_STYLE", message: "Invalid illustration style." },
+        });
+        return;
+      }
+
       const result = await generatePreview({
         caregiverUid,
         templateId,
@@ -186,6 +196,7 @@ router.post(
         ...(dedicationName ? { dedicationName: String(dedicationName) } : {}),
         photoBuffer: req.file.buffer,
         photoMimeType: req.file.mimetype,
+        ...(selectedIllustrationStyle !== undefined ? { selectedIllustrationStyle } : {}),
       });
 
       res.status(202).json({ success: true, data: result });
@@ -211,9 +222,17 @@ router.post(
         }
         if (
           err.code === "PERSONALIZATION_DISABLED" ||
+          err.code === "TEXT_PERSONALIZATION_NOT_READY" ||
           err.code === "VISUAL_PERSONALIZATION_NOT_READY"
         ) {
           res.status(422).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (err.code === "INVALID_ILLUSTRATION_STYLE") {
+          res.status(400).json({
             success: false,
             error: { code: err.code, message: err.message },
           });
@@ -254,12 +273,13 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.user!.uid;
-      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
+      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName, selectedIllustrationStyle } = req.body as {
         templateId?: string;
         childFirstName?: string;
         childGender?: string;
         childAgeGroup?: string;
         dedicationName?: string;
+        selectedIllustrationStyle?: string;
       };
 
       if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
@@ -294,6 +314,14 @@ router.post(
         return;
       }
 
+      if (selectedIllustrationStyle !== undefined && !isValidIllustrationStyleId(selectedIllustrationStyle)) {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_ILLUSTRATION_STYLE", message: "Invalid illustration style." },
+        });
+        return;
+      }
+
       const result = await createDirectPurchasePreview({
         caregiverUid,
         templateId,
@@ -303,6 +331,7 @@ router.post(
         ...(dedicationName ? { dedicationName: String(dedicationName) } : {}),
         photoBuffer: req.file.buffer,
         photoMimeType: req.file.mimetype,
+        ...(selectedIllustrationStyle !== undefined ? { selectedIllustrationStyle } : {}),
       });
 
       res.status(201).json({ success: true, data: result });
@@ -317,9 +346,17 @@ router.post(
         }
         if (
           err.code === "PERSONALIZATION_DISABLED" ||
+          err.code === "TEXT_PERSONALIZATION_NOT_READY" ||
           err.code === "VISUAL_PERSONALIZATION_NOT_READY"
         ) {
           res.status(422).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (err.code === "INVALID_ILLUSTRATION_STYLE") {
+          res.status(400).json({
             success: false,
             error: { code: err.code, message: err.message },
           });

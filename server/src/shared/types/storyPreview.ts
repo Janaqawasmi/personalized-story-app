@@ -76,6 +76,12 @@ export interface StoryPreview {
   purchaseId: string | null;
   personalizedStoryId: string | null;
 
+  // --- Personalization metadata (Phase 4+) ---
+  /** Internal illustration style ID chosen by the caregiver. */
+  selectedIllustrationStyle?: string;
+  /** ms-since-epoch when the child photo expires (48h TTL from upload). */
+  childPhotoExpiresAt?: number;
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

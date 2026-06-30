@@ -267,6 +267,7 @@ export async function generatePreview(input: {
   childAgeGroup: AgeGroup;
   dedicationName?: string | null;
   photoFile: File;
+  selectedIllustrationStyle?: string;
 }): Promise<{ previewId: string; status: string }> {
   const headers = await getAuthHeadersForUpload();
 
@@ -277,6 +278,9 @@ export async function generatePreview(input: {
   formData.append("childAgeGroup", input.childAgeGroup);
   if (input.dedicationName) {
     formData.append("dedicationName", input.dedicationName);
+  }
+  if (input.selectedIllustrationStyle) {
+    formData.append("selectedIllustrationStyle", input.selectedIllustrationStyle);
   }
   formData.append("photo", input.photoFile);
 
@@ -358,6 +362,7 @@ export async function createDirectPurchasePreview(input: {
   childAgeGroup: AgeGroup;
   photoFile: File;
   dedicationName?: string | null;
+  selectedIllustrationStyle?: string;
 }): Promise<{ previewId: string }> {
   const headers = await getAuthHeadersForUpload();
   const formData = new FormData();
@@ -365,6 +370,9 @@ export async function createDirectPurchasePreview(input: {
   formData.append("childFirstName", input.childFirstName);
   formData.append("childGender", input.childGender);
   formData.append("childAgeGroup", input.childAgeGroup);
+  if (input.selectedIllustrationStyle) {
+    formData.append("selectedIllustrationStyle", input.selectedIllustrationStyle);
+  }
   if (input.dedicationName) {
     formData.append("dedicationName", input.dedicationName);
   }
