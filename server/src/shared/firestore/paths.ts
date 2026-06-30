@@ -22,6 +22,15 @@ export const COLLECTIONS = {
    */
   TEMPLATE_PERSONALIZATION_ARTEFACTS: "personalizationArtefacts",
 
+  /**
+   * Subcollection under story_templates/{id} for text variant review (Phase 3).
+   * One doc per page, keyed by pageNumber (e.g. "1", "2", …).
+   * Contains masculine/feminine variants pending specialist review.
+   * On finalize the approved content is merged into the template's pages[] and
+   * textPersonalizationReady is flipped to true.
+   */
+  TEMPLATE_TEXT_VARIANTS: "textVariants",
+
   cart: (caregiverUid: string) => `caregivers/${caregiverUid}/cart`,
   purchases: (caregiverUid: string) => `caregivers/${caregiverUid}/purchases`,
 } as const;

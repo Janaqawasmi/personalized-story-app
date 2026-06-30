@@ -43,6 +43,7 @@ import ideasRouter from "./routes/ideas.router";
 
 // Specialist routes
 import specialistStoriesRouter from "./routes/specialist/stories.router";
+import specialistTemplatesRouter from "./routes/specialist/templates.router";
 
 // Caregiver routes (cart/checkout/previews/account)
 import caregiverCartRouter from "./routes/caregiver/cart.router";
@@ -103,6 +104,7 @@ app.use("/api/ideas", ideasRouter);
 // Protected routes (auth enforced at router level)
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
 app.use("/api/specialist/stories", specialistStoriesRouter);
+app.use("/api/specialist/templates", specialistTemplatesRouter);
 
 // Caregiver endpoints (auth enforced in each router)
 app.use("/api/caregiver/cart", caregiverCartRouter);

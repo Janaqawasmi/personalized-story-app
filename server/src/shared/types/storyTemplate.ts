@@ -187,6 +187,17 @@ export interface StoryTemplate {
   textPersonalizationReady?: boolean;
 
   /**
+   * Review lifecycle for the text-variant step (Phase 3).
+   *   "none"           → no variants generated yet (initial state after publish)
+   *   "generating"     → LLM call in flight (optimistic; reset to "none" on error)
+   *   "pending_review" → variants written to textVariants subcollection, awaiting specialist sign-off
+   * The terminal state ("approved") is represented by textPersonalizationReady = true;
+   * this field is cleared (or absent) once finalized.
+   * Pre-Phase-3 templates omit this field; treat absence as "none".
+   */
+  textVariantStatus?: "none" | "generating" | "pending_review";
+
+  /**
    * true when the art-direction snapshot (Visual Bible + per-page structured
    * prompts) is complete and available (inline or subcollection). Gates visual
    * (image) personalization in the API and UI.
