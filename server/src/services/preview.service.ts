@@ -83,7 +83,14 @@ function assertPersonalizationEligible(
 
 /**
  * Validates that the chosen illustration style is one allowed by this template.
- * Falls back to all known styles when the template has no per-story allow-list.
+ *
+ * `allowedIllustrationStyles` is populated by the publish bridge for every
+ * personalizable story. A missing or empty list means the template data is
+ * inconsistent — we reject rather than silently accepting all styles, because
+ * silently accepting would bypass the specialist's per-story curation.
+ *
+ * Old templates without this list also lack `visualPersonalizationReady: true`,
+ * so they never reach this check (assertPersonalizationEligible blocks first).
  */
 function assertIllustrationStyle(
   template: { allowedIllustrationStyles?: IllustrationStyleId[] },
@@ -95,10 +102,13 @@ function assertIllustrationStyle(
       "Illustration style is required.",
     );
   }
-  const allowed: readonly string[] = template.allowedIllustrationStyles?.length
-    ? template.allowedIllustrationStyles
-    : ILLUSTRATION_STYLE_IDS;
-  if (!allowed.includes(styleId)) {
+  if (!template.allowedIllustrationStyles?.length) {
+    throw new PreviewQuotaError(
+      "INVALID_ILLUSTRATION_STYLE",
+      "Story configuration error: allowed illustration styles not set.",
+    );
+  }
+  if (!(template.allowedIllustrationStyles as string[]).includes(styleId)) {
     throw new PreviewQuotaError(
       "INVALID_ILLUSTRATION_STYLE",
       `Invalid illustration style: "${styleId}".`,

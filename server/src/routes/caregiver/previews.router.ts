@@ -493,13 +493,14 @@ router.post(
       await file.save(req.file.buffer, { metadata: { contentType: req.file.mimetype } });
 
       const now = new Date().toISOString();
-      const retainUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+      const photoExpiresAt = Date.now() + 48 * 60 * 60 * 1000; // 48h retention
 
       await previewDoc.ref.update({
         photoPath: storagePath,
         photoStatus: "uploaded",
         photoUploadedAt: now,
-        photoRetainUntil: retainUntil,
+        photoRetainUntil: new Date(photoExpiresAt).toISOString(),
+        childPhotoExpiresAt: photoExpiresAt,
         updatedAt: admin.firestore.Timestamp.now(),
       });
 
