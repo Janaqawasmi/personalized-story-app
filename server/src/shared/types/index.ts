@@ -10,7 +10,17 @@ export type {
   StoryTemplate,
   StoryTemplatePage,
   LocalizedString,
+  ProtagonistSlot,
+  PersonalizedCharacterPolicy,
+  ArtDirectionSnapshot,
+  TemplatePageArtDirection,
 } from "./storyTemplate";
+
+export type {
+  IllustrationStyleId,
+} from "./visualStyles";
+
+export { ILLUSTRATION_STYLE_IDS, isValidIllustrationStyleId } from "./visualStyles";
 
 export type {
   StoryPreview,

@@ -12,6 +12,16 @@ export const COLLECTIONS = {
   STORY_IMAGES: "images",
   STORY_ILLUSTRATION_JOBS: "illustrationJobs",
 
+  /**
+   * Subcollection under story_templates/{id} that stores the art-direction
+   * snapshot when it is too large to embed inline on the template document.
+   * Written by publishStory when the inline snapshot exceeds INLINE_SIZE_LIMIT.
+   * Read by Phase 5+ personalized image generation.
+   *
+   * Key doc: "snapshot" — contains the full ArtDirectionSnapshot.
+   */
+  TEMPLATE_PERSONALIZATION_ARTEFACTS: "personalizationArtefacts",
+
   cart: (caregiverUid: string) => `caregivers/${caregiverUid}/cart`,
   purchases: (caregiverUid: string) => `caregivers/${caregiverUid}/purchases`,
 } as const;
