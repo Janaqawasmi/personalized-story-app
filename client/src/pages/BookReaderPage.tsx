@@ -21,6 +21,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
+import MicIcon from "@mui/icons-material/Mic";
 import PauseIcon from "@mui/icons-material/Pause";
 import StopIcon from "@mui/icons-material/Stop";
 import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
@@ -29,6 +30,7 @@ import BookSpread, { type BookSpreadHandle } from "../components/book/BookSpread
 import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
 import { Z_INDEX_BOOK_READER_TOP_CONTROLS } from "../constants/zIndex";
 import BookPreface from "../components/book/BookPreface";
+import VoiceOnboardingModal from "../components/voice/VoiceOnboardingModal";
 import { LOCAL_STORAGE_PREFACE_SEEN_KEY } from "../components/book/bookTokens";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/LanguageContext";
@@ -42,7 +44,14 @@ import {
   ttsIsSpeaking,
   ttsIsPaused,
   ttsGetVoices,
+  fetchClonedVoiceAudio,
+  playClonedAudio,
+  pauseClonedAudio,
+  resumeClonedAudio,
+  stopClonedAudio,
+  isClonedAudioActive,
 } from "../utils/tts";
+import { getCaregiverVoiceProfile } from "../utils/voiceProfile";
 import {
   applyPreviewOverridesToReaderPages,
   buildPersonalizedReaderPages,
@@ -132,6 +141,9 @@ export default function BookReaderPage() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceName, setSelectedVoiceName] = useState<string>("");
   const [previewUnlockOverlayOpen, setPreviewUnlockOverlayOpen] = useState(false);
+  const [caregiverVoiceId, setCaregiverVoiceId] = useState<string | null>(null);
+  const [useClonedVoice, setUseClonedVoice] = useState(true);
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -447,7 +459,25 @@ export default function BookReaderPage() {
     };
   }, [storyId]);
 
-  useEffect(() => () => { ttsStop(); }, []);
+  useEffect(() => () => { ttsStop(); stopClonedAudio(); }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      await auth.authStateReady();
+      if (!auth.currentUser || cancelled) return;
+      try {
+        const profile = await getCaregiverVoiceProfile();
+        if (!cancelled) {
+          setCaregiverVoiceId(profile.elevenLabsVoiceId);
+          setUseClonedVoice(Boolean(profile.elevenLabsVoiceId));
+        }
+      } catch (err) {
+        console.warn("[BookReader] Failed to load caregiver voice profile:", err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => { autoReadRef.current = autoRead; }, [autoRead]);
   useEffect(() => { spreadIndexRef.current = spreadIndex; }, [spreadIndex]);
@@ -560,43 +590,6 @@ export default function BookReaderPage() {
     setPreviewUnlockOverlayOpen(false);
   };
 
-  const readCurrentPage = () => {
-    const currentIndex = spreadIndexRef.current;
-    const currentPage = story?.pages[currentIndex];
-    const textToRead = currentPage?.textTemplate || "";
-    if (!textToRead.trim()) return;
-    setIsReading(true);
-    setIsPaused(false);
-    ttsSpeak({
-      text: textToRead,
-      lang: ttsLang,
-      rate: 0.9,
-      pitch: 1,
-      voiceName: selectedVoiceName || undefined,
-      onEnd: () => {
-        if (!autoReadRef.current) {
-          setIsReading(false);
-          setIsPaused(false);
-          return;
-        }
-        const latestIndex = spreadIndexRef.current;
-        const latestStory = story;
-        const lastUnlocked = lastUnlockedSpreadIndexRef.current;
-        if (
-          !latestStory ||
-          latestIndex >= lastUnlocked ||
-          latestIndex >= latestStory.pages.length - 1
-        ) {
-          setIsReading(false);
-          setIsPaused(false);
-          return;
-        }
-        setSpreadIndex(latestIndex + 1);
-        setTimeout(() => readNextPageAfterFlip(), 150);
-      },
-    });
-  };
-
   const readNextPageAfterFlip = () => {
     const currentIndex = spreadIndexRef.current;
     const currentPage = story?.pages[currentIndex];
@@ -606,21 +599,86 @@ export default function BookReaderPage() {
         const retryIndex = spreadIndexRef.current;
         const retryPage = story?.pages[retryIndex];
         const retryText = retryPage?.textTemplate || "";
-        if (retryText.trim()) readCurrentPage();
+        if (retryText.trim()) void readCurrentPage();
         else { setIsReading(false); setIsPaused(false); }
       }, 200);
       return;
     }
-    readCurrentPage();
+    void readCurrentPage();
   };
 
-  const handleReadStory = () => readCurrentPage();
+  const handleReadEnd = () => {
+    if (!autoReadRef.current) {
+      setIsReading(false);
+      setIsPaused(false);
+      return;
+    }
+    const latestIndex = spreadIndexRef.current;
+    const latestStory = story;
+    const lastUnlocked = lastUnlockedSpreadIndexRef.current;
+    if (
+      !latestStory ||
+      latestIndex >= lastUnlocked ||
+      latestIndex >= latestStory.pages.length - 1
+    ) {
+      setIsReading(false);
+      setIsPaused(false);
+      return;
+    }
+    setSpreadIndex(latestIndex + 1);
+    setTimeout(() => readNextPageAfterFlip(), 150);
+  };
+
+  const readCurrentPage = async () => {
+    const currentIndex = spreadIndexRef.current;
+    const currentPage = story?.pages[currentIndex];
+    const textToRead = currentPage?.textTemplate || "";
+    if (!textToRead.trim() || !story) return;
+    setIsReading(true);
+    setIsPaused(false);
+
+    if (caregiverVoiceId && useClonedVoice) {
+      try {
+        const audioUrl = await fetchClonedVoiceAudio({
+          storyId: story.id,
+          pageNumber: currentPage!.pageNumber,
+          text: textToRead,
+        });
+        playClonedAudio(audioUrl, handleReadEnd);
+        return;
+      } catch (e) {
+        console.warn("[BookReader] Cloned voice failed, falling back to browser TTS:", e);
+      }
+    }
+
+    ttsSpeak({
+      text: textToRead,
+      lang: ttsLang,
+      rate: 0.9,
+      pitch: 1,
+      voiceName: selectedVoiceName || undefined,
+      onEnd: handleReadEnd,
+    });
+  };
+
+  const handleReadStory = () => { void readCurrentPage(); };
   const handlePauseResume = () => {
+    if (!isReading && !ttsIsSpeaking() && !isClonedAudioActive()) return;
+    if (isClonedAudioActive()) {
+      if (isPaused) { resumeClonedAudio(); setIsPaused(false); }
+      else { pauseClonedAudio(); setIsPaused(true); }
+      return;
+    }
     if (!ttsIsSpeaking() && !isReading) return;
     if (ttsIsPaused() || isPaused) { ttsResume(); setIsPaused(false); }
     else { ttsPause(); setIsPaused(true); }
   };
-  const handleStopReading = () => { ttsStop(); setIsReading(false); setIsPaused(false); };
+  const handleStopReading = () => {
+    stopClonedAudio();
+    ttsStop();
+    setIsReading(false);
+    setIsPaused(false);
+  };
 
   const handleClose = () => {
     handleStopReading();
@@ -678,6 +736,12 @@ export default function BookReaderPage() {
     [story?.pages, spreadIndex]
   );
 
+  const readAloudLabel = caregiverVoiceId && useClonedVoice
+    ? tt("pages.bookReader.readInMyVoice", "Read in my voice")
+    : tt("pages.bookReader.readStory", "Read story");
+
+  const showBrowserVoicePicker = !caregiverVoiceId || !useClonedVoice;
+
   const mobileControlsProps = useMemo(
     () =>
       isMobileReaderActive
@@ -690,12 +754,12 @@ export default function BookReaderPage() {
             autoRead,
             isReading,
             isPaused,
-            voices: voicesForCurrentLang,
+            voices: showBrowserVoicePicker ? voicesForCurrentLang : [],
             selectedVoiceName,
             onSelectVoice: setSelectedVoiceName,
             labels: {
               close: tt("pages.bookReader.close", "Close"),
-              read: tt("pages.bookReader.readStory", "Read story"),
+              read: readAloudLabel,
               pause: tt("pages.bookReader.pause", "Pause"),
               resume: tt("pages.bookReader.resume", "Resume"),
               stop: tt("pages.bookReader.stop", "Stop"),
@@ -714,7 +778,9 @@ export default function BookReaderPage() {
       isPaused,
       voicesForCurrentLang,
       selectedVoiceName,
+      showBrowserVoicePicker,
       tt,
+      readAloudLabel,
       handleClose,
       handleReadStory,
       handlePauseResume,
@@ -936,19 +1002,38 @@ export default function BookReaderPage() {
               <Typography sx={{ fontSize: "0.85rem", color: theme.palette.text.secondary }}>
                 {t("pages.bookReader.pageOf", { current: spreadIndex + 1, total: story.pages.length })}
               </Typography>
-              <Tooltip title="Read story" arrow><span><IconButton onClick={handleReadStory} disabled={isReading} sx={{ color: theme.palette.text.primary }}><VolumeUpIcon /></IconButton></span></Tooltip>
-              <Tooltip title={isPaused ? "Resume" : "Pause"} arrow><span><IconButton onClick={handlePauseResume} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><PauseIcon /></IconButton></span></Tooltip>
-              <Tooltip title="Stop" arrow><span><IconButton onClick={handleStopReading} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><StopIcon /></IconButton></span></Tooltip>
-              <Tooltip title={autoRead ? "Auto-read: ON" : "Auto-read: OFF"} arrow>
+              <Tooltip title={readAloudLabel} arrow><span><IconButton onClick={handleReadStory} disabled={isReading} sx={{ color: theme.palette.text.primary }}><VolumeUpIcon /></IconButton></span></Tooltip>
+              <Tooltip title={isPaused ? tt("pages.bookReader.resume", "Resume") : tt("pages.bookReader.pause", "Pause")} arrow><span><IconButton onClick={handlePauseResume} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><PauseIcon /></IconButton></span></Tooltip>
+              <Tooltip title={tt("pages.bookReader.stop", "Stop")} arrow><span><IconButton onClick={handleStopReading} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><StopIcon /></IconButton></span></Tooltip>
+              <Tooltip title={autoRead ? tt("pages.bookReader.autoReadOn", "Auto-read on") : tt("pages.bookReader.autoReadOff", "Auto-read off")} arrow>
                 <IconButton onClick={() => setAutoRead((p) => !p)} sx={{ color: autoRead ? theme.palette.primary.main : theme.palette.text.primary }}><AutoplayIcon /></IconButton>
               </Tooltip>
+              {caregiverVoiceId ? (
+                <Tooltip title={useClonedVoice ? tt("pages.bookReader.useSystemVoice", "System voice") : tt("pages.bookReader.useMyVoice", "My voice")} arrow>
+                  <IconButton
+                    onClick={() => setUseClonedVoice((v) => !v)}
+                    sx={{ color: useClonedVoice ? theme.palette.primary.main : theme.palette.text.secondary, fontSize: "0.7rem", px: 1 }}
+                    aria-pressed={useClonedVoice}
+                  >
+                    {useClonedVoice ? tt("pages.bookReader.useMyVoice", "My voice") : tt("pages.bookReader.useSystemVoice", "System")}
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Tooltip title={tt("pages.bookReader.recordMyVoice", "Record my voice")} arrow>
+                  <IconButton onClick={() => setVoiceModalOpen(true)} sx={{ color: theme.palette.text.primary }}>
+                    <MicIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {showBrowserVoicePicker ? (
               <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel>Voice</InputLabel>
-                <Select label="Voice" value={selectedVoiceName} onChange={(e) => setSelectedVoiceName(e.target.value)}>
-                  <MenuItem value="">Auto (best)</MenuItem>
+                <InputLabel>{tt("pages.bookReader.voice", "Voice")}</InputLabel>
+                <Select label={tt("pages.bookReader.voice", "Voice")} value={selectedVoiceName} onChange={(e) => setSelectedVoiceName(e.target.value)}>
+                  <MenuItem value="">{tt("pages.bookReader.voiceAuto", "Auto (best)")}</MenuItem>
                   {voicesForCurrentLang.map((v) => (<MenuItem key={v.name} value={v.name}>{v.name}</MenuItem>))}
                 </Select>
               </FormControl>
+              ) : null}
               <Tooltip title={isFullScreen ? t("pages.bookReader.exitFullScreen") : t("pages.bookReader.fullScreen")} arrow>
                 <IconButton onClick={toggleFullScreen} sx={{ color: theme.palette.text.primary }}>
                   {isFullScreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
@@ -1008,12 +1093,19 @@ export default function BookReaderPage() {
                   </Box>
 
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Tooltip title="Read story" arrow><span><IconButton onClick={handleReadStory} disabled={isReading} sx={{ color: theme.palette.text.primary }}><VolumeUpIcon /></IconButton></span></Tooltip>
-                    <Tooltip title={isPaused ? "Resume" : "Pause"} arrow><span><IconButton onClick={handlePauseResume} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><PauseIcon /></IconButton></span></Tooltip>
-                    <Tooltip title="Stop" arrow><span><IconButton onClick={handleStopReading} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><StopIcon /></IconButton></span></Tooltip>
-                    <Tooltip title={autoRead ? "Auto-read: ON" : "Auto-read: OFF"} arrow>
+                    <Tooltip title={readAloudLabel} arrow><span><IconButton onClick={handleReadStory} disabled={isReading} sx={{ color: theme.palette.text.primary }}><VolumeUpIcon /></IconButton></span></Tooltip>
+                    <Tooltip title={isPaused ? tt("pages.bookReader.resume", "Resume") : tt("pages.bookReader.pause", "Pause")} arrow><span><IconButton onClick={handlePauseResume} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><PauseIcon /></IconButton></span></Tooltip>
+                    <Tooltip title={tt("pages.bookReader.stop", "Stop")} arrow><span><IconButton onClick={handleStopReading} disabled={!isReading} sx={{ color: theme.palette.text.primary }}><StopIcon /></IconButton></span></Tooltip>
+                    <Tooltip title={autoRead ? tt("pages.bookReader.autoReadOn", "Auto-read on") : tt("pages.bookReader.autoReadOff", "Auto-read off")} arrow>
                       <IconButton onClick={() => setAutoRead((p) => !p)} sx={{ color: autoRead ? theme.palette.primary.main : theme.palette.text.primary }}><AutoplayIcon /></IconButton>
                     </Tooltip>
+                    {!caregiverVoiceId ? (
+                      <Tooltip title={tt("pages.bookReader.recordMyVoice", "Record my voice")} arrow>
+                        <IconButton onClick={() => setVoiceModalOpen(true)} sx={{ color: theme.palette.text.primary }}>
+                          <MicIcon />
+                        </IconButton>
+                      </Tooltip>
+                    ) : null}
                     <Tooltip title={t("pages.bookReader.fullScreen")} arrow>
                       <IconButton onClick={toggleFullScreen} sx={{ color: theme.palette.text.primary }}><FullscreenIcon /></IconButton>
                     </Tooltip>
@@ -1190,6 +1282,16 @@ export default function BookReaderPage() {
           </>
         )}
       </Box>
+
+      <VoiceOnboardingModal
+        open={voiceModalOpen}
+        onClose={() => setVoiceModalOpen(false)}
+        onSuccess={(voiceId) => {
+          setCaregiverVoiceId(voiceId);
+          setUseClonedVoice(true);
+        }}
+        isRTL={isRTL}
+      />
     </>
   );
 }

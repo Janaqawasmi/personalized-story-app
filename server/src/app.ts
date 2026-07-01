@@ -7,6 +7,12 @@
 import "dotenv/config";
 console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
 console.log("ARK API KEY EXISTS:", !!process.env.ARK_API_KEY);
+console.log("ELEVENLABS API KEY EXISTS:", !!process.env.ELEVENLABS_API_KEY);
+if (!process.env.ELEVENLABS_API_KEY?.trim()) {
+  console.warn(
+    "ELEVENLABS_API_KEY not set — voice clone / TTS endpoints will return 503.",
+  );
+}
 
 // ---------- GLOBAL ERROR HANDLERS ----------
 process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
@@ -50,6 +56,7 @@ import caregiverPreviewsRouter from "./routes/caregiver/previews.router";
 import caregiverCheckoutRouter from "./routes/caregiver/checkout.router";
 import caregiverAccountRouter from "./routes/caregiver/account.router";
 import caregiverStoriesRouter from "./routes/caregiver/stories.router";
+import caregiverVoiceRouter from "./routes/caregiver/voice.router";
 
 // ---------- IMAGE PROVIDER ----------
 // Register Seedream as the image generation backend for all services.
@@ -110,6 +117,7 @@ app.use("/api/caregiver/previews", caregiverPreviewsRouter);
 app.use("/api/caregiver/checkout", caregiverCheckoutRouter);
 app.use("/api/caregiver/account", caregiverAccountRouter);
 app.use("/api/caregiver/stories", caregiverStoriesRouter);
+app.use("/api/caregiver/voice", caregiverVoiceRouter);
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {

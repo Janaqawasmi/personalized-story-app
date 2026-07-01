@@ -329,7 +329,20 @@
       "addToCart": "Add to cart",
       "previewEndModalTitle": "End of free preview",
       "previewEndModalBody": "You've reached the last page of your preview. Purchase to unlock the full personalized story.",
-      "previewEndModalClose": "Keep reading"
+      "previewEndModalClose": "Keep reading",
+      "readStory": "Read story",
+      "readInMyVoice": "Read in my voice",
+      "recordMyVoice": "Record my voice",
+      "useMyVoice": "My voice",
+      "useSystemVoice": "System voice",
+      "pause": "Pause",
+      "resume": "Resume",
+      "stop": "Stop",
+      "autoReadOn": "Auto-read on",
+      "autoReadOff": "Auto-read off",
+      "voice": "Voice",
+      "voiceAuto": "Auto (best)",
+      "close": "Close"
     },
     "placeholder": {
       "backToHome": "Back to Home"
@@ -379,6 +392,27 @@
     "startReading": "Start Reading",
     "audioReading": "Audio Reading",
     "imageComingSoon": "Image will appear here soon"
+  },
+  "voiceOnboarding": {
+    "title": "Record your reading voice",
+    "subtitle": "Read the sentences naturally in a quiet room — about 20–30 seconds each. Your voice will narrate the story for your child.",
+    "readThis": "Read this aloud",
+    "prompt1": "Once upon a time, in a cozy little room, a child opened a book and smiled.",
+    "prompt2": "The story was made just for them, with their name on every page.",
+    "prompt3": "They turned the page slowly, listening to the calm voice they knew so well.",
+    "startRecording": "Start recording",
+    "recordAnother": "Record another clip",
+    "stopRecording": "Stop",
+    "redoLast": "Redo last clip",
+    "clipsRecorded": "{count} of {max} clips recorded",
+    "finish": "Save my voice",
+    "saving": "Creating your voice…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "micDenied": "Microphone access is required to record your voice.",
+    "tooShort": "Please record at least 5 seconds.",
+    "uploadFailed": "Could not save your voice. Please try again.",
+    "verificationNote": "ElevenLabs may ask for extra verification — your voice may still work right away."
   },
   "instructions": {
     "title": "Tips for a Pleasant Reading Experience",

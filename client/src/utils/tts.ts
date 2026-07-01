@@ -1,4 +1,6 @@
 // client/src/utils/tts.ts
+import { API_BASE, getAuthHeaders } from "../api/api";
+
 export type TTSLang = "en-US" | "he-IL" | "ar-SA";
 
 let currentUtterance: SpeechSynthesisUtterance | null = null;
@@ -190,4 +192,72 @@ export async function ttsSpeak(params: {
 
   currentUtterance = utterance;
   window.speechSynthesis.speak(utterance);
+}
+
+// --- Cloned voice (ElevenLabs via backend) ---
+
+let currentAudioEl: HTMLAudioElement | null = null;
+
+export async function fetchClonedVoiceAudio(params: {
+  storyId: string;
+  pageNumber: number;
+  text: string;
+}): Promise<string> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/caregiver/voice/synthesize`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(params),
+  });
+
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      body?.error?.message || body?.error || "Voice synthesis failed";
+    throw new Error(typeof message === "string" ? message : "Voice synthesis failed");
+  }
+
+  const audioUrl = (body.data?.audioUrl ?? body.audioUrl) as string | undefined;
+  if (!audioUrl) throw new Error("Voice synthesis returned no audio URL");
+  return audioUrl;
+}
+
+export function playClonedAudio(url: string, onEnd?: () => void): void {
+  stopClonedAudio();
+  const audio = new Audio(url);
+  audio.onended = () => {
+    currentAudioEl = null;
+    onEnd?.();
+  };
+  audio.onerror = () => {
+    currentAudioEl = null;
+  };
+  currentAudioEl = audio;
+  void audio.play().catch(() => {
+    currentAudioEl = null;
+  });
+}
+
+export function pauseClonedAudio(): void {
+  currentAudioEl?.pause();
+}
+
+export function resumeClonedAudio(): void {
+  void currentAudioEl?.play();
+}
+
+export function stopClonedAudio(): void {
+  if (currentAudioEl) {
+    currentAudioEl.pause();
+    currentAudioEl.currentTime = 0;
+    currentAudioEl = null;
+  }
+}
+
+export function isClonedAudioActive(): boolean {
+  return currentAudioEl !== null;
+}
+
+export function isClonedAudioPlaying(): boolean {
+  return !!currentAudioEl && !currentAudioEl.paused;
 }
