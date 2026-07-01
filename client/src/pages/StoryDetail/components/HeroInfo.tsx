@@ -17,6 +17,7 @@ interface HeroInfoProps {
   isFavorite: boolean;
   onFavoriteToggle: () => void;
   onPersonalize: () => void;
+  onBuy: () => void;
   language: string;
   isRTL: boolean;
   reducedMotion: boolean;
@@ -32,6 +33,7 @@ export default function HeroInfo({
   isFavorite,
   onFavoriteToggle,
   onPersonalize,
+  onBuy,
   language,
   isRTL,
   reducedMotion,
@@ -113,9 +115,12 @@ export default function HeroInfo({
 
       <CtaRow
         onPersonalize={onPersonalize}
+        onBuy={onBuy}
         onFavoriteToggle={onFavoriteToggle}
         isFavorite={isFavorite}
         status={story.status}
+        personalizationEnabled={story.personalizationEnabled}
+        canStartPersonalization={story.canStartPersonalization}
         favoriteLoading={favoriteLoading}
         reducedMotion={reducedMotion}
       />

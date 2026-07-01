@@ -178,7 +178,7 @@ export interface LLMCallInput {
   prompt: string;
   maxTokens: number;
   /** Which pipeline step is making this call. Used for logging. */
-  step: "step1_architect" | "step2_author" | "step3_post_validation";
+  step: "step1_architect" | "step2_author" | "step3_post_validation" | "text_variant_generation";
   /** Attempt number (1 = first try, 2 = retry). Passed through to logs. */
   attempt: number;
 }

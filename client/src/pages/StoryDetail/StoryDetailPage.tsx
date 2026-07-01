@@ -88,7 +88,17 @@ export default function StoryDetailPage() {
       window.location.href = `mailto:hello@dammah.app?subject=${subject}`;
       return;
     }
+    if (!storyVm.canStartPersonalization) return;
     navigate(`/stories/${storyVm.id}/personalize`);
+  };
+
+  // Fixed-story purchase handler. No cart flow exists yet for non-personalizable
+  // stories, so we open a contact email. This gives the caregiver a clear action
+  // without routing them into the personalization wizard.
+  const handleBuy = () => {
+    if (!storyVm) return;
+    const subject = encodeURIComponent(`Purchase: ${storyVm.title}`);
+    window.location.href = `mailto:hello@dammah.app?subject=${subject}`;
   };
 
   const faqRows = useMemo(() => {
@@ -153,6 +163,7 @@ export default function StoryDetailPage() {
         isFavorite={isFavorite}
         onFavoriteToggle={toggleFavorite}
         onPersonalize={handlePersonalize}
+        onBuy={handleBuy}
         language={language}
         isRTL={isRTL}
         reducedMotion={reducedMotion}
@@ -220,7 +231,10 @@ export default function StoryDetailPage() {
         visible={stickyVisible}
         title={localTitle}
         price={stickyPriceLine}
+        personalizationEnabled={storyVm.personalizationEnabled}
+        canStartPersonalization={storyVm.canStartPersonalization}
         onPersonalize={handlePersonalize}
+        onBuy={handleBuy}
         onPreviewClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth" })}
       />
     </Box>

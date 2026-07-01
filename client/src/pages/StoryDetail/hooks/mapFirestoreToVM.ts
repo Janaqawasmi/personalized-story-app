@@ -84,6 +84,27 @@ function mapFaq(raw: unknown): FaqItemVM[] {
     .filter((x) => x.question.en || x.question.he || x.answer.en || x.answer.he);
 }
 
+/**
+ * Returns true when every page has a non-empty masculine and feminine text
+ * template each containing `{{CHILD_NAME}}`.
+ *
+ * This is the client-side equivalent of `hasValidTextTemplates` in preview.service.ts.
+ * It replaces the deprecated `textPersonalizationReady` flag so that stories with
+ * valid page data are never blocked by a stale Firestore flag.
+ */
+export function hasValidTextTemplates(pages: unknown): boolean {
+  if (!Array.isArray(pages) || pages.length === 0) return false;
+  return (pages as Record<string, unknown>[]).every((page) => {
+    const tt = page.textTemplate as { masculine?: string; feminine?: string } | null | undefined;
+    const masc = tt?.masculine;
+    const fem  = tt?.feminine;
+    return (
+      typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
+      typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
+    );
+  });
+}
+
 export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any>, lang: string): StoryDetailVM {
   const digital = readAmount(data?.pricing?.digital) ?? readAmount(data?.pricing?.digitalPrice);
   const print = readAmount(data?.pricing?.print);
@@ -124,5 +145,19 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
       ? data.pages.map((p: any) => ({ textTemplate: p?.textTemplate }))
       : undefined,
     storyLanguage: data.language || data.generationConfig?.language,
+    // Default false for pre-Phase-1 templates that don't have this field.
+    personalizationEnabled: data.personalizationEnabled === true,
+    // @deprecated — kept in the VM for legacy compatibility; not used for gating.
+    textPersonalizationReady: data.textPersonalizationReady === true,
+    // Derived from actual page data — never relies on the stale Firestore flag.
+    hasValidTextTemplates: hasValidTextTemplates(data.pages),
+    visualPersonalizationEnabled: data.visualPersonalizationEnabled === true,
+    visualPersonalizationReady: data.visualPersonalizationReady === true,
+    // Derived: all four gates must pass before the wizard can run end-to-end.
+    canStartPersonalization:
+      data.personalizationEnabled === true &&
+      hasValidTextTemplates(data.pages) &&
+      data.visualPersonalizationEnabled === true &&
+      data.visualPersonalizationReady === true,
   };
 }

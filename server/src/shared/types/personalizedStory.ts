@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { AgeGroup, Gender } from "./common";
+import type { IllustrationStyleId } from "./visualStyles";
 
 export type StoryGenerationStatus = "pending" | "in_progress" | "completed" | "failed" | "partially_failed";
 
@@ -33,6 +34,9 @@ export interface PersonalizedStory {
   dedicationName: string | null;
 
   coverImageUrl: string;
+
+  /** Internal illustration style ID chosen by the caregiver (Phase 6+). */
+  selectedIllustrationStyle?: IllustrationStyleId;
 
   generationStatus: StoryGenerationStatus;
   totalPages: number;

@@ -26,8 +26,11 @@ import {
   createDirectPurchasePreview,
   generatePreview,
   getPreviewPersonalization,
+  waitForPreviewReady,
   type AgeGroup,
   FreePreviewAlreadyUsedError,
+  PreviewGenerationFailedError,
+  PreviewGenerationTimeoutError,
 } from "../api/caregiverApi";
 import { usePreviewQuota } from "../hooks/usePreviewQuota";
 import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
@@ -64,6 +67,12 @@ const VISUAL_STYLES = [
 ];
 
 const FORM_STEP_COUNT = 4;
+const LOADING_MESSAGE_KEYS = [
+  "personalize.loading.message1",
+  "personalize.loading.message2",
+  "personalize.loading.message3",
+  "personalize.loading.message4",
+] as const;
 const ACCEPTED_MIME = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
 const ACCEPTED_EXTENSIONS = ".jpg,.jpeg,.png,.webp";
 const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10MB (must match server multer limit)
@@ -524,6 +533,90 @@ function ProgressBar({
   );
 }
 
+function GenerationOverlay({
+  ready,
+  messageKey,
+  t,
+}: {
+  ready: boolean;
+  messageKey: string;
+  t: (key: string, params?: Record<string, string | number>) => string;
+}) {
+  return (
+    <Box
+      role="status"
+      aria-live="polite"
+      aria-busy={!ready}
+      sx={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 30,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        textAlign: "center",
+        p: { xs: 3, md: 4 },
+        background: "rgba(28,17,24,0.94)",
+        backdropFilter: "blur(4px)",
+      }}
+    >
+      <Box sx={{ maxWidth: 340, width: "100%" }}>
+        <Typography sx={{ fontSize: 44, mb: 2 }} aria-hidden="true">
+          {ready ? "✨" : "🌙"}
+        </Typography>
+
+        {!ready && (
+          <CircularProgress
+            size={40}
+            thickness={4}
+            sx={{ color: "#B07A8A", mb: 3, display: "block", mx: "auto" }}
+            aria-hidden="true"
+          />
+        )}
+
+        <Typography
+          sx={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: 24,
+            fontWeight: 400,
+            fontStyle: "italic",
+            color: "#fff",
+            mb: 1.5,
+          }}
+        >
+          {ready ? t("personalize.loading.successTitle") : t("personalize.loading.title")}
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: 13,
+            color: "rgba(255,255,255,0.6)",
+            lineHeight: 1.7,
+            mb: ready ? 0 : 2.5,
+          }}
+        >
+          {ready ? t("personalize.loading.successSubtitle") : t("personalize.loading.subtitle")}
+        </Typography>
+
+        {!ready && (
+          <Typography
+            key={messageKey}
+            sx={{
+              fontSize: 12,
+              color: "#d4a8b4",
+              fontWeight: 500,
+              minHeight: 18,
+              animation: "stepEnter 0.4s ease forwards",
+            }}
+          >
+            {t(messageKey)}
+          </Typography>
+        )}
+      </Box>
+    </Box>
+  );
+}
+
 function StepHeader({ eyebrow, heading }: { eyebrow: string; heading: React.ReactNode }) {
   return (
     <>
@@ -580,6 +673,9 @@ export default function PersonalizeStoryPage() {
 
   const [story, setStory] = useState<StoryTemplate | null>(null);
   const [loading, setLoading] = useState(true);
+  const [eligibility, setEligibility] = useState<
+    "loading" | "ok" | "not_active" | "not_personalizable" | "not_ready"
+  >("loading");
   const [activeStep, setActiveStep] = useState(0);
   const [personalization, setPersonalization] = useState<Partial<StoryPersonalizationData>>({
     childName: "",
@@ -594,6 +690,8 @@ export default function PersonalizeStoryPage() {
   const [childNameBlurred, setChildNameBlurred] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [previewReady, setPreviewReady] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const { quota, loading: quotaLoading, refetch: refetchQuota } = usePreviewQuota();
   const [skipPreviewMode, setSkipPreviewMode] = useState(false);
@@ -608,6 +706,17 @@ export default function PersonalizeStoryPage() {
       setSkipPreviewMode(true);
     }
   }, [quota?.hasUsedPreview]);
+
+  useEffect(() => {
+    if (!isSaving || previewReady) {
+      setLoadingMessageIndex(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setLoadingMessageIndex((i) => (i + 1) % LOADING_MESSAGE_KEYS.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, [isSaving, previewReady]);
 
   const styleDisplay = useMemo(
     () => [
@@ -696,6 +805,42 @@ export default function PersonalizeStoryPage() {
         }
 
         const data = storySnap.data();
+
+        // Eligibility check order (conservative; all conditions must pass for "ok").
+        const isActive = data.isActive !== false && data.status === "approved";
+        if (!isActive) {
+          setEligibility("not_active");
+          setLoading(false);
+          return;
+        }
+        if (data.personalizationEnabled !== true) {
+          setEligibility("not_personalizable");
+          setLoading(false);
+          return;
+        }
+        // The wizard requires text AND visual personalization to both be ready.
+        // Text readiness is derived from actual page data — not the stale flag.
+        const pages: unknown[] = Array.isArray(data.pages) ? data.pages : [];
+        const textReady = pages.length > 0 && pages.every((page) => {
+          const tt = (page as Record<string, unknown>).textTemplate as { masculine?: string; feminine?: string } | null | undefined;
+          const masc = tt?.masculine;
+          const fem  = tt?.feminine;
+          return (
+            typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
+            typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
+          );
+        });
+        if (
+          !textReady ||
+          data.visualPersonalizationEnabled !== true ||
+          data.visualPersonalizationReady !== true
+        ) {
+          setEligibility("not_ready");
+          setLoading(false);
+          return;
+        }
+
+        setEligibility("ok");
         setStory({
           id: storySnap.id,
           title: data.title || t("personalize.story"),
@@ -840,6 +985,7 @@ export default function PersonalizeStoryPage() {
     setShowFinalError(false);
     setIsSaving(true);
     setSaveError(null);
+    setPreviewReady(false);
 
     const completePersonalization: StoryPersonalizationData = {
       childName: personalization.childName!,
@@ -861,6 +1007,7 @@ export default function PersonalizeStoryPage() {
           childGender: completePersonalization.gender,
           childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
           photoFile: completePersonalization.photoFile!,
+          selectedIllustrationStyle: completePersonalization.visualStyle,
         });
         setDirectPurchaseResult({
           previewId,
@@ -884,20 +1031,38 @@ export default function PersonalizeStoryPage() {
         childGender: completePersonalization.gender,
         childAgeGroup: completePersonalization.childAgeGroup ?? "6_9",
         photoFile: completePersonalization.photoFile!,
+        selectedIllustrationStyle: completePersonalization.visualStyle,
       });
-      console.log("[handleComplete] Preview API succeeded ✅", result);
+      console.log("[handleComplete] Preview API succeeded ✅, waiting for images...", result);
       try {
         localStorage.setItem(`dammah.preview.${storyId}`, result.previewId);
       } catch {
         // Non-critical: reader can still fall back to query param only.
       }
 
+      // The server returns as soon as the photo is uploaded — well before the
+      // personalized illustrations exist. Wait for generationStatus to reach
+      // "completed" so the reader never opens on template/placeholder images.
+      await waitForPreviewReady(result.previewId);
+      console.log("[handleComplete] Preview images ready ✅");
+
+      setPreviewReady(true);
+      await new Promise((resolve) => setTimeout(resolve, 700));
       navigate(`/stories/${storyId}/read?previewId=${encodeURIComponent(result.previewId)}`);
     } catch (err) {
       console.error("[handleComplete] Preview generation failed ❌", err);
+      setPreviewReady(false);
       if (err instanceof FreePreviewAlreadyUsedError) {
         setSaveError(err.message);
         void refetchQuota();
+        return;
+      }
+      if (err instanceof PreviewGenerationTimeoutError) {
+        setSaveError(t("personalize.previewGenerationTimeout"));
+        return;
+      }
+      if (err instanceof PreviewGenerationFailedError) {
+        setSaveError(t("personalize.previewImageGenerationFailed"));
         return;
       }
       setSaveError(t("personalize.previewGenerationFailed"));
@@ -1001,6 +1166,42 @@ export default function PersonalizeStoryPage() {
         }}
       >
         <CircularProgress />
+      </Box>
+    );
+  }
+
+  // Eligibility block: show a clear message and prevent access to the wizard.
+  if (eligibility !== "ok" && eligibility !== "loading") {
+    const messageKey =
+      eligibility === "not_active"
+        ? "personalize.notAvailable.notActive"
+        : eligibility === "not_personalizable"
+        ? "personalize.notAvailable.notPersonalizable"
+        : "personalize.notAvailable.notReady";
+    return (
+      <Box
+        dir={direction}
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 3,
+          p: 4,
+          textAlign: "center",
+        }}
+      >
+        <Typography sx={{ fontSize: "18px", fontWeight: 600, color: "#333" }}>
+          {t(messageKey)}
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={() => navigate("/books")}
+          sx={{ textTransform: "none", borderRadius: "10px", fontWeight: 600 }}
+        >
+          {t("personalize.notAvailable.backToLibrary")}
+        </Button>
       </Box>
     );
   }
@@ -1246,6 +1447,14 @@ export default function PersonalizeStoryPage() {
             mx: "auto",
           }}
         >
+          {(isSaving || previewReady) && (
+            <GenerationOverlay
+              ready={previewReady}
+              messageKey={LOADING_MESSAGE_KEYS[loadingMessageIndex]!}
+              t={t}
+            />
+          )}
+
           <LeftPanel story={story} personalization={personalization} language={language} t={t} />
 
           <Box sx={{ background: "#fff", display: "flex", flexDirection: "column" }}>
@@ -2077,16 +2286,45 @@ export default function PersonalizeStoryPage() {
                       },
                     }}
                   >
-                    {isSaving
-                      ? t("personalize.saving")
-                      : skipPreviewMode || quota?.hasUsedPreview
-                        ? t("personalize.continueWithoutPreview")
-                        : t("personalize.startStory")}
+                    {isSaving ? (
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1.5 }}>
+                        <CircularProgress size={16} thickness={5} sx={{ color: "#fff" }} aria-hidden="true" />
+                        {t("personalize.saving")}
+                      </Box>
+                    ) : skipPreviewMode || quota?.hasUsedPreview ? (
+                      t("personalize.continueWithoutPreview")
+                    ) : (
+                      t("personalize.startStory")
+                    )}
                   </Button>
                   {saveError && (
-                    <Typography color="error" variant="caption" sx={{ mt: 1, display: "block" }}>
-                      {saveError}
-                    </Typography>
+                    <Box
+                      role="alert"
+                      sx={{
+                        mt: 2,
+                        p: 2,
+                        borderRadius: 2,
+                        backgroundColor: "error.light",
+                        border: "1px solid",
+                        borderColor: "error.main",
+                      }}
+                    >
+                      <Typography variant="body2" color="error" sx={{ fontWeight: 500, mb: 0.5 }}>
+                        {saveError}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: "#7a2a2a", display: "block", mb: 1.5 }}>
+                        {t("personalize.errorKeepInfo")}
+                      </Typography>
+                      <Button
+                        onClick={handleComplete}
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        sx={{ textTransform: "none", fontWeight: 600, borderRadius: 2 }}
+                      >
+                        {t("personalize.errorTryAgain")}
+                      </Button>
+                    </Box>
                   )}
                 </Box>
               ) : (

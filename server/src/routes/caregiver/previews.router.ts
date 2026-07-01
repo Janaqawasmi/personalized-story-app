@@ -6,8 +6,10 @@ import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
 import {
   createDirectPurchasePreview,
   generatePreview,
+  isPreviewQuotaEnabled,
   PreviewQuotaError,
 } from "../../services/preview.service";
+import { isValidIllustrationStyleId } from "../../shared/types/visualStyles";
 import multer from "multer";
 
 const router = Router();
@@ -95,10 +97,12 @@ router.get("/quota", requireAuth, async (req: Request, res: Response): Promise<v
       }
     }
 
+    const quotaEnabled = isPreviewQuotaEnabled();
+
     res.status(200).json({
       success: true,
       data: {
-        hasUsedPreview: c.freePreviewUsed === true && c.unlimitedPreviews !== true,
+        hasUsedPreview: quotaEnabled && c.freePreviewUsed === true && c.unlimitedPreviews !== true,
         existingPreviewId: (c.freePreviewId as string | undefined) ?? null,
         existingTemplateId,
         status: (c.freePreviewStatus as string | undefined) ?? null,
@@ -137,12 +141,13 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.user!.uid;
-      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
+      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName, selectedIllustrationStyle } = req.body as {
         templateId?: string;
         childFirstName?: string;
         childGender?: string;
         childAgeGroup?: string;
         dedicationName?: string;
+        selectedIllustrationStyle?: string;
       };
 
       if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
@@ -177,6 +182,14 @@ router.post(
         return;
       }
 
+      if (selectedIllustrationStyle !== undefined && !isValidIllustrationStyleId(selectedIllustrationStyle)) {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_ILLUSTRATION_STYLE", message: "Invalid illustration style." },
+        });
+        return;
+      }
+
       const result = await generatePreview({
         caregiverUid,
         templateId,
@@ -186,6 +199,7 @@ router.post(
         ...(dedicationName ? { dedicationName: String(dedicationName) } : {}),
         photoBuffer: req.file.buffer,
         photoMimeType: req.file.mimetype,
+        ...(selectedIllustrationStyle !== undefined ? { selectedIllustrationStyle } : {}),
       });
 
       res.status(202).json({ success: true, data: result });
@@ -204,6 +218,24 @@ router.post(
         }
         if (err.code === "TEMPLATE_NOT_FOUND" || err.code === "TEMPLATE_INACTIVE") {
           res.status(404).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (
+          err.code === "PERSONALIZATION_DISABLED" ||
+          err.code === "TEXT_PERSONALIZATION_NOT_READY" ||
+          err.code === "VISUAL_PERSONALIZATION_NOT_READY"
+        ) {
+          res.status(422).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (err.code === "INVALID_ILLUSTRATION_STYLE") {
+          res.status(400).json({
             success: false,
             error: { code: err.code, message: err.message },
           });
@@ -244,12 +276,13 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.user!.uid;
-      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName } = req.body as {
+      const { templateId, childFirstName, childGender, childAgeGroup, dedicationName, selectedIllustrationStyle } = req.body as {
         templateId?: string;
         childFirstName?: string;
         childGender?: string;
         childAgeGroup?: string;
         dedicationName?: string;
+        selectedIllustrationStyle?: string;
       };
 
       if (!templateId || !childFirstName || !childGender || !childAgeGroup) {
@@ -284,6 +317,14 @@ router.post(
         return;
       }
 
+      if (selectedIllustrationStyle !== undefined && !isValidIllustrationStyleId(selectedIllustrationStyle)) {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_ILLUSTRATION_STYLE", message: "Invalid illustration style." },
+        });
+        return;
+      }
+
       const result = await createDirectPurchasePreview({
         caregiverUid,
         templateId,
@@ -293,6 +334,7 @@ router.post(
         ...(dedicationName ? { dedicationName: String(dedicationName) } : {}),
         photoBuffer: req.file.buffer,
         photoMimeType: req.file.mimetype,
+        ...(selectedIllustrationStyle !== undefined ? { selectedIllustrationStyle } : {}),
       });
 
       res.status(201).json({ success: true, data: result });
@@ -300,6 +342,24 @@ router.post(
       if (err instanceof PreviewQuotaError) {
         if (err.code === "TEMPLATE_NOT_FOUND" || err.code === "TEMPLATE_INACTIVE") {
           res.status(404).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (
+          err.code === "PERSONALIZATION_DISABLED" ||
+          err.code === "TEXT_PERSONALIZATION_NOT_READY" ||
+          err.code === "VISUAL_PERSONALIZATION_NOT_READY"
+        ) {
+          res.status(422).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+        if (err.code === "INVALID_ILLUSTRATION_STYLE") {
+          res.status(400).json({
             success: false,
             error: { code: err.code, message: err.message },
           });
@@ -436,13 +496,14 @@ router.post(
       await file.save(req.file.buffer, { metadata: { contentType: req.file.mimetype } });
 
       const now = new Date().toISOString();
-      const retainUntil = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+      const photoExpiresAt = Date.now() + 48 * 60 * 60 * 1000; // 48h retention
 
       await previewDoc.ref.update({
         photoPath: storagePath,
         photoStatus: "uploaded",
         photoUploadedAt: now,
-        photoRetainUntil: retainUntil,
+        photoRetainUntil: new Date(photoExpiresAt).toISOString(),
+        childPhotoExpiresAt: photoExpiresAt,
         updatedAt: admin.firestore.Timestamp.now(),
       });
 

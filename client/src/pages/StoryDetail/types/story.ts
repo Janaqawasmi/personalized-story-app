@@ -40,6 +40,43 @@ export interface StoryDetailVM {
   /** First pages from Firestore — used only to fill preview text when CMS spread text is empty. */
   templatePages?: StoryTemplatePageVM[];
   storyLanguage?: string;
+  /**
+   * Author/specialist intent: story supports personalization in general.
+   * Defaults to false for pre-Phase-1 templates.
+   * When false the story is permanently "fixed" — show the Fixed story chip.
+   */
+  personalizationEnabled: boolean;
+  /**
+   * @deprecated No longer used as a CTA gate.
+   * Text readiness is derived from `hasValidTextTemplates` instead, which
+   * inspects the actual page data so that stories with valid templates are
+   * never blocked by a stale flag.
+   */
+  textPersonalizationReady: boolean;
+  /**
+   * Derived: true when every page has non-empty masculine + feminine
+   * textTemplate strings each containing `{{CHILD_NAME}}`.
+   * Computed in mapFirestoreToStoryDetailVM from `pages[]` — never stored.
+   */
+  hasValidTextTemplates: boolean;
+  /**
+   * Author/specialist intent: story supports child-photo-based visual personalization.
+   * Intent flag only — does NOT mean the technical data is ready.
+   * Defaults to false.
+   */
+  visualPersonalizationEnabled: boolean;
+  /**
+   * Technical gate: Visual Bible + structured prompts captured at publish time.
+   * Defaults to false.
+   */
+  visualPersonalizationReady: boolean;
+  /**
+   * Derived: true only when the full wizard flow (name + photo) can run end-to-end.
+   * Computed in mapFirestoreToStoryDetailVM — never stored in Firestore.
+   *   = personalizationEnabled && hasValidTextTemplates
+   *     && visualPersonalizationEnabled && visualPersonalizationReady
+   */
+  canStartPersonalization: boolean;
 }
 
 export interface RelatedStoryCardVM {

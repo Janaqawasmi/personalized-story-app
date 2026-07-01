@@ -1,6 +1,19 @@
 import { Timestamp } from "firebase-admin/firestore";
 
-export type PurchaseStatus = "pending" | "paid" | "generation_in_progress" | "completed" | "failed" | "refunded";
+export type PurchaseStatus =
+  | "pending"
+  | "paid"
+  | "generation_in_progress"
+  | "completed"
+  /**
+   * Some story pages failed after retry. The story is NOT accessible.
+   * The raw child photo is retained until `photoRetainUntil` to allow a
+   * manual or automated retry. Purchase is not "completed" until the story
+   * is fully usable.
+   */
+  | "generation_partially_failed"
+  | "failed"
+  | "refunded";
 
 export interface Purchase {
   purchaseId: string;

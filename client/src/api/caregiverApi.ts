@@ -134,6 +134,28 @@ export interface StoryLibraryItem {
   createdAt: unknown;
 }
 
+export type StoryGenerationStatus =
+  | "pending"
+  | "in_progress"
+  | "completed"
+  | "partially_failed"
+  | "failed";
+
+export interface PurchasedStoryItem {
+  storyId: string;
+  templateId: string;
+  templateTitle: string;
+  coverImageUrl: string | null;
+  childFirstName: string;
+  childGender: Gender;
+  language: "ar" | "he";
+  totalPages: number;
+  pagesCompleted: number;
+  generationStatus: StoryGenerationStatus;
+  isAccessible: boolean;
+  createdAt: unknown;
+}
+
 export interface PersonalizedStoryData {
   storyId: string;
   caregiverUid: string;
@@ -267,6 +289,7 @@ export async function generatePreview(input: {
   childAgeGroup: AgeGroup;
   dedicationName?: string | null;
   photoFile: File;
+  selectedIllustrationStyle?: string;
 }): Promise<{ previewId: string; status: string }> {
   const headers = await getAuthHeadersForUpload();
 
@@ -277,6 +300,9 @@ export async function generatePreview(input: {
   formData.append("childAgeGroup", input.childAgeGroup);
   if (input.dedicationName) {
     formData.append("dedicationName", input.dedicationName);
+  }
+  if (input.selectedIllustrationStyle) {
+    formData.append("selectedIllustrationStyle", input.selectedIllustrationStyle);
   }
   formData.append("photo", input.photoFile);
 
@@ -358,6 +384,7 @@ export async function createDirectPurchasePreview(input: {
   childAgeGroup: AgeGroup;
   photoFile: File;
   dedicationName?: string | null;
+  selectedIllustrationStyle?: string;
 }): Promise<{ previewId: string }> {
   const headers = await getAuthHeadersForUpload();
   const formData = new FormData();
@@ -365,6 +392,9 @@ export async function createDirectPurchasePreview(input: {
   formData.append("childFirstName", input.childFirstName);
   formData.append("childGender", input.childGender);
   formData.append("childAgeGroup", input.childAgeGroup);
+  if (input.selectedIllustrationStyle) {
+    formData.append("selectedIllustrationStyle", input.selectedIllustrationStyle);
+  }
   if (input.dedicationName) {
     formData.append("dedicationName", input.dedicationName);
   }
@@ -433,6 +463,68 @@ export async function getPreview(previewId: string): Promise<PreviewData> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/caregiver/previews/${previewId}`, { headers });
   return handleResponse<PreviewData>(res);
+}
+
+/**
+ * Raised when `waitForPreviewReady` observes `generationStatus === "failed"`
+ * on the polled preview document.
+ */
+export class PreviewGenerationFailedError extends Error {
+  constructor(public reason?: string | null) {
+    super(reason || "Preview image generation failed.");
+    this.name = "PreviewGenerationFailedError";
+  }
+}
+
+/** Raised when `waitForPreviewReady` exceeds its polling deadline. */
+export class PreviewGenerationTimeoutError extends Error {
+  constructor() {
+    super("Preview generation is taking longer than expected.");
+    this.name = "PreviewGenerationTimeoutError";
+  }
+}
+
+/**
+ * `POST /previews/generate` kicks off image generation asynchronously on the
+ * server and returns as soon as the child photo is uploaded — well before the
+ * personalized illustrations exist. Polls `GET /previews/:previewId` (which
+ * reflects `storyPreviews/{previewId}.generationStatus` and each page's
+ * `generatedImagePath`) until generation is `"completed"` (or `"skipped"`,
+ * used by the no-AI direct-purchase path) so callers never navigate the
+ * caregiver to the reader while illustrations are still being generated.
+ */
+export async function waitForPreviewReady(
+  previewId: string,
+  opts?: { intervalMs?: number; timeoutMs?: number }
+): Promise<PreviewData> {
+  const intervalMs = opts?.intervalMs ?? 2000;
+  const timeoutMs = opts?.timeoutMs ?? 120000;
+  const deadline = Date.now() + timeoutMs;
+
+  while (true) {
+    let preview: PreviewData | null = null;
+    try {
+      preview = await getPreview(previewId);
+    } catch (err) {
+      // Transient network/read failure — keep polling until the deadline.
+      console.warn("[waitForPreviewReady] poll failed, retrying:", err);
+    }
+
+    if (preview) {
+      if (preview.generationStatus === "completed" || preview.generationStatus === "skipped") {
+        return preview;
+      }
+      if (preview.generationStatus === "failed") {
+        throw new PreviewGenerationFailedError(preview.failureReason);
+      }
+    }
+
+    if (Date.now() >= deadline) {
+      throw new PreviewGenerationTimeoutError();
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
 }
 
 // ============================================================================
@@ -504,6 +596,16 @@ export async function checkout(input: {
 // ============================================================================
 // Stories API
 // ============================================================================
+
+/**
+ * Get all of the caregiver's personalized story records (any generation status).
+ * Use `generationStatus` + `isAccessible` to render different UI states.
+ */
+export async function getPurchasedStories(): Promise<PurchasedStoryItem[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/caregiver/stories/purchased`, { headers });
+  return handleResponse<PurchasedStoryItem[]>(res);
+}
 
 /**
  * Get the caregiver's library of completed personalized stories.

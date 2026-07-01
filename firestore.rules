@@ -49,6 +49,19 @@ service cloud.firestore {
       // Admin dashboard (client) can update review workflow; otherwise server SDK
       allow create, delete: if false;
       allow update: if isSpecialistOrAdmin();
+
+      // Text variant review docs — admin or the specialist who owns this template only.
+      // "Owner" is determined by story_templates/{templateId}.specialistId.
+      // Caregivers and unrelated specialists are explicitly denied.
+      // The server API (Admin SDK) manages all writes; the specialist client reads
+      // through the REST endpoint, not directly — so direct client reads are an
+      // emergency fallback only.
+      match /textVariants/{pageNumber} {
+        allow read: if isAdmin()
+          || (isSpecialist()
+              && get(/databases/$(database)/documents/story_templates/$(templateId)).data.specialistId == request.auth.uid);
+        allow write: if false;
+      }
     }
 
     // ────────────────────────────────────────────────────

@@ -17,6 +17,14 @@ export type PreviewStatus =
   | "added_to_cart"
   | "purchased"
   | "converted"
+  /**
+   * Full story generation finished but some pages failed after retry.
+   * The raw child photo is retained until `photoRetainUntil` (extended at
+   * generation start). The preview document is kept so support/retry tooling
+   * can look up the `personalizedStoryId` and `purchaseId` relationship.
+   * Cleanup Job 6 removes these previews after the support window (30 days).
+   */
+  | "generation_partially_failed"
   | "expired";
 
 export interface PreviewPage {
@@ -75,6 +83,24 @@ export interface StoryPreview {
   expiresAt: string | null;
   purchaseId: string | null;
   personalizedStoryId: string | null;
+
+  // --- Personalization metadata (Phase 4+) ---
+  /** Internal illustration style ID chosen by the caregiver. */
+  selectedIllustrationStyle?: string;
+  /**
+   * ms-since-epoch when the child photo expires (48h TTL from upload).
+   *
+   * Both `photoRetainUntil` (ISO string) and `childPhotoExpiresAt` (ms-epoch)
+   * represent the same instant — they are always derived from the same computed
+   * value at write time so they can never drift.
+   *
+   * `photoRetainUntil` predates Phase 4 and is used by the cleanup service
+   * Firestore queries (`where("photoRetainUntil", "<", nowIso)`).
+   * `childPhotoExpiresAt` is the ms-epoch form added for Phase 4 consistency
+   * with the project-wide convention (CLAUDE.md §6) and for future numeric
+   * range queries in Phase 5+ image generation services.
+   */
+  childPhotoExpiresAt?: number;
 
   createdAt: Timestamp;
   updatedAt: Timestamp;

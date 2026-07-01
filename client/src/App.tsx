@@ -20,6 +20,7 @@ import SpecialistLayout from "./components/specialist/SpecialistLayout";
 import SpecialistStoriesPage from "./specialist/pages/SpecialistStoriesPage";
 import NewStoryRedirect from "./specialist/pages/NewStoryRedirect";
 import StoryWorkspacePage from "./specialist/pages/StoryWorkspacePage";
+import TextVariantsReviewPage from "./specialist/pages/TextVariantsReviewPage";
 import IllustrationDebugPage from "./specialist/pages/IllustrationDebugPage";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -140,6 +141,7 @@ function AppContent() {
               <Route path="stories/:storyId/illustration/debug" element={<IllustrationDebugPage />} />
               <Route path="stories/:storyId" element={<StoryWorkspacePage />} />
               <Route path="stories/:storyId/:tab" element={<StoryWorkspacePage />} />
+              <Route path="templates/:templateId/text-variants" element={<TextVariantsReviewPage />} />
             </Route>
           </Route>
 

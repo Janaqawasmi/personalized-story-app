@@ -12,6 +12,25 @@ export const COLLECTIONS = {
   STORY_IMAGES: "images",
   STORY_ILLUSTRATION_JOBS: "illustrationJobs",
 
+  /**
+   * Subcollection under story_templates/{id} that stores the art-direction
+   * snapshot when it is too large to embed inline on the template document.
+   * Written by publishStory when the inline snapshot exceeds INLINE_SIZE_LIMIT.
+   * Read by Phase 5+ personalized image generation.
+   *
+   * Key doc: "snapshot" — contains the full ArtDirectionSnapshot.
+   */
+  TEMPLATE_PERSONALIZATION_ARTEFACTS: "personalizationArtefacts",
+
+  /**
+   * Subcollection under story_templates/{id} for text variant review (Phase 3).
+   * One doc per page, keyed by pageNumber (e.g. "1", "2", …).
+   * Contains masculine/feminine variants pending specialist review.
+   * On finalize the approved content is merged into the template's pages[] and
+   * textPersonalizationReady is flipped to true.
+   */
+  TEMPLATE_TEXT_VARIANTS: "textVariants",
+
   cart: (caregiverUid: string) => `caregivers/${caregiverUid}/cart`,
   purchases: (caregiverUid: string) => `caregivers/${caregiverUid}/purchases`,
 } as const;

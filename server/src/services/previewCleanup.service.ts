@@ -241,6 +241,65 @@ export async function cleanupPreviews(): Promise<CleanupReport> {
     console.error("Job5 failed:", e);
   }
 
+  // ---------------------------------------------------------------
+  // JOB 6: Delete generation_partially_failed previews after the support
+  //         window (30 days since the preview was last updated).
+  //
+  //         These previews were NOT marked "converted" so Job 3 left them
+  //         alone. After 30 days the support/retry window has passed;
+  //         clean up the preview document and any preview illustrations.
+  //
+  //         The raw child photo is already handled by Job 1 (it keeps
+  //         photoStatus === "preview_used" and is deleted after photoRetainUntil,
+  //         which is typically 24–48 h after generation started — long before
+  //         the 30-day window here).
+  // ---------------------------------------------------------------
+  const cutoffPartiallyFailedTs = admin.firestore.Timestamp.fromMillis(
+    Date.now() - 30 * 24 * 60 * 60 * 1000
+  );
+  try {
+    const partiallyFailedPreviews = await db
+      .collection(COLLECTIONS.STORY_PREVIEWS)
+      .where("status", "==", "generation_partially_failed")
+      .where("updatedAt", "<", cutoffPartiallyFailedTs)
+      .get();
+
+    for (const doc of partiallyFailedPreviews.docs) {
+      const data = doc.data() as any;
+      const caregiverUid = data.caregiverUid as string;
+      const previewId = doc.id;
+      const photoPath = (data.photoPath as string | null) ?? null;
+      const illustrationPrefix = storagePrefixForPreview(caregiverUid, previewId);
+
+      try {
+        const [files] = await bucket.getFiles({ prefix: illustrationPrefix });
+        for (const f of files) {
+          await f.delete();
+        }
+
+        // Safety: delete raw photo if still present (Job 1 should have done this,
+        // but handle stragglers so biometric data is never retained past 30 days).
+        if (photoPath) {
+          const file = bucket.file(photoPath);
+          const [exists] = await file.exists();
+          if (exists) {
+            await file.delete();
+            report.photosDeleted += 1;
+          }
+        }
+
+        await doc.ref.delete();
+        report.previewsDeleted += 1;
+      } catch (e) {
+        report.errors += 1;
+        console.error(`Job6: Failed to delete generation_partially_failed preview ${previewId}:`, e);
+      }
+    }
+  } catch (e) {
+    report.errors += 1;
+    console.error("Job6 failed:", e);
+  }
+
   return report;
 }
 

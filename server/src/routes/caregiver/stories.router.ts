@@ -6,6 +6,60 @@ import { COLLECTIONS } from "../../shared/firestore/paths";
 const router = Router();
 
 /**
+ * GET /api/caregiver/stories/purchased
+ *
+ * Returns ALL of the caregiver's personalized story records (any generation
+ * status) for the "My Stories → Purchased" tab. The client uses `generationStatus`
+ * and `isAccessible` to render different states:
+ *   - completed + isAccessible=true → show "Read" button
+ *   - in_progress / generating     → "Being prepared..."
+ *   - partially_failed              → "Needs support"
+ *   - failed                        → "Generation failed"
+ *
+ * No purchase validation is done here — the caller is the authenticated owner.
+ * Full pages are excluded (field mask).
+ */
+router.get(
+  "/purchased",
+  requireCaregiverAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const caregiverUid = req.caregiverUser!.uid;
+
+      const snapshot = await db
+        .collection(COLLECTIONS.PERSONALIZED_STORIES)
+        .where("caregiverUid", "==", caregiverUid)
+        .orderBy("createdAt", "desc")
+        .select(
+          "storyId",
+          "templateTitle",
+          "coverImageUrl",
+          "childFirstName",
+          "childGender",
+          "language",
+          "totalPages",
+          "pagesCompleted",
+          "generationStatus",
+          "isAccessible",
+          "createdAt",
+          "templateId"
+        )
+        .get();
+
+      const stories = snapshot.docs.map((doc) => ({
+        storyId: doc.id,
+        ...doc.data(),
+      }));
+
+      res.status(200).json({ success: true, data: stories });
+    } catch (error) {
+      console.error("Get purchased stories error:", error);
+      res.status(500).json({ success: false, error: "Failed to retrieve purchased stories" });
+    }
+  }
+);
+
+/**
  * GET /api/caregiver/stories/library
  *
  * Returns the caregiver's library of completed personalized stories.
