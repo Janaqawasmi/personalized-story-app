@@ -17,6 +17,14 @@ export type PreviewStatus =
   | "added_to_cart"
   | "purchased"
   | "converted"
+  /**
+   * Full story generation finished but some pages failed after retry.
+   * The raw child photo is retained until `photoRetainUntil` (extended at
+   * generation start). The preview document is kept so support/retry tooling
+   * can look up the `personalizedStoryId` and `purchaseId` relationship.
+   * Cleanup Job 6 removes these previews after the support window (30 days).
+   */
+  | "generation_partially_failed"
   | "expired";
 
 export interface PreviewPage {

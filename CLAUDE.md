@@ -205,7 +205,7 @@ All caregiver routes are gated by `requireCaregiverAuth` (custom-claim `role ===
 The personalization-to-purchase flow:
 1. Caregiver opens a story's `PersonalizeStoryPage`, picks name + gender + age band + visual style + photo.
 2. Client calls `/api/caregiver/previews/generate` (multer-handled multipart). Server runs [generatePreview](server/src/services/preview.service.ts) — produces the first two pages via the registered `ImageGenerationProvider`, stores illustrations + the personalized text.
-3. Free-preview quota: **1 free preview per caregiver** (`MAX_PREVIEWS_PER_USER = 1`, enforced in Firestore rules and in [server/src/services/preview.service.ts](server/src/services/preview.service.ts)). Subsequent previews go through the "direct purchase" path.
+3. Free-preview quota: **1 free preview per caregiver** (`MAX_PREVIEWS_PER_USER = 1`, enforced in Firestore rules and in [server/src/services/preview.service.ts](server/src/services/preview.service.ts)). Subsequent previews go through the "direct purchase" path. Enforcement is gated behind `PREVIEW_QUOTA_ENABLED` (`isPreviewQuotaEnabled()` in preview.service.ts) — set to `false` (the pre-launch default) to let every submission call `generatePreview` regardless of prior usage; set to `true` to restore the one-free-preview limit for launch.
 4. Caregiver adds to cart and checks out. Checkout creates a `Purchase` and calls [generateFullStory](server/src/services/fullStoryGeneration.service.ts), which reuses the preview's first two pages and generates the remaining pages with concurrency limit 3, retrying failed pages once.
 5. The child photo is deleted from Storage 24h after generation.
 

@@ -179,10 +179,11 @@ export interface StoryTemplate {
   personalizationEnabled?: boolean;
 
   /**
-   * true when gendered text variants (masculine/feminine) with `{{CHILD_NAME}}`
-   * exist for every page AND have been reviewed by the publishing specialist.
-   * Gates text personalization in the API and UI.
-   * Set to false at publish; flipped to true by the Phase 3 specialist review step.
+   * @deprecated No longer used as a hard gate for personalization.
+   * The API and UI now derive text readiness from the actual page data:
+   * every page must have non-empty `textTemplate.masculine` and
+   * `textTemplate.feminine` strings each containing `{{CHILD_NAME}}`.
+   * This flag is kept as legacy metadata; do not use it for gating logic.
    */
   textPersonalizationReady?: boolean;
 

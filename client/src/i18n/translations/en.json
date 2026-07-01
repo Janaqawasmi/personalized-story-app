@@ -355,7 +355,14 @@
       "purchased": {
         "emptyTitle": "No purchased stories yet",
         "emptyBody": "When you buy a full story it will appear here.",
-        "browseCta": "Browse stories"
+        "browseCta": "Browse stories",
+        "readCta": "Read story",
+        "readingLabel": "Read story",
+        "generatingLabel": "Your story is being prepared...",
+        "partiallyFailedLabel": "Story generation needs support. Please contact us.",
+        "failedLabel": "Story generation failed. Please contact us.",
+        "contactSupport": "Contact support",
+        "pagesProgress": "{completed} of {total} pages"
       },
       "previews": {
         "emptyTitle": "No saved previews yet",
@@ -522,6 +529,20 @@
     "startStory": "Start Story",
     "continueWithoutPreview": "Continue to story",
     "previewGenerationFailed": "Something went wrong while creating your preview. You can still open the story.",
+    "previewImageGenerationFailed": "We couldn't finish creating the personalized illustrations. Please try again.",
+    "previewGenerationTimeout": "This is taking longer than expected. Please try again in a moment.",
+    "errorTryAgain": "Try again",
+    "errorKeepInfo": "Your details are saved — you can try again without starting over.",
+    "loading": {
+      "title": "Creating your personalized preview…",
+      "subtitle": "This may take a minute while we prepare the story and illustrations.",
+      "message1": "Creating your personalized story preview…",
+      "message2": "Adding your child's name to the story…",
+      "message3": "Preparing personalized illustrations…",
+      "message4": "Almost ready…",
+      "successTitle": "Your preview is ready! ✨",
+      "successSubtitle": "Taking you to the story now…"
+    },
     "previewAlreadyUsed": {
       "title": "You've already created your free preview",
       "body": "Free previews are one per family so we can keep them free for everyone. Your personalized preview is saved whenever you want to revisit it.",
@@ -762,7 +783,11 @@
       "faqReceiveBody": "You receive the full 8-spread story in our digital reader, a PDF download, and lifetime access to your copy.",
       "faqWhoWroteQ": "Who wrote this story?",
       "faqWhoWroteBody": "Each story is written by child-development specialists, reviewed by licensed child psychologists, and aligned with cognitive-behavioral therapy principles."
-    }
+    },
+    "buyThisStoryComingSoon": "Purchase coming soon",
+    "personalizeThisStory": "Personalize this story",
+    "buyThisStory": "Buy this story",
+    "fixedVersionLabel": "Fixed version"
   },
   "backToCatalog": "All Stories",
   "personalizeThisStory": "Personalize This Story",

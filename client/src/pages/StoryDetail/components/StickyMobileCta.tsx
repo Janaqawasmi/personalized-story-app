@@ -6,9 +6,13 @@ interface StickyMobileCtaProps {
   visible: boolean;
   title: string;
   price: string;
+  /** Author intent: story is designed to support personalization in general. */
+  personalizationEnabled: boolean;
   /** Derived: all four gates pass — show the Personalize button. */
   canStartPersonalization: boolean;
   onPersonalize: () => void;
+  /** Called when the user clicks "Buy this story" on a non-personalizable story. */
+  onBuy: () => void;
   onPreviewClick: () => void;
 }
 
@@ -16,8 +20,10 @@ export default function StickyMobileCta({
   visible,
   title,
   price,
+  personalizationEnabled,
   canStartPersonalization,
   onPersonalize,
+  onBuy,
   onPreviewClick,
 }: StickyMobileCtaProps) {
   const t = useTranslation();
@@ -72,6 +78,7 @@ export default function StickyMobileCta({
           {t("preview.preview")}
         </Button>
 
+        {/* State A: personalization ready */}
         {canStartPersonalization && (
           <Button
             variant="contained"
@@ -86,14 +93,36 @@ export default function StickyMobileCta({
               textTransform: "none",
               py: 1,
               px: 1.75,
-              "&:hover": {
-                background: theme.palette.secondary.dark,
-              },
+              "&:hover": { background: theme.palette.secondary.dark },
             }}
           >
-            {t("storyDetail.personalize")}
+            {t("storyDetail.personalizeThisStory")}
           </Button>
         )}
+
+        {/* State B: no personalization — show purchase button */}
+        {!personalizationEnabled && !canStartPersonalization && (
+          <Button
+            variant="contained"
+            disableElevation
+            onClick={onBuy}
+            sx={{
+              background: COLORS.secondary,
+              color: COLORS.surface,
+              fontSize: "13px",
+              fontWeight: 700,
+              borderRadius: "10px",
+              textTransform: "none",
+              py: 1,
+              px: 1.75,
+              "&:hover": { background: theme.palette.secondary.dark },
+            }}
+          >
+            {t("storyDetail.buyThisStory")}
+          </Button>
+        )}
+
+        {/* State C: personalization intended but not ready — no action button shown */}
       </Box>
     </Box>
   );

@@ -355,7 +355,14 @@
       "purchased": {
         "emptyTitle": "אין סיפורים שנרכשו עדיין",
         "emptyBody": "כשתרכוש סיפור מלא, הוא יופיע כאן.",
-        "browseCta": "עיין בסיפורים"
+        "browseCta": "עיין בסיפורים",
+        "readCta": "קרא סיפור",
+        "readingLabel": "קריאת סיפור",
+        "generatingLabel": "הסיפור בהכנה...",
+        "partiallyFailedLabel": "יצירת הסיפור נכשלה חלקית. אנא פנה לתמיכה.",
+        "failedLabel": "יצירת הסיפור נכשלה. אנא פנה לתמיכה.",
+        "contactSupport": "פנה לתמיכה",
+        "pagesProgress": "{completed} מתוך {total} עמודים"
       },
       "previews": {
         "emptyTitle": "אין תצוגות שמורות עדיין",
@@ -522,6 +529,20 @@
     "startStory": "התחל סיפור",
     "continueWithoutPreview": "המשך לסיפור",
     "previewGenerationFailed": "משהו השתבש ביצירת התצוגה המקדימה. עדיין אפשר לפתוח את הסיפור.",
+    "previewImageGenerationFailed": "לא הצלחנו להשלים את יצירת האיורים המותאמים אישית. נסו שוב.",
+    "previewGenerationTimeout": "זה לוקח יותר זמן מהצפוי. נסו שוב בעוד רגע.",
+    "errorTryAgain": "נסה שוב",
+    "errorKeepInfo": "הפרטים שלך נשמרו — אפשר לנסות שוב בלי להתחיל מחדש.",
+    "loading": {
+      "title": "יוצרים את התצוגה המקדימה שלך…",
+      "subtitle": "זה עשוי לקחת דקה בזמן שאנחנו מכינים את הסיפור והאיורים.",
+      "message1": "יוצרים את התצוגה המקדימה המותאמת אישית…",
+      "message2": "מוסיפים את שם הילד/ה לסיפור…",
+      "message3": "מכינים איורים מותאמים אישית…",
+      "message4": "כמעט מוכן…",
+      "successTitle": "התצוגה המקדימה שלך מוכנה! ✨",
+      "successSubtitle": "עוברים לסיפור עכשיו…"
+    },
     "previewAlreadyUsed": {
       "title": "כבר נוצרה לכם תצוגה מקדימה חינמית",
       "body": "תצוגה מקדימה אחת למשפחה — כדי שנוכל להמשיך להציע אותה בחינם לכולם. התצוגה המקודמת שלכם נשמרה.",
@@ -762,7 +783,11 @@
       "faqReceiveBody": "מקבלים את הסיפור המלא ב-8 פריסות בקורא הדיגיטלי, הורדת PDF וגישה לכל החיים.",
       "faqWhoWroteQ": "מי כתב את הסיפור?",
       "faqWhoWroteBody": "הסיפורים נכתבים על ידי מומחי התפתחות הילד, נבדקים על ידי פסיכולוגים לילדים מורשים, ומיושרים לעקרונות CBT."
-    }
+    },
+    "buyThisStoryComingSoon": "רכישה בקרוב",
+    "personalizeThisStory": "התאימו את הסיפור לילד שלכם",
+    "buyThisStory": "רכשו את הסיפור",
+    "fixedVersionLabel": "גרסה קבועה"
   },
   "backToCatalog": "כל הסיפורים",
   "personalizeThisStory": "התאימו את הסיפור",

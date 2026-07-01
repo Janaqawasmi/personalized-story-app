@@ -1,4 +1,4 @@
-import { Box, Button, Chip, IconButton, GlobalStyles, useTheme } from "@mui/material";
+import { Box, Button, Chip, IconButton, GlobalStyles, Typography, useTheme } from "@mui/material";
 import { motion } from "framer-motion";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -12,6 +12,8 @@ import { SDRadii, SDShadows, colorWithAlpha } from "../StoryDetail.styles";
 
 interface CtaRowProps {
   onPersonalize: () => void;
+  /** Called when the user clicks "Buy this story" on a non-personalizable story. */
+  onBuy: () => void;
   onFavoriteToggle: () => void;
   isFavorite: boolean;
   status: string;
@@ -29,6 +31,7 @@ interface CtaRowProps {
 
 export default function CtaRow({
   onPersonalize,
+  onBuy,
   onFavoriteToggle,
   isFavorite,
   status,
@@ -78,26 +81,40 @@ export default function CtaRow({
     </IconButton>
   );
 
-  // Permanently fixed: author never intended this story to support personalization.
+  // State B: story is not designed for personalization — show a purchase CTA.
+  // No fixed-story cart flow exists yet, so the button opens a contact email.
   if (!personalizationEnabled && !comingSoon) {
     return (
-      <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
-        <Chip
-          icon={<LockOutlinedIcon sx={{ fontSize: 15 }} />}
-          label={t("storyDetail.fixedStory")}
-          size="small"
-          sx={{
-            flex: 1,
-            height: 44,
-            borderRadius: SDRadii.cta,
-            border: `1px solid ${COLORS.border}`,
-            backgroundColor: COLORS.surface,
-            color: COLORS.textSecondary,
-            fontSize: "14px",
-            fontWeight: 500,
-            "& .MuiChip-icon": { color: COLORS.textSecondary },
-          }}
-        />
+      <Box sx={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
+          <Button
+            variant="contained"
+            disableElevation
+            onClick={onBuy}
+            sx={{
+              width: "100%",
+              background: COLORS.secondary,
+              color: COLORS.surface,
+              fontSize: "17px",
+              fontWeight: 700,
+              borderRadius: SDRadii.cta,
+              padding: "16px 20px",
+              textTransform: "none",
+              "&:hover": {
+                background: theme.palette.secondary.dark,
+                boxShadow: SDShadows.ctaHover,
+              },
+            }}
+          >
+            {t("storyDetail.buyThisStory")}
+          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: "4px", px: "2px" }}>
+            <LockOutlinedIcon sx={{ fontSize: 12, color: COLORS.textSecondary }} />
+            <Typography sx={{ fontSize: "12px", color: COLORS.textSecondary }}>
+              {t("storyDetail.fixedVersionLabel")}
+            </Typography>
+          </Box>
+        </Box>
         {favoriteButton}
       </Box>
     );
@@ -170,7 +187,7 @@ export default function CtaRow({
           ) : (
             <AutoAwesomeIcon sx={{ fontSize: 18 }} />
           )}
-          {comingSoon ? t("pricing.notifyMe") : t("storyDetail.personalize")}
+          {comingSoon ? t("pricing.notifyMe") : t("storyDetail.personalizeThisStory")}
         </Button>
 
         {favoriteButton}

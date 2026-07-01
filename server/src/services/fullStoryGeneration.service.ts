@@ -9,9 +9,15 @@ import { CHILDRENS_BOOK_PAGE_ILLUSTRATION } from "../shared/seedreamImageSize";
 import {
   personalizeText,
   selectTextVariant,
-  buildImagePrompt,
   ChildData,
 } from "./personalization.service";
+import { isValidIllustrationStyleId, IllustrationStyleId } from "../shared/types/visualStyles";
+import { assemblePersonalizedPrompt } from "../illustration/stage3-final-prompt/assemblePersonalizedPrompt";
+import {
+  loadArtDirectionSnapshot,
+  ArtDirectionSnapshotNotReadyError,
+  PersonalizedArtDirectionNotReadyError,
+} from "./loadArtDirectionSnapshot";
 
 const CONCURRENCY_LIMIT = 3;
 const PHOTO_RETAIN_EXTENSION_HOURS = 24;
@@ -38,13 +44,15 @@ function requireImageProvider(): ImageGenerationProvider {
  * Idempotency: If the purchase already has a personalizedStoryId, returns it.
  *
  * Flow:
- * 1. Load purchase, preview, template, child
+ * 1. Load purchase, preview, template
  * 2. Create personalizedStory document
  * 3. Copy preview pages 1-2 (including illustration files)
- * 4. Generate remaining pages 3-N with concurrency limit
- * 5. Retry failed pages once
- * 6. Update story, purchase, preview statuses
- * 7. Delete child photo
+ * 4. Validate personalization config (protagonist slot, policy, style)
+ * 5. Load art-direction snapshot once
+ * 6. Generate remaining pages 3-N using the personalized assembler (concurrency 3)
+ * 7. Retry failed pages once
+ * 8. Update story, purchase, preview statuses
+ * 9. Delete child photo
  *
  * @returns storyId
  */
@@ -128,6 +136,12 @@ export async function generateFullStory(
     language: preview.language,
     dedicationName: preview.dedicationName ?? null,
     coverImageUrl: preview.coverImageUrl || template.coverImageUrl,
+    // Use the type guard so TypeScript narrows string → IllustrationStyleId.
+    // Full validation of the style happens in runFullStoryGeneration; invalid
+    // styles cause generation to fail and the story to be marked "failed".
+    ...(isValidIllustrationStyleId(preview.selectedIllustrationStyle)
+      ? { selectedIllustrationStyle: preview.selectedIllustrationStyle }
+      : {}),
     generationStatus: "in_progress",
     totalPages: template.pages.length,
     pagesCompleted: 0,
@@ -162,6 +176,10 @@ export async function generateFullStory(
 
 /**
  * Core generation logic: copy preview pages, generate remaining pages.
+ *
+ * Uses the Phase 5 personalized assembler for all remaining pages — never
+ * falls back to `page.imagePromptTemplate`, which has the specialist protagonist
+ * appearance baked in and must not be used for personalized images.
  */
 async function runFullStoryGeneration(
   storyId: string,
@@ -182,12 +200,44 @@ async function runFullStoryGeneration(
   try {
     const imageProvider = requireImageProvider();
 
-    // Step 1: Copy preview pages into the full story
+    // ── Validate personalization config ────────────────────────────────────────
+
+    const styleId = preview.selectedIllustrationStyle;
+    if (!styleId || !isValidIllustrationStyleId(styleId)) {
+      throw new PersonalizedArtDirectionNotReadyError(
+        "INVALID_STYLE",
+        `Story ${storyId}: preview ${preview.previewId} has no valid selectedIllustrationStyle` +
+          ` (got: "${styleId}"). Cannot generate personalized images.`,
+      );
+    }
+
+    if (!template.protagonistSlot) {
+      throw new PersonalizedArtDirectionNotReadyError(
+        "MISSING_PROTAGONIST_SLOT",
+        `Story ${storyId}: template ${preview.templateId} is missing protagonistSlot.` +
+          " Cannot generate personalized images.",
+      );
+    }
+
+    if (template.personalizedCharacterPolicy !== "replace_with_child_photo") {
+      throw new PersonalizedArtDirectionNotReadyError(
+        "MISSING_CHARACTER_POLICY",
+        `Story ${storyId}: template ${preview.templateId} personalizedCharacterPolicy is` +
+          ` "${template.personalizedCharacterPolicy}", expected "replace_with_child_photo".`,
+      );
+    }
+
+    // ── Load art-direction snapshot once ──────────────────────────────────────
+    // All per-page prompt assembly reads from this snapshot — the specialist's
+    // approved scene plan and Visual Bible fields. It is loaded once here rather
+    // than per-page to avoid redundant Firestore reads across a large page batch.
+    const artSnap = await loadArtDirectionSnapshot(template, preview.templateId);
+
+    // ── Step 1: Copy preview pages into the full story ────────────────────────
     for (const previewPage of preview.pages) {
       let copiedImagePath: string | null = null;
 
       if (previewPage.generatedImagePath) {
-        // Copy illustration file from preview path to generated path
         const sourceFile = bucket.file(previewPage.generatedImagePath);
         const [exists] = await sourceFile.exists();
 
@@ -220,14 +270,15 @@ async function runFullStoryGeneration(
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    // Step 2: Generate remaining pages with concurrency limit
+    // ── Step 2: Generate remaining pages ──────────────────────────────────────
+
     const previewPageNumbers = new Set(preview.pages.map((p) => p.pageNumber));
     const remainingTemplatePages = template.pages.filter(
       (p) => !previewPageNumbers.has(p.pageNumber)
     );
 
-    // Generate a short-lived signed URL so Seedream can fetch the child's photo.
-    // Requires the service account to have iam.serviceAccounts.signBlob permission.
+    // Generate a short-lived signed URL so the image provider can fetch the child's photo.
+    // 1 hour — covers the full page batch plus retry.
     let photoSignedUrl: string | null = null;
     if (
       preview.photoPath &&
@@ -240,7 +291,7 @@ async function runFullStoryGeneration(
         if (exists) {
           const [url] = await photoFile.getSignedUrl({
             action: "read",
-            expires: Date.now() + 60 * 60 * 1000, // 1 hour — covers full story generation
+            expires: Date.now() + 60 * 60 * 1000,
           });
           photoSignedUrl = url;
         }
@@ -249,7 +300,20 @@ async function runFullStoryGeneration(
       }
     }
 
-    // Process remaining pages in batches of CONCURRENCY_LIMIT
+    // Hard-fail if the child photo is inaccessible and there are pages to generate.
+    // Silently generating image-less pages would produce a "completed" story with no
+    // illustrations, which is incorrect and would surface to the buyer as broken content.
+    if (!photoSignedUrl && remainingTemplatePages.length > 0) {
+      throw new Error(
+        `Story ${storyId}: child photo is not accessible in storage` +
+          ` (preview ${preview.previewId}, photoPath: ${preview.photoPath ?? "none"}).` +
+          " Cannot generate personalized images.",
+      );
+    }
+
+    // Process remaining pages in batches of CONCURRENCY_LIMIT.
+    // Each page is assembled from the approved art-direction snapshot — never from
+    // `page.imagePromptTemplate`, which contains the specialist's protagonist.
     for (let i = 0; i < remainingTemplatePages.length; i += CONCURRENCY_LIMIT) {
       const batch = remainingTemplatePages.slice(i, i + CONCURRENCY_LIMIT);
 
@@ -257,7 +321,29 @@ async function runFullStoryGeneration(
         batch.map(async (templatePage) => {
           const rawText = selectTextVariant(templatePage, childData.gender);
           const personalizedText = personalizeText(rawText, childData, language);
-          const imagePrompt = buildImagePrompt(templatePage.imagePromptTemplate, childData);
+
+          // Build the personalized image prompt from the approved scene plan +
+          // Visual Bible snapshot. The specialist protagonist appearance is excluded
+          // by construction — only the child identity anchor and selected style change.
+          const pageAD = artSnap.pages.find((p) => p.pageNumber === templatePage.pageNumber);
+          if (!pageAD || pageAD.structuredPrompt == null) {
+            throw new PersonalizedArtDirectionNotReadyError(
+              "MISSING_PAGE_STRUCTURED_PROMPT",
+              `Story ${storyId}, page ${templatePage.pageNumber}: no structuredPrompt in` +
+                ` art-direction snapshot for template ${preview.templateId}.`,
+            );
+          }
+
+          const imagePrompt = assemblePersonalizedPrompt({
+            pageArtDirection: pageAD,
+            snapshot: artSnap,
+            child: {
+              firstName: preview.childFirstName,
+              gender: preview.childGender,
+              ageGroup: preview.childAgeGroup,
+            },
+            selectedIllustrationStyle: styleId as IllustrationStyleId,
+          });
 
           let generatedImagePath: string | null = null;
           let aiMetadata: PersonalizedStoryPage["aiMetadata"] = null;
@@ -324,7 +410,7 @@ async function runFullStoryGeneration(
       });
     }
 
-    // Step 3: Retry failed pages once
+    // ── Step 3: Retry failed pages once ───────────────────────────────────────
     if (failedIndexes.length > 0 && photoSignedUrl) {
       const retryPages = template.pages.filter((p) =>
         failedIndexes.includes(p.pageNumber)
@@ -335,7 +421,25 @@ async function runFullStoryGeneration(
         try {
           const rawText = selectTextVariant(templatePage, childData.gender);
           const personalizedText = personalizeText(rawText, childData, language);
-          const imagePrompt = buildImagePrompt(templatePage.imagePromptTemplate, childData);
+
+          const pageAD = artSnap.pages.find((p) => p.pageNumber === templatePage.pageNumber);
+          if (!pageAD || pageAD.structuredPrompt == null) {
+            throw new PersonalizedArtDirectionNotReadyError(
+              "MISSING_PAGE_STRUCTURED_PROMPT",
+              `Retry — story ${storyId}, page ${templatePage.pageNumber}: no structuredPrompt.`,
+            );
+          }
+
+          const imagePrompt = assemblePersonalizedPrompt({
+            pageArtDirection: pageAD,
+            snapshot: artSnap,
+            child: {
+              firstName: preview.childFirstName,
+              gender: preview.childGender,
+              ageGroup: preview.childAgeGroup,
+            },
+            selectedIllustrationStyle: styleId as IllustrationStyleId,
+          });
 
           const imageResult = await imageProvider.generateImage({
             textPrompt: imagePrompt,
@@ -377,7 +481,6 @@ async function runFullStoryGeneration(
         }
       }
 
-      // Remove retried indexes from failed list
       const stillFailed = failedIndexes.filter((idx) => !retriedIndexes.includes(idx));
 
       await storyRef.update({
@@ -394,54 +497,127 @@ async function runFullStoryGeneration(
     // Sort pages by pageNumber
     allPages.sort((a, b) => a.pageNumber - b.pageNumber);
 
-    // Step 4: Finalize
+    // ── Step 4: Finalize ──────────────────────────────────────────────────────
     const finalStatus = failedIndexes.length > 0
       ? (allPages.length > 0 ? "partially_failed" : "failed")
       : "completed";
-    const isAccessible = finalStatus === "completed" || finalStatus === "partially_failed";
+
+    const now = new Date().toISOString();
+    const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(preview.previewId);
 
     await storyRef.update({
       pages: allPages,
       pagesCompleted: allPages.length,
       pagesFailedIndexes: failedIndexes,
       generationStatus: finalStatus,
-      generationCompletedAt: new Date().toISOString(),
-      isAccessible,
+      generationCompletedAt: now,
+      // isAccessible is true ONLY when every page generated successfully.
+      // `partially_failed` stays inaccessible: the reader has no fallback for
+      // null generatedImagePath pages, and a future retry requires the photo.
+      isAccessible: finalStatus === "completed",
       updatedAt: admin.firestore.Timestamp.now(),
     });
 
-    // Update purchase status
-    await purchaseRef.update({
-      status: finalStatus === "failed" ? "failed" : "completed",
-      completedAt: finalStatus !== "failed" ? new Date().toISOString() : null,
-      failedAt: finalStatus === "failed" ? new Date().toISOString() : null,
-      failureReason: finalStatus === "failed" ? "All page generations failed" : null,
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
+    if (finalStatus === "completed") {
+      // All pages generated — purchase is complete. Delete the raw photo now.
+      await purchaseRef.update({
+        status: "completed",
+        completedAt: now,
+        failedAt: null,
+        failureReason: null,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
 
-    // Update preview status
-    const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(preview.previewId);
-    await previewRef.update({
-      status: "converted",
-      personalizedStoryId: storyId,
-      updatedAt: admin.firestore.Timestamp.now(),
-    });
+      await previewRef.update({
+        status: "converted",
+        personalizedStoryId: storyId,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
 
-    // Delete preview photo (privacy — photo is biometric-sensitive)
-    if (preview.photoPath) {
-      try {
-        const photoFile = bucket.file(preview.photoPath);
-        const [exists] = await photoFile.exists();
-        if (exists) {
-          await photoFile.delete();
+      // Delete raw photo (biometric-sensitive; final illustrations already saved).
+      if (preview.photoPath) {
+        try {
+          const photoFile = bucket.file(preview.photoPath);
+          const [exists] = await photoFile.exists();
+          if (exists) {
+            await photoFile.delete();
+          }
+          await previewRef.update({
+            photoPath: null,
+            photoStatus: "deleted",
+            updatedAt: admin.firestore.Timestamp.now(),
+          });
+        } catch (deleteError) {
+          console.error(`Failed to delete preview photo for ${preview.previewId}:`, deleteError);
+          // Non-fatal: previewCleanup.service.ts removes it via photoRetainUntil.
         }
-        await previewRef.update({
-          photoPath: null,
-          photoStatus: "deleted",
-          updatedAt: admin.firestore.Timestamp.now(),
-        });
-      } catch (deleteError) {
-        console.error(`Failed to delete preview photo for ${preview.previewId}:`, deleteError);
+      }
+    } else if (finalStatus === "partially_failed") {
+      // Some pages failed after retry. Story is not usable yet.
+      //
+      // Do NOT mark the purchase as "completed" — the caregiver did not receive a
+      // usable story. Use "generation_partially_failed" so support/retry tooling
+      // can identify these purchases for resolution.
+      //
+      // Do NOT delete the raw child photo. It is retained until photoRetainUntil
+      // (extended at generation start) so a future retry can regenerate missing
+      // pages. previewCleanup.service.ts will remove it after that window if no
+      // retry has occurred.
+      await purchaseRef.update({
+        status: "generation_partially_failed",
+        completedAt: null,
+        failedAt: null,
+        failureReason: `Pages ${failedIndexes.join(", ")} failed after retry. Story pending support resolution or retry.`,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      // Mark the preview as partially converted — NOT "converted" — so that
+      // previewCleanup Job 3 (which deletes converted previews after 48h) does
+      // NOT delete this document prematurely. Support/retry tooling needs the
+      // preview to look up the personalizedStoryId ↔ purchaseId relationship.
+      // previewCleanup Job 6 removes generation_partially_failed previews after
+      // a 30-day support window.
+      await previewRef.update({
+        status: "generation_partially_failed",
+        personalizedStoryId: storyId,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+      // Photo intentionally NOT deleted — photoStatus remains "preview_used" so the
+      // cleanup service Job 1 uses photoRetainUntil as the deadline.
+    } else {
+      // finalStatus === "failed": all pages failed (allPages.length === 0).
+      // No usable content was produced; no retry is expected in the current flow.
+      await purchaseRef.update({
+        status: "failed",
+        completedAt: null,
+        failedAt: now,
+        failureReason: "All page generations failed after retry.",
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      await previewRef.update({
+        status: "converted",
+        personalizedStoryId: storyId,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      // Delete raw photo — no usable story, no retry planned.
+      if (preview.photoPath) {
+        try {
+          const photoFile = bucket.file(preview.photoPath);
+          const [exists] = await photoFile.exists();
+          if (exists) {
+            await photoFile.delete();
+          }
+          await previewRef.update({
+            photoPath: null,
+            photoStatus: "deleted",
+            updatedAt: admin.firestore.Timestamp.now(),
+          });
+        } catch (deleteError) {
+          console.error(`Failed to delete preview photo for ${preview.previewId}:`, deleteError);
+          // Non-fatal: previewCleanup.service.ts removes it via photoRetainUntil.
+        }
       }
     }
   } catch (error) {
@@ -461,6 +637,35 @@ async function runFullStoryGeneration(
       failureReason: message,
       updatedAt: admin.firestore.Timestamp.now(),
     });
+
+    // Delete the raw child photo even on full failure — there is no retry path
+    // in the current purchase flow, so retaining the photo serves no purpose and
+    // keeping biometric data longer than necessary is a privacy risk.
+    // If deletion itself fails, the cleanup service will handle it via photoRetainUntil.
+    if (preview.photoPath) {
+      try {
+        const failBucket = admin.storage().bucket();
+        const photoFile = failBucket.file(preview.photoPath);
+        const [exists] = await photoFile.exists();
+        if (exists) {
+          await photoFile.delete();
+        }
+        const failPreviewRef = db
+          .collection(COLLECTIONS.STORY_PREVIEWS)
+          .doc(preview.previewId);
+        await failPreviewRef.update({
+          photoPath: null,
+          photoStatus: "deleted",
+          updatedAt: admin.firestore.Timestamp.now(),
+        });
+      } catch (deleteError) {
+        console.error(
+          `Failed to delete preview photo after story ${storyId} failed:`,
+          deleteError,
+        );
+        // Non-fatal: previewCleanup.service.ts will remove it via photoRetainUntil.
+      }
+    }
   }
 }
 
@@ -471,7 +676,6 @@ async function runFullStoryGeneration(
 async function findPurchaseByPurchaseId(
   purchaseId: string
 ): Promise<{ data: Purchase; ref: FirebaseFirestore.DocumentReference } | null> {
-  // Try collection group query
   const snapshot = await db
     .collectionGroup("purchases")
     .where("purchaseId", "==", purchaseId)

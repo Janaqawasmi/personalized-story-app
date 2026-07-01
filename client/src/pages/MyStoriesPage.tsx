@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { Box, Typography, Button, CircularProgress, Tabs, Tab } from "@mui/material";
+import { Box, Typography, Button, CircularProgress, Tabs, Tab, Chip } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
 import { useLangNavigate } from "../i18n/navigation";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/useLanguage";
 import { useMyPreviews } from "../hooks/useMyPreviews";
-import { getPreviewPersonalization } from "../api/caregiverApi";
+import { getPreviewPersonalization, getPurchasedStories, type PurchasedStoryItem } from "../api/caregiverApi";
 import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
 import { useAuth } from "../contexts/AuthContext";
 import { listFavorites, type FavoriteStory } from "../api/favorites";
@@ -16,6 +16,145 @@ import BookOutlined from "@mui/icons-material/BookOutlined";
 import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
 
 type TabId = "purchased" | "previews" | "favorites";
+
+function PurchasedStoryCard({
+  story,
+  t,
+  onRead,
+}: {
+  story: PurchasedStoryItem;
+  t: (k: string, vars?: Record<string, string | number>) => string;
+  onRead: () => void;
+}) {
+  const isAccessible = story.isAccessible && story.generationStatus === "completed";
+  const isGenerating = story.generationStatus === "in_progress" || story.generationStatus === "pending";
+  const isPartiallyFailed = story.generationStatus === "partially_failed";
+  const isFailed = story.generationStatus === "failed";
+
+  let statusChipLabel = "";
+  let statusChipColor: "success" | "warning" | "error" | "default" = "default";
+  if (isAccessible) {
+    statusChipLabel = t("pages.myStories.purchased.readingLabel") || "Ready";
+    statusChipColor = "success";
+  } else if (isGenerating) {
+    statusChipLabel = t("pages.myStories.purchased.generatingLabel") || "Generating…";
+    statusChipColor = "default";
+  } else if (isPartiallyFailed) {
+    statusChipLabel = "⚠ Partial failure";
+    statusChipColor = "warning";
+  } else if (isFailed) {
+    statusChipLabel = "✗ Failed";
+    statusChipColor = "error";
+  }
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 2,
+        p: 2,
+        background: "#fff",
+        borderRadius: "16px",
+        border: "1px solid #ede5df",
+        boxShadow: "0 2px 12px rgba(28,17,24,0.05)",
+        opacity: isAccessible ? 1 : 0.85,
+      }}
+    >
+      {/* Cover thumbnail */}
+      <Box
+        sx={{
+          width: 54,
+          height: 70,
+          borderRadius: "10px",
+          background: story.coverImageUrl
+            ? `url(${story.coverImageUrl}) center/cover no-repeat`
+            : "linear-gradient(145deg, #3d1a2a 0%, #2a1435 40%, #16093a 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 22,
+          flexShrink: 0,
+        }}
+      >
+        {!story.coverImageUrl && "📖"}
+      </Box>
+
+      {/* Info */}
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography sx={{ fontSize: 14, fontWeight: 600, color: "#3C1C28", mb: 0.5 }} noWrap>
+          {story.templateTitle || "Personalized Story"}
+        </Typography>
+        <Typography sx={{ fontSize: 12, color: "#9a8a92", mb: 1 }}>
+          {t("pages.myStories.previews.personalizedFor", { name: story.childFirstName })}
+        </Typography>
+
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+          {statusChipLabel && (
+            <Chip
+              label={statusChipLabel}
+              size="small"
+              color={statusChipColor}
+              sx={{ fontSize: 10, height: 20 }}
+            />
+          )}
+          {isGenerating && (
+            <CircularProgress size={12} sx={{ color: "#824D5C" }} />
+          )}
+          {(isPartiallyFailed || isFailed) && (
+            <Typography sx={{ fontSize: 10, color: "#9a8a92" }}>
+              {t(`pages.myStories.purchased.${isPartiallyFailed ? "partiallyFailedLabel" : "failedLabel"}`)}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+
+      {/* Action */}
+      <Box sx={{ flexShrink: 0 }}>
+        {isAccessible ? (
+          <Button
+            size="small"
+            variant="contained"
+            onClick={onRead}
+            sx={{
+              backgroundColor: "#824D5C",
+              "&:hover": { backgroundColor: "#6f404d" },
+              textTransform: "none",
+              borderRadius: "10px",
+              fontSize: 12,
+              px: 2,
+              py: 0.75,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t("pages.myStories.purchased.readCta") || "Read"}
+          </Button>
+        ) : (isPartiallyFailed || isFailed) ? (
+          <Button
+            size="small"
+            variant="outlined"
+            href="mailto:support@dammah.app"
+            sx={{
+              borderColor: "#824D5C",
+              color: "#824D5C",
+              "&:hover": { borderColor: "#6f404d", backgroundColor: "rgba(130,77,92,0.06)" },
+              textTransform: "none",
+              borderRadius: "10px",
+              fontSize: 12,
+              px: 2,
+              py: 0.75,
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {t("pages.myStories.purchased.contactSupport") || "Contact support"}
+          </Button>
+        ) : null}
+      </Box>
+    </Box>
+  );
+}
 
 function tabFromSearchParams(searchParams: URLSearchParams): TabId {
   const q = searchParams.get("tab");
@@ -32,10 +171,39 @@ export default function MyStoriesPage() {
   const activeTab = tabFromSearchParams(searchParams);
   const { previews, loading: previewsLoading } = useMyPreviews();
   const [navigatingPreviewId, setNavigatingPreviewId] = useState<string | null>(null);
+  const [purchasedStories, setPurchasedStories] = useState<PurchasedStoryItem[]>([]);
+  const [purchasedLoading, setPurchasedLoading] = useState(false);
+  const [purchasedError, setPurchasedError] = useState<string | null>(null);
   const { currentUser } = useAuth();
   const [favorites, setFavorites] = useState<FavoriteStory[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [favoritesError, setFavoritesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== "purchased" || !currentUser) return;
+    let cancelled = false;
+    setPurchasedLoading(true);
+    setPurchasedError(null);
+    getPurchasedStories()
+      .then((items) => {
+        if (!cancelled) setPurchasedStories(items);
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          const msg =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Failed to load purchased stories";
+          setPurchasedError(msg);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPurchasedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, currentUser]);
 
   useEffect(() => {
     if (activeTab !== "favorites" || !currentUser) return;
@@ -162,27 +330,56 @@ export default function MyStoriesPage() {
         </Tabs>
 
         {activeTab === "purchased" && (
-          <Box sx={{ textAlign: "center", py: 8 }}>
-            <Typography sx={{ fontSize: 36, mb: 2 }}>📚</Typography>
-            <Typography sx={{ fontWeight: 600, mb: 1, color: "#3C1C28" }}>
-              {t("pages.myStories.purchased.emptyTitle")}
-            </Typography>
-            <Typography sx={{ fontSize: 14, color: "#9a8a92", mb: 3 }}>
-              {t("pages.myStories.purchased.emptyBody")}
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={() => navigate("/books")}
-              sx={{
-                backgroundColor: "#824D5C",
-                "&:hover": { backgroundColor: "#6f404d" },
-                textTransform: "none",
-                borderRadius: "12px",
-                px: 3,
-              }}
-            >
-              {t("pages.myStories.purchased.browseCta")}
-            </Button>
+          <Box>
+            {purchasedLoading && (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+                <CircularProgress sx={{ color: "#824D5C" }} />
+              </Box>
+            )}
+
+            {purchasedError && !purchasedLoading && (
+              <Box sx={{ textAlign: "center", py: 8 }}>
+                <Typography sx={{ fontSize: 14, color: "error.main" }}>{purchasedError}</Typography>
+              </Box>
+            )}
+
+            {!purchasedLoading && !purchasedError && purchasedStories.length === 0 && (
+              <Box sx={{ textAlign: "center", py: 8 }}>
+                <Typography sx={{ fontSize: 36, mb: 2 }}>📚</Typography>
+                <Typography sx={{ fontWeight: 600, mb: 1, color: "#3C1C28" }}>
+                  {t("pages.myStories.purchased.emptyTitle")}
+                </Typography>
+                <Typography sx={{ fontSize: 14, color: "#9a8a92", mb: 3 }}>
+                  {t("pages.myStories.purchased.emptyBody")}
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => navigate("/books")}
+                  sx={{
+                    backgroundColor: "#824D5C",
+                    "&:hover": { backgroundColor: "#6f404d" },
+                    textTransform: "none",
+                    borderRadius: "12px",
+                    px: 3,
+                  }}
+                >
+                  {t("pages.myStories.purchased.browseCta")}
+                </Button>
+              </Box>
+            )}
+
+            {!purchasedLoading && !purchasedError && purchasedStories.length > 0 && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {purchasedStories.map((story) => (
+                  <PurchasedStoryCard
+                    key={story.storyId}
+                    story={story}
+                    t={t}
+                    onRead={() => navigate(`/stories/${story.templateId}/read`)}
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
         )}
 

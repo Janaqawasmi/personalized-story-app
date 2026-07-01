@@ -6,6 +6,7 @@ import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
 import {
   createDirectPurchasePreview,
   generatePreview,
+  isPreviewQuotaEnabled,
   PreviewQuotaError,
 } from "../../services/preview.service";
 import { isValidIllustrationStyleId } from "../../shared/types/visualStyles";
@@ -96,10 +97,12 @@ router.get("/quota", requireAuth, async (req: Request, res: Response): Promise<v
       }
     }
 
+    const quotaEnabled = isPreviewQuotaEnabled();
+
     res.status(200).json({
       success: true,
       data: {
-        hasUsedPreview: c.freePreviewUsed === true && c.unlimitedPreviews !== true,
+        hasUsedPreview: quotaEnabled && c.freePreviewUsed === true && c.unlimitedPreviews !== true,
         existingPreviewId: (c.freePreviewId as string | undefined) ?? null,
         existingTemplateId,
         status: (c.freePreviewStatus as string | undefined) ?? null,

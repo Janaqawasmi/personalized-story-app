@@ -10,17 +10,35 @@ import {
   ChildData,
   personalizeText,
   selectTextVariant,
-  buildImagePrompt,
 } from "./personalization.service";
 import { AgeGroup, Gender } from "../shared/types/common";
-import { ILLUSTRATION_STYLE_IDS, IllustrationStyleId } from "../shared/types/visualStyles";
+import { IllustrationStyleId, isValidIllustrationStyleId } from "../shared/types/visualStyles";
+import {
+  assemblePersonalizedPrompt,
+} from "../illustration/stage3-final-prompt/assemblePersonalizedPrompt";
+import {
+  loadArtDirectionSnapshot,
+  ArtDirectionSnapshotNotReadyError,
+  PersonalizedArtDirectionNotReadyError,
+} from "./loadArtDirectionSnapshot";
+
+export { PersonalizedArtDirectionNotReadyError };
 
 const PHOTO_RETAIN_HOURS = 48;
 
-/** Max previews per caregiver (free tier). */
+/** Max previews per caregiver (free tier), enforced only when `isPreviewQuotaEnabled()` is true. */
 export const MAX_PREVIEWS_PER_USER = 1;
 /** Max template pages generated per preview — matches client reader preview gate. */
 export const PREVIEW_SPREAD_LIMIT = 2;
+
+/**
+ * Pre-launch feature flag: the one-free-preview quota is off by default so
+ * testers/parents can generate as many previews as they like. Set
+ * `PREVIEW_QUOTA_ENABLED=true` to restore the one-free-preview limit for launch.
+ */
+export function isPreviewQuotaEnabled(): boolean {
+  return process.env.PREVIEW_QUOTA_ENABLED === "true";
+}
 
 export class PreviewQuotaError extends Error {
   constructor(
@@ -41,18 +59,43 @@ export class PreviewQuotaError extends Error {
 }
 
 /**
- * Derived eligibility conditions (Phase 2+/Phase 4).
- * Checks: personalizationEnabled, textPersonalizationReady, and (when requireVisual)
- * visualPersonalizationEnabled + visualPersonalizationReady.
+ * Returns true when every page in `pages` has non-empty masculine and feminine
+ * text templates each containing the `{{CHILD_NAME}}` placeholder.
  *
- * All flags default to false when absent (backward-compat with pre-Phase-1 templates).
+ * This is the canonical text-readiness check for the preview API.
+ * It replaces the deprecated `textPersonalizationReady` flag so that stories
+ * with valid page data are never blocked by a stale flag.
+ */
+export function hasValidTextTemplates(
+  pages: Array<{ textTemplate?: { masculine?: string; feminine?: string } | null }>,
+): boolean {
+  if (pages.length === 0) return false;
+  return pages.every((page) => {
+    const tt = page.textTemplate;
+    const masc = tt?.masculine;
+    const fem = tt?.feminine;
+    return (
+      typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
+      typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
+    );
+  });
+}
+
+/**
+ * Derived eligibility conditions (Phase 2+/Phase 4).
+ * Checks: personalizationEnabled, valid text templates on all pages, and
+ * (when requireVisual) visualPersonalizationEnabled + visualPersonalizationReady.
+ *
+ * Text readiness is derived from actual page data rather than the deprecated
+ * `textPersonalizationReady` flag, so stories with valid text are never
+ * blocked by a stale flag.
  */
 function assertPersonalizationEligible(
   template: {
     personalizationEnabled?: boolean;
-    textPersonalizationReady?: boolean;
     visualPersonalizationEnabled?: boolean;
     visualPersonalizationReady?: boolean;
+    pages?: Array<{ textTemplate?: { masculine?: string; feminine?: string } | null }>;
   },
   requireVisual: boolean,
 ): void {
@@ -62,10 +105,10 @@ function assertPersonalizationEligible(
       "This story does not support personalization.",
     );
   }
-  if (template.textPersonalizationReady !== true) {
+  if (!hasValidTextTemplates(template.pages ?? [])) {
     throw new PreviewQuotaError(
       "TEXT_PERSONALIZATION_NOT_READY",
-      "Text personalization variants have not been finalized for this story yet.",
+      "Text personalization variants are missing or incomplete for this story.",
     );
   }
   if (requireVisual) {
@@ -349,13 +392,15 @@ export async function generatePreview(
   const caregiverRef = db.collection(COLLECTIONS.CAREGIVERS).doc(caregiverUid);
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
 
+  const quotaEnabled = isPreviewQuotaEnabled();
+
   const { claimedPreviewId, trackCaregiverQuota } = await db.runTransaction(async (tx) => {
     const caregiverSnap = await tx.get(caregiverRef);
     const caregiver = caregiverSnap.exists ? caregiverSnap.data()! : ({} as Record<string, unknown>);
     const isUnlimited = caregiver.unlimitedPreviews === true;
     const g = caregiver as Record<string, unknown>;
 
-    if (caregiver.freePreviewUsed === true && !isUnlimited) {
+    if (quotaEnabled && caregiver.freePreviewUsed === true && !isUnlimited) {
       const existingId = (g.freePreviewId ?? g.freePreviewPreviewId) as string | undefined;
       throw new PreviewQuotaError(
         "FREE_PREVIEW_ALREADY_USED",
@@ -402,7 +447,7 @@ export async function generatePreview(
 
     tx.set(previewRef, initialPreview);
 
-    if (!isUnlimited) {
+    if (quotaEnabled && !isUnlimited) {
       tx.set(
         caregiverRef,
         {
@@ -416,7 +461,7 @@ export async function generatePreview(
       );
     }
 
-    return { claimedPreviewId: previewRef.id, trackCaregiverQuota: !isUnlimited };
+    return { claimedPreviewId: previewRef.id, trackCaregiverQuota: quotaEnabled && !isUnlimited };
   });
 
   const childData: ChildData = {
@@ -450,8 +495,11 @@ export async function generatePreview(
       claimedPreviewId,
       caregiverUid,
       childData,
+      childAgeGroup,
+      templateId,
       template,
       photoPath,
+      selectedIllustrationStyle,
       trackCaregiverQuota
     ).catch(async (err) => {
       console.error(`[preview ${claimedPreviewId}] generation failed`, err);
@@ -470,12 +518,89 @@ export async function generatePreview(
   return { previewId: claimedPreviewId, status: "generating" };
 }
 
+/**
+ * Builds the personalized image prompt for a single preview page.
+ *
+ * Always uses the personalized assembler — it never falls back to
+ * `page.imagePromptTemplate`, which contains the sample protagonist appearance
+ * baked in and must not be used for personalized images.
+ *
+ * Throws `PersonalizedArtDirectionNotReadyError` or
+ * `ArtDirectionSnapshotNotReadyError` if any required configuration is missing.
+ * The caller (`generatePreviewPages`) lets these propagate to mark the preview
+ * as failed rather than silently generating an image with the wrong identity.
+ *
+ * NOTE on `sp.character` field: Stage 2 instructs the LLM to write only
+ * "body position, limb positions, gaze" (≤30 words, no emotion words). This
+ * field is intended to be pose/action only and should not contain the sample
+ * protagonist's appearance. However, the LLM receives `characterAnchor` as
+ * context and could non-compliantly include clothing or hair details. If that
+ * is observed in practice, the fix belongs in Stage 2's structured-prompt
+ * validation — the personalized assembler preserves this field as-is because
+ * it represents the approved scene action (pose, gaze, limb position) that must
+ * be kept for therapeutic scene fidelity.
+ */
+async function buildPersonalizedImagePrompt(params: {
+  previewId: string;
+  page: { pageNumber: number; imagePromptTemplate: string };
+  child: ChildData;
+  childAgeGroup: AgeGroup;
+  template: StoryTemplate;
+  templateId: string;
+  selectedIllustrationStyle: string | undefined;
+}): Promise<string> {
+  const { previewId, page, child, childAgeGroup, template, templateId, selectedIllustrationStyle } = params;
+
+  if (!template.protagonistSlot) {
+    throw new PersonalizedArtDirectionNotReadyError(
+      "MISSING_PROTAGONIST_SLOT",
+      `[preview ${previewId}] Template ${templateId} is visualPersonalizationReady but has no protagonistSlot.`,
+    );
+  }
+
+  if (template.personalizedCharacterPolicy !== "replace_with_child_photo") {
+    throw new PersonalizedArtDirectionNotReadyError(
+      "MISSING_CHARACTER_POLICY",
+      `[preview ${previewId}] Template ${templateId}: personalizedCharacterPolicy is "${template.personalizedCharacterPolicy}", expected "replace_with_child_photo".`,
+    );
+  }
+
+  if (!selectedIllustrationStyle || !isValidIllustrationStyleId(selectedIllustrationStyle)) {
+    throw new PersonalizedArtDirectionNotReadyError(
+      "INVALID_STYLE",
+      `[preview ${previewId}] Invalid or missing selectedIllustrationStyle: "${selectedIllustrationStyle}".`,
+    );
+  }
+
+  // Loads from inline artDirectionSnapshot or the personalizationArtefacts subcollection,
+  // depending on artDirectionStoredInline. Throws ArtDirectionSnapshotNotReadyError if absent.
+  const artSnap = await loadArtDirectionSnapshot(template, templateId);
+
+  const pageAD = artSnap.pages.find((p) => p.pageNumber === page.pageNumber);
+  if (!pageAD || pageAD.structuredPrompt == null) {
+    throw new PersonalizedArtDirectionNotReadyError(
+      "MISSING_PAGE_STRUCTURED_PROMPT",
+      `[preview ${previewId}] Page ${page.pageNumber}: no structuredPrompt in art-direction snapshot for template ${templateId}.`,
+    );
+  }
+
+  return assemblePersonalizedPrompt({
+    pageArtDirection: pageAD,
+    snapshot: artSnap,
+    child: { firstName: child.firstName, gender: child.gender, ageGroup: childAgeGroup },
+    selectedIllustrationStyle,
+  });
+}
+
 async function generatePreviewPages(
   previewId: string,
   caregiverUid: string,
   child: ChildData,
+  childAgeGroup: AgeGroup,
+  templateId: string,
   template: StoryTemplate,
   photoPath: string,
+  selectedIllustrationStyle: string | undefined,
   trackCaregiverQuota: boolean
 ): Promise<void> {
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId);
@@ -513,7 +638,19 @@ async function generatePreviewPages(
       const rawText = selectTextVariant(page, child.gender);
       const personalizedText = personalizeText(rawText, child, language);
 
-      const imagePrompt = buildImagePrompt(page.imagePromptTemplate, child);
+      // Throws PersonalizedArtDirectionNotReadyError / ArtDirectionSnapshotNotReadyError
+      // if any required template data is absent — these propagate to the outer
+      // try/catch and mark the entire preview as failed. They must NOT be caught
+      // by the inner image-generation try/catch below.
+      const imagePrompt = await buildPersonalizedImagePrompt({
+        previewId,
+        page,
+        child,
+        childAgeGroup,
+        template,
+        templateId,
+        selectedIllustrationStyle,
+      });
 
       const startTime = Date.now();
       let imageResult: ImageGenerationResult;
