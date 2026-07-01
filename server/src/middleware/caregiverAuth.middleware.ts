@@ -59,11 +59,11 @@ export async function requireCaregiverAuth(
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-    if (decodedToken.role !== "caregiver") {
+    if (String(decodedToken.role ?? "").toLowerCase() !== "caregiver") {
       res.status(403).json({
         success: false,
         error: "Insufficient permissions",
-        details: "This endpoint requires caregiver role",
+        details: `This endpoint requires caregiver role. Your role: ${decodedToken.role ?? "none"}`,
       });
       return;
     }

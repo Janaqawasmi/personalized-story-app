@@ -14,6 +14,30 @@ export function isElevenLabsConfigured(): boolean {
   return Boolean(process.env.ELEVENLABS_API_KEY?.trim());
 }
 
+function normalizeMime(mimetype: string): string {
+  const base = (mimetype || "").toLowerCase().split(";")[0];
+  return (base ?? "").trim();
+}
+
+/** Map uploaded bytes to ElevenLabs multipart labels (must match actual format). */
+function elevenLabsFileMeta(
+  file: { filename: string; mimetype: string },
+  index: number,
+): { filename: string; contentType: string } {
+  const base = normalizeMime(file.mimetype);
+  if (base === "audio/mpeg" || base === "audio/mp3") {
+    return { filename: `sample_${index}.mp3`, contentType: "audio/mpeg" };
+  }
+  if (base === "audio/wav" || base === "audio/x-wav") {
+    return { filename: `sample_${index}.wav`, contentType: "audio/wav" };
+  }
+  if (base === "audio/ogg") {
+    return { filename: `sample_${index}.ogg`, contentType: "audio/ogg" };
+  }
+  // Browser MediaRecorder default — send real webm bytes with webm labels.
+  return { filename: `sample_${index}.webm`, contentType: "audio/webm" };
+}
+
 export async function createVoiceClone(params: {
   name: string;
   audioBuffers: { buffer: Buffer; filename: string; mimetype: string }[];
@@ -27,10 +51,19 @@ export async function createVoiceClone(params: {
   const form = new FormData();
   form.append("name", params.name);
   form.append("remove_background_noise", "true");
-  for (const file of params.audioBuffers) {
+  form.append("description", "Parent voice clone for DAMMAH");
+  for (const [i, file] of params.audioBuffers.entries()) {
+    const meta = elevenLabsFileMeta(file, i);
+    console.log("[voice/clone] forwarding to ElevenLabs:", {
+      index: i,
+      bufferLength: file.buffer.length,
+      sourceMimetype: file.mimetype,
+      elevenLabsFilename: meta.filename,
+      elevenLabsContentType: meta.contentType,
+    });
     form.append("files", file.buffer, {
-      filename: file.filename,
-      contentType: file.mimetype,
+      filename: meta.filename,
+      contentType: meta.contentType,
     });
   }
 

@@ -1,5 +1,5 @@
 import { doc, getDoc } from "firebase/firestore";
-import { API_BASE } from "../api/api";
+import { API_BASE, getAuthHeadersForUpload } from "../api/api";
 import { auth, db } from "../firebase";
 
 export type CaregiverVoiceProfile = {
@@ -8,10 +8,10 @@ export type CaregiverVoiceProfile = {
 };
 
 async function getAuthToken(): Promise<string> {
-  await auth.authStateReady();
-  const user = auth.currentUser;
-  if (!user) throw new Error("Not authenticated");
-  return user.getIdToken();
+  const headers = await getAuthHeadersForUpload();
+  const token = headers.Authorization?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!token) throw new Error("Not authenticated");
+  return token;
 }
 
 export async function getCaregiverVoiceProfile(): Promise<CaregiverVoiceProfile> {
@@ -45,25 +45,41 @@ export async function uploadVoiceClone(
     throw new Error("At least one audio recording is required");
   }
 
-  const token = await getAuthToken();
   const formData = new FormData();
   audioBlobs.forEach((blob, i) => {
+    // Raw multipart file upload — never base64 or JSON audio payload.
     formData.append("files", blob, `sample_${i}.webm`);
   });
 
   const res = await fetch(`${API_BASE}/api/caregiver/voice/clone`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await getAuthHeadersForUpload(),
     body: formData,
   });
 
-  const body = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message =
-      body?.error?.message || body?.error || "Voice clone upload failed";
-    throw new Error(typeof message === "string" ? message : "Voice clone upload failed");
+    let detail = "";
+    try {
+      const body = await res.json();
+      detail =
+        (typeof body?.error?.message === "string" && body.error.message) ||
+        (typeof body?.details === "string" && body.details) ||
+        (typeof body?.error?.details === "string" && body.error.details) ||
+        (typeof body?.message === "string" && body.message) ||
+        (typeof body?.error === "string" && body.error) ||
+        JSON.stringify(body);
+    } catch {
+      detail = await res.text().catch(() => "");
+    }
+    console.error("[voiceProfile] clone upload failed:", res.status, detail);
+    throw new Error(
+      detail
+        ? `Voice clone upload failed (${res.status}): ${detail}`
+        : `Voice clone upload failed (${res.status})`,
+    );
   }
 
+  const body = await res.json();
   const data = body.data ?? body;
   return {
     voiceId: data.voiceId as string,
@@ -72,10 +88,9 @@ export async function uploadVoiceClone(
 }
 
 export async function deleteVoiceClone(): Promise<void> {
-  const token = await getAuthToken();
   const res = await fetch(`${API_BASE}/api/caregiver/voice`, {
     method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: await getAuthHeadersForUpload(),
   });
 
   if (!res.ok) {

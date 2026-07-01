@@ -7,7 +7,7 @@
 import "dotenv/config";
 console.log("OPENAI KEY EXISTS:", !!process.env.OPENAI_API_KEY);
 console.log("ARK API KEY EXISTS:", !!process.env.ARK_API_KEY);
-console.log("ELEVENLABS API KEY EXISTS:", !!process.env.ELEVENLABS_API_KEY);
+console.log("[startup] ElevenLabs key present:", !!process.env.ELEVENLABS_API_KEY?.trim());
 if (!process.env.ELEVENLABS_API_KEY?.trim()) {
   console.warn(
     "ELEVENLABS_API_KEY not set — voice clone / TTS endpoints will return 503.",
@@ -118,6 +118,7 @@ app.use("/api/caregiver/checkout", caregiverCheckoutRouter);
 app.use("/api/caregiver/account", caregiverAccountRouter);
 app.use("/api/caregiver/stories", caregiverStoriesRouter);
 app.use("/api/caregiver/voice", caregiverVoiceRouter);
+console.log("✅ caregiver voice routes at /api/caregiver/voice");
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {

@@ -1,8 +1,8 @@
 import { createHash } from "crypto";
-import { Router, Request, Response } from "express";
-import multer from "multer";
+import { Router, Request, Response, NextFunction } from "express";
+import multer, { MulterError } from "multer";
 import { admin, db } from "../../config/firebase";
-import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware";
+import { requireAuth } from "../../middleware/auth.middleware";
 import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
 import {
   createVoiceClone,
@@ -22,23 +22,58 @@ const AUDIO_MIMETYPES = new Set([
   "audio/mp4",
   "audio/x-m4a",
   "audio/m4a",
+  "audio/ogg",
 ]);
+
+/** Browsers often send `audio/webm;codecs=opus` — match on the base type only. */
+function normalizeAudioMime(mimetype: string): string {
+  const base = (mimetype || "").toLowerCase().split(";")[0];
+  return (base ?? "").trim();
+}
+
+function isAllowedAudioMime(mimetype: string): boolean {
+  return AUDIO_MIMETYPES.has(normalizeAudioMime(mimetype));
+}
 
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 15 * 1024 * 1024, files: 5 },
   fileFilter: (_req, file, cb) => {
-    const mimetype = (file.mimetype || "").toLowerCase();
-    if (!AUDIO_MIMETYPES.has(mimetype)) {
+    const raw = file.mimetype || "";
+    if (!isAllowedAudioMime(raw)) {
+      console.warn("[voice/clone] rejected file mimetype:", raw, "name:", file.originalname);
       return cb(
         new Error(
-          `Unsupported audio format: ${file.mimetype}. Use MP3, WAV, WebM, or M4A.`,
+          `Unsupported audio format: ${raw}. Use MP3, WAV, WebM, OGG, or M4A.`,
         ),
       );
     }
     cb(null, true);
   },
 });
+
+function voiceCloneUpload(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  upload.array("files", 5)(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
+    }
+    console.warn("[voice/clone] multer error:", err);
+    const message =
+      err instanceof Error
+        ? err.message
+        : "Invalid audio upload";
+    const status = err instanceof MulterError ? 400 : 400;
+    res.status(status).json({
+      success: false,
+      error: { code: "INVALID_AUDIO", message },
+    });
+  });
+}
 
 const SIGNED_URL_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -67,8 +102,8 @@ async function getSignedAudioUrl(storagePath: string): Promise<string> {
  */
 router.post(
   "/clone",
-  requireCaregiverAuth,
-  upload.array("files", 5),
+  requireAuth,
+  voiceCloneUpload,
   async (req: Request, res: Response): Promise<void> => {
     if (!isElevenLabsConfigured()) {
       elevenLabsUnavailable(res);
@@ -76,7 +111,7 @@ router.post(
     }
 
     try {
-      const uid = req.caregiverUser!.uid;
+      const uid = req.user!.uid;
       const files = req.files as Express.Multer.File[] | undefined;
 
       if (!files?.length) {
@@ -86,6 +121,16 @@ router.post(
         });
         return;
       }
+
+      console.log(
+        "[voice/clone] files received:",
+        files.map((f) => ({
+          originalname: f.originalname,
+          mimetype: f.mimetype,
+          size: f.size,
+          bufferLength: f.buffer?.length,
+        })),
+      );
 
       const caregiverRef = db.collection(COLLECTIONS.CAREGIVERS).doc(uid);
       const caregiverSnap = await caregiverRef.get();
@@ -107,6 +152,15 @@ router.post(
         filename: file.originalname || `sample_${i}.webm`,
         mimetype: file.mimetype,
       }));
+
+      console.info(
+        "[voice/clone] uploading samples:",
+        audioBuffers.map((f, i) => ({
+          index: i,
+          bytes: f.buffer.length,
+          mimetype: f.mimetype,
+        })),
+      );
 
       const { voiceId, requiresVerification } = await createVoiceClone({
         name: `caregiver_${uid}`,
@@ -144,7 +198,7 @@ router.post(
  */
 router.delete(
   "/",
-  requireCaregiverAuth,
+  requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     if (!isElevenLabsConfigured()) {
       elevenLabsUnavailable(res);
@@ -152,7 +206,7 @@ router.delete(
     }
 
     try {
-      const uid = req.caregiverUser!.uid;
+      const uid = req.user!.uid;
       const caregiverRef = db.collection(COLLECTIONS.CAREGIVERS).doc(uid);
       const caregiverSnap = await caregiverRef.get();
 
@@ -202,7 +256,7 @@ router.delete(
  */
 router.post(
   "/synthesize",
-  requireCaregiverAuth,
+  requireAuth,
   async (req: Request, res: Response): Promise<void> => {
     if (!isElevenLabsConfigured()) {
       elevenLabsUnavailable(res);
@@ -210,7 +264,7 @@ router.post(
     }
 
     try {
-      const uid = req.caregiverUser!.uid;
+      const uid = req.user!.uid;
       const { storyId, pageNumber, text } = req.body as {
         storyId?: string;
         pageNumber?: number;

@@ -412,6 +412,7 @@
     "micDenied": "Microphone access is required to record your voice.",
     "tooShort": "Please record at least 5 seconds.",
     "uploadFailed": "Could not save your voice. Please try again.",
+    "notLoggedIn": "Please log in to save your voice.",
     "verificationNote": "ElevenLabs may ask for extra verification — your voice may still work right away."
   },
   "instructions": {

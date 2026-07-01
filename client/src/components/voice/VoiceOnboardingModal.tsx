@@ -16,7 +16,8 @@ import ReplayIcon from "@mui/icons-material/Replay";
 import { motion } from "framer-motion";
 import { BOOK_COLORS, BOOK_FONTS, BOOK_GRADIENTS } from "../book/bookTokens";
 import { useTranslation } from "../../i18n/useTranslation";
-import { uploadVoiceClone } from "../../utils/voiceProfile";
+import { API_BASE, getAuthHeadersForUpload } from "../../api/api";
+import { auth } from "../../firebase";
 
 const MAX_CLIPS = 3;
 const MIN_RECORD_SECONDS = 5;
@@ -104,6 +105,12 @@ export default function VoiceOnboardingModal({
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: mimeType });
         const durationSec = recordSecondsRef.current;
+        console.log("[VoiceOnboarding] recording stopped:", {
+          blobSize: blob.size,
+          durationSec,
+          mimeType,
+          chunkCount: chunksRef.current.length,
+        });
         if (blob.size > 0 && durationSec >= MIN_RECORD_SECONDS) {
           setClips((prev) => [...prev, { blob, durationSec }].slice(0, MAX_CLIPS));
         } else if (durationSec < MIN_RECORD_SECONDS) {
@@ -147,10 +154,55 @@ export default function VoiceOnboardingModal({
     setUploading(true);
     setError(null);
     try {
-      const { voiceId, requiresVerification: needsVerify } = await uploadVoiceClone(
-        clips.map((c) => c.blob),
-      );
-      setRequiresVerification(needsVerify);
+      await auth.authStateReady();
+      if (!auth.currentUser) {
+        setError(t("voiceOnboarding.notLoggedIn"));
+        return;
+      }
+
+      const formData = new FormData();
+      clips.forEach((clip, i) => {
+        console.log("[VoiceOnboarding] upload clip:", {
+          index: i,
+          blobSize: clip.blob.size,
+          durationSec: clip.durationSec,
+          blobType: clip.blob.type,
+        });
+        formData.append("files", clip.blob, `sample_${i}.webm`);
+      });
+      const totalBytes = clips.reduce((sum, c) => sum + c.blob.size, 0);
+      const totalDurationSec = clips.reduce((sum, c) => sum + c.durationSec, 0);
+      console.log("[VoiceOnboarding] upload totals:", { totalBytes, totalDurationSec, clipCount: clips.length });
+
+      const res = await fetch(`${API_BASE}/api/caregiver/voice/clone`, {
+        method: "POST",
+        headers: await getAuthHeadersForUpload(),
+        body: formData,
+      });
+
+      if (!res.ok) {
+        let detail = "";
+        try {
+          const body = await res.json();
+          detail =
+            (typeof body?.error?.message === "string" && body.error.message) ||
+            (typeof body?.details === "string" && body.details) ||
+            JSON.stringify(body);
+        } catch {
+          detail = await res.text().catch(() => "");
+        }
+        console.error("[VoiceOnboarding] clone upload failed:", res.status, detail);
+        throw new Error(
+          detail
+            ? `Voice clone upload failed (${res.status}): ${detail}`
+            : `Voice clone upload failed (${res.status})`,
+        );
+      }
+
+      const body = await res.json();
+      const data = body.data ?? body;
+      const voiceId = data.voiceId as string;
+      setRequiresVerification(Boolean(data.requiresVerification));
       onSuccess(voiceId);
       onClose();
     } catch (e) {
