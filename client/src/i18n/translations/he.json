@@ -329,7 +329,20 @@
       "addToCart": "הוספה לעגלה",
       "previewEndModalTitle": "סוף התצוגה המקדימה",
       "previewEndModalBody": "הגעתם לעמוד האחרון בתצוגה המקדימה. רכשו כדי לפתוח את הסיפור המלא והמותאם אישית.",
-      "previewEndModalClose": "המשיכו לקרוא"
+      "previewEndModalClose": "המשיכו לקרוא",
+      "readStory": "הקראת הסיפור",
+      "readInMyVoice": "הקראה בקול שלי",
+      "recordMyVoice": "הקלטת הקול שלי",
+      "useMyVoice": "הקול שלי",
+      "useSystemVoice": "קול מערכת",
+      "pause": "השהיה",
+      "resume": "המשך",
+      "stop": "עצירה",
+      "autoReadOn": "קריאה אוטומטית פעילה",
+      "autoReadOff": "קריאה אוטומטית כבויה",
+      "voice": "קול",
+      "voiceAuto": "אוטומטי (מומלץ)",
+      "close": "סגירה"
     },
     "placeholder": {
       "backToHome": "חזרה לדף הבית"
@@ -379,6 +392,28 @@
     "startReading": "התחל קריאה",
     "audioReading": "הקראה קולית",
     "imageComingSoon": "תמונה תופיע כאן בקרוב"
+  },
+  "voiceOnboarding": {
+    "title": "הקליטו את קול הקריאה שלכם",
+    "subtitle": "קראו את המשפטים בטבעיות בחדר שקט — כ-20–30 שניות כל אחד. הקול שלכם יקריא את הסיפור לילדכם.",
+    "readThis": "קראו בקול רם",
+    "prompt1": "היה היה פעם, בחדר נעים וחמים, ילד פתח ספר וחייך.",
+    "prompt2": "הסיפור נכתב במיוחד בשבילו, עם השם שלו בכל עמוד.",
+    "prompt3": "הוא דפדף לאט, והקול הרגוע שהכיר כל כך טוב ליווה אותו.",
+    "startRecording": "התחלת הקלטה",
+    "recordAnother": "הקלטת קטע נוסף",
+    "stopRecording": "עצירה",
+    "redoLast": "הקלטה מחדש של הקטע האחרון",
+    "clipsRecorded": "{count} מתוך {max} קטעים הוקלטו",
+    "finish": "שמירת הקול שלי",
+    "saving": "יוצרים את הקול שלכם…",
+    "cancel": "ביטול",
+    "close": "סגירה",
+    "micDenied": "נדרשת גישה למיקרופון כדי להקליט את הקול.",
+    "tooShort": "הקליטו לפחות 5 שניות.",
+    "uploadFailed": "לא הצלחנו לשמור את הקול. נסו שוב.",
+    "notLoggedIn": "יש להתחבר כדי לשמור את הקול.",
+    "verificationNote": "ייתכן ש-ElevenLabs יבקש אימות נוסף — הקול עדיין עשוי לעבוד מיד."
   },
   "instructions": {
     "title": "טיפים לקריאה נעימה",

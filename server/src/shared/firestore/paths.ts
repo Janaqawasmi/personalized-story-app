@@ -37,4 +37,13 @@ export const STORAGE_PATHS = {
     ext: string,
   ) =>
     `specialist-illustrations/${storyId}/p${pageNumber}-v${version}.${ext}`,
+  /** Cached ElevenLabs TTS output per caregiver / story page / voice / text hash. */
+  voiceover: (
+    caregiverUid: string,
+    storyId: string,
+    pageNumber: number,
+    voiceId: string,
+    textHash: string,
+  ) =>
+    `voiceover/${caregiverUid}/${storyId}/p${pageNumber}_${voiceId.slice(0, 12)}_${textHash}.mp3`,
 } as const;

@@ -38,6 +38,21 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   };
 }
 
+/**
+ * Auth headers for multipart FormData uploads.
+ * Omits Content-Type so the browser sets multipart boundary automatically.
+ */
+export async function getAuthHeadersForUpload(): Promise<Record<string, string>> {
+  const auth = getAuth();
+  await auth.authStateReady();
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("Not authenticated. Please log in.");
+  }
+  const token = await user.getIdToken();
+  return { Authorization: `Bearer ${token}` };
+}
+
 // ---------- Existing APIs ----------
 
 export async function testConnection(): Promise<{ success: boolean; error?: string }> {

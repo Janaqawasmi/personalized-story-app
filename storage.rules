@@ -49,6 +49,11 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Voiceover TTS cache — served via signed URLs from backend; Admin SDK writes only
+    match /voiceover/{caregiverUid}/{storyId}/{pageFile} {
+      allow read, write: if false;
+    }
+
     // ────────────────────────────────────────────────────
     // Default: deny everything else
     // ────────────────────────────────────────────────────

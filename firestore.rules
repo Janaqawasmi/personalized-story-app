@@ -69,6 +69,13 @@ service cloud.firestore {
         ];
       }
 
+      function caregiverServerOnlyKeys() {
+        return [
+          "elevenLabsVoiceId",
+          "elevenLabsVoiceStatus"
+        ];
+      }
+
       allow create: if isAuthenticated()
         && request.auth.uid == uid
         && isCaregiver()
@@ -77,7 +84,8 @@ service cloud.firestore {
       allow update: if isAuthenticated()
         && request.auth.uid == uid
         && isCaregiver()
-        && !request.resource.data.diff(resource.data).changedKeys().hasAny(previewQuotaKeys());
+        && !request.resource.data.diff(resource.data).changedKeys().hasAny(previewQuotaKeys())
+        && !request.resource.data.diff(resource.data).changedKeys().hasAny(caregiverServerOnlyKeys());
 
       allow delete: if false;
 
