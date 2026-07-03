@@ -908,6 +908,12 @@
   "sticky": {
     "subline": "Digital · one-time"
   },
+  "waitingScreen": {
+    "playPuzzle": "🧩 Play a puzzle",
+    "prepareToRead": "💬 Prepare to read",
+    "back": "Back",
+    "next": "Next"
+  },
   "admin": {
     "common": {
       "loading": "Loading..."

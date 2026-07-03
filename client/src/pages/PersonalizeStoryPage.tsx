@@ -34,6 +34,7 @@ import {
 } from "../api/caregiverApi";
 import { usePreviewQuota } from "../hooks/usePreviewQuota";
 import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
+import WaitingScreenPicker from "../components/waiting/WaitingScreenPicker";
 
 type VisualStyle =
   | "watercolor"
@@ -537,10 +538,14 @@ function GenerationOverlay({
   ready,
   messageKey,
   t,
+  storyTheme,
+  coverImageUrl,
 }: {
   ready: boolean;
   messageKey: string;
   t: (key: string, params?: Record<string, string | number>) => string;
+  storyTheme?: string;
+  coverImageUrl?: string;
 }) {
   return (
     <Box
@@ -564,15 +569,6 @@ function GenerationOverlay({
         <Typography sx={{ fontSize: 44, mb: 2 }} aria-hidden="true">
           {ready ? "✨" : "🌙"}
         </Typography>
-
-        {!ready && (
-          <CircularProgress
-            size={40}
-            thickness={4}
-            sx={{ color: "#B07A8A", mb: 3, display: "block", mx: "auto" }}
-            aria-hidden="true"
-          />
-        )}
 
         <Typography
           sx={{
@@ -599,18 +595,12 @@ function GenerationOverlay({
         </Typography>
 
         {!ready && (
-          <Typography
-            key={messageKey}
-            sx={{
-              fontSize: 12,
-              color: "#d4a8b4",
-              fontWeight: 500,
-              minHeight: 18,
-              animation: "stepEnter 0.4s ease forwards",
-            }}
-          >
-            {t(messageKey)}
-          </Typography>
+          <WaitingScreenPicker
+            statusText={t(messageKey)}
+            statusKey={messageKey}
+            storyTheme={storyTheme}
+            coverImageUrl={coverImageUrl}
+          />
         )}
       </Box>
     </Box>
@@ -850,6 +840,7 @@ export default function PersonalizeStoryPage() {
           topic: data.primaryTopic ?? data.topicKey ?? data.topic,
           generationConfig: data.generationConfig,
           previewSentence: typeof data.previewSentence === "string" ? data.previewSentence : undefined,
+          coverImage: typeof data.coverImage === "string" ? data.coverImage : data.coverImageUrl,
         });
 
         const existingSession = loadPersonalizationSession(storyId);
@@ -1452,6 +1443,8 @@ export default function PersonalizeStoryPage() {
               ready={previewReady}
               messageKey={LOADING_MESSAGE_KEYS[loadingMessageIndex]!}
               t={t}
+              storyTheme={typeof story?.topic === "string" ? story.topic : undefined}
+              coverImageUrl={story?.coverImage}
             />
           )}
 
