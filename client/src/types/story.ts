@@ -233,4 +233,6 @@ export interface StoryTemplate {
   };
   /** e.g. "{{CHILD_NAME}} took a deep breath..." — live preview on Name step */
   previewSentence?: string;
+  /** Template cover image, used e.g. as puzzle art on the waiting screen. */
+  coverImage?: string;
 }

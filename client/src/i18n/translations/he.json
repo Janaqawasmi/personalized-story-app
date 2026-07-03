@@ -908,6 +908,12 @@
   "sticky": {
     "subline": "דיגיטלי · חד-פעמי"
   },
+  "waitingScreen": {
+    "playPuzzle": "🧩 לשחק בפאזל",
+    "prepareToRead": "💬 להתכונן לקריאה",
+    "back": "הקודם",
+    "next": "הבא"
+  },
   "admin": {
     "common": {
       "loading": "טוען…"

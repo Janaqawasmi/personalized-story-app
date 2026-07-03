@@ -908,6 +908,12 @@
   "sticky": {
     "subline": "رقمي · مرة واحدة"
   },
+  "waitingScreen": {
+    "playPuzzle": "🧩 العب لغزًا",
+    "prepareToRead": "💬 استعد للقراءة",
+    "back": "السابق",
+    "next": "التالي"
+  },
   "admin": {
     "common": {
       "loading": "جار التحميل..."
