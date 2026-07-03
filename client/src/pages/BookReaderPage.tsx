@@ -1,5 +1,6 @@
 import {
   Box,
+  Button,
   Typography,
   IconButton,
   useTheme,
@@ -22,6 +23,7 @@ import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import VolumeUpIcon from "@mui/icons-material/VolumeUp";
 import MicIcon from "@mui/icons-material/Mic";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import StopIcon from "@mui/icons-material/Stop";
 import AutoplayIcon from "@mui/icons-material/PlayCircleOutline";
@@ -471,6 +473,9 @@ export default function BookReaderPage() {
         if (!cancelled) {
           setCaregiverVoiceId(profile.elevenLabsVoiceId);
           setUseClonedVoice(Boolean(profile.elevenLabsVoiceId));
+          if (!profile.elevenLabsVoiceId) {
+            setVoiceModalOpen(true);
+          }
         }
       } catch (err) {
         console.warn("[BookReader] Failed to load caregiver voice profile:", err);
@@ -1008,22 +1013,58 @@ export default function BookReaderPage() {
               <Tooltip title={autoRead ? tt("pages.bookReader.autoReadOn", "Auto-read on") : tt("pages.bookReader.autoReadOff", "Auto-read off")} arrow>
                 <IconButton onClick={() => setAutoRead((p) => !p)} sx={{ color: autoRead ? theme.palette.primary.main : theme.palette.text.primary }}><AutoplayIcon /></IconButton>
               </Tooltip>
-              {caregiverVoiceId ? (
-                <Tooltip title={useClonedVoice ? tt("pages.bookReader.useSystemVoice", "System voice") : tt("pages.bookReader.useMyVoice", "My voice")} arrow>
-                  <IconButton
-                    onClick={() => setUseClonedVoice((v) => !v)}
-                    sx={{ color: useClonedVoice ? theme.palette.primary.main : theme.palette.text.secondary, fontSize: "0.7rem", px: 1 }}
-                    aria-pressed={useClonedVoice}
-                  >
-                    {useClonedVoice ? tt("pages.bookReader.useMyVoice", "My voice") : tt("pages.bookReader.useSystemVoice", "System")}
-                  </IconButton>
-                </Tooltip>
+              {!caregiverVoiceId ? (
+                <Button
+                  size="small"
+                  startIcon={<MicIcon />}
+                  onClick={() => setVoiceModalOpen(true)}
+                  sx={{
+                    background: "#F5E6EA",
+                    color: "#824D5C",
+                    borderRadius: "20px",
+                    px: 2,
+                    py: 0.8,
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    textTransform: "none",
+                    border: "none",
+                    "&:hover": { background: "#EDD5DB" },
+                  }}
+                >
+                  {tt("pages.bookReader.readInYourVoice", "Read in your voice")}
+                </Button>
               ) : (
-                <Tooltip title={tt("pages.bookReader.recordMyVoice", "Record my voice")} arrow>
-                  <IconButton onClick={() => setVoiceModalOpen(true)} sx={{ color: theme.palette.text.primary }}>
-                    <MicIcon />
-                  </IconButton>
-                </Tooltip>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Box
+                    sx={{
+                      display: "flex", alignItems: "center", gap: "6px",
+                      px: 1.5, py: 0.7, borderRadius: "20px",
+                      background: "#F5E6EA", border: "1px solid #D8C0C8",
+                    }}
+                  >
+                    <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: "#4CAF50" }} />
+                    <Typography sx={{ fontSize: "12px", color: "#824D5C", fontWeight: 500 }}>
+                      {tt("pages.bookReader.yourVoice", "Your voice")}
+                    </Typography>
+                  </Box>
+                  <Button
+                    size="small"
+                    startIcon={isReading ? <PauseIcon /> : <PlayArrowIcon />}
+                    onClick={() => (isReading ? handleStopReading() : handleReadStory())}
+                    sx={{
+                      background: "#824D5C",
+                      color: "#fff",
+                      borderRadius: "20px",
+                      px: 2,
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      textTransform: "none",
+                      "&:hover": { background: "#6B3D4A" },
+                    }}
+                  >
+                    {isReading ? tt("pages.bookReader.pause", "Pause") : tt("pages.bookReader.listen", "Listen")}
+                  </Button>
+                </Box>
               )}
               {showBrowserVoicePicker ? (
               <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -1100,12 +1141,58 @@ export default function BookReaderPage() {
                       <IconButton onClick={() => setAutoRead((p) => !p)} sx={{ color: autoRead ? theme.palette.primary.main : theme.palette.text.primary }}><AutoplayIcon /></IconButton>
                     </Tooltip>
                     {!caregiverVoiceId ? (
-                      <Tooltip title={tt("pages.bookReader.recordMyVoice", "Record my voice")} arrow>
-                        <IconButton onClick={() => setVoiceModalOpen(true)} sx={{ color: theme.palette.text.primary }}>
-                          <MicIcon />
-                        </IconButton>
-                      </Tooltip>
-                    ) : null}
+                      <Button
+                        size="small"
+                        startIcon={<MicIcon />}
+                        onClick={() => setVoiceModalOpen(true)}
+                        sx={{
+                          background: "#F5E6EA",
+                          color: "#824D5C",
+                          borderRadius: "20px",
+                          px: 2,
+                          py: 0.8,
+                          fontSize: "13px",
+                          fontWeight: 500,
+                          textTransform: "none",
+                          border: "none",
+                          "&:hover": { background: "#EDD5DB" },
+                        }}
+                      >
+                        {tt("pages.bookReader.readInYourVoice", "Read in your voice")}
+                      </Button>
+                    ) : (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box
+                          sx={{
+                            display: "flex", alignItems: "center", gap: "6px",
+                            px: 1.5, py: 0.7, borderRadius: "20px",
+                            background: "#F5E6EA", border: "1px solid #D8C0C8",
+                          }}
+                        >
+                          <Box sx={{ width: 7, height: 7, borderRadius: "50%", background: "#4CAF50" }} />
+                          <Typography sx={{ fontSize: "12px", color: "#824D5C", fontWeight: 500 }}>
+                            {tt("pages.bookReader.yourVoice", "Your voice")}
+                          </Typography>
+                        </Box>
+                        <Button
+                          size="small"
+                          startIcon={isReading ? <PauseIcon /> : <PlayArrowIcon />}
+                          onClick={() => (isReading ? handleStopReading() : handleReadStory())}
+                          sx={{
+                            background: "#824D5C",
+                            color: "#fff",
+                            borderRadius: "20px",
+                            px: 2,
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            textTransform: "none",
+                            "&:hover": { background: "#6B3D4A" },
+                          }}
+                        >
+                          {isReading ? tt("pages.bookReader.pause", "Pause") : tt("pages.bookReader.listen", "Listen")}
+                        </Button>
+                      </Box>
+                    )}
                     <Tooltip title={t("pages.bookReader.fullScreen")} arrow>
                       <IconButton onClick={toggleFullScreen} sx={{ color: theme.palette.text.primary }}><FullscreenIcon /></IconButton>
                     </Tooltip>

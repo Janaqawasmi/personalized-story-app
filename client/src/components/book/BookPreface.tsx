@@ -35,6 +35,8 @@ type CopyBundle = {
   readBody: string;
   paceTitle: string;
   paceBody: string;
+  voiceTitle: string;
+  voiceBody: string;
   beginLabel: string;
 };
 
@@ -49,6 +51,8 @@ const EN: CopyBundle = {
   readBody: "Tap the speaker to hear the page.",
   paceTitle: "No rush",
   paceBody: "Stay as long as you like.",
+  voiceTitle: "In your voice",
+  voiceBody: "Tap ‘Read in your voice’ to narrate the story yourself.",
   beginLabel: "Begin the story",
 };
 
@@ -63,6 +67,8 @@ const HE: CopyBundle = {
   readBody: "הקישו על הרמקול כדי לשמוע את הסיפור.",
   paceTitle: "ללא לחץ",
   paceBody: "הישארו על כל עמוד כמה שתרצו.",
+  voiceTitle: "בקול שלכם",
+  voiceBody: "הקישו על 'הקראה בקולכם' כדי לספר את הסיפור בעצמכם.",
   beginLabel: "להתחיל את הסיפור",
 };
 
@@ -77,6 +83,8 @@ const AR: CopyBundle = {
   readBody: "اضغطوا على السماعة لسماع الصفحة.",
   paceTitle: "دون استعجال",
   paceBody: "ابقوا على الصفحة كما تشاؤون.",
+  voiceTitle: "بصوتكم",
+  voiceBody: "اضغطوا على 'اقرأ بصوتك' لترووا القصة بأنفسكم.",
   beginLabel: "لنبدأ القصة",
 };
 
@@ -454,6 +462,38 @@ export default function BookPreface({
                 />
                 <path
                   d="M12 8v4l3 2"
+                  stroke={BOOK_COLORS.rose}
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            }
+          />
+          <InstructionRow
+            isRTL={isRTL}
+            title={copy.voiceTitle}
+            body={copy.voiceBody}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <rect
+                  x="9"
+                  y="2"
+                  width="6"
+                  height="12"
+                  rx="3"
+                  stroke={BOOK_COLORS.rose}
+                  strokeWidth="1.6"
+                  fill="none"
+                />
+                <path
+                  d="M5 11a7 7 0 0014 0"
+                  stroke={BOOK_COLORS.rose}
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  fill="none"
+                />
+                <path
+                  d="M12 18v4M9 22h6"
                   stroke={BOOK_COLORS.rose}
                   strokeWidth="1.6"
                   strokeLinecap="round"
