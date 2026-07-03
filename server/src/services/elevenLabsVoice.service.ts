@@ -1,5 +1,3 @@
-import FormData from "form-data";
-
 const ELEVENLABS_BASE = "https://api.elevenlabs.io/v1";
 
 function requireApiKey(): string {
@@ -61,16 +59,18 @@ export async function createVoiceClone(params: {
       elevenLabsFilename: meta.filename,
       elevenLabsContentType: meta.contentType,
     });
-    form.append("files", file.buffer, {
-      filename: meta.filename,
-      contentType: meta.contentType,
-    });
+    const bytes = Uint8Array.from(file.buffer);
+    form.append(
+      "files",
+      new Blob([bytes], { type: meta.contentType }),
+      meta.filename,
+    );
   }
 
   const res = await fetch(`${ELEVENLABS_BASE}/voices/add`, {
     method: "POST",
-    headers: { "xi-api-key": apiKey, ...form.getHeaders() },
-    body: form as unknown as BodyInit,
+    headers: { "xi-api-key": apiKey },
+    body: form,
   });
 
   if (!res.ok) {
