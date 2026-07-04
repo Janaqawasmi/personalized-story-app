@@ -1,6 +1,15 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { ReferenceData } from "../types/referenceData";
+import { ReferenceData, SituationRef, TopicRef } from "../types/referenceData";
+
+function mapReferenceDoc<T extends { id: string }>(
+  doc: { id: string; data: () => Record<string, unknown> },
+): T {
+  return {
+    id: doc.id,
+    ...(doc.data() as Omit<T, "id">),
+  } as T;
+}
 
 export async function fetchSituationsByTopic(topicKey: string) {
   const ref = collection(db, "referenceData", "situations", "items");
@@ -13,10 +22,7 @@ export async function fetchSituationsByTopic(topicKey: string) {
 
   const snap = await getDocs(q);
 
-  return snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as any),
-  }));
+  return snap.docs.map((d) => mapReferenceDoc<SituationRef>(d));
 }
 
 export async function fetchReferenceData(): Promise<ReferenceData> {
@@ -32,13 +38,7 @@ export async function fetchReferenceData(): Promise<ReferenceData> {
   ]);
 
   return {
-    topics: topicsSnap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    })),
-    situations: situationsSnap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as any),
-    })),
+    topics: topicsSnap.docs.map((d) => mapReferenceDoc<TopicRef>(d)),
+    situations: situationsSnap.docs.map((d) => mapReferenceDoc<SituationRef>(d)),
   };
 }

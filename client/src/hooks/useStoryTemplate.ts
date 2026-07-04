@@ -26,6 +26,7 @@ export interface StoryTemplateDetail {
   displayTopic: { ar?: string; he?: string };
   primaryTopic: string;
   specificSituation: string;
+  situationId?: string;
   ageGroup: string;
   generationConfig: {
     language: "ar" | "he";

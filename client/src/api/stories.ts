@@ -72,6 +72,7 @@ export type Story = {
   coverImage?: string;
   targetAgeGroup?: string;
   topicKey?: string;
+  situationId?: string;
   isActive?: boolean;
 };
 
@@ -193,11 +194,11 @@ export async function fetchStoriesByCategory(categoryId: string, lang?: string):
  */
 export async function fetchStoriesByTopic(topicId: string, lang?: string): Promise<Story[]> {
   const uiLang = effectiveCatalogLang(lang);
-  // Try both specificSituation and topicKey fields
+  // Try both situationId and topicKey fields
   const q1 = query(
     collection(db, "story_templates"),
     ...PUBLIC_STORY_CONSTRAINTS,
-    where("specificSituation", "==", topicId)
+    where("situationId", "==", topicId)
   );
 
   const q2 = query(
@@ -229,11 +230,12 @@ export interface StoryFilters {
  *
  * Catalog stories are tagged by clinical DOMAIN: `primaryTopic` / `topicKey`
  * hold the brief `storyType` (e.g. "fear_anxiety"), which equals a
- * referenceData topic id. The brief has no structured "situation" field — its
- * trigger is free text stored in `specificSituation`. So:
+ * referenceData topic id. The specific situation is a controlled taxonomy id
+ * from `referenceData/situations`, stored as `situationId` (chosen by the
+ * specialist at publish time — never the free-text clinical trigger, which
+ * is stored separately as `specificSituation` and is not used for matching).
  *
- *  - Selecting a specific topic/situation (`topicId`) matches on the
- *    situation/topic value.
+ *  - Selecting a specific topic/situation (`topicId`) matches on `situationId`.
  *  - Selecting a category matches on the DOMAIN (`primaryTopic`/`topicKey`)
  *    OR on an explicitly-tagged situation (`situationIds`). The OR is what
  *    fixes published stories not showing under category browse — previously
@@ -243,7 +245,7 @@ export interface StoryFilters {
 function matchesTaxonomy(story: Story & Record<string, any>, filters: StoryFilters): boolean {
   if (filters.topicId) {
     return (
-      story.specificSituation === filters.topicId ||
+      story.situationId === filters.topicId ||
       story.topicKey === filters.topicId ||
       story.primaryTopic === filters.topicId
     );
@@ -258,8 +260,8 @@ function matchesTaxonomy(story: Story & Record<string, any>, filters: StoryFilte
     (story.primaryTopic === filters.categoryId || story.topicKey === filters.categoryId);
   const bySituation =
     hasSituations &&
-    Boolean(story.specificSituation) &&
-    filters.situationIds!.includes(story.specificSituation);
+    Boolean(story.situationId) &&
+    filters.situationIds!.includes(story.situationId as string);
   return Boolean(byDomain || bySituation);
 }
 
@@ -353,7 +355,7 @@ export async function fetchStories(ageGroup: string, uiTopic: string) {
       return (
         topicKeys.includes(data.topicKey) ||
         topicKeys.includes(data.primaryTopic) ||
-        topicKeys.includes(data.specificSituation)
+        topicKeys.includes(data.situationId)
       );
     })
     .map((doc) => ({

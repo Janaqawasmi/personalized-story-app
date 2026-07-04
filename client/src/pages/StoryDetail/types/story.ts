@@ -86,6 +86,8 @@ export interface RelatedStoryCardVM {
   coverImage?: string;
   targetAgeGroup?: string;
   topicKey?: string;
+  primaryTopic?: string;
+  situationId?: string;
   /** Resolved or fallback label for uppercase topic line on catalog cards */
   topicLabel?: string;
 }

@@ -9,7 +9,7 @@ import {
   } from "@mui/material";
   import SearchIcon from "@mui/icons-material/Search";
   import CloseIcon from "@mui/icons-material/Close";
-  import { useEffect, useMemo, useRef, useState } from "react";
+  import { useEffect, useRef, useState } from "react";
   import { useLangNavigate } from "../../i18n/navigation";
   import {
     collection,
@@ -19,6 +19,11 @@ import {
   } from "firebase/firestore";
   import { db } from "../../firebase";
   import { useReferenceData } from "../../hooks/useReferenceData";
+  import {
+    getLocalizedReferenceLabel,
+    getLocalizedSituationLabel,
+    getLocalizedTopicLabel,
+  } from "../../utils/referenceDataLabel";
   import { useTranslation } from "../../i18n/useTranslation";
   import { useLanguage } from "../../i18n/context/useLanguage";
   import { useAuth } from "../../contexts/AuthContext";
@@ -36,7 +41,9 @@ import {
     id: string;
     title?: string;
     primaryTopic?: string;
+    topicKey?: string;
     specificSituation?: string;
+    situationId?: string;
     ageGroup?: string;
     targetAgeGroup?: string;
     language?: string;
@@ -54,15 +61,6 @@ import {
     id: string;
   };
   
-  function getCurrentLanguage(): string {
-    const fromStorage =
-      (typeof window !== "undefined" && localStorage.getItem("lang")) || "";
-    const norm = fromStorage.toLowerCase();
-    if (["he", "he-il", "iw"].includes(norm)) return "he";
-    if (["ar", "ar-sa", "ar-il"].includes(norm)) return "ar";
-    return "he";
-  }
-  
   export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
     const theme = useTheme();
     const navigate = useLangNavigate();
@@ -70,9 +68,7 @@ import {
     const t = useTranslation();
     const { language } = useLanguage();
     const { currentUser } = useAuth();
-  
-    const CURRENT_LANGUAGE = useMemo(() => getCurrentLanguage(), [isOpen]);
-  
+
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<StoryTemplate[]>([]);
     const [suggestedSearches, setSuggestedSearches] = useState<Suggestion[]>([]);
@@ -95,16 +91,10 @@ import {
     // ------------------------------
   
     const getLabel = (id: string, type: "situation" | "topic"): string => {
-      if (!referenceData) return id;
-  
       if (type === "situation") {
-        const s =
-          referenceData.situations?.find((x) => x.id === id && x.active) || null;
-        return CURRENT_LANGUAGE === "ar" ? (s?.label_ar || s?.label_he || id) : (s?.label_he || s?.label_ar || id);
+        return getLocalizedSituationLabel(id, language, referenceData);
       }
-      const t =
-        referenceData.topics?.find((x) => x.id === id && x.active) || null;
-      return CURRENT_LANGUAGE === "ar" ? (t?.label_ar || t?.label_he || id) : (t?.label_he || t?.label_ar || id);
+      return getLocalizedTopicLabel(id, language, referenceData);
     };
   
     const formatAgeGroup = (ageGroup?: string): string => {
@@ -142,17 +132,20 @@ import {
       );
     };
 
-    const getStoryLanguage = (story: StoryTemplate): string | undefined => {
-      return story.language || story.generationConfig?.language;
-    };
-
     /**
-     * NEW APPROACH: Fetch ALL approved stories, then filter by language in memory
-     * This avoids Firestore's nested field query limitations
+     * Fetch ALL approved+active stories, regardless of the story's own content
+     * language. The rest of the public catalog (fetchStoriesWithFilters in
+     * stories.ts) never filters by story content language either — only the
+     * *display* text is localized to the current UI language. A story
+     * shouldn't disappear from search/suggestions just because the visitor
+     * switched the UI language; that previously hid every story whenever the
+     * UI language didn't match whatever language the story happened to be
+     * authored in (e.g. everything vanished under English/Arabic if all
+     * content was authored in Hebrew).
      */
     const fetchAllApprovedStories = async (): Promise<StoryTemplate[]> => {
       const storiesRef = collection(db, "story_templates");
-      
+
       // Query by status + isActive — Firestore rules require BOTH for non-admin list queries
       console.log("[SearchOverlay] auth state:", {
         uid: currentUser?.uid,
@@ -160,19 +153,13 @@ import {
       });
       console.log("[SearchOverlay] query: story_templates where(status==approved, isActive==true)");
       const q = query(storiesRef, where("status", "==", "approved"), where("isActive", "==", true));
-      
+
       const snap = await getDocs(q);
-      
-      const allStories = snap.docs.map((doc) => ({
+
+      return snap.docs.map((doc) => ({
         id: doc.id,
         ...(doc.data() as Omit<StoryTemplate, "id">),
       }));
-
-      // Filter by language in memory
-      return allStories.filter(story => {
-        const lang = getStoryLanguage(story);
-        return lang === CURRENT_LANGUAGE;
-      });
     };
   
     // ------------------------------
@@ -208,8 +195,9 @@ import {
           const topics = new Set<string>();
   
           allStories.forEach((s) => {
-            if (s.specificSituation) situations.add(s.specificSituation);
-            if (s.primaryTopic) topics.add(s.primaryTopic);
+            if (s.situationId) situations.add(s.situationId);
+            const topicId = s.primaryTopic || s.topicKey;
+            if (topicId) topics.add(topicId);
           });
   
           setAvailableSituations(situations);
@@ -250,7 +238,7 @@ import {
   
       loadInitialData();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isOpen, CURRENT_LANGUAGE]);
+    }, [isOpen, language]);
   
     useEffect(() => {
       if (isOpen && inputRef.current) {
@@ -270,38 +258,57 @@ import {
     // Search logic - ALL IN MEMORY
     // ------------------------------
   
+    /** True if any of the item's labels (any language) contain the search term. */
+    const matchesAnyLabel = (
+      item: {
+        label_en?: string;
+        label_he?: string;
+        label_ar?: string;
+        labelEn?: string;
+        labelHe?: string;
+        labelAr?: string;
+      },
+      searchLower: string,
+    ) => {
+      const labels = [
+        item.label_en,
+        item.label_he,
+        item.label_ar,
+        item.labelEn,
+        item.labelHe,
+        item.labelAr,
+      ];
+      return labels.some((l) => (l || "").toLowerCase().includes(searchLower));
+    };
+
     const resolveMatchByReferenceData = (term: string) => {
       const searchLower = term.toLowerCase().trim();
       let situationId: string | undefined;
       let topicId: string | undefined;
-  
+
       if (referenceData?.situations?.length) {
-        const s = referenceData.situations.find((x) => {
-          const labelHe = (x.label_he || "").toLowerCase();
-          const labelAr = (x.label_ar || "").toLowerCase();
-          return x.active && (labelHe.includes(searchLower) || labelAr.includes(searchLower));
-        });
+        const s = referenceData.situations.find((x) => x.active && matchesAnyLabel(x, searchLower));
         if (s) situationId = s.id;
       }
-  
+
       if (!situationId && referenceData?.topics?.length) {
-        const t = referenceData.topics.find((x) => {
-          const labelHe = (x.label_he || "").toLowerCase();
-          const labelAr = (x.label_ar || "").toLowerCase();
-          return x.active && (labelHe.includes(searchLower) || labelAr.includes(searchLower));
-        });
+        const t = referenceData.topics.find((x) => x.active && matchesAnyLabel(x, searchLower));
         if (t) topicId = t.id;
       }
-  
+
       return { situationId, topicId };
     };
   
-    const performSearchByField = (field: "specificSituation" | "primaryTopic", value: string) => {
+    const performSearchByField = (field: "situationId" | "topicId", value: string) => {
       setIsSearching(true);
       
       try {
         // Filter from cache
-        const results = allStoriesCache.filter(story => story[field] === value);
+        const results = allStoriesCache.filter((story) =>
+          field === "situationId"
+            ? story.situationId === value
+            : story.primaryTopic === value || story.topicKey === value
+        );
         setSearchResults(results.slice(0, 30));
       } catch (e) {
         console.error("[SearchOverlay] search-by-field error:", e);
@@ -375,12 +382,12 @@ import {
         const rawTopicId = availableTopics.has(rawLower) ? rawLower : undefined;
 
         if (situationId || rawSituationId) {
-          performSearchByField("specificSituation", situationId || rawSituationId!);
+          performSearchByField("situationId", situationId || rawSituationId!);
           return;
         }
 
         if (topicId || rawTopicId) {
-          performSearchByField("primaryTopic", topicId || rawTopicId!);
+          performSearchByField("topicId", topicId || rawTopicId!);
           return;
         }
 
@@ -420,9 +427,9 @@ import {
       setSearchQuery(s.label);
   
       if (s.type === "situation") {
-        performSearchByField("specificSituation", s.id);
+        performSearchByField("situationId", s.id);
       } else {
-        performSearchByField("primaryTopic", s.id);
+        performSearchByField("topicId", s.id);
       }
     };
   
@@ -625,11 +632,12 @@ import {
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                       {popularStories.map((story) => {
                         const age = getStoryAge(story);
-                        const situation = story.specificSituation
-                          ? getLabel(story.specificSituation, "situation")
+                        const situation = story.situationId
+                          ? getLabel(story.situationId, "situation")
                           : "";
-                        const topic = story.primaryTopic
-                          ? getLabel(story.primaryTopic, "topic")
+                        const topicId = story.primaryTopic || story.topicKey;
+                        const topic = topicId
+                          ? getLabel(topicId, "topic")
                           : "";
                         const secondary = situation || topic;
   
@@ -680,11 +688,12 @@ import {
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                     {searchResults.map((story) => {
                       const age = getStoryAge(story);
-                      const situation = story.specificSituation
-                        ? getLabel(story.specificSituation, "situation")
+                      const situation = story.situationId
+                        ? getLabel(story.situationId, "situation")
                         : "";
-                      const topic = story.primaryTopic
-                        ? getLabel(story.primaryTopic, "topic")
+                      const topicId = story.primaryTopic || story.topicKey;
+                      const topic = topicId
+                        ? getLabel(topicId, "topic")
                         : "";
                       const secondary = situation || topic;
   

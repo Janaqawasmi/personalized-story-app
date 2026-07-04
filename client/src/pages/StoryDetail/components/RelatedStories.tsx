@@ -36,6 +36,8 @@ export default function RelatedStories({ stories, reducedMotion }: RelatedStorie
               coverImage: s.coverImage,
               targetAgeGroup: s.targetAgeGroup,
               topicKey: s.topicKey,
+              primaryTopic: s.primaryTopic,
+              situationId: s.situationId,
               topicLabel: s.topicLabel ?? null,
             }}
             onView={() => window.scrollTo({ top: 0, behavior: "smooth" })}

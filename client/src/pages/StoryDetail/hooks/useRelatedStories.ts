@@ -17,6 +17,10 @@ function formatAgeDisplay(raw?: string | null): string | undefined {
 }
 
 function mapDocToRelatedCard(id: string, data: Record<string, unknown>, lang: string): RelatedStoryCardVM {
+  const primaryTopic = data.primaryTopic as string | undefined;
+  const topicKey =
+    (data.topicKey as string | undefined) || primaryTopic || undefined;
+
   const rawAge =
     (data.targetAgeGroup as string | undefined) ||
     (data.ageGroup as string | undefined) ||
@@ -28,14 +32,10 @@ function mapDocToRelatedCard(id: string, data: Record<string, unknown>, lang: st
     shortDescription: resolveLocalizedField(data.shortDescription, lang),
     coverImage: (data.coverImage as string | undefined) || (data.coverImageUrl as string | undefined),
     targetAgeGroup: formatAgeDisplay(rawAge),
-    topicKey: (data.topicKey as string | undefined) || (data.primaryTopic as string | undefined) || undefined,
-    topicLabel:
-      resolveLocalizedField(data.displayTopic, lang) ||
-      (typeof data.primaryTopic === "string"
-        ? data.primaryTopic.replace(/_/g, " ")
-        : typeof data.topicKey === "string"
-          ? data.topicKey.replace(/_/g, " ")
-          : undefined),
+    topicKey,
+    primaryTopic,
+    situationId: data.situationId as string | undefined,
+    topicLabel: resolveLocalizedField(data.displayTopic, lang),
   };
 }
 

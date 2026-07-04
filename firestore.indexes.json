@@ -55,6 +55,15 @@
       "collectionGroup": "story_templates",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "situationId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "story_templates",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "isPublished", "order": "ASCENDING" },
         { "fieldPath": "isActive", "order": "ASCENDING" },
         { "fieldPath": "ageGroup", "order": "ASCENDING" },

@@ -78,6 +78,7 @@ export interface StorySearchResult {
   };
   primaryTopic?: string;
   specificSituation?: string;
+  situationId?: string;
   category?: string;
   topicKey?: string;
   language?: string;

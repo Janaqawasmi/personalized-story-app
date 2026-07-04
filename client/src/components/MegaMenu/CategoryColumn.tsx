@@ -3,6 +3,7 @@ import { ReferenceTopic } from "../../hooks/useReferenceData";
 import * as s from "./styles";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { getLocalizedReferenceLabel } from "../../utils/referenceDataLabel";
 
 type Props = {
   topics: ReferenceTopic[];
@@ -26,14 +27,7 @@ export function CategoryColumn({
   const activeTopics = topics.filter((topic) => topic.active);
 
   // Get label based on current language
-  const getLabel = (topic: ReferenceTopic): string => {
-    if (language === "en") {
-      // For English, prefer label_en if available, fallback to label_he
-      return topic.label_en || topic.label_he || topic.id;
-    }
-    // For Hebrew and Arabic, use label_he
-    return topic.label_he || topic.id;
-  };
+  const getLabel = (topic: ReferenceTopic): string => getLocalizedReferenceLabel(topic, language);
 
   return (
     <Box sx={s.column}>

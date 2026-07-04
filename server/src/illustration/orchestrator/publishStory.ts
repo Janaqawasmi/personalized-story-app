@@ -19,6 +19,7 @@ import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@
 import type { AgeRange } from "@/models/storyBrief.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { generateTextVariants } from "@/services/textVariants.service";
+import { checkReferenceItem } from "@/services/referenceData.service";
 
 export class PublishStoryError extends Error {
   readonly code: "INVALID_STATE" | "NOT_READY";
@@ -79,6 +80,15 @@ export interface PublishStoryBody {
   shortDescriptionAr?: string;
   displayTopicHe?: string;
   displayTopicAr?: string;
+  /** Existing `referenceData/situations` id, chosen in the Publish dialog. */
+  situationId?: string;
+  /** Specialist's request for a new situation, when no existing one fits. */
+  situationProposal?: {
+    labelHe?: string;
+    labelAr?: string;
+    labelEn?: string;
+    reason?: string;
+  };
 }
 
 export async function publishStory(params: {
@@ -243,6 +253,45 @@ export async function publishStory(params: {
     ar: body.shortDescriptionAr?.trim() || creative || story.title,
   };
 
+  // ── Situation (structured taxonomy id, or a pending request for a new one) ─
+  const situationId = body.situationId?.trim() || undefined;
+  let situationProposal: StoryTemplate["situationProposal"] | undefined;
+
+  if (situationId) {
+    const check = await checkReferenceItem("situations", situationId);
+    if (!check.exists || !check.active) {
+      throw new PublishStoryError(
+        "NOT_READY",
+        `situationId "${situationId}" does not exist or is not active in referenceData/situations.`,
+      );
+    }
+  } else if (body.situationProposal) {
+    const labelHe = body.situationProposal.labelHe?.trim();
+    const labelAr = body.situationProposal.labelAr?.trim();
+    const labelEn = body.situationProposal.labelEn?.trim();
+    const reason = body.situationProposal.reason?.trim();
+    if (!labelHe && !labelAr && !labelEn) {
+      throw new PublishStoryError(
+        "NOT_READY",
+        "situationProposal requires at least one of labelHe, labelAr, labelEn.",
+      );
+    }
+    situationProposal = {
+      ...(labelHe ? { labelHe } : {}),
+      ...(labelAr ? { labelAr } : {}),
+      ...(labelEn ? { labelEn } : {}),
+      ...(reason ? { reason } : {}),
+      status: "pending",
+      createdBy: uid,
+      createdAt: Timestamp.now(),
+    };
+  } else {
+    throw new PublishStoryError(
+      "NOT_READY",
+      "Cannot publish: select an existing situation or request a new one (situationId or situationProposal is required).",
+    );
+  }
+
   const primaryApproach = brief.therapeuticArchitecture.primaryApproach;
   const primaryTopic = brief.storyType;
   const displayTopic = {
@@ -323,6 +372,8 @@ export async function publishStory(params: {
     ...templateBase,
     ...(isPersonalizable ? { defaultIllustrationStyle: "watercolor" as const } : {}),
     ...(protagonistSlot ? { protagonistSlot } : {}),
+    ...(situationId ? { situationId } : {}),
+    ...(situationProposal ? { situationProposal } : {}),
   };
 
   // Validate required public catalog fields before writing.

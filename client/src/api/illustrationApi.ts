@@ -273,6 +273,13 @@ export interface PublishStoryRequestBody {
   shortDescriptionAr?: string;
   displayTopicHe?: string;
   displayTopicAr?: string;
+  situationId?: string;
+  situationProposal?: {
+    labelHe?: string;
+    labelAr?: string;
+    labelEn?: string;
+    reason?: string;
+  };
 }
 
 export async function publishStoryToLibrary(

@@ -1,22 +1,25 @@
 export type Language = "he" | "en" | "ar";
 
-export interface TopicRef {
+export interface ReferenceLabelFields {
+  label_he?: string;
+  label_en?: string;
+  label_ar?: string;
+  labelHe?: string;
+  labelEn?: string;
+  labelAr?: string;
+}
+
+export interface TopicRef extends ReferenceLabelFields {
   id: string;
-  label_he: string;
-  label_en: string;
-  label_ar: string;
   order: number;
   active: boolean;
   /** Optional Firestore grouping label for mega-menu / filters */
   parentCategory?: string;
 }
 
-export interface SituationRef {
+export interface SituationRef extends ReferenceLabelFields {
   id: string;
   topicKey: string;
-  label_he: string;
-  label_en: string;
-  label_ar: string;
   active: boolean;
 }
 
