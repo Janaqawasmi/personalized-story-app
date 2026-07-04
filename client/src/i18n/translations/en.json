@@ -920,7 +920,8 @@
     },
     "layout": {
       "panelSubtitle": "Admin Panel",
-      "siteAdmin": "Site Admin"
+      "siteAdmin": "Site Admin",
+      "openMenu": "Open menu"
     },
     "nav": {
       "sectionOverview": "Overview",

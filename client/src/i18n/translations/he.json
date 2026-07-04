@@ -920,7 +920,8 @@
     },
     "layout": {
       "panelSubtitle": "פאנל ניהול",
-      "siteAdmin": "מנהל אתר"
+      "siteAdmin": "מנהל אתר",
+      "openMenu": "פתיחת תפריט"
     },
     "nav": {
       "sectionOverview": "סקירה",

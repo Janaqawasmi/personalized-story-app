@@ -47,50 +47,55 @@ export default function AdminUsersPage() {
         {t("admin.users.title")}
       </Typography>
       <Paper elevation={0} sx={{ p: 2, border: `0.5px solid ${COLORS.border}`, borderRadius: "12px", bgcolor: "#fff" }}>
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "2fr 2fr 100px 100px",
-            gap: 1,
-            px: 1,
-            pb: 1,
-            borderBottom: `0.5px solid ${COLORS.border}`,
-          }}
-        >
-          {[t("admin.users.colName"), t("admin.users.colEmail"), t("admin.users.colPurchases"), t("admin.users.colRole")].map(
-            (h, idx) => (
-              <Typography key={idx} sx={{ fontSize: 11, color: COLORS.textSecondary }}>
-                {h}
-              </Typography>
-            )
-          )}
+        {/* Horizontal scroll on mobile keeps columns readable instead of crushing them */}
+        <Box sx={{ overflowX: "auto" }}>
+          <Box sx={{ minWidth: 480 }}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: "2fr 2fr 100px 100px",
+                gap: 1,
+                px: 1,
+                pb: 1,
+                borderBottom: `0.5px solid ${COLORS.border}`,
+              }}
+            >
+              {[t("admin.users.colName"), t("admin.users.colEmail"), t("admin.users.colPurchases"), t("admin.users.colRole")].map(
+                (h, idx) => (
+                  <Typography key={idx} sx={{ fontSize: 11, color: COLORS.textSecondary }}>
+                    {h}
+                  </Typography>
+                )
+              )}
+            </Box>
+            {loading && (
+              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.common.loading")}</Typography>
+            )}
+            {!loading &&
+              rows.map((r, i) => {
+                const isLast = i === rows.length - 1;
+                return (
+                  <Box
+                    key={r.id}
+                    sx={{
+                      display: "grid",
+                      gridTemplateColumns: "2fr 2fr 100px 100px",
+                      gap: 1,
+                      px: 1,
+                      py: 1,
+                      borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{r.fullName}</Typography>
+                    <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{r.email}</Typography>
+                    <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{r.purchaseCount}</Typography>
+                    <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{r.role}</Typography>
+                  </Box>
+                );
+              })}
+          </Box>
         </Box>
-        {loading && (
-          <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.common.loading")}</Typography>
-        )}
-        {!loading &&
-          rows.map((r, i) => {
-            const isLast = i === rows.length - 1;
-            return (
-              <Box
-                key={r.id}
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 2fr 100px 100px",
-                  gap: 1,
-                  px: 1,
-                  py: 1,
-                  borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
-                  alignItems: "center",
-                }}
-              >
-                <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{r.fullName}</Typography>
-                <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{r.email}</Typography>
-                <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{r.purchaseCount}</Typography>
-                <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{r.role}</Typography>
-              </Box>
-            );
-          })}
       </Paper>
     </Box>
   );
