@@ -1,5 +1,19 @@
 import { hasValidTextTemplates, mapFirestoreToStoryDetailVM } from "../mapFirestoreToVM";
 
+const referenceData = {
+  topics: [
+    {
+      id: "fear_anxiety",
+      active: true,
+      order: 1,
+      label_en: "Fear & Anxiety",
+      label_he: "פחד וחרדה",
+      label_ar: "الخوف والقلق",
+    },
+  ],
+  situations: [],
+};
+
 // ─── hasValidTextTemplates unit tests ────────────────────────────────────────
 
 const VALID = (suffix = "") => ({
@@ -140,5 +154,46 @@ describe("mapFirestoreToStoryDetailVM — hasValidTextTemplates + canStartPerson
     // But the legacy field is still mapped for reference
     expect(vmTrue.textPersonalizationReady).toBe(true);
     expect(vmFalse.textPersonalizationReady).toBe(false);
+  });
+
+  it("ignores raw displayTopic ids and falls back to the localized topic label", () => {
+    const vmHe = mapFirestoreToStoryDetailVM(
+      "id8",
+      buildData({
+        displayTopic: { he: "fear_anxiety", ar: "fear_anxiety" },
+        primaryTopic: "fear_anxiety",
+        topicKey: "fear_anxiety",
+      }),
+      "he",
+      referenceData,
+    );
+    const vmAr = mapFirestoreToStoryDetailVM(
+      "id9",
+      buildData({
+        displayTopic: { he: "fear_anxiety", ar: "fear_anxiety" },
+        primaryTopic: "fear_anxiety",
+        topicKey: "fear_anxiety",
+      }),
+      "ar",
+      referenceData,
+    );
+
+    expect(vmHe.topicLabel).toBe("פחד וחרדה");
+    expect(vmAr.topicLabel).toBe("الخوف والقلق");
+  });
+
+  it("never exposes the raw topic key when reference data is unavailable", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id10",
+      buildData({
+        displayTopic: { he: "fear_anxiety", ar: "fear_anxiety" },
+        primaryTopic: "fear_anxiety",
+        topicKey: "fear_anxiety",
+      }),
+      "he",
+      null,
+    );
+
+    expect(vm.topicLabel).toBe("");
   });
 });

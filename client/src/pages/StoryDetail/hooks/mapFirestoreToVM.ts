@@ -10,6 +10,9 @@ import {
   getLocalizedTopicLabel,
 } from "../../../utils/referenceDataLabel";
 
+const DEFAULT_BOOK_PRICE = 29.99;
+const DEFAULT_BOOK_CURRENCY = "ILS";
+
 /** Single locale string from Firestore map `{ en, he, ar }` or legacy flat string. */
 export function pickLocalized(field: unknown, lang: string): string {
   if (field == null || field === "") return "";
@@ -35,14 +38,34 @@ function pickTopicLabel(
   lang: "he" | "en" | "ar",
   referenceData?: ReferenceData | null,
 ): string {
+  const normalize = (value: unknown): string =>
+    typeof value === "string" ? value.trim().toLowerCase() : "";
+  const rawKeys = new Set(
+    [
+      data.displayTopic,
+      data.primaryTopic,
+      data.topicKey,
+      data.situationId,
+    ]
+      .flatMap((value) =>
+        value && typeof value === "object" && !Array.isArray(value)
+          ? Object.values(value as Record<string, unknown>)
+          : [value],
+      )
+      .map(normalize)
+      .filter(Boolean),
+  );
+  const isRawKey = (value: string): boolean => rawKeys.has(normalize(value));
+
   // Note: `specificSituation` is free clinical text, not a display label — never
   // shown as a public topic badge. `displayTopic` (specialist-authored) is the
   // primary source; `primaryTopic`/`topicKey` are the domain-key fallback.
-  const displayTopic = pickLocalized(data.displayTopic, lang);
-  if (displayTopic.trim()) return displayTopic;
+  const displayTopic = pickLocalized(data.displayTopic, lang).trim();
+  if (displayTopic && !isRawKey(displayTopic)) return displayTopic;
 
-  if (typeof data.situationId === "string" && data.situationId.trim()) {
-    return getLocalizedSituationLabel(data.situationId, lang, referenceData);
+  if (referenceData && typeof data.situationId === "string" && data.situationId.trim()) {
+    const label = getLocalizedSituationLabel(data.situationId, lang, referenceData);
+    if (label && !isRawKey(label)) return label;
   }
 
   const topicId =
@@ -52,8 +75,9 @@ function pickTopicLabel(
         ? data.topicKey
         : "";
 
-  if (topicId) {
-    return getLocalizedTopicLabel(topicId, lang, referenceData);
+  if (referenceData && topicId) {
+    const label = getLocalizedTopicLabel(topicId, lang, referenceData);
+    if (label && !isRawKey(label)) return label;
   }
 
   return "";
@@ -75,6 +99,11 @@ function readAmount(value: unknown): number | undefined {
     return (value as { current: number }).current;
   }
   return undefined;
+}
+
+function readAmountFromCents(value: unknown): number | undefined {
+  const cents = readAmount(value);
+  return typeof cents === "number" ? Number((cents / 100).toFixed(2)) : undefined;
 }
 
 /** Normalize Firestore localized string / plain string to { en, he, ar }. */
@@ -141,8 +170,18 @@ export function mapFirestoreToStoryDetailVM(
   lang: "he" | "en" | "ar",
   referenceData?: ReferenceData | null,
 ): StoryDetailVM {
-  const digital = readAmount(data?.pricing?.digital) ?? readAmount(data?.pricing?.digitalPrice);
-  const print = readAmount(data?.pricing?.print);
+  const digital =
+    readAmount(data?.pricing?.digital) ??
+    readAmount(data?.pricing?.digitalPrice) ??
+    readAmount(data?.price) ??
+    readAmountFromCents(data?.pricing?.priceCents) ??
+    readAmountFromCents(data?.priceCents);
+  const print =
+    readAmount(data?.pricing?.print) ??
+    readAmount(data?.pricing?.printPrice) ??
+    readAmountFromCents(data?.pricing?.printPriceCents) ??
+    readAmountFromCents(data?.printPriceCents);
+  const resolvedDigital = digital ?? DEFAULT_BOOK_PRICE;
 
   let status: StoryDetailStatus = "published";
   if (data.comingSoon === true || data.status === "coming_soon") {
@@ -169,9 +208,16 @@ export function mapFirestoreToStoryDetailVM(
     primaryTopic: typeof data.primaryTopic === "string" ? data.primaryTopic : "",
     topicKey: typeof data.topicKey === "string" ? data.topicKey : "",
     topicLabel: pickTopicLabel(data, lang, referenceData),
-    priceDigital: digital,
+    // Keep the public detail page aligned with checkout's current default price
+    // until every published template carries explicit pricing fields.
+    priceDigital: resolvedDigital,
     pricePrint: print,
-    currency: typeof data.currency === "string" ? data.currency : "ILS",
+    currency:
+      typeof data.currency === "string"
+        ? data.currency
+        : typeof data.pricing?.currency === "string"
+          ? data.pricing.currency
+          : DEFAULT_BOOK_CURRENCY,
     printAvailable,
     previewSpreads: mapPreviewSpreads(data.previewSpreads),
     faq: mapFaq(data.faq),

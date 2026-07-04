@@ -295,8 +295,11 @@ export async function publishStory(params: {
   const primaryApproach = brief.therapeuticArchitecture.primaryApproach;
   const primaryTopic = brief.storyType;
   const displayTopic = {
-    he: body.displayTopicHe?.trim() || primaryTopic || story.title,
-    ar: body.displayTopicAr?.trim() || primaryTopic || story.title,
+    // Leave this blank when the specialist does not provide an override.
+    // The public client resolves the visible label from referenceData and should
+    // never persist the raw taxonomy id (e.g. `fear_anxiety`) as display text.
+    he: body.displayTopicHe?.trim() || "",
+    ar: body.displayTopicAr?.trim() || "",
   };
 
   const slugBase = slugifyTitle(story.title);
