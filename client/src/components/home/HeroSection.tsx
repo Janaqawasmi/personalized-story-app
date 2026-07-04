@@ -190,45 +190,6 @@ export default function HeroSection() {
             {t("home.hero.cta_preview")}
           </Button>
         </Stack>
-
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            mt: 4.5,
-            pt: 3.5,
-            borderTop: "1px solid #D0C8C0",
-          }}
-        >
-          <Box sx={{ display: "flex" }}>
-            {["#824D5C", "#617891", "#B07A8A", "#9C8576"].map((bg, i) => (
-              <Box
-                key={i}
-                sx={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: "50%",
-                  border: "2px solid #E5DFD9",
-                  background: bg,
-                  mr: "-10px",
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#fff",
-                  zIndex: 4 - i,
-                }}
-              >
-                {["S", "M", "L", "R"][i]}
-              </Box>
-            ))}
-          </Box>
-          <Typography sx={{ fontSize: "13px", color: "text.secondary", ml: 1.5 }}>
-            <strong>{t("home.hero.trust_count")}</strong> {t("home.hero.trust_text")}
-          </Typography>
-        </Box>
       </Box>
 
       <Box
