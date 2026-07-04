@@ -759,6 +759,72 @@ async function runFullStoryGeneration(
 }
 
 /**
+ * Resumes a personalized story generation that got stuck mid-flight — e.g. the
+ * server process was killed/restarted while `runFullStoryGeneration` was still
+ * running. There is no persistence of in-flight AI calls, so "resume" means
+ * re-running generation for every page from scratch (the story document is
+ * reset to a clean `in_progress` state first); this is safe because
+ * `runFullStoryGeneration` is itself idempotent per invocation — it always
+ * rebuilds `pages`/`pagesCompleted` from its own in-memory `allPages`, it
+ * never reads or trusts the story doc's *current* progress.
+ *
+ * Guarded against stories that are not actually stuck: no-ops for
+ * "completed" stories, and throws for "fixed" (non-personalizable — those
+ * are synchronous and never get stuck) or already-generating stories to
+ * avoid a duplicate concurrent run.
+ */
+export async function retryStuckGeneration(storyId: string): Promise<void> {
+  const storyRef = db.collection(COLLECTIONS.PERSONALIZED_STORIES).doc(storyId);
+  const storySnap = await storyRef.get();
+  if (!storySnap.exists) {
+    throw new Error(`Story not found: ${storyId}`);
+  }
+  const story = storySnap.data() as PersonalizedStory;
+
+  if (story.generationStatus === "completed") {
+    return;
+  }
+  if (story.itemType === "template") {
+    throw new Error(`Story ${storyId} is a "fixed" story purchase and is generated synchronously; it cannot be stuck.`);
+  }
+
+  const purchaseSnapshot = await findPurchaseByPurchaseId(story.purchaseId);
+  if (!purchaseSnapshot) {
+    throw new Error(`Purchase not found for story ${storyId}: ${story.purchaseId}`);
+  }
+
+  const previewDoc = await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(story.previewId).get();
+  if (!previewDoc.exists) {
+    throw new Error(`Preview not found for story ${storyId}: ${story.previewId}`);
+  }
+  const preview = previewDoc.data() as StoryPreview;
+
+  const templateDoc = await db.collection(COLLECTIONS.STORY_TEMPLATES).doc(preview.templateId).get();
+  if (!templateDoc.exists) {
+    throw new Error(`Template not found for story ${storyId}: ${preview.templateId}`);
+  }
+  const template = templateDoc.data() as StoryTemplate;
+
+  // Reset progress so runFullStoryGeneration rebuilds every page cleanly —
+  // partial pages from the interrupted run are discarded rather than merged,
+  // since we cannot tell which of them are stale vs. genuinely complete.
+  await storyRef.update({
+    generationStatus: "in_progress",
+    pages: [],
+    pagesCompleted: 0,
+    pagesFailedIndexes: [],
+    generationCompletedAt: null,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+  await purchaseSnapshot.ref.update({
+    status: "generation_in_progress",
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+
+  await runFullStoryGeneration(storyId, storyRef, preview, template, purchaseSnapshot.ref);
+}
+
+/**
  * Finds a purchase document by purchaseId across all caregivers' purchases subcollections.
  * Uses a collection group query.
  */

@@ -13,6 +13,7 @@
     "get-user-role": "ts-node scripts/getUserRole.ts",
     "complexity:parity": "ts-node scripts/complexityWireParity.ts",
     "smoke:agent1": "ts-node -r tsconfig-paths/register scripts/smoke-test-agent1.ts",
+    "resume:stuck-stories": "ts-node -r tsconfig-paths/register scripts/resumeStuckStories.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage"

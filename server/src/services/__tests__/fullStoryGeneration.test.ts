@@ -71,6 +71,7 @@ const mockStoryDocRef = {
   id: "story-abc123",
   set: jest.fn().mockResolvedValue(undefined),
   update: jest.fn().mockResolvedValue(undefined),
+  get: jest.fn(),
 };
 
 const mockPersonalizedStoriesCollection = {
@@ -145,6 +146,7 @@ jest.mock("@/config/firebase", () => ({
 import {
   generateFullStory,
   registerImageProviderForStory,
+  retryStuckGeneration,
 } from "../fullStoryGeneration.service";
 import type { StoryPreview } from "@/shared/types/storyPreview";
 import type { StoryTemplate, ArtDirectionSnapshot } from "@/shared/types/storyTemplate";
@@ -1275,6 +1277,101 @@ describe("full story generation — idempotency", () => {
     expect(result).toBe(existingStoryId);
     // No new story should be created
     expect(mockStoryDocRef.set).not.toHaveBeenCalled();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// retryStuckGeneration — resumes a generation interrupted by a process kill
+// (e.g. server restart mid-flight leaves generationStatus stuck at
+// "in_progress" forever with no error and no retry path otherwise).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("retryStuckGeneration", () => {
+  const STUCK_STORY_ID = "stuck-story-1";
+
+  function makeStuckStory(overrides: Record<string, unknown> = {}) {
+    return {
+      storyId: STUCK_STORY_ID,
+      caregiverUid: CAREGIVER_UID,
+      purchaseId: PURCHASE_ID,
+      previewId: PREVIEW_ID,
+      itemType: "personalized",
+      childFirstName: "Maya",
+      childGender: "female",
+      childAgeGroup: "3_6",
+      templateId: TEMPLATE_ID,
+      templateTitle: "My Story",
+      templateVersion: 1,
+      language: "he",
+      dedicationName: null,
+      coverImageUrl: "https://example.com/cover.jpg",
+      generationStatus: "in_progress",
+      totalPages: 3,
+      pagesCompleted: 2,
+      pagesFromPreview: 2,
+      pagesFailedIndexes: [],
+      generationStartedAt: "2025-01-01T00:00:00Z",
+      generationCompletedAt: null,
+      pages: [],
+      isAccessible: false,
+      createdAt: { seconds: 0, nanoseconds: 0 },
+      updatedAt: { seconds: 0, nanoseconds: 0 },
+      ...overrides,
+    };
+  }
+
+  test("re-runs generation to completion for a story stuck in in_progress", async () => {
+    mockStoryDocRef.get.mockResolvedValue({ exists: true, data: () => makeStuckStory() });
+
+    await retryStuckGeneration(STUCK_STORY_ID);
+
+    // Reset call: clears stale partial progress before rebuilding.
+    expect(mockStoryDocRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        generationStatus: "in_progress",
+        pages: [],
+        pagesCompleted: 0,
+        pagesFailedIndexes: [],
+        generationCompletedAt: null,
+      })
+    );
+
+    // Final call from runFullStoryGeneration: all 3 pages present, completed.
+    const finalUpdateCall = mockStoryDocRef.update.mock.calls.find(
+      (call) => (call[0] as Record<string, unknown>)["generationStatus"] === "completed"
+    );
+    expect(finalUpdateCall).toBeDefined();
+    const finalUpdate = finalUpdateCall![0] as { pages: unknown[]; pagesCompleted: number };
+    expect(finalUpdate.pagesCompleted).toBe(3);
+    expect(finalUpdate.pages).toHaveLength(3);
+  });
+
+  test("is a no-op for an already-completed story", async () => {
+    mockStoryDocRef.get.mockResolvedValue({
+      exists: true,
+      data: () => makeStuckStory({ generationStatus: "completed" }),
+    });
+
+    await retryStuckGeneration(STUCK_STORY_ID);
+
+    expect(mockStoryDocRef.update).not.toHaveBeenCalled();
+  });
+
+  test("throws for a story that does not exist", async () => {
+    mockStoryDocRef.get.mockResolvedValue({ exists: false, data: () => undefined });
+
+    await expect(retryStuckGeneration("missing-story")).rejects.toThrow("Story not found");
+  });
+
+  test("throws for a fixed (non-personalizable) story — those are synchronous and never stuck", async () => {
+    mockStoryDocRef.get.mockResolvedValue({
+      exists: true,
+      data: () => makeStuckStory({ itemType: "template" }),
+    });
+
+    await expect(retryStuckGeneration(STUCK_STORY_ID)).rejects.toThrow(
+      "cannot be stuck"
+    );
   });
 });
 
