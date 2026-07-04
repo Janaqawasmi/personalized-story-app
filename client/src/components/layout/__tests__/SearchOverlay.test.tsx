@@ -39,6 +39,15 @@ const FEAR_OF_DARK = {
   label_ar: "الخوف من الظلام",
 };
 
+const FEAR_ANXIETY = {
+  id: "fear_anxiety",
+  active: true,
+  order: 1,
+  label_en: "Fear and anxiety",
+  label_he: "פחד וחרדה",
+  label_ar: "الخوف والقلق",
+};
+
 /** Content-language-tagged fixtures — SearchOverlay also filters its story
  * cache by the story's own content language matching the UI language, so
  * each test's fixtures must be tagged with that test's language. */
@@ -98,35 +107,42 @@ describe("SearchOverlay localization", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseReferenceData.mockReturnValue({
-      data: { topics: [], situations: [FEAR_OF_DARK] },
+      data: { topics: [FEAR_ANXIETY], situations: [FEAR_OF_DARK] },
       loading: false,
     });
   });
 
-  test("English UI shows the English situation label as a suggestion chip", async () => {
+  test("English UI shows the English situation and topic labels as suggestion chips", async () => {
     setLanguage("en");
     render(<SearchOverlay isOpen={true} onClose={jest.fn()} />);
 
     expect(await findChip(FEAR_OF_DARK.label_en)).toBeInTheDocument();
+    expect(await findChip(FEAR_ANXIETY.label_en)).toBeInTheDocument();
     expect(screen.queryByText(FEAR_OF_DARK.label_he)).not.toBeInTheDocument();
     expect(screen.queryByText(FEAR_OF_DARK.label_ar)).not.toBeInTheDocument();
+    expect(screen.queryByText("fear_anxiety")).not.toBeInTheDocument();
+    expect(screen.queryByText("fear_of_dark")).not.toBeInTheDocument();
   });
 
-  test("Hebrew UI shows the Hebrew situation label as a suggestion chip", async () => {
+  test("Hebrew UI shows the Hebrew situation and topic labels as suggestion chips", async () => {
     setLanguage("he");
     render(<SearchOverlay isOpen={true} onClose={jest.fn()} />);
 
     expect(await findChip(FEAR_OF_DARK.label_he)).toBeInTheDocument();
+    expect(await findChip(FEAR_ANXIETY.label_he)).toBeInTheDocument();
     expect(screen.queryByText(FEAR_OF_DARK.label_en)).not.toBeInTheDocument();
+    expect(screen.queryByText("fear_anxiety")).not.toBeInTheDocument();
   });
 
-  test("Arabic UI shows the Arabic situation label as a suggestion chip", async () => {
+  test("Arabic UI shows the Arabic situation and topic labels as suggestion chips", async () => {
     setLanguage("ar");
     render(<SearchOverlay isOpen={true} onClose={jest.fn()} />);
 
     expect(await findChip(FEAR_OF_DARK.label_ar)).toBeInTheDocument();
+    expect(await findChip(FEAR_ANXIETY.label_ar)).toBeInTheDocument();
     expect(screen.queryByText(FEAR_OF_DARK.label_he)).not.toBeInTheDocument();
     expect(screen.queryByText(FEAR_OF_DARK.label_en)).not.toBeInTheDocument();
+    expect(screen.queryByText("fear_anxiety")).not.toBeInTheDocument();
   });
 
   test("changing language re-renders the same chip with the new language's label", async () => {

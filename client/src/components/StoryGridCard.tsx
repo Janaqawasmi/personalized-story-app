@@ -14,6 +14,7 @@ import { Box, Typography, Button, IconButton } from "@mui/material";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import { useFavorite } from "../hooks/useFavorite";
+import { useReferenceData } from "../hooks/useReferenceData";
 import { useLanguage } from "../i18n/context/useLanguage";
 import { useLangNavigate } from "../i18n/navigation";
 import { useTranslation } from "../i18n/useTranslation";
@@ -21,6 +22,10 @@ import type { StoryTopic } from "../constants/topicColors";
 import { STORY_TOPIC_TAG_STYLES } from "../constants/topicColors";
 import StarField from "./home/StarField";
 import type { Story } from "../api/stories";
+import {
+  getLocalizedSituationLabel,
+  getLocalizedTopicLabel,
+} from "../utils/referenceDataLabel";
 
 /** Data shape accepted by both catalog (API Story) and featured (FeaturedStory) callers. */
 export type StoryGridCardStory = Omit<Story, "coverImage"> & {
@@ -112,13 +117,24 @@ function getDescriptionPlainText(story: StoryGridCardStory): string {
   return "";
 }
 
-function getTopicBadgeLabel(story: StoryGridCardStory): string {
-  return (
-    (story.topicLabel && story.topicLabel.trim()) ||
-    story.primaryTopic ||
-    story.topicKey ||
-    ""
-  );
+function getTopicBadgeLabel(
+  story: StoryGridCardStory,
+  language: "he" | "en" | "ar",
+  hasReferenceData: boolean,
+  referenceData: ReturnType<typeof useReferenceData>["data"],
+): string {
+  if (hasReferenceData && story.situationId) {
+    const label = getLocalizedSituationLabel(story.situationId, language, referenceData);
+    if (label) return label;
+  }
+
+  const topicId = story.primaryTopic || story.topicKey;
+  if (hasReferenceData && topicId) {
+    const label = getLocalizedTopicLabel(topicId, language, referenceData);
+    if (label) return label;
+  }
+
+  return (story.topicLabel && story.topicLabel.trim()) || "";
 }
 
 function NewBadge({ label }: { label: string }) {
@@ -152,7 +168,8 @@ export default function StoryGridCard({
   onView,
 }: StoryGridCardProps) {
   const navigate = useLangNavigate();
-  const { isRTL } = useLanguage();
+  const { isRTL, language } = useLanguage();
+  const { data: referenceData } = useReferenceData();
   const t = useTranslation();
 
   const topic = resolveTopic(story);
@@ -160,7 +177,12 @@ export default function StoryGridCard({
   const coverGradient = getCoverGradient(story);
   const coverUrl = getCoverUrl(story);
   const ageDisplay = getAgeDisplay(story);
-  const topicBadgeLabel = getTopicBadgeLabel(story);
+  const topicBadgeLabel = getTopicBadgeLabel(
+    story,
+    language,
+    Boolean(referenceData),
+    referenceData,
+  );
   const descriptionPlain = getDescriptionPlainText(story);
   const showPrice =
     variant === "featured" && typeof story.price === "number" && Number.isFinite(story.price);

@@ -1,4 +1,14 @@
-import type { FaqItemVM, PreviewSpreadVM, StoryDetailStatus, StoryDetailVM } from "../types/story";
+import type {
+  FaqItemVM,
+  PreviewSpreadVM,
+  StoryDetailStatus,
+  StoryDetailVM,
+} from "../types/story";
+import type { ReferenceData } from "../../../types/referenceData";
+import {
+  getLocalizedSituationLabel,
+  getLocalizedTopicLabel,
+} from "../../../utils/referenceDataLabel";
 
 /** Single locale string from Firestore map `{ en, he, ar }` or legacy flat string. */
 export function pickLocalized(field: unknown, lang: string): string {
@@ -20,15 +30,32 @@ export function pickLocalized(field: unknown, lang: string): string {
   return "";
 }
 
-function pickTopicLabel(data: Record<string, any>, lang: string): string {
+function pickTopicLabel(
+  data: Record<string, any>,
+  lang: "he" | "en" | "ar",
+  referenceData?: ReferenceData | null,
+): string {
   // Note: `specificSituation` is free clinical text, not a display label — never
   // shown as a public topic badge. `displayTopic` (specialist-authored) is the
   // primary source; `primaryTopic`/`topicKey` are the domain-key fallback.
-  const sources = [data.displayTopic, data.primaryTopic, data.topicKey];
-  for (const src of sources) {
-    const s = pickLocalized(src, lang);
-    if (s.trim()) return s;
+  const displayTopic = pickLocalized(data.displayTopic, lang);
+  if (displayTopic.trim()) return displayTopic;
+
+  if (typeof data.situationId === "string" && data.situationId.trim()) {
+    return getLocalizedSituationLabel(data.situationId, lang, referenceData);
   }
+
+  const topicId =
+    typeof data.primaryTopic === "string" && data.primaryTopic.trim()
+      ? data.primaryTopic
+      : typeof data.topicKey === "string"
+        ? data.topicKey
+        : "";
+
+  if (topicId) {
+    return getLocalizedTopicLabel(topicId, lang, referenceData);
+  }
+
   return "";
 }
 
@@ -108,7 +135,12 @@ export function hasValidTextTemplates(pages: unknown): boolean {
   });
 }
 
-export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any>, lang: string): StoryDetailVM {
+export function mapFirestoreToStoryDetailVM(
+  id: string,
+  data: Record<string, any>,
+  lang: "he" | "en" | "ar",
+  referenceData?: ReferenceData | null,
+): StoryDetailVM {
   const digital = readAmount(data?.pricing?.digital) ?? readAmount(data?.pricing?.digitalPrice);
   const print = readAmount(data?.pricing?.print);
 
@@ -136,7 +168,7 @@ export function mapFirestoreToStoryDetailVM(id: string, data: Record<string, any
       "",
     primaryTopic: typeof data.primaryTopic === "string" ? data.primaryTopic : "",
     topicKey: typeof data.topicKey === "string" ? data.topicKey : "",
-    topicLabel: pickTopicLabel(data, lang),
+    topicLabel: pickTopicLabel(data, lang, referenceData),
     priceDigital: digital,
     pricePrint: print,
     currency: typeof data.currency === "string" ? data.currency : "ILS",

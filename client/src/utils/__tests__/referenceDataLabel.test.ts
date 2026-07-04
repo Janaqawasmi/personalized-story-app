@@ -1,4 +1,8 @@
-import { getLocalizedReferenceLabel } from "../referenceDataLabel";
+import {
+  getLocalizedReferenceLabel,
+  getLocalizedSituationLabel,
+  getLocalizedTopicLabel,
+} from "../referenceDataLabel";
 
 const fullItem = {
   id: "fear_of_dark",
@@ -71,5 +75,51 @@ describe("getLocalizedReferenceLabel", () => {
   test("prefers snake_case over camelCase when both are present on the same item", () => {
     const mixed = { id: "z", label_en: "Snake case wins", labelEn: "camelCase loses" };
     expect(getLocalizedReferenceLabel(mixed, "en")).toBe("Snake case wins");
+  });
+});
+
+describe("referenceData id lookups", () => {
+  const referenceData = {
+    topics: [
+      {
+        id: "fear_anxiety",
+        active: true,
+        order: 1,
+        label_en: "Fear and anxiety",
+        label_he: "פחד וחרדה",
+        label_ar: "الخوف والقلق",
+      },
+    ],
+    situations: [
+      {
+        id: "fear_of_swimming",
+        topicKey: "fear_anxiety",
+        active: true,
+        label_en: "Fear of swimming",
+        label_he: "פחד משחייה",
+        label_ar: "الخوف من السباحة",
+      },
+    ],
+  };
+
+  test("getLocalizedSituationLabel resolves the visible label by UI language", () => {
+    expect(getLocalizedSituationLabel("fear_of_swimming", "he", referenceData)).toBe(
+      "פחד משחייה",
+    );
+    expect(getLocalizedSituationLabel("fear_of_swimming", "ar", referenceData)).toBe(
+      "الخوف من السباحة",
+    );
+    expect(getLocalizedSituationLabel("fear_of_swimming", "en", referenceData)).toBe(
+      "Fear of swimming",
+    );
+  });
+
+  test("getLocalizedTopicLabel falls back to the stable id only when no reference label exists", () => {
+    expect(getLocalizedTopicLabel("fear_anxiety", "en", referenceData)).toBe(
+      "Fear and anxiety",
+    );
+    expect(getLocalizedTopicLabel("unknown_topic", "he", referenceData)).toBe(
+      "unknown_topic",
+    );
   });
 });

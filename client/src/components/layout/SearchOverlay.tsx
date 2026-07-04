@@ -19,7 +19,11 @@ import {
   } from "firebase/firestore";
   import { db } from "../../firebase";
   import { useReferenceData } from "../../hooks/useReferenceData";
-  import { getLocalizedReferenceLabel } from "../../utils/referenceDataLabel";
+  import {
+    getLocalizedReferenceLabel,
+    getLocalizedSituationLabel,
+    getLocalizedTopicLabel,
+  } from "../../utils/referenceDataLabel";
   import { useTranslation } from "../../i18n/useTranslation";
   import { useLanguage } from "../../i18n/context/useLanguage";
   import { useAuth } from "../../contexts/AuthContext";
@@ -37,6 +41,7 @@ import {
     id: string;
     title?: string;
     primaryTopic?: string;
+    topicKey?: string;
     specificSituation?: string;
     situationId?: string;
     ageGroup?: string;
@@ -86,14 +91,10 @@ import {
     // ------------------------------
   
     const getLabel = (id: string, type: "situation" | "topic"): string => {
-      if (!referenceData) return id;
-
       if (type === "situation") {
-        const s = referenceData.situations?.find((x) => x.id === id && x.active);
-        return getLocalizedReferenceLabel(s, language) || id;
+        return getLocalizedSituationLabel(id, language, referenceData);
       }
-      const topicItem = referenceData.topics?.find((x) => x.id === id && x.active);
-      return getLocalizedReferenceLabel(topicItem, language) || id;
+      return getLocalizedTopicLabel(id, language, referenceData);
     };
   
     const formatAgeGroup = (ageGroup?: string): string => {
@@ -195,7 +196,8 @@ import {
   
           allStories.forEach((s) => {
             if (s.situationId) situations.add(s.situationId);
-            if (s.primaryTopic) topics.add(s.primaryTopic);
+            const topicId = s.primaryTopic || s.topicKey;
+            if (topicId) topics.add(topicId);
           });
   
           setAvailableSituations(situations);
@@ -257,8 +259,25 @@ import {
     // ------------------------------
   
     /** True if any of the item's labels (any language) contain the search term. */
-    const matchesAnyLabel = (item: { label_en?: string; label_he?: string; label_ar?: string }, searchLower: string) => {
-      const labels = [item.label_en, item.label_he, item.label_ar];
+    const matchesAnyLabel = (
+      item: {
+        label_en?: string;
+        label_he?: string;
+        label_ar?: string;
+        labelEn?: string;
+        labelHe?: string;
+        labelAr?: string;
+      },
+      searchLower: string,
+    ) => {
+      const labels = [
+        item.label_en,
+        item.label_he,
+        item.label_ar,
+        item.labelEn,
+        item.labelHe,
+        item.labelAr,
+      ];
       return labels.some((l) => (l || "").toLowerCase().includes(searchLower));
     };
 
@@ -280,12 +299,16 @@ import {
       return { situationId, topicId };
     };
   
-    const performSearchByField = (field: "situationId" | "primaryTopic", value: string) => {
+    const performSearchByField = (field: "situationId" | "topicId", value: string) => {
       setIsSearching(true);
       
       try {
         // Filter from cache
-        const results = allStoriesCache.filter(story => story[field] === value);
+        const results = allStoriesCache.filter((story) =>
+          field === "situationId"
+            ? story.situationId === value
+            : story.primaryTopic === value || story.topicKey === value
+        );
         setSearchResults(results.slice(0, 30));
       } catch (e) {
         console.error("[SearchOverlay] search-by-field error:", e);
@@ -364,7 +387,7 @@ import {
         }
 
         if (topicId || rawTopicId) {
-          performSearchByField("primaryTopic", topicId || rawTopicId!);
+          performSearchByField("topicId", topicId || rawTopicId!);
           return;
         }
 
@@ -406,7 +429,7 @@ import {
       if (s.type === "situation") {
         performSearchByField("situationId", s.id);
       } else {
-        performSearchByField("primaryTopic", s.id);
+        performSearchByField("topicId", s.id);
       }
     };
   
@@ -612,8 +635,9 @@ import {
                         const situation = story.situationId
                           ? getLabel(story.situationId, "situation")
                           : "";
-                        const topic = story.primaryTopic
-                          ? getLabel(story.primaryTopic, "topic")
+                        const topicId = story.primaryTopic || story.topicKey;
+                        const topic = topicId
+                          ? getLabel(topicId, "topic")
                           : "";
                         const secondary = situation || topic;
   
@@ -667,8 +691,9 @@ import {
                       const situation = story.situationId
                         ? getLabel(story.situationId, "situation")
                         : "";
-                      const topic = story.primaryTopic
-                        ? getLabel(story.primaryTopic, "topic")
+                      const topicId = story.primaryTopic || story.topicKey;
+                      const topic = topicId
+                        ? getLabel(topicId, "topic")
                         : "";
                       const secondary = situation || topic;
   

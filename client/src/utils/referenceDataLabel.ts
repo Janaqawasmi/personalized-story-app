@@ -1,15 +1,18 @@
-import type { Language } from "../types/referenceData";
+import type {
+  Language,
+  ReferenceData,
+  ReferenceLabelFields,
+} from "../types/referenceData";
 
-export interface LocalizableReferenceItem {
+export interface LocalizableReferenceItem extends ReferenceLabelFields {
   id?: string;
-  // referenceData/topics and referenceData/situations naming (Firestore).
-  label_en?: string | null;
-  label_he?: string | null;
-  label_ar?: string | null;
-  // situationProposal and other newer fields use this naming instead.
-  labelEn?: string | null;
-  labelHe?: string | null;
-  labelAr?: string | null;
+}
+
+type ReferenceLookupData = Pick<ReferenceData, "topics" | "situations"> | null | undefined;
+
+interface ReferenceLookupItem extends LocalizableReferenceItem {
+  id: string;
+  active?: boolean;
 }
 
 /**
@@ -47,4 +50,31 @@ export function getLocalizedReferenceLabel(
   }
 
   return item.id ?? "";
+}
+
+function findReferenceItemById(
+  items: ReferenceLookupItem[] | undefined,
+  id: string,
+): ReferenceLookupItem | undefined {
+  return items?.find((item) => item.id === id && item.active !== false);
+}
+
+export function getLocalizedSituationLabel(
+  situationId: string | null | undefined,
+  language: Language,
+  referenceData: ReferenceLookupData,
+): string {
+  if (!situationId) return "";
+  const item = findReferenceItemById(referenceData?.situations, situationId);
+  return getLocalizedReferenceLabel(item ?? { id: situationId }, language);
+}
+
+export function getLocalizedTopicLabel(
+  topicKey: string | null | undefined,
+  language: Language,
+  referenceData: ReferenceLookupData,
+): string {
+  if (!topicKey) return "";
+  const item = findReferenceItemById(referenceData?.topics, topicKey);
+  return getLocalizedReferenceLabel(item ?? { id: topicKey }, language);
 }

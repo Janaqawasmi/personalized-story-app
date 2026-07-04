@@ -7,11 +7,16 @@ import type { Story } from "../api/stories";
 import { AGE_GROUPS } from "../components/MegaMenu/data";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/useLanguage";
+import { useReferenceData } from "../hooks/useReferenceData";
 import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
 import { filterBarSx } from "../components/FilterBar/FilterBar.styles";
 import SuggestStoryBanner from "../components/SuggestStoryBanner";
+import {
+  getLocalizedSituationLabel,
+  getLocalizedTopicLabel,
+} from "../utils/referenceDataLabel";
 import {
   storyCatalogGridSx,
   catalogPageHeaderTitleSx,
@@ -80,6 +85,7 @@ export default function AllBooksPage() {
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   const t = useTranslation();
   const { language } = useLanguage();
+  const { data: referenceData } = useReferenceData();
 
   useEffect(() => {
     const topic = searchParams.get("topic");
@@ -138,7 +144,7 @@ export default function AllBooksPage() {
   }, [allBooks]);
 
   const topicOptions = useMemo(() => {
-    const topics = new Set<string>();
+    const topicIds = new Set<string>();
     const pool = selectedCategory
       ? allBooks.filter(
           (book) =>
@@ -147,13 +153,18 @@ export default function AllBooksPage() {
         )
       : [];
     pool.forEach((book) => {
-      const topic = (book as any).situationId || (book as any).topicKey;
-      if (topic && topic !== selectedCategory) {
-        topics.add(topic);
+      const situationId = (book as any).situationId;
+      if (situationId) {
+        topicIds.add(situationId);
       }
     });
-    return Array.from(topics).sort();
-  }, [allBooks, selectedCategory]);
+    return Array.from(topicIds)
+      .map((id) => ({
+        key: id,
+        label: getLocalizedSituationLabel(id, language, referenceData),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, language));
+  }, [allBooks, selectedCategory, language, referenceData]);
 
   const filteredBooks = useMemo(() => {
     let filtered = [...allBooks];
@@ -200,8 +211,14 @@ export default function AllBooksPage() {
   const graphCategoryLabel = t("filters.groupTopics");
 
   const categoryOptions = useMemo(
-    () => availableCategories.map((cat) => ({ key: cat, label: cat })),
-    [availableCategories]
+    () =>
+      availableCategories
+        .map((cat) => ({
+          key: cat,
+          label: getLocalizedTopicLabel(cat, language, referenceData),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label, language)),
+    [availableCategories, language, referenceData]
   );
 
   const ageGroup: FilterGroup = {
@@ -250,7 +267,7 @@ export default function AllBooksPage() {
           grouped: false,
           options: [
             { value: "", label: t("filters.allTopics") },
-            ...topicOptions.map((tp) => ({ value: tp, label: tp })),
+            ...topicOptions.map((tp) => ({ value: tp.key, label: tp.label })),
           ],
           value: selectedTopic,
           onChange: setSelectedTopic,

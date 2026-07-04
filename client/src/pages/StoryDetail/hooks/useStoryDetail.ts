@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { useParams } from "react-router-dom";
 import { db } from "../../../firebase";
+import { useReferenceData } from "../../../hooks/useReferenceData";
 import { useLanguage } from "../../../i18n/context/useLanguage";
 import type { StoryDetailVM } from "../types/story";
 import { mapFirestoreToStoryDetailVM } from "./mapFirestoreToVM";
@@ -11,6 +12,7 @@ type RawStoryDoc = { id: string; data: Record<string, any> };
 export function useStoryDetail() {
   const { storyId } = useParams<{ storyId: string }>();
   const { language } = useLanguage();
+  const { data: referenceData } = useReferenceData();
   const [raw, setRaw] = useState<RawStoryDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -54,8 +56,11 @@ export function useStoryDetail() {
 
   // Re-map when `language` changes — VM fields are locale-resolved strings; no second Firestore read.
   const story = useMemo<StoryDetailVM | null>(
-    () => (raw ? mapFirestoreToStoryDetailVM(raw.id, raw.data, language) : null),
-    [raw, language],
+    () =>
+      raw
+        ? mapFirestoreToStoryDetailVM(raw.id, raw.data, language, referenceData)
+        : null,
+    [raw, language, referenceData],
   );
 
   return { story, loading, error, storyId: storyId ?? "" };
