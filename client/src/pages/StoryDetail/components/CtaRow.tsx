@@ -25,10 +25,16 @@ interface CtaRowProps {
   personalizationEnabled: boolean;
   /**
    * Derived: all four gates pass — the full wizard can run.
-   *   = personalizationEnabled && textPersonalizationReady
+   *   = personalizationEnabled && (textPersonalizationReady || hasValidTextTemplates)
    *     && visualPersonalizationEnabled && visualPersonalizationReady
    */
   canStartPersonalization: boolean;
+  /**
+   * Technical reason `canStartPersonalization` is false, shown only outside
+   * production builds so a specialist/dev debugging "Personalization coming
+   * soon" doesn't have to go spelunking through Firestore.
+   */
+  blockedReason?: string | null;
   favoriteLoading: boolean;
   reducedMotion: boolean;
 }
@@ -43,6 +49,7 @@ export default function CtaRow({
   status,
   personalizationEnabled,
   canStartPersonalization,
+  blockedReason,
   favoriteLoading,
   reducedMotion,
 }: CtaRowProps) {
@@ -139,24 +146,32 @@ export default function CtaRow({
   // Intended to be personalizable but not all readiness gates are open yet.
   if (personalizationEnabled && !canStartPersonalization && !comingSoon) {
     return (
-      <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
-        <Chip
-          icon={<AccessTimeOutlinedIcon sx={{ fontSize: 15 }} />}
-          label={t("storyDetail.personalizationComingSoon")}
-          size="small"
-          sx={{
-            flex: 1,
-            height: 44,
-            borderRadius: SDRadii.cta,
-            border: `1px solid ${colorWithAlpha(COLORS.primary, 0.35)}`,
-            backgroundColor: colorWithAlpha(COLORS.primary, 0.05),
-            color: COLORS.primary,
-            fontSize: "14px",
-            fontWeight: 500,
-            "& .MuiChip-icon": { color: COLORS.primary },
-          }}
-        />
-        {favoriteButton}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+        <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <Chip
+            icon={<AccessTimeOutlinedIcon sx={{ fontSize: 15 }} />}
+            label={t("storyDetail.personalizationComingSoon")}
+            size="small"
+            sx={{
+              flex: 1,
+              height: 44,
+              borderRadius: SDRadii.cta,
+              border: `1px solid ${colorWithAlpha(COLORS.primary, 0.35)}`,
+              backgroundColor: colorWithAlpha(COLORS.primary, 0.05),
+              color: COLORS.primary,
+              fontSize: "14px",
+              fontWeight: 500,
+              "& .MuiChip-icon": { color: COLORS.primary },
+            }}
+          />
+          {favoriteButton}
+        </Box>
+        {/* Dev/admin diagnostic only — never shown in a production build. */}
+        {process.env.NODE_ENV !== "production" && blockedReason && (
+          <Typography sx={{ fontSize: "11px", color: COLORS.textSecondary, px: "2px" }}>
+            [dev] {blockedReason}
+          </Typography>
+        )}
       </Box>
     );
   }

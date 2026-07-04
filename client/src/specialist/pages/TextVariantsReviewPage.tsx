@@ -45,8 +45,17 @@ import { COLORS } from "../../theme";
 
 const CHILD_NAME_PLACEHOLDER = "{{CHILD_NAME}}";
 
-function hasPlaceholder(text: string): boolean {
-  return text.includes(CHILD_NAME_PLACEHOLDER);
+/** Matches any `{{TOKEN_NAME}}`-style placeholder, e.g. {{CHILD_NAME}}, {{PRONOUN_SUBJECT}}. */
+const PLACEHOLDER_PATTERN = /\{\{[A-Z_]+\}\}/g;
+
+/**
+ * A placeholder is only required in a variant if the page's original text
+ * actually contained it — not every page mentions the child, so
+ * {{CHILD_NAME}} must not be demanded on pages that never had it.
+ */
+function missingPlaceholders(originalText: string, variantText: string): string[] {
+  const required = Array.from(new Set(originalText.match(PLACEHOLDER_PATTERN) ?? []));
+  return required.filter((ph) => !variantText.includes(ph));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,8 +88,10 @@ function PageVariantCard({ variant, onSaveAndApprove, disabled }: PageVariantCar
   const isApproved = variant.reviewStatus === "approved";
   const isDirty = masculine !== variant.masculine || feminine !== variant.feminine;
 
-  const mOk = hasPlaceholder(masculine);
-  const fOk = hasPlaceholder(feminine);
+  const mMissing = missingPlaceholders(variant.originalText, masculine);
+  const fMissing = missingPlaceholders(variant.originalText, feminine);
+  const mOk = mMissing.length === 0;
+  const fOk = fMissing.length === 0;
   const canApprove = mOk && fOk && !busy && !disabled;
 
   async function handleApprove() {
@@ -157,7 +168,7 @@ function PageVariantCard({ variant, onSaveAndApprove, disabled }: PageVariantCar
             </Typography>
             {!mOk && (
               <Chip
-                label={`Missing ${CHILD_NAME_PLACEHOLDER}`}
+                label={`Missing ${mMissing.join(", ")}`}
                 size="small"
                 color="error"
                 variant="outlined"
@@ -182,7 +193,7 @@ function PageVariantCard({ variant, onSaveAndApprove, disabled }: PageVariantCar
             </Typography>
             {!fOk && (
               <Chip
-                label={`Missing ${CHILD_NAME_PLACEHOLDER}`}
+                label={`Missing ${fMissing.join(", ")}`}
                 size="small"
                 color="error"
                 variant="outlined"
@@ -351,8 +362,10 @@ export default function TextVariantsReviewPage() {
         Template: <code>{templateId}</code>
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 3, fontSize: 14 }}>
-        Review masculine and feminine variants for every page. Both variants must contain{" "}
-        <code>{CHILD_NAME_PLACEHOLDER}</code>. Approve each page, then activate text personalization.
+        Review masculine and feminine variants for every page. Any placeholder present in a
+        page's original text (e.g. <code>{CHILD_NAME_PLACEHOLDER}</code>) must be preserved in
+        both variants — pages that never mention the child are not required to add it. Approve
+        each page, then activate text personalization.
       </Typography>
 
       {error && (

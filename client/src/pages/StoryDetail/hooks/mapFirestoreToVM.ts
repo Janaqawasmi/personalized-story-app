@@ -147,9 +147,21 @@ function mapFaq(raw: unknown): FaqItemVM[] {
  * Returns true when every page has a non-empty masculine and feminine text
  * template each containing `{{CHILD_NAME}}`.
  *
- * This is the client-side equivalent of `hasValidTextTemplates` in preview.service.ts.
- * It replaces the deprecated `textPersonalizationReady` flag so that stories with
- * valid page data are never blocked by a stale Firestore flag.
+ * IMPORTANT: this is a blanket, per-page-unconditional check — it does NOT
+ * know which pages actually needed `{{CHILD_NAME}}` in their source text
+ * (that per-page source text lives in the `textVariants` subcollection,
+ * which is locked to specialists/admins by firestore.rules and is not
+ * readable from the public story detail page). It exists ONLY as a fallback
+ * for templates whose `pages[]` were patched outside the normal review flow
+ * (e.g. `scripts/patchTextTemplates.ts`, which always writes `{{CHILD_NAME}}`
+ * on every page) and therefore never went through `finalizeTextVariants()` to
+ * get `textPersonalizationReady` flipped to `true`.
+ *
+ * The actual public readiness gate is `isTextPersonalizationReady()` below,
+ * which prefers the authoritative `textPersonalizationReady` flag (set by
+ * `finalizeTextVariants()` in server/src/services/textVariants.service.ts,
+ * using the correct per-page/source-text-derived placeholder rule) and only
+ * falls back to this blanket check when that flag is false.
  */
 export function hasValidTextTemplates(pages: unknown): boolean {
   if (!Array.isArray(pages) || pages.length === 0) return false;
@@ -162,6 +174,47 @@ export function hasValidTextTemplates(pages: unknown): boolean {
       typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
     );
   });
+}
+
+/**
+ * The public-facing text-readiness gate: true when the specialist has
+ * finalized/activated text personalization (the authoritative signal — see
+ * `hasValidTextTemplates` above for why we can't re-derive the per-page rule
+ * on the client), OR when the blanket per-page check happens to already
+ * pass (the legacy-patched-template fallback).
+ */
+function isTextPersonalizationReady(data: Record<string, unknown>): boolean {
+  return data.textPersonalizationReady === true || hasValidTextTemplates(data.pages);
+}
+
+/**
+ * Builds a short, technical explanation for why `canStartPersonalization` is
+ * false, for development/admin diagnostics only (never shown to caregivers
+ * in production — see CtaRow.tsx). Returns null when personalization isn't
+ * blocked, or isn't applicable (story isn't meant to be personalizable).
+ */
+function computeBlockedReason(
+  data: Record<string, unknown>,
+  textReady: boolean,
+): string | null {
+  if (data.personalizationEnabled !== true) return null;
+
+  const reasons: string[] = [];
+  if (!textReady) {
+    reasons.push(
+      "textPersonalizationReady=false and pages[] still contain unresolved placeholders " +
+        "— the specialist needs to approve and “Activate text personalization” " +
+        "on the Text Variants Review page",
+    );
+  }
+  if (data.visualPersonalizationEnabled !== true) {
+    reasons.push("visualPersonalizationEnabled=false");
+  } else if (data.visualPersonalizationReady !== true) {
+    reasons.push(
+      "visualPersonalizationReady=false — the Visual Bible / art-direction snapshot was not captured at publish time",
+    );
+  }
+  return reasons.length > 0 ? reasons.join("; ") : null;
 }
 
 export function mapFirestoreToStoryDetailVM(
@@ -229,17 +282,18 @@ export function mapFirestoreToStoryDetailVM(
     storyLanguage: data.language || data.generationConfig?.language,
     // Default false for pre-Phase-1 templates that don't have this field.
     personalizationEnabled: data.personalizationEnabled === true,
-    // @deprecated — kept in the VM for legacy compatibility; not used for gating.
+    // Authoritative signal set by finalizeTextVariants() — see isTextPersonalizationReady().
     textPersonalizationReady: data.textPersonalizationReady === true,
-    // Derived from actual page data — never relies on the stale Firestore flag.
+    // Blanket per-page fallback only — see the doc comment on hasValidTextTemplates().
     hasValidTextTemplates: hasValidTextTemplates(data.pages),
     visualPersonalizationEnabled: data.visualPersonalizationEnabled === true,
     visualPersonalizationReady: data.visualPersonalizationReady === true,
     // Derived: all four gates must pass before the wizard can run end-to-end.
     canStartPersonalization:
       data.personalizationEnabled === true &&
-      hasValidTextTemplates(data.pages) &&
+      isTextPersonalizationReady(data) &&
       data.visualPersonalizationEnabled === true &&
       data.visualPersonalizationReady === true,
+    personalizationBlockedReason: computeBlockedReason(data, isTextPersonalizationReady(data)),
   };
 }

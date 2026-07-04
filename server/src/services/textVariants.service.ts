@@ -21,6 +21,7 @@
 import { firestore } from "@/config/firebase";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { callLLM } from "@/agent1/shared/llm-client";
+import { findMissingPlaceholders } from "@/shared/utils/placeholderValidation";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -184,24 +185,26 @@ function getVariantModel(): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // Validation helpers
 // ─────────────────────────────────────────────────────────────────────────────
+//
+// A placeholder is only "required" in a page's variants if it actually
+// appears in that page's original source text. Not every page mentions the
+// protagonist, so {{CHILD_NAME}} (or any other placeholder) must not be
+// demanded on pages where the source text never had it in the first place.
+// This logic (including Agent 1's [CHILD_NAME]-bracket authoring format) is
+// shared with the caregiver-side readiness gate in preview.service.ts.
 
-const CHILD_NAME_PLACEHOLDER = "{{CHILD_NAME}}";
-
-function variantHasPlaceholder(text: string): boolean {
-  return text.includes(CHILD_NAME_PLACEHOLDER);
-}
-
-function assertVariantValid(text: string, label: string): void {
+function assertVariantValid(originalText: string, text: string, label: string): void {
   if (!text || text.trim().length === 0) {
     throw new TextVariantError(
       "VALIDATION_FAILED",
       `${label} variant is empty.`,
     );
   }
-  if (!variantHasPlaceholder(text)) {
+  const missing = findMissingPlaceholders(originalText, text);
+  if (missing.length > 0) {
     throw new TextVariantError(
       "VALIDATION_FAILED",
-      `${label} variant is missing {{CHILD_NAME}}.`,
+      `${label} variant is missing required placeholder(s): ${missing.join(", ")}.`,
     );
   }
 }
@@ -408,8 +411,8 @@ export async function approveTextVariant(
 
   const doc = snap.data() as TextVariantDoc;
 
-  assertVariantValid(doc.masculine, `Page ${pageNumber} masculine`);
-  assertVariantValid(doc.feminine, `Page ${pageNumber} feminine`);
+  assertVariantValid(doc.originalText, doc.masculine, `Page ${pageNumber} masculine`);
+  assertVariantValid(doc.originalText, doc.feminine, `Page ${pageNumber} feminine`);
 
   await docRef.update({
     reviewStatus: "approved",
@@ -463,16 +466,22 @@ export async function finalizeTextVariants(
       notApproved.push(pn);
       continue;
     }
-    // Non-empty + {{CHILD_NAME}} checks (mirrors approveTextVariant validation).
+    // Non-empty + placeholder-preservation checks (mirrors approveTextVariant validation).
     if (!v.masculine || v.masculine.trim().length === 0) {
       invalidVariants.push(`page ${pn} masculine (empty)`);
-    } else if (!variantHasPlaceholder(v.masculine)) {
-      invalidVariants.push(`page ${pn} masculine (missing {{CHILD_NAME}})`);
+    } else {
+      const missing = findMissingPlaceholders(v.originalText, v.masculine);
+      if (missing.length > 0) {
+        invalidVariants.push(`page ${pn} masculine (missing ${missing.join(", ")})`);
+      }
     }
     if (!v.feminine || v.feminine.trim().length === 0) {
       invalidVariants.push(`page ${pn} feminine (empty)`);
-    } else if (!variantHasPlaceholder(v.feminine)) {
-      invalidVariants.push(`page ${pn} feminine (missing {{CHILD_NAME}})`);
+    } else {
+      const missing = findMissingPlaceholders(v.originalText, v.feminine);
+      if (missing.length > 0) {
+        invalidVariants.push(`page ${pn} feminine (missing ${missing.join(", ")})`);
+      }
     }
   }
 

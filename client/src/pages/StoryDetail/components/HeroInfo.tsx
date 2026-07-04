@@ -129,6 +129,7 @@ export default function HeroInfo({
         status={story.status}
         personalizationEnabled={story.personalizationEnabled}
         canStartPersonalization={story.canStartPersonalization}
+        blockedReason={story.personalizationBlockedReason}
         favoriteLoading={favoriteLoading}
         reducedMotion={reducedMotion}
       />

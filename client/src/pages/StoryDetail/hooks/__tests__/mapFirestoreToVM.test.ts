@@ -145,15 +145,83 @@ describe("mapFirestoreToStoryDetailVM — hasValidTextTemplates + canStartPerson
     expect(vm.canStartPersonalization).toBe(false);
   });
 
-  it("carries textPersonalizationReady from Firestore as legacy field without gating on it", () => {
+  it("returns canStartPersonalization=true when pages are raw-valid even if textPersonalizationReady=false (legacy-patched fallback)", () => {
     const vmTrue = mapFirestoreToStoryDetailVM("id7a", buildData({ textPersonalizationReady: true }), "he");
     const vmFalse = mapFirestoreToStoryDetailVM("id7b", buildData({ textPersonalizationReady: false }), "he");
     // Both should have the same canStartPersonalization since pages are valid in both
     expect(vmTrue.canStartPersonalization).toBe(true);
     expect(vmFalse.canStartPersonalization).toBe(true);
-    // But the legacy field is still mapped for reference
     expect(vmTrue.textPersonalizationReady).toBe(true);
     expect(vmFalse.textPersonalizationReady).toBe(false);
+  });
+
+  // ── Regression: scene-setting pages that never mention the child ─────────
+  //
+  // A page whose original text never referenced the protagonist (e.g. a
+  // short scene-setting page) legitimately has no {{CHILD_NAME}} in its
+  // masculine/feminine templates. The blanket per-page `hasValidTextTemplates`
+  // check would incorrectly flag that as invalid; the public CTA must instead
+  // trust `textPersonalizationReady` (set by finalizeTextVariants(), which
+  // already applies the correct per-page/source-text-derived rule).
+
+  const SCENE_SETTING_PAGE = {
+    textTemplate: {
+      masculine: "The kindergarten teacher set small jars on the table.",
+      feminine: "The kindergarten teacher set small jars on the table.",
+    },
+  };
+
+  it("Published story with ready personalization (incl. a child-name-free page) → CTA enabled", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-ready",
+      buildData({
+        textPersonalizationReady: true,
+        pages: [VALID("1"), SCENE_SETTING_PAGE, VALID("2")],
+      }),
+      "he",
+    );
+    // The blanket raw check would fail (scene-setting page has no {{CHILD_NAME}})...
+    expect(vm.hasValidTextTemplates).toBe(false);
+    // ...but the authoritative flag makes the CTA usable anyway.
+    expect(vm.canStartPersonalization).toBe(true);
+    expect(vm.personalizationBlockedReason).toBeNull();
+  });
+
+  it("Published story without ready personalization (same child-name-free page, not finalized) → CTA disabled", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-not-ready",
+      buildData({
+        textPersonalizationReady: false,
+        pages: [VALID("1"), SCENE_SETTING_PAGE, VALID("2")],
+      }),
+      "he",
+    );
+    expect(vm.hasValidTextTemplates).toBe(false);
+    expect(vm.canStartPersonalization).toBe(false);
+    expect(vm.personalizationBlockedReason).toContain("textPersonalizationReady=false");
+  });
+
+  it("surfaces a blocked reason mentioning the visual gate when text is ready but visual isn't", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-visual-blocked",
+      buildData({
+        textPersonalizationReady: true,
+        visualPersonalizationReady: false,
+      }),
+      "he",
+    );
+    expect(vm.canStartPersonalization).toBe(false);
+    expect(vm.personalizationBlockedReason).toContain("visualPersonalizationReady=false");
+    expect(vm.personalizationBlockedReason).not.toContain("textPersonalizationReady=false");
+  });
+
+  it("returns a null blocked reason when personalization isn't enabled at all", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-not-personalizable",
+      buildData({ personalizationEnabled: false }),
+      "he",
+    );
+    expect(vm.personalizationBlockedReason).toBeNull();
   });
 
   it("ignores raw displayTopic ids and falls back to the localized topic label", () => {

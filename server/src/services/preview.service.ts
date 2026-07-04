@@ -21,6 +21,10 @@ import {
   ArtDirectionSnapshotNotReadyError,
   PersonalizedArtDirectionNotReadyError,
 } from "./loadArtDirectionSnapshot";
+import {
+  CHILD_NAME_PLACEHOLDER,
+  findMissingPlaceholders,
+} from "../shared/utils/placeholderValidation";
 
 export { PersonalizedArtDirectionNotReadyError };
 
@@ -60,25 +64,74 @@ export class PreviewQuotaError extends Error {
 
 /**
  * Returns true when every page in `pages` has non-empty masculine and feminine
- * text templates each containing the `{{CHILD_NAME}}` placeholder.
+ * text templates that preserve whatever personalization placeholders that
+ * page's *source* text actually required (derived from the page's
+ * `textVariants/{pageNumber}` doc's `originalText`, written by
+ * textVariants.service.ts). A page whose source text never mentioned the
+ * protagonist (e.g. a short scene-setting page) is not required to contain
+ * `{{CHILD_NAME}}` — see placeholderValidation.ts for the shared rule.
+ *
+ * `originalTextByPage` holds each page's source text, keyed by pageNumber.
+ * A page with no entry (no `textVariants` doc — e.g. a legacy template
+ * published before this feature, or one where variant generation never
+ * completed) falls back to the conservative default of requiring
+ * `{{CHILD_NAME}}`, since we have no source-text evidence that it's safe to
+ * relax the requirement.
  *
  * This is the canonical text-readiness check for the preview API.
  * It replaces the deprecated `textPersonalizationReady` flag so that stories
  * with valid page data are never blocked by a stale flag.
  */
 export function hasValidTextTemplates(
-  pages: Array<{ textTemplate?: { masculine?: string; feminine?: string } | null }>,
+  pages: Array<{
+    pageNumber?: number;
+    textTemplate?: { masculine?: string; feminine?: string } | null;
+  }>,
+  originalTextByPage: Map<number, string>,
 ): boolean {
   if (pages.length === 0) return false;
   return pages.every((page) => {
     const tt = page.textTemplate;
     const masc = tt?.masculine;
     const fem = tt?.feminine;
+    if (typeof masc !== "string" || masc.trim().length === 0) return false;
+    if (typeof fem !== "string" || fem.trim().length === 0) return false;
+
+    const originalText =
+      typeof page.pageNumber === "number" ? originalTextByPage.get(page.pageNumber) : undefined;
+
+    if (originalText === undefined) {
+      return masc.includes(CHILD_NAME_PLACEHOLDER) && fem.includes(CHILD_NAME_PLACEHOLDER);
+    }
+
     return (
-      typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
-      typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
+      findMissingPlaceholders(originalText, masc).length === 0 &&
+      findMissingPlaceholders(originalText, fem).length === 0
     );
   });
+}
+
+/**
+ * Loads each page's source text (`originalText`) from the `textVariants`
+ * subcollection, keyed by pageNumber. Used to derive per-page placeholder
+ * requirements for `hasValidTextTemplates`. Returns an empty map (safe,
+ * conservative fallback) if the subcollection doesn't exist yet.
+ */
+async function loadOriginalTextByPage(templateId: string): Promise<Map<number, string>> {
+  const snap = await db
+    .collection(COLLECTIONS.STORY_TEMPLATES)
+    .doc(templateId)
+    .collection(COLLECTIONS.TEMPLATE_TEXT_VARIANTS)
+    .get();
+
+  const map = new Map<number, string>();
+  for (const doc of snap.docs) {
+    const data = doc.data() as { pageNumber?: number; originalText?: string };
+    if (typeof data.pageNumber === "number" && typeof data.originalText === "string") {
+      map.set(data.pageNumber, data.originalText);
+    }
+  }
+  return map;
 }
 
 /**
@@ -90,22 +143,27 @@ export function hasValidTextTemplates(
  * `textPersonalizationReady` flag, so stories with valid text are never
  * blocked by a stale flag.
  */
-function assertPersonalizationEligible(
+async function assertPersonalizationEligible(
+  templateId: string,
   template: {
     personalizationEnabled?: boolean;
     visualPersonalizationEnabled?: boolean;
     visualPersonalizationReady?: boolean;
-    pages?: Array<{ textTemplate?: { masculine?: string; feminine?: string } | null }>;
+    pages?: Array<{
+      pageNumber?: number;
+      textTemplate?: { masculine?: string; feminine?: string } | null;
+    }>;
   },
   requireVisual: boolean,
-): void {
+): Promise<void> {
   if (template.personalizationEnabled !== true) {
     throw new PreviewQuotaError(
       "PERSONALIZATION_DISABLED",
       "This story does not support personalization.",
     );
   }
-  if (!hasValidTextTemplates(template.pages ?? [])) {
+  const originalTextByPage = await loadOriginalTextByPage(templateId);
+  if (!hasValidTextTemplates(template.pages ?? [], originalTextByPage)) {
     throw new PreviewQuotaError(
       "TEXT_PERSONALIZATION_NOT_READY",
       "Text personalization variants are missing or incomplete for this story.",
@@ -290,7 +348,7 @@ export async function createDirectPurchasePreview(
     throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
   }
 
-  assertPersonalizationEligible(template, /* requireVisual= */ true);
+  await assertPersonalizationEligible(templateId, template, /* requireVisual= */ true);
   assertIllustrationStyle(template, selectedIllustrationStyle);
 
   const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
@@ -506,7 +564,7 @@ export async function generatePreview(
     throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
   }
 
-  assertPersonalizationEligible(template, /* requireVisual= */ true);
+  await assertPersonalizationEligible(templateId, template, /* requireVisual= */ true);
   assertIllustrationStyle(template, selectedIllustrationStyle);
 
   const caregiverRef = db.collection(COLLECTIONS.CAREGIVERS).doc(caregiverUid);
