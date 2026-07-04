@@ -23,6 +23,9 @@ export const Z_INDEX_SEARCH_OVERLAY_PANEL = 1201;
 /** Fullscreen book reader top controls (fixed). Kept at historical value. */
 export const Z_INDEX_BOOK_READER_TOP_CONTROLS = 1300;
 
+/** Sticky mobile purchase/personalize bar on the story detail page (fixed, bottom). */
+export const Z_INDEX_STICKY_MOBILE_CTA = 1250;
+
 /** MUI Snackbar default. Included so toasts remain the topmost non-modal layer. */
 export const Z_INDEX_SNACKBAR = 1400;
 

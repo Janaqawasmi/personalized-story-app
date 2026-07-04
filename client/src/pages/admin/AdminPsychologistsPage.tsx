@@ -87,87 +87,92 @@ export default function AdminPsychologistsPage() {
           {t("admin.psychologists.leaderboard")}
         </Typography>
 
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1.5fr 60px 120px 100px 80px",
-            gap: 1,
-            px: 1,
-            pb: 1,
-            borderBottom: `0.5px solid ${COLORS.border}`,
-          }}
-        >
-          {[
-            t("admin.psychologists.colCreator"),
-            t("admin.psychologists.colSpecialty"),
-            t("admin.psychologists.colStories"),
-            t("admin.psychologists.colPersonalizations"),
-            t("admin.psychologists.colCompletion"),
-            t("admin.psychologists.colStatus"),
-          ].map((h, idx) => (
-            <Typography key={idx} sx={{ fontSize: 11, color: COLORS.textSecondary }}>
-              {h}
-            </Typography>
-          ))}
-        </Box>
-
-        {loading && (
-          <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.common.loading")}</Typography>
-        )}
-
-        {psychologists.map((p, i) => {
-          const status = STATUS_STYLES[p.status] ?? STATUS_STYLES.pending;
-          const isLast = i === psychologists.length - 1;
-          return (
+        {/* Horizontal scroll on mobile keeps columns readable instead of crushing them */}
+        <Box sx={{ overflowX: "auto" }}>
+          <Box sx={{ minWidth: 620 }}>
             <Box
-              key={p.id}
               sx={{
                 display: "grid",
                 gridTemplateColumns: "2fr 1.5fr 60px 120px 100px 80px",
                 gap: 1,
                 px: 1,
-                py: 1,
-                borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
-                alignItems: "center",
+                pb: 1,
+                borderBottom: `0.5px solid ${COLORS.border}`,
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Avatar sx={{ width: 28, height: 28, bgcolor: COLORS.secondary, fontSize: 11 }}>
-                  {getInitials(p.displayName)}
-                </Avatar>
-                <Box>
-                  <Typography sx={{ fontSize: 12, fontWeight: 500, color: COLORS.textPrimary }}>
-                    {p.displayName}
-                  </Typography>
-                  <Typography sx={{ fontSize: 10, color: COLORS.textSecondary }}>
-                    {t("admin.psychologists.joined", { date: p.joinedAt.toLocaleDateString() })}
-                  </Typography>
-                </Box>
-              </Box>
-              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{p.specialty || "—"}</Typography>
-              <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{p.storyCount}</Typography>
-              <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>
-                {p.totalPersonalizations.toLocaleString()}
-              </Typography>
-              <Typography sx={{ fontSize: 12, fontWeight: 600, color: getCompletionColor(p.avgCompletion) }}>
-                {p.avgCompletion ? `${p.avgCompletion}%` : "—"}
-              </Typography>
-              <Box
-                sx={{
-                  bgcolor: status.bg,
-                  color: status.color,
-                  fontSize: 10,
-                  px: "8px",
-                  py: "2px",
-                  borderRadius: "10px",
-                  display: "inline-block",
-                }}
-              >
-                {t(status.labelKey)}
-              </Box>
+              {[
+                t("admin.psychologists.colCreator"),
+                t("admin.psychologists.colSpecialty"),
+                t("admin.psychologists.colStories"),
+                t("admin.psychologists.colPersonalizations"),
+                t("admin.psychologists.colCompletion"),
+                t("admin.psychologists.colStatus"),
+              ].map((h, idx) => (
+                <Typography key={idx} sx={{ fontSize: 11, color: COLORS.textSecondary }}>
+                  {h}
+                </Typography>
+              ))}
             </Box>
-          );
-        })}
+
+            {loading && (
+              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.common.loading")}</Typography>
+            )}
+
+            {psychologists.map((p, i) => {
+              const status = STATUS_STYLES[p.status] ?? STATUS_STYLES.pending;
+              const isLast = i === psychologists.length - 1;
+              return (
+                <Box
+                  key={p.id}
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "2fr 1.5fr 60px 120px 100px 80px",
+                    gap: 1,
+                    px: 1,
+                    py: 1,
+                    borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
+                    alignItems: "center",
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: COLORS.secondary, fontSize: 11 }}>
+                      {getInitials(p.displayName)}
+                    </Avatar>
+                    <Box>
+                      <Typography sx={{ fontSize: 12, fontWeight: 500, color: COLORS.textPrimary }}>
+                        {p.displayName}
+                      </Typography>
+                      <Typography sx={{ fontSize: 10, color: COLORS.textSecondary }}>
+                        {t("admin.psychologists.joined", { date: p.joinedAt.toLocaleDateString() })}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{p.specialty || "—"}</Typography>
+                  <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{p.storyCount}</Typography>
+                  <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>
+                    {p.totalPersonalizations.toLocaleString()}
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: getCompletionColor(p.avgCompletion) }}>
+                    {p.avgCompletion ? `${p.avgCompletion}%` : "—"}
+                  </Typography>
+                  <Box
+                    sx={{
+                      bgcolor: status.bg,
+                      color: status.color,
+                      fontSize: 10,
+                      px: "8px",
+                      py: "2px",
+                      borderRadius: "10px",
+                      display: "inline-block",
+                    }}
+                  >
+                    {t(status.labelKey)}
+                  </Box>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
       </Paper>
     </Box>
   );

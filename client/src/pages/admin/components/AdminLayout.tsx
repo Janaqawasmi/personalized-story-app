@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useParams, useLocation } from "react-router-dom";
 import {
   Box,
+  Drawer,
+  IconButton,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Typography,
   Badge,
   Avatar,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   DashboardOutlined,
@@ -20,6 +24,7 @@ import {
   AttachMoneyOutlined,
   MonitorHeartOutlined,
   NotificationsOutlined,
+  MenuOutlined,
 } from "@mui/icons-material";
 import {
   collection,
@@ -149,6 +154,9 @@ export default function AdminLayout() {
   const [pendingBadges, setPendingBadges] = useState<{ moderation?: number; psychologists?: number }>(
     {}
   );
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isRTL = direction === "rtl";
 
@@ -182,6 +190,7 @@ export default function AdminLayout() {
 
   const handleNav = (path: string) => {
     navigate(`/${lang}/admin/${path}`);
+    setMobileNavOpen(false);
   };
 
   const overviewDate = new Date().toLocaleDateString("en-GB", {
@@ -208,16 +217,23 @@ export default function AdminLayout() {
         direction: isRTL ? "rtl" : "ltr",
       }}
     >
-      <Box
+      <Drawer
+        variant={isDesktop ? "permanent" : "temporary"}
+        anchor={isRTL ? "right" : "left"}
+        open={isDesktop || mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        ModalProps={{ keepMounted: true }}
         sx={{
-          width: SIDEBAR_WIDTH,
-          flexShrink: 0,
-          bgcolor: "#F7F4F1",
-          borderRight: isRTL ? "none" : `0.5px solid ${COLORS.border}`,
-          borderLeft: isRTL ? `0.5px solid ${COLORS.border}` : "none",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
+          "& .MuiDrawer-paper": {
+            width: SIDEBAR_WIDTH,
+            boxSizing: "border-box",
+            bgcolor: "#F7F4F1",
+            borderRight: isRTL ? "none" : `0.5px solid ${COLORS.border}`,
+            borderLeft: isRTL ? `0.5px solid ${COLORS.border}` : "none",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          },
         }}
       >
         <Box sx={{ p: "20px", pb: "16px", borderBottom: `0.5px solid ${COLORS.border}` }}>
@@ -372,12 +388,12 @@ export default function AdminLayout() {
             </Typography>
           </Box>
         </Box>
-      </Box>
+      </Drawer>
 
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         <Box
           sx={{
-            px: 3,
+            px: { xs: 2, md: 3 },
             py: 1.5,
             bgcolor: "#fff",
             borderBottom: `0.5px solid ${COLORS.border}`,
@@ -385,15 +401,45 @@ export default function AdminLayout() {
             alignItems: "center",
             justifyContent: "space-between",
             flexShrink: 0,
+            gap: 1,
           }}
         >
-          <Box>
-            <Typography sx={{ fontSize: 15, fontWeight: 600, color: COLORS.textPrimary }}>
-              {t(`admin.pages.${currentPage}.title`, {})}
-            </Typography>
-            <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{pageSubtitle}</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            <IconButton
+              onClick={() => setMobileNavOpen(true)}
+              aria-label={t("admin.layout.openMenu", {})}
+              sx={{ display: { xs: "inline-flex", md: "none" } }}
+            >
+              <MenuOutlined />
+            </IconButton>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography
+                sx={{
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: COLORS.textPrimary,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {t(`admin.pages.${currentPage}.title`, {})}
+              </Typography>
+              <Typography
+                sx={{
+                  fontSize: 12,
+                  color: COLORS.textSecondary,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: { xs: "none", sm: "block" },
+                }}
+              >
+                {pageSubtitle}
+              </Typography>
+            </Box>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Badge badgeContent={3} color="error" sx={{ cursor: "pointer" }}>
               <NotificationsOutlined sx={{ fontSize: 22, color: COLORS.textSecondary }} />
             </Badge>

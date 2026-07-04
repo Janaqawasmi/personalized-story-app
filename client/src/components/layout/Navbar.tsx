@@ -135,7 +135,7 @@ export default function Navbar({
   sx={{
     backgroundColor: theme.palette.background.paper,
     color: theme.palette.text.primary,
-    px: 4,
+    px: { xs: 1.5, md: 4 },
     height: { xs: 56, md: 60 }, // ✅ SOURCE OF TRUTH
     zIndex: Z_INDEX_NAVBAR,
     pointerEvents: "auto",
@@ -158,6 +158,7 @@ export default function Navbar({
               alignItems: "center",
               gap: 3,
               flex: 1,
+              minWidth: 0,
               justifyContent: "flex-start", // RTL: flex-start = right side
             }}
           >
@@ -189,6 +190,7 @@ export default function Navbar({
               alignItems: "center",
               justifyContent: "center",
               flex: 1,
+              minWidth: 0,
               height: "100%",
             }}
           >
@@ -197,8 +199,8 @@ export default function Navbar({
               src={dammahLogo}
               alt="DAMMAH"
               sx={{
-                height: "155%", // 🔥 brand-dominant
-                maxHeight: "200%",
+                height: { xs: "110%", md: "155%" }, // 🔥 brand-dominant
+                maxHeight: { xs: "140%", md: "200%" },
                 width: "auto",
                 objectFit: "contain",
                 cursor: "pointer",
@@ -223,7 +225,11 @@ export default function Navbar({
               alignItems: "center",
               gap: 1,
               flex: 1,
+              minWidth: 0,
               justifyContent: "flex-end", // RTL: flex-end = left side
+              overflowX: { xs: "auto", md: "visible" },
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
             }}
           >
             {authLoading ? (
@@ -394,7 +400,13 @@ export default function Navbar({
                     navigate("/login", { state: { mode: "signup" } });
                     setSearchOpen(false); // Close search overlay if open
                   }}
-                  sx={{ textTransform: "none", whiteSpace: "nowrap" }}
+                  sx={{
+                    textTransform: "none",
+                    whiteSpace: "nowrap",
+                    // Hidden on the narrowest screens to avoid crowding the header;
+                    // still reachable via the "sign up" link inside the login page.
+                    display: { xs: "none", sm: "inline-flex" },
+                  }}
                 >
                   {t("login.goToSignup")}
                 </Button>

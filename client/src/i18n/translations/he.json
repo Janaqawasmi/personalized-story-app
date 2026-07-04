@@ -332,6 +332,9 @@
       "previewEndModalClose": "המשיכו לקרוא",
       "readStory": "הקראת הסיפור",
       "readInMyVoice": "הקראה בקול שלי",
+      "readInYourVoice": "הקראה בקולכם",
+      "yourVoice": "הקול שלכם",
+      "listen": "האזנה",
       "recordMyVoice": "הקלטת הקול שלי",
       "useMyVoice": "הקול שלי",
       "useSystemVoice": "קול מערכת",
@@ -448,7 +451,17 @@
     "tooShort": "הקליטו לפחות 5 שניות.",
     "uploadFailed": "לא הצלחנו לשמור את הקול. נסו שוב.",
     "notLoggedIn": "יש להתחבר כדי לשמור את הקול.",
-    "verificationNote": "ייתכן ש-ElevenLabs יבקש אימות נוסף — הקול עדיין עשוי לעבוד מיד."
+    "verificationNote": "ייתכן ש-ElevenLabs יבקש אימות נוסף — הקול עדיין עשוי לעבוד מיד.",
+    "consent": {
+      "title": "הקול שלכם, הפרטיות שלכם",
+      "subtitle": "לפני ההקלטה, כך אנחנו מטפלים בנתוני הקול שלכם.",
+      "pointNotSaved": "ההקלטה שלכם לא נשמרת בשרתי DAMMAH",
+      "pointSentToProvider": "ההקלטה נשלחת ל-ElevenLabs (שירות קול חיצוני מבוסס בינה מלאכותית) ליצירת דגם קול",
+      "pointDeleteAnytime": "תוכלו למחוק את דגם הקול שלכם בכל עת מהפרופיל שלכם",
+      "checkboxLabel": "אני מסכים/ה שהקול שלי יעובד על ידי ElevenLabs לצורך הקראת סיפורים באפליקציית DAMMAH",
+      "accept": "מאשר/ת ומתחילים בהקלטה",
+      "skip": "דלגו — השתמשו בקול ברירת המחדל"
+    }
   },
   "instructions": {
     "title": "טיפים לקריאה נעימה",
@@ -950,7 +963,8 @@
     },
     "layout": {
       "panelSubtitle": "פאנל ניהול",
-      "siteAdmin": "מנהל אתר"
+      "siteAdmin": "מנהל אתר",
+      "openMenu": "פתיחת תפריט"
     },
     "nav": {
       "sectionOverview": "סקירה",

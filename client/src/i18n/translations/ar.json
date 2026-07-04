@@ -332,6 +332,9 @@
       "previewEndModalClose": "استمر في القراءة",
       "readStory": "اقرأ القصة",
       "readInMyVoice": "اقرأ بصوتي",
+      "readInYourVoice": "اقرأ بصوتك",
+      "yourVoice": "صوتك",
+      "listen": "استماع",
       "recordMyVoice": "سجّل صوتي",
       "useMyVoice": "صوتي",
       "useSystemVoice": "صوت النظام",
@@ -448,7 +451,17 @@
     "tooShort": "سجّل لمدة 5 ثوانٍ على الأقل.",
     "uploadFailed": "تعذّر حفظ صوتك. حاول مرة أخرى.",
     "notLoggedIn": "يرجى تسجيل الدخول لحفظ صوتك.",
-    "verificationNote": "قد يطلب ElevenLabs تحققًا إضافيًا — قد يعمل صوتك فورًا على أي حال."
+    "verificationNote": "قد يطلب ElevenLabs تحققًا إضافيًا — قد يعمل صوتك فورًا على أي حال.",
+    "consent": {
+      "title": "صوتك، خصوصيتك",
+      "subtitle": "قبل التسجيل، إليكم ما يحدث لبيانات صوتكم.",
+      "pointNotSaved": "تسجيلكم لا يُحفظ على خوادم DAMMAH",
+      "pointSentToProvider": "يُرسل إلى ElevenLabs (خدمة صوت خارجية تعتمد على الذكاء الاصطناعي) لإنشاء نموذج صوتي",
+      "pointDeleteAnytime": "يمكنكم حذف نموذج الصوت الخاص بكم في أي وقت من ملفكم الشخصي",
+      "checkboxLabel": "أوافق على معالجة صوتي بواسطة ElevenLabs لتفعيل السرد في DAMMAH",
+      "accept": "أوافق وأبدأ التسجيل",
+      "skip": "تخطّي — استخدام الصوت الافتراضي"
+    }
   },
   "instructions": {
     "title": "نصائح لتجربة قراءة ممتعة",
@@ -950,7 +963,8 @@
     },
     "layout": {
       "panelSubtitle": "لوحة الإدارة",
-      "siteAdmin": "مدير الموقع"
+      "siteAdmin": "مدير الموقع",
+      "openMenu": "فتح القائمة"
     },
     "nav": {
       "sectionOverview": "نظرة عامة",
