@@ -349,7 +349,30 @@
     },
     "cart": {
       "title": "Shopping Cart",
-      "message": "Your shopping cart will appear here"
+      "message": "Your shopping cart will appear here",
+      "emptyTitle": "Your cart is empty",
+      "emptyBody": "Personalize a story to add it to your cart.",
+      "browseCta": "Browse stories",
+      "removeCta": "Remove",
+      "totalLabel": "Total",
+      "checkoutCta": "Checkout",
+      "checkoutError": "Something went wrong starting checkout. Please try again."
+    },
+    "checkoutMock": {
+      "title": "Sandbox Payment",
+      "subtitle": "No real gateway is connected yet. Choose an outcome to simulate the payment provider's callback.",
+      "payCta": "Simulate Successful Payment",
+      "failCta": "Simulate Failed Payment"
+    },
+    "checkoutSuccess": {
+      "title": "Payment received",
+      "message": "Your story is being personalized now. You'll find it in My Stories shortly.",
+      "ctaMyStories": "Go to My Stories"
+    },
+    "checkoutCancel": {
+      "title": "Payment not completed",
+      "message": "Your cart is still saved — you can try again whenever you're ready.",
+      "ctaBackToCart": "Back to cart"
     },
     "favorites": {
       "title": "Favorites",

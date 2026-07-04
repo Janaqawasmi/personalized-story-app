@@ -143,7 +143,7 @@ router.post(
         customerEmail: caregiverEmail,
         lineItems,
         successUrl: `${process.env.FRONTEND_URL || "https://app.example.com"}/checkout/success?session_id={SESSION_ID}`,
-        cancelUrl: `${process.env.FRONTEND_URL || "https://app.example.com"}/cart`,
+        cancelUrl: `${process.env.FRONTEND_URL || "https://app.example.com"}/checkout/cancel`,
         metadata: sessionMetadata,
       });
 
@@ -214,6 +214,92 @@ router.post(
   }
 );
 
+interface PaymentEvent {
+  type: string;
+  data?: {
+    sessionId?: string;
+    chargeId?: string;
+    failureReason?: string;
+  };
+}
+
+/**
+ * Applies a payment-provider event to the matching purchase(s). Shared by the
+ * real webhook route and the sandbox-only mock-simulate route so both paths
+ * exercise identical purchase-finalization logic.
+ *
+ * On payment success: updates purchase to "paid", triggers full story generation.
+ * On payment failure: updates purchase to "failed" and reverts the preview.
+ * Idempotent: purchases not in "pending" status are skipped.
+ */
+export async function processPaymentEvent(event: PaymentEvent): Promise<void> {
+  const sessionId = event.data?.sessionId;
+  if (!sessionId) {
+    throw new Error("Missing sessionId in payment event");
+  }
+
+  const purchasesQuery = await db
+    .collectionGroup("purchases")
+    .where("paymentSessionId", "==", sessionId)
+    .get();
+
+  if (purchasesQuery.empty) {
+    console.warn(`No purchases found for session: ${sessionId}`);
+    return;
+  }
+
+  if (event.type === "payment.success" || event.type === "checkout.completed") {
+    for (const purchaseDoc of purchasesQuery.docs) {
+      const purchase = purchaseDoc.data() as Purchase;
+
+      // Skip already processed purchases (idempotency)
+      if (purchase.status !== "pending") {
+        continue;
+      }
+
+      await purchaseDoc.ref.update({
+        status: "paid",
+        paidAt: new Date().toISOString(),
+        paymentChargeId: event.data?.chargeId || null,
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      // Trigger full story generation
+      generateFullStory(purchase.purchaseId, purchase.previewId).catch((error) => {
+        console.error(
+          `Full story generation trigger failed for purchase ${purchase.purchaseId}:`,
+          error
+        );
+      });
+    }
+  } else if (event.type === "payment.failed") {
+    for (const purchaseDoc of purchasesQuery.docs) {
+      const purchase = purchaseDoc.data() as Purchase;
+
+      if (purchase.status !== "pending") {
+        continue;
+      }
+
+      await purchaseDoc.ref.update({
+        status: "failed",
+        failedAt: new Date().toISOString(),
+        failureReason: event.data?.failureReason || "Payment failed",
+        updatedAt: admin.firestore.Timestamp.now(),
+      });
+
+      // Revert preview status
+      await db
+        .collection(COLLECTIONS.STORY_PREVIEWS)
+        .doc(purchase.previewId)
+        .update({
+          status: "ready",
+          purchaseId: null,
+          updatedAt: admin.firestore.Timestamp.now(),
+        });
+    }
+  }
+}
+
 /**
  * POST /api/caregiver/checkout/webhook
  *
@@ -241,12 +327,9 @@ router.post(
         return;
       }
 
-      const event = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-      const eventType = event.type as string;
-      const sessionId = event.data?.sessionId as string;
-      const chargeId = event.data?.chargeId as string | undefined;
+      const event = (typeof req.body === "string" ? JSON.parse(req.body) : req.body) as PaymentEvent;
 
-      if (!sessionId) {
+      if (!event.data?.sessionId) {
         res.status(400).json({
           success: false,
           error: "Missing sessionId in webhook payload",
@@ -254,72 +337,7 @@ router.post(
         return;
       }
 
-      // Find purchases by paymentSessionId
-      const purchasesQuery = await db
-        .collectionGroup("purchases")
-        .where("paymentSessionId", "==", sessionId)
-        .get();
-
-      if (purchasesQuery.empty) {
-        console.warn(`No purchases found for session: ${sessionId}`);
-        res.status(200).json({ success: true, message: "No matching purchases" });
-        return;
-      }
-
-      if (eventType === "payment.success" || eventType === "checkout.completed") {
-        // Payment successful
-        for (const purchaseDoc of purchasesQuery.docs) {
-          const purchase = purchaseDoc.data() as Purchase;
-
-          // Skip already processed purchases (idempotency)
-          if (purchase.status !== "pending") {
-            continue;
-          }
-
-          await purchaseDoc.ref.update({
-            status: "paid",
-            paidAt: new Date().toISOString(),
-            paymentChargeId: chargeId || null,
-            updatedAt: admin.firestore.Timestamp.now(),
-          });
-
-          // Trigger full story generation
-          generateFullStory(purchase.purchaseId, purchase.previewId).catch(
-            (error) => {
-              console.error(
-                `Full story generation trigger failed for purchase ${purchase.purchaseId}:`,
-                error
-              );
-            }
-          );
-        }
-      } else if (eventType === "payment.failed") {
-        // Payment failed
-        for (const purchaseDoc of purchasesQuery.docs) {
-          const purchase = purchaseDoc.data() as Purchase;
-
-          if (purchase.status !== "pending") {
-            continue;
-          }
-
-          await purchaseDoc.ref.update({
-            status: "failed",
-            failedAt: new Date().toISOString(),
-            failureReason: event.data?.failureReason || "Payment failed",
-            updatedAt: admin.firestore.Timestamp.now(),
-          });
-
-          // Revert preview status
-          await db
-            .collection(COLLECTIONS.STORY_PREVIEWS)
-            .doc(purchase.previewId)
-            .update({
-              status: "ready",
-              purchaseId: null,
-              updatedAt: admin.firestore.Timestamp.now(),
-            });
-        }
-      }
+      await processPaymentEvent(event);
 
       res.status(200).json({ success: true });
     } catch (error) {
@@ -328,6 +346,58 @@ router.post(
         success: false,
         error: "Webhook processing failed",
       });
+    }
+  }
+);
+
+/**
+ * POST /api/caregiver/checkout/mock-simulate
+ *
+ * Sandbox-only endpoint used by the mock checkout page to simulate the
+ * callback a real payment provider would send. Only reachable while the
+ * registered provider is the MockPaymentProvider — once a real gateway is
+ * registered, this route always 404s, so it can never bypass real payments.
+ *
+ * Input: { sessionId: string, outcome: "success" | "failure" }
+ */
+router.post(
+  "/mock-simulate",
+  requireCaregiverAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    const paymentProvider = requirePaymentProvider();
+    if (paymentProvider.providerId !== "mock") {
+      res.status(404).json({ success: false, error: "Not found" });
+      return;
+    }
+
+    const { sessionId, outcome } = req.body as {
+      sessionId?: string;
+      outcome?: "success" | "failure";
+    };
+
+    if (!sessionId || (outcome !== "success" && outcome !== "failure")) {
+      res.status(400).json({
+        success: false,
+        error: "sessionId and outcome ('success' | 'failure') are required",
+      });
+      return;
+    }
+
+    try {
+      const event: PaymentEvent =
+        outcome === "success"
+          ? { type: "checkout.completed", data: { sessionId, chargeId: `mock_ch_${sessionId}` } }
+          : {
+              type: "payment.failed",
+              data: { sessionId, failureReason: "Simulated decline (mock payment provider)" },
+            };
+
+      await processPaymentEvent(event);
+      res.status(200).json({ success: true });
+    } catch (error) {
+      console.error("Mock payment simulation error:", error);
+      const message = error instanceof Error ? error.message : "Simulation failed";
+      res.status(500).json({ success: false, error: message });
     }
   }
 );

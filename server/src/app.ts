@@ -54,7 +54,8 @@ import specialistTemplatesRouter from "./routes/specialist/templates.router";
 // Caregiver routes (cart/checkout/previews/account)
 import caregiverCartRouter from "./routes/caregiver/cart.router";
 import caregiverPreviewsRouter from "./routes/caregiver/previews.router";
-import caregiverCheckoutRouter from "./routes/caregiver/checkout.router";
+import caregiverCheckoutRouter, { registerPaymentProvider } from "./routes/caregiver/checkout.router";
+import { MockPaymentProvider } from "./providers/mockPayment.provider";
 import caregiverAccountRouter from "./routes/caregiver/account.router";
 import caregiverStoriesRouter from "./routes/caregiver/stories.router";
 import caregiverVoiceRouter from "./routes/caregiver/voice.router";
@@ -72,6 +73,13 @@ if (process.env.ARK_API_KEY) {
     "SEEDREAM_API_KEY not set — image generation will be unavailable.",
   );
 }
+
+// ---------- PAYMENT PROVIDER ----------
+// No real gateway (e.g. Stripe) is integrated yet. Register the sandbox-only
+// mock provider so checkout is exercisable end-to-end in dev/test. Swap this
+// for a real PaymentProvider implementation before accepting real payments.
+registerPaymentProvider(new MockPaymentProvider());
+console.log("Payment provider: mock (sandbox only — no real gateway configured).");
 
 startIllustrationWorker();
 

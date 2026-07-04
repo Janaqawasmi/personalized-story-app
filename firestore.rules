@@ -14,6 +14,10 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.token.role == "caregiver";
     }
 
+    function isBuyerRole() {
+      return isCaregiver() || isSpecialist() || isAdmin();
+    }
+
     function isSpecialist() {
       return isAuthenticated() && request.auth.token.role == "specialist";
     }
@@ -91,12 +95,12 @@ service cloud.firestore {
 
       allow create: if isAuthenticated()
         && request.auth.uid == uid
-        && isCaregiver()
+        && isBuyerRole()
         && !request.resource.data.keys().hasAny(previewQuotaKeys());
 
       allow update: if isAuthenticated()
         && request.auth.uid == uid
-        && isCaregiver()
+        && isBuyerRole()
         && !request.resource.data.diff(resource.data).changedKeys().hasAny(previewQuotaKeys())
         && !request.resource.data.diff(resource.data).changedKeys().hasAny(caregiverServerOnlyKeys());
 
@@ -111,13 +115,13 @@ service cloud.firestore {
 
       // Cart subcollection
       match /cart/{cartItemId} {
-        allow read: if isOwner(uid) && isCaregiver();
-        allow write: if isOwner(uid) && isCaregiver();
+        allow read: if isOwner(uid) && isBuyerRole();
+        allow write: if isOwner(uid) && isBuyerRole();
       }
 
       // Purchases subcollection — read only (backend writes via Admin SDK)
       match /purchases/{purchaseId} {
-        allow read: if isOwner(uid) && isCaregiver();
+        allow read: if isOwner(uid) && isBuyerRole();
         allow write: if false;
       }
     }

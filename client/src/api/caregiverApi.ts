@@ -593,6 +593,25 @@ export async function checkout(input: {
   }>(res);
 }
 
+/**
+ * Sandbox-only: simulates the payment provider's webhook callback for a
+ * checkout session. Only works while the server has the mock payment
+ * provider registered (server/src/providers/mockPayment.provider.ts) —
+ * calling this against a real gateway configuration 404s.
+ */
+export async function simulateMockPayment(
+  sessionId: string,
+  outcome: "success" | "failure"
+): Promise<{ success: boolean }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/caregiver/checkout/mock-simulate`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ sessionId, outcome }),
+  });
+  return handleResponse<{ success: boolean }>(res);
+}
+
 // ============================================================================
 // Stories API
 // ============================================================================

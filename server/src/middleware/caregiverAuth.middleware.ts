@@ -2,13 +2,15 @@ import { Request, Response, NextFunction } from "express";
 import { admin } from "../config/firebase";
 
 /**
- * Authenticated caregiver info attached to req.caregiverUser.
- * Separate from the specialist req.user to avoid conflicts.
+ * Authenticated buyer-capable user info attached to req.caregiverUser.
+ * The property name stays as-is for compatibility with existing caregiver routes.
  */
+export type BuyerRole = "caregiver" | "admin" | "specialist";
+
 export interface AuthenticatedCaregiver {
   uid: string;
   email: string;
-  role: "caregiver";
+  role: BuyerRole;
   displayName: string;
 }
 
@@ -22,13 +24,37 @@ declare global {
 
 /**
  * Middleware that verifies a Firebase ID token and ensures
- * the user has the "caregiver" custom claim role.
+ * the user can use the caregiver purchase flow.
  *
  * On success, attaches `req.caregiverUser` with uid, email, role, displayName.
  * On failure, returns 401 or 403.
  *
  * Expects header: Authorization: Bearer <idToken>
  */
+const ALLOWED_BUYER_ROLES: ReadonlySet<BuyerRole> = new Set<BuyerRole>([
+  "caregiver",
+  "admin",
+  "specialist",
+]);
+
+function buyerRoleFromDecodedToken(decodedToken: unknown): BuyerRole | null {
+  const token = decodedToken as { role?: unknown; admin?: unknown };
+
+  if (typeof token.role === "string") {
+    const normalized = token.role.toLowerCase();
+    if (ALLOWED_BUYER_ROLES.has(normalized as BuyerRole)) {
+      return normalized as BuyerRole;
+    }
+  }
+
+  // Some Firebase setups still use a boolean admin flag instead of role="admin".
+  if (token.admin === true) {
+    return "admin";
+  }
+
+  return null;
+}
+
 export async function requireCaregiverAuth(
   req: Request,
   res: Response,
@@ -58,12 +84,15 @@ export async function requireCaregiverAuth(
 
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const role = buyerRoleFromDecodedToken(decodedToken);
 
-    if (String(decodedToken.role ?? "").toLowerCase() !== "caregiver") {
+    if (!role) {
       res.status(403).json({
         success: false,
         error: "Insufficient permissions",
-        details: `This endpoint requires caregiver role. Your role: ${decodedToken.role ?? "none"}`,
+        details:
+          "This endpoint requires caregiver, specialist, or admin role. " +
+          `Your role: ${String(decodedToken.role ?? "none")}`,
       });
       return;
     }
@@ -71,7 +100,7 @@ export async function requireCaregiverAuth(
     req.caregiverUser = {
       uid: decodedToken.uid,
       email: decodedToken.email ?? "unknown",
-      role: "caregiver",
+      role,
       displayName: decodedToken.name ?? decodedToken.email ?? decodedToken.uid,
     };
 

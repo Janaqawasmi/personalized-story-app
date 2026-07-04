@@ -25,8 +25,11 @@ import IllustrationDebugPage from "./specialist/pages/IllustrationDebugPage";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
 
-import PlaceholderPage from "./pages/PlaceholderPage";
 import LoginPage from "./pages/LoginPage";
+import CartPage from "./pages/CartPage";
+import MockCheckoutPage from "./pages/checkout/MockCheckoutPage";
+import CheckoutSuccessPage from "./pages/checkout/CheckoutSuccessPage";
+import CheckoutCancelPage from "./pages/checkout/CheckoutCancelPage";
 import SearchPage from "./pages/SearchPage";
 import BookReaderPage from "./pages/BookReaderPage";
 import PersonalizeStoryPage from "./pages/PersonalizeStoryPage";
@@ -105,16 +108,8 @@ function AppContent() {
           <Route path="suggest" element={<SuggestStoryPage />} />
           <Route element={<RequireAuth />}>
             <Route path="my-stories" element={<MyStoriesPage />} />
+            <Route path="cart" element={<CartPage />} />
           </Route>
-          <Route
-            path="cart"
-            element={
-              <PlaceholderPage
-                title={t("pages.cart.title")}
-                message={t("pages.cart.message")}
-              />
-            }
-          />
 
           {/* ───────────── ADMIN (custom claim role === admin) ───────────── */}
           <Route path="admin" element={<RequireAdmin />}>
@@ -163,7 +158,17 @@ export default function App() {
         <Routes>
           {/* Root redirect to /he */}
           <Route path="/" element={<Navigate to="/he" replace />} />
-          
+
+          {/*
+            Checkout redirect targets are unprefixed by design: the backend
+            builds them from FRONTEND_URL without knowing the caregiver's
+            language (server/src/routes/caregiver/checkout.router.ts), and a
+            real payment gateway's hosted page would redirect the same way.
+          */}
+          <Route path="/checkout/mock" element={<MockCheckoutPage />} />
+          <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
+          <Route path="/checkout/cancel" element={<CheckoutCancelPage />} />
+
           {/* Language-prefixed routes */}
           <Route path="/:lang/*" element={<LanguageLayout />}>
             <Route path="*" element={<AppContent />} />
