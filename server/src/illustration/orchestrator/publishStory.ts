@@ -18,6 +18,7 @@ import {
 import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@/models/story.model";
 import type { AgeRange } from "@/models/storyBrief.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
+import { generateTextVariants } from "@/services/textVariants.service";
 
 export class PublishStoryError extends Error {
   readonly code: "INVALID_STATE" | "NOT_READY";
@@ -393,6 +394,26 @@ export async function publishStory(params: {
   });
 
   await batch.commit();
+
+  if (isPersonalizable) {
+    // Pages[].textTemplate currently holds raw manuscript text (Agent 1's
+    // author-facing [CHILD_NAME]/[HIS/HER/THEIR] placeholders, not the
+    // {{CHILD_NAME}} format the caregiver flow requires). Kick off variant
+    // generation immediately so the template lands in the specialist's
+    // pending-review queue automatically instead of depending on someone
+    // remembering to click "Generate variants" — a story that is never
+    // revisited would otherwise stay silently un-personalizable forever.
+    // Best-effort: generation failure must not fail the publish itself: the
+    // specialist can always retry from the Text Variants Review page.
+    try {
+      await generateTextVariants(templateId);
+    } catch (err) {
+      console.error(
+        `[publishStory] auto text-variant generation failed for templateId=${templateId}: ` +
+          `${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
 
   return { templateId };
 }
