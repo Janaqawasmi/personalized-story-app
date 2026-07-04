@@ -74,6 +74,10 @@ export type Story = {
   topicKey?: string;
   situationId?: string;
   isActive?: boolean;
+  /** Story output language: "en" | "he" | "ar". */
+  language?: string;
+  /** Whether this story supports child-name/photo personalization. */
+  personalizationEnabled?: boolean;
 };
 
 /**
@@ -108,6 +112,8 @@ function mapDocToStory(doc: { id: string; data: () => Record<string, any> }, lan
     targetAgeGroup: data.targetAgeGroup || data.ageGroup || data.generationConfig?.targetAgeGroup,
     topicKey: data.topicKey || data.primaryTopic,
     isActive: data.isActive,
+    language: data.language || data.generationConfig?.language,
+    personalizationEnabled: data.personalizationEnabled === true,
   };
 }
 
@@ -223,6 +229,10 @@ export interface StoryFilters {
   categoryId?: string;
   topicId?: string;
   situationIds?: string[]; // For category filtering - all situation IDs in that category
+  /** Story output language: "en" | "he" | "ar". Omit/empty for all languages. */
+  language?: string;
+  /** "personalized" | "not_personalized". Omit/empty for all. */
+  personalization?: "personalized" | "not_personalized";
 }
 
 /**
@@ -300,6 +310,17 @@ export async function fetchStoriesWithFilters(
           story.ageGroup || story.targetAgeGroup || story.generationConfig?.targetAgeGroup;
         return normalizeAgeGroup(storyAge) === normalizedFilterAge;
       });
+    }
+
+    if (filters.language) {
+      stories = stories.filter((story) => story.language === filters.language);
+    }
+
+    if (filters.personalization) {
+      const wantPersonalized = filters.personalization === "personalized";
+      stories = stories.filter(
+        (story) => Boolean(story.personalizationEnabled) === wantPersonalized
+      );
     }
 
     stories = stories.filter((story) => matchesTaxonomy(story, filters));

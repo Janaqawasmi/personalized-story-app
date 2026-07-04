@@ -280,7 +280,15 @@
     "years": "سنوات",
     "removeAria": "قم بإزالة مرشح {label}",
     "search": "بحث...",
-    "groupTopics": "المواضيع"
+    "groupTopics": "المواضيع",
+    "language": "اللغة",
+    "allLanguages": "كل اللغات",
+    "languageArabic": "العربية",
+    "languageHebrew": "العبرية",
+    "languageEnglish": "الإنجليزية",
+    "personalization": "التخصيص",
+    "personalizedOnly": "المخصصة فقط",
+    "notPersonalizedOnly": "غير المخصصة فقط"
   },
   "pages": {
     "ageResults": {

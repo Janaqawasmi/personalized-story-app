@@ -280,7 +280,15 @@
     "years": "years",
     "removeAria": "Remove {label} filter",
     "search": "Search...",
-    "groupTopics": "Topics"
+    "groupTopics": "Topics",
+    "language": "Language",
+    "allLanguages": "All languages",
+    "languageArabic": "Arabic",
+    "languageHebrew": "Hebrew",
+    "languageEnglish": "English",
+    "personalization": "Personalization",
+    "personalizedOnly": "Personalized only",
+    "notPersonalizedOnly": "Not personalized only"
   },
   "pages": {
     "ageResults": {
