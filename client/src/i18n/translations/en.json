@@ -407,9 +407,14 @@
         "savedBadge": "Preview saved",
         "untitledStory": "Personalized story",
         "personalizedFor": "Personalized for {name}",
+        "originalStoryLabel": "Original story",
         "readCta": "Read preview",
         "buyCta": "Buy full story",
-        "opening": "Opening..."
+        "opening": "Opening...",
+        "addToCartCta": "Add to cart",
+        "addingToCart": "Adding...",
+        "inCartLabel": "In cart",
+        "viewCartCta": "View cart"
       },
       "favorites": {
         "emptyTitle": "No favorites yet",
@@ -845,7 +850,9 @@
     "buyThisStoryComingSoon": "Purchase coming soon",
     "personalizeThisStory": "Personalize this story",
     "buyThisStory": "Buy this story",
-    "fixedVersionLabel": "Fixed version"
+    "fixedVersionLabel": "Fixed version",
+    "addingToCart": "Adding to cart...",
+    "buyStoryError": "Something went wrong. Please try again."
   },
   "backToCatalog": "All Stories",
   "personalizeThisStory": "Personalize This Story",

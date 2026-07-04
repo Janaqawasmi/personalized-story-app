@@ -18,6 +18,10 @@ interface HeroInfoProps {
   onFavoriteToggle: () => void;
   onPersonalize: () => void;
   onBuy: () => void;
+  /** True while the "Buy Story" (non-personalizable) purchase is being added to the cart. */
+  buying: boolean;
+  /** Error message to show if adding the story to the cart failed. */
+  buyError: string | null;
   language: string;
   isRTL: boolean;
   reducedMotion: boolean;
@@ -34,6 +38,8 @@ export default function HeroInfo({
   onFavoriteToggle,
   onPersonalize,
   onBuy,
+  buying,
+  buyError,
   language,
   isRTL,
   reducedMotion,
@@ -116,6 +122,8 @@ export default function HeroInfo({
       <CtaRow
         onPersonalize={onPersonalize}
         onBuy={onBuy}
+        buying={buying}
+        buyError={buyError}
         onFavoriteToggle={onFavoriteToggle}
         isFavorite={isFavorite}
         status={story.status}

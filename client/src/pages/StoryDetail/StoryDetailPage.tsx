@@ -16,6 +16,8 @@ import FaqSection from "./components/FaqSection";
 import RelatedStories from "./components/RelatedStories";
 import StickyMobileCta from "./components/StickyMobileCta";
 import { heroVariant, fadeUpVariant } from "./animations/variants";
+import { getPersonalizeRoute } from "./storyDetailRoutes";
+import { createFixedStoryPreview, addToCart } from "../../api/caregiverApi";
 import { COLORS } from "../../theme";
 
 function pickLang(rec: Record<string, string>, lang: string): string {
@@ -66,6 +68,8 @@ export default function StoryDetailPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [buying, setBuying] = useState(false);
+  const [buyError, setBuyError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!routeStoryId) {
@@ -89,16 +93,27 @@ export default function StoryDetailPage() {
       return;
     }
     if (!storyVm.canStartPersonalization) return;
-    navigate(`/stories/${storyVm.id}/personalize`);
+    navigate(getPersonalizeRoute(storyVm.id));
   };
 
-  // Fixed-story purchase handler. No cart flow exists yet for non-personalizable
-  // stories, so we open a contact email. This gives the caregiver a clear action
-  // without routing them into the personalization wizard.
-  const handleBuy = () => {
-    if (!storyVm) return;
-    const subject = encodeURIComponent(`Purchase: ${storyVm.title}`);
-    window.location.href = `mailto:hello@dammah.app?subject=${subject}`;
+  // "Buy this story" CTA — shown only for stories that do NOT support
+  // personalization (see CtaRow/StickyMobileCta "State B"). Unlike
+  // "Personalize", this never opens the wizard: the original story/template
+  // is added directly to the cart (no child name/gender/photo needed), then
+  // the user is taken straight to checkout via the cart page.
+  const handleBuy = async () => {
+    if (!storyVm || buying) return;
+    setBuying(true);
+    setBuyError(null);
+    try {
+      const { previewId } = await createFixedStoryPreview(storyVm.id);
+      await addToCart(previewId);
+      navigate("/cart");
+    } catch (err) {
+      console.error("[StoryDetailPage] Failed to add story to cart:", err);
+      setBuyError(t("storyDetail.buyStoryError"));
+      setBuying(false);
+    }
   };
 
   const faqRows = useMemo(() => {
@@ -164,6 +179,8 @@ export default function StoryDetailPage() {
         onFavoriteToggle={toggleFavorite}
         onPersonalize={handlePersonalize}
         onBuy={handleBuy}
+        buying={buying}
+        buyError={buyError}
         language={language}
         isRTL={isRTL}
         reducedMotion={reducedMotion}
@@ -235,6 +252,7 @@ export default function StoryDetailPage() {
         canStartPersonalization={storyVm.canStartPersonalization}
         onPersonalize={handlePersonalize}
         onBuy={handleBuy}
+        buying={buying}
         onPreviewClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth" })}
       />
     </Box>

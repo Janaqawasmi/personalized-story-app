@@ -407,9 +407,14 @@
         "savedBadge": "תצוגה שמורה",
         "untitledStory": "סיפור מותאם אישית",
         "personalizedFor": "הותאם עבור {name}",
+        "originalStoryLabel": "הסיפור המקורי",
         "readCta": "קרא תצוגה",
         "buyCta": "קנה סיפור מלא",
-        "opening": "פותח..."
+        "opening": "פותח...",
+        "addToCartCta": "הוסף לעגלה",
+        "addingToCart": "מוסיף...",
+        "inCartLabel": "בעגלה",
+        "viewCartCta": "צפה בעגלה"
       },
       "favorites": {
         "emptyTitle": "אין מועדפים עדיין",
@@ -845,7 +850,9 @@
     "buyThisStoryComingSoon": "רכישה בקרוב",
     "personalizeThisStory": "התאימו את הסיפור לילד שלכם",
     "buyThisStory": "רכשו את הסיפור",
-    "fixedVersionLabel": "גרסה קבועה"
+    "fixedVersionLabel": "גרסה קבועה",
+    "addingToCart": "מוסיפים לעגלה...",
+    "buyStoryError": "משהו השתבש. נסו שוב."
   },
   "backToCatalog": "כל הסיפורים",
   "personalizeThisStory": "התאימו את הסיפור",

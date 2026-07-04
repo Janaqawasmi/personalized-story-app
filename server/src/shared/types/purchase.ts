@@ -22,6 +22,13 @@ export interface Purchase {
   templateId: string;
   personalizedStoryId: string | null;
 
+  /**
+   * Distinguishes a "Buy Story" original/template purchase (no
+   * personalization) from a personalized purchase. Optional for backward
+   * compatibility with purchases created before this field existed.
+   */
+  itemType?: "template" | "personalized";
+
   // Generic payment fields (not provider-specific)
   paymentTransactionId: string;
   paymentSessionId: string | null;

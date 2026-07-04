@@ -95,6 +95,16 @@ export async function generateFullStory(
   }
   const template = templateDoc.data() as StoryTemplate;
 
+  // Fixed (non-personalized) "Buy Story" purchase: the preview already holds
+  // the final, specialist-approved sample text + sample images captured at
+  // publish time (see createFixedStoryPreview in preview.service.ts). There is
+  // no child photo and no AI generation step, so the story can be finalized
+  // immediately and synchronously instead of going through the photo/AI path
+  // below.
+  if (preview.kind === "fixed") {
+    return finalizeFixedStoryPurchase(purchaseId, previewId, preview, purchaseRef);
+  }
+
   // 4. Verify photo availability (supports re-upload scenarios)
   if (preview.photoStatus === "deleted" || preview.photoStatus === "expired") {
     throw new Error(
@@ -127,6 +137,7 @@ export async function generateFullStory(
     caregiverUid: preview.caregiverUid,
     purchaseId,
     previewId,
+    itemType: "personalized",
     childFirstName: preview.childFirstName,
     childGender: preview.childGender,
     childAgeGroup: preview.childAgeGroup,
@@ -170,6 +181,84 @@ export async function generateFullStory(
       console.error(`Full story generation failed for ${storyId}:`, error);
     }
   );
+
+  return storyId;
+}
+
+/**
+ * Finalizes a "fixed" (non-personalized) story purchase.
+ *
+ * Unlike `runFullStoryGeneration`, this is fully synchronous: every page's
+ * text and image already came from the template's specialist-approved sample
+ * content at preview-creation time (`createFixedStoryPreview`), so there is
+ * nothing left to generate. The sample images are immutable, publicly
+ * readable `specialist-illustrations/...` URLs shared by every buyer, so they
+ * are referenced directly rather than copied per-caregiver.
+ */
+async function finalizeFixedStoryPurchase(
+  purchaseId: string,
+  previewId: string,
+  preview: StoryPreview,
+  purchaseRef: FirebaseFirestore.DocumentReference
+): Promise<string> {
+  const storyRef = db.collection(COLLECTIONS.PERSONALIZED_STORIES).doc();
+  const storyId = storyRef.id;
+  const now = new Date().toISOString();
+
+  const pages: PersonalizedStoryPage[] = preview.pages
+    .slice()
+    .sort((a, b) => a.pageNumber - b.pageNumber)
+    .map((p) => ({
+      pageNumber: p.pageNumber,
+      personalizedText: p.personalizedText,
+      imagePromptUsed: p.imagePromptUsed,
+      generatedImagePath: p.generatedImagePath,
+      fromPreview: true,
+      aiMetadata: p.aiMetadata,
+    }));
+
+  const storyData: PersonalizedStory = {
+    storyId,
+    caregiverUid: preview.caregiverUid,
+    purchaseId,
+    previewId,
+    itemType: "template",
+    childFirstName: preview.childFirstName,
+    childGender: preview.childGender,
+    childAgeGroup: preview.childAgeGroup,
+    templateId: preview.templateId,
+    templateTitle: preview.templateTitle,
+    templateVersion: preview.templateVersion,
+    language: preview.language,
+    dedicationName: preview.dedicationName ?? null,
+    coverImageUrl: preview.coverImageUrl ?? "",
+    generationStatus: "completed",
+    totalPages: pages.length,
+    pagesCompleted: pages.length,
+    pagesFromPreview: pages.length,
+    pagesFailedIndexes: [],
+    generationStartedAt: now,
+    generationCompletedAt: now,
+    pages,
+    isAccessible: true,
+    createdAt: admin.firestore.Timestamp.now(),
+    updatedAt: admin.firestore.Timestamp.now(),
+  };
+
+  await storyRef.set(storyData);
+
+  await purchaseRef.update({
+    personalizedStoryId: storyId,
+    status: "completed",
+    completedAt: now,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
+
+  await db.collection(COLLECTIONS.STORY_PREVIEWS).doc(previewId).update({
+    status: "converted",
+    personalizedStoryId: storyId,
+    updatedAt: admin.firestore.Timestamp.now(),
+  });
 
   return storyId;
 }

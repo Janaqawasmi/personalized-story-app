@@ -193,6 +193,19 @@ describe("validateCartItems", () => {
     expect(result.photosNeeded).toEqual([{ previewId: "preview-1", childFirstName: "Noa" }]);
   });
 
+  it("marks a fixed (non-personalizable 'Buy Story') item ready to pay with no photo at all", async () => {
+    cartItemsFixture = [cartItem({ childFirstName: "" })];
+    previewsFixture["preview-1"] = readyPreview({ kind: "fixed", photoStatus: "none" });
+    templatesFixture["template-1"] = activeTemplate();
+
+    const result = await validateCartItems(CAREGIVER_UID);
+
+    expect(result.readyToPay).toHaveLength(1);
+    expect(result.readyToPay[0]!.cartItemId).toBe("cart-1");
+    expect(result.photosNeeded).toHaveLength(0);
+    expect(result.invalid).toHaveLength(0);
+  });
+
   it("rejects an item with an unrecognized photo status", async () => {
     cartItemsFixture = [cartItem()];
     previewsFixture["preview-1"] = readyPreview({ photoStatus: "weird_status" });

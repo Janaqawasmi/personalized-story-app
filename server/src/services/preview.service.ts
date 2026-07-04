@@ -352,6 +352,94 @@ export async function createDirectPurchasePreview(
   return { previewId: previewRef.id };
 }
 
+export interface CreateFixedStoryPreviewInput {
+  caregiverUid: string;
+  templateId: string;
+}
+
+/**
+ * Creates a cart-ready "preview" for a story that does not support personalization
+ * (the "Buy Story" CTA on the public story page — Bug 1 follow-up: non-personalizable
+ * stories must never be routed to the personalization wizard).
+ *
+ * There is no child data, no photo upload, and no AI generation involved: every
+ * template page already carries the specialist-approved sample text
+ * (`textTemplate`) and sample illustration (`sampleImageUrl`) captured at publish
+ * time (see `publishStory.ts`), so the "preview" produced here already *is* the
+ * finished, purchasable story. It flows through the existing cart → checkout →
+ * full-story pipeline unchanged; `generateFullStory` recognizes `kind: "fixed"`
+ * and finalizes it immediately instead of running AI generation.
+ */
+export async function createFixedStoryPreview(
+  input: CreateFixedStoryPreviewInput
+): Promise<{ previewId: string }> {
+  const { caregiverUid, templateId } = input;
+
+  const templateDoc = await db
+    .collection(COLLECTIONS.STORY_TEMPLATES)
+    .withConverter(storyTemplateConverter)
+    .doc(templateId)
+    .get();
+
+  if (!templateDoc.exists) {
+    throw new PreviewQuotaError("TEMPLATE_NOT_FOUND", "Story template not found.");
+  }
+  const template = templateDoc.data()!;
+
+  if (!template.isActive || !template.isPublished) {
+    throw new PreviewQuotaError("TEMPLATE_INACTIVE", "Story template is not available.");
+  }
+
+  const previewRef = db.collection(COLLECTIONS.STORY_PREVIEWS).doc();
+  const now = admin.firestore.Timestamp.now();
+  const nowIso = new Date().toISOString();
+
+  const pages: PreviewPage[] = (template.pages ?? []).map((page) => ({
+    pageNumber: page.pageNumber,
+    personalizedText: page.textTemplate?.masculine || page.textTemplate?.feminine || "",
+    imagePromptUsed: page.imagePromptTemplate ?? "",
+    generatedImagePath: page.sampleImageUrl ?? null,
+    aiMetadata: null,
+  }));
+
+  const initialPreview: Omit<StoryPreview, "previewId"> & { previewId: string } = {
+    previewId: previewRef.id,
+    caregiverUid,
+    templateId,
+    childFirstName: "",
+    childGender: "male",
+    childAgeGroup: "6_9",
+    photoPath: null,
+    photoStatus: "none",
+    photoUploadedAt: null,
+    photoRetainUntil: null,
+    templateTitle: template.title,
+    templateVersion: template.revisionCount ?? 1,
+    language: template.generationConfig.language,
+    dedicationName: null,
+    previewPageCount: pages.length,
+    pages,
+    coverImageUrl: template.coverImageUrl ?? null,
+    characterProfileSnapshot: null,
+    generationStatus: "skipped",
+    pagesCompleted: pages.length,
+    generationStartedAt: null,
+    generationCompletedAt: nowIso,
+    failureReason: null,
+    status: "ready",
+    expiresAt: null,
+    purchaseId: null,
+    personalizedStoryId: null,
+    kind: "fixed" satisfies PreviewKind,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await previewRef.set(initialPreview);
+
+  return { previewId: previewRef.id };
+}
+
 /**
  * Atomically claims the one free preview slot and creates the preview document.
  * Async generation runs after the transaction commits.

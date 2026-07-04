@@ -8,9 +8,17 @@ export type { PreviewReaderOverride };
 /** Avoid repeated getDownloadURL calls on every Firestore snapshot. */
 const storageDownloadUrlByPath = new Map<string, string>();
 
-async function resolveStorageDownloadUrl(path: string | null | undefined): Promise<string | undefined> {
+/** Exported for reuse by the full-purchase reader loader (personalizedStoryReaderLoader.ts). */
+export async function resolveStorageDownloadUrl(path: string | null | undefined): Promise<string | undefined> {
   const trimmed = path?.trim();
   if (!trimmed) return undefined;
+  // Fixed (non-personalizable) story pages store the specialist-approved
+  // sample image as an already-public URL (see createFixedStoryPreview /
+  // publishStory's `sampleImageUrl`) rather than a Storage ref path — use it
+  // as-is instead of feeding it into the Storage SDK's `ref()`.
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
   const cached = storageDownloadUrlByPath.get(trimmed);
   if (cached) return cached;
   try {

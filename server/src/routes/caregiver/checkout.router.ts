@@ -120,7 +120,11 @@ router.post(
       // Build line items
       const lineItems = checkoutItems.map((item) => ({
         name: item.templateTitle,
-        description: `Personalized story for ${item.childFirstName}`,
+        // Fixed ("Buy Story") purchases have no child data — describe them as
+        // the original story rather than "Personalized story for " (blank name).
+        description: item.childFirstName
+          ? `Personalized story for ${item.childFirstName}`
+          : `Original story: ${item.templateTitle}`,
         amountCents: item.priceCents,
         currency: item.currency,
         quantity: 1,
@@ -164,6 +168,7 @@ router.post(
           previewId: item.previewId,
           templateId: item.templateId,
           personalizedStoryId: null,
+          itemType: item.childFirstName ? "personalized" : "template",
           paymentTransactionId: session.paymentIntentId,
           paymentSessionId: session.sessionId,
           paymentChargeId: null,

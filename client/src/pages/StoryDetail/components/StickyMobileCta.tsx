@@ -13,6 +13,8 @@ interface StickyMobileCtaProps {
   onPersonalize: () => void;
   /** Called when the user clicks "Buy this story" on a non-personalizable story. */
   onBuy: () => void;
+  /** True while the fixed-story purchase is being added to the cart. */
+  buying: boolean;
   onPreviewClick: () => void;
 }
 
@@ -24,6 +26,7 @@ export default function StickyMobileCta({
   canStartPersonalization,
   onPersonalize,
   onBuy,
+  buying,
   onPreviewClick,
 }: StickyMobileCtaProps) {
   const t = useTranslation();
@@ -100,12 +103,13 @@ export default function StickyMobileCta({
           </Button>
         )}
 
-        {/* State B: no personalization — show purchase button */}
+        {/* State B: no personalization — add the original story directly to the cart */}
         {!personalizationEnabled && !canStartPersonalization && (
           <Button
             variant="contained"
             disableElevation
             onClick={onBuy}
+            disabled={buying}
             sx={{
               background: COLORS.secondary,
               color: COLORS.surface,
@@ -118,7 +122,7 @@ export default function StickyMobileCta({
               "&:hover": { background: theme.palette.secondary.dark },
             }}
           >
-            {t("storyDetail.buyThisStory")}
+            {buying ? t("storyDetail.addingToCart") : t("storyDetail.buyThisStory")}
           </Button>
         )}
 

@@ -14,6 +14,10 @@ interface CtaRowProps {
   onPersonalize: () => void;
   /** Called when the user clicks "Buy this story" on a non-personalizable story. */
   onBuy: () => void;
+  /** True while the fixed-story purchase is being added to the cart. */
+  buying: boolean;
+  /** Error message to show if adding the story to the cart failed. */
+  buyError: string | null;
   onFavoriteToggle: () => void;
   isFavorite: boolean;
   status: string;
@@ -32,6 +36,8 @@ interface CtaRowProps {
 export default function CtaRow({
   onPersonalize,
   onBuy,
+  buying,
+  buyError,
   onFavoriteToggle,
   isFavorite,
   status,
@@ -81,8 +87,9 @@ export default function CtaRow({
     </IconButton>
   );
 
-  // State B: story is not designed for personalization — show a purchase CTA.
-  // No fixed-story cart flow exists yet, so the button opens a contact email.
+  // State B: story is not designed for personalization — "Buy Story" adds the
+  // original template directly to the cart (no personalization form, no child
+  // name/gender/photo) and takes the user straight to checkout.
   if (!personalizationEnabled && !comingSoon) {
     return (
       <Box sx={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
@@ -91,6 +98,7 @@ export default function CtaRow({
             variant="contained"
             disableElevation
             onClick={onBuy}
+            disabled={buying}
             sx={{
               width: "100%",
               background: COLORS.secondary,
@@ -104,16 +112,24 @@ export default function CtaRow({
                 background: theme.palette.secondary.dark,
                 boxShadow: SDShadows.ctaHover,
               },
+              "&.Mui-disabled": {
+                background: colorWithAlpha(COLORS.secondary, 0.6),
+                color: COLORS.surface,
+              },
             }}
           >
-            {t("storyDetail.buyThisStory")}
+            {buying ? t("storyDetail.addingToCart") : t("storyDetail.buyThisStory")}
           </Button>
-          <Box sx={{ display: "flex", alignItems: "center", gap: "4px", px: "2px" }}>
-            <LockOutlinedIcon sx={{ fontSize: 12, color: COLORS.textSecondary }} />
-            <Typography sx={{ fontSize: "12px", color: COLORS.textSecondary }}>
-              {t("storyDetail.fixedVersionLabel")}
-            </Typography>
-          </Box>
+          {buyError ? (
+            <Typography sx={{ fontSize: "12px", color: COLORS.error, px: "2px" }}>{buyError}</Typography>
+          ) : (
+            <Box sx={{ display: "flex", alignItems: "center", gap: "4px", px: "2px" }}>
+              <LockOutlinedIcon sx={{ fontSize: 12, color: COLORS.textSecondary }} />
+              <Typography sx={{ fontSize: "12px", color: COLORS.textSecondary }}>
+                {t("storyDetail.fixedVersionLabel")}
+              </Typography>
+            </Box>
+          )}
         </Box>
         {favoriteButton}
       </Box>

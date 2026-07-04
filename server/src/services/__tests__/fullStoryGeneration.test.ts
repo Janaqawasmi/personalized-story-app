@@ -1277,3 +1277,62 @@ describe("full story generation — idempotency", () => {
     expect(mockStoryDocRef.set).not.toHaveBeenCalled();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// "Fixed" (non-personalized) story purchase — Buy Story CTA follow-up fix
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("full story generation — fixed (non-personalizable) story purchase", () => {
+  const FIXED_PREVIEW = makePreview({
+    kind: "fixed",
+    childFirstName: "",
+    photoPath: null,
+    photoStatus: "none",
+    pages: [
+      {
+        pageNumber: 1,
+        personalizedText: "Page 1 text (m)",
+        imagePromptUsed: "",
+        generatedImagePath: "https://specialist.example.com/page-1.jpg",
+        aiMetadata: null,
+      },
+      {
+        pageNumber: 2,
+        personalizedText: "Page 2 text (m)",
+        imagePromptUsed: "",
+        generatedImagePath: "https://specialist.example.com/page-2.jpg",
+        aiMetadata: null,
+      },
+    ],
+  });
+
+  beforeEach(() => {
+    mockPreviewDocRef.get.mockResolvedValue({ exists: true, data: () => FIXED_PREVIEW });
+  });
+
+  test("finalizes immediately without touching the image provider or child photo", async () => {
+    const storyId = await generateFullStory(PURCHASE_ID, PREVIEW_ID);
+
+    expect(storyId).toBe(mockStoryDocRef.id);
+    expect(mockImageProvider.generateImage).not.toHaveBeenCalled();
+    expect(mockPhotoFile.delete).not.toHaveBeenCalled();
+
+    const savedStory = mockStoryDocRef.set.mock.calls[0][0];
+    expect(savedStory.generationStatus).toBe("completed");
+    expect(savedStory.isAccessible).toBe(true);
+    expect(savedStory.pages).toHaveLength(2);
+    expect(savedStory.pages[0].generatedImagePath).toBe("https://specialist.example.com/page-1.jpg");
+    expect(savedStory.pages[0].fromPreview).toBe(true);
+  });
+
+  test("marks the purchase completed and the preview converted", async () => {
+    await generateFullStory(PURCHASE_ID, PREVIEW_ID);
+
+    expect(mockPurchaseDocRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "completed", personalizedStoryId: mockStoryDocRef.id })
+    );
+    expect(mockPreviewDocRef.update).toHaveBeenCalledWith(
+      expect.objectContaining({ status: "converted", personalizedStoryId: mockStoryDocRef.id })
+    );
+  });
+});

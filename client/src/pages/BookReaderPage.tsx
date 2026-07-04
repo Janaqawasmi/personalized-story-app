@@ -70,6 +70,10 @@ import {
   previewOverridesFromDocData,
   type PreviewReaderOverride,
 } from "../utils/readerPreviewLoader";
+import {
+  loadPersonalizedStoryForReader,
+  PersonalizedStoryNotAccessibleError,
+} from "../utils/personalizedStoryReaderLoader";
 import { preloadReaderImages } from "../utils/readerImageCache";
 import {
   collectReaderImageUrls,
@@ -172,6 +176,13 @@ export default function BookReaderPage() {
     previewIdFromQuery ||
     (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
 
+  // Present only when opened from "Purchased" → "Read Story" (see MyStoriesPage.tsx).
+  // Identifies a `personalizedStories/{id}` record: the fully generated, fully
+  // paid-for book. When set, the reader skips the free-preview personalization
+  // gate/lock entirely (cart/payment flow Bug 4).
+  const personalizedStoryIdFromQuery = searchParams.get("personalizedStoryId");
+  const [isFullPurchase, setIsFullPurchase] = useState(false);
+
   const CURRENT_LANGUAGE = uiLanguage || getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
   const ttsLang = CURRENT_LANGUAGE === "ar" ? "ar-SA" : CURRENT_LANGUAGE === "he" ? "he-IL" : "en-US";
@@ -183,18 +194,24 @@ export default function BookReaderPage() {
   });
 
   const lastUnlockedSpreadIndex = useMemo(
-    () => (story ? Math.min(PREVIEW_SPREAD_LIMIT - 1, story.pages.length - 1) : 0),
-    [story]
+    () =>
+      story
+        ? isFullPurchase
+          ? story.pages.length - 1
+          : Math.min(PREVIEW_SPREAD_LIMIT - 1, story.pages.length - 1)
+        : 0,
+    [story, isFullPurchase]
   );
 
   const hasLockedSpreadsBeyondPreview =
-    !!story && story.pages.length > lastUnlockedSpreadIndex + 1;
+    !isFullPurchase && !!story && story.pages.length > lastUnlockedSpreadIndex + 1;
 
   useEffect(() => {
     hasAutoScrolledToPreviewCTARef.current = false;
     setPreviewUnlockOverlayOpen(false);
     storyLoadStartedRef.current = false;
     pagesFingerprintRef.current = "";
+    setIsFullPurchase(false);
   }, [storyId]);
 
   useEffect(() => {
@@ -238,6 +255,58 @@ export default function BookReaderPage() {
       setError("Story ID is missing");
       setLoading(false);
       return;
+    }
+
+    // Purchased-story path ("Read Story" from the Purchased tab): fetch the
+    // fully generated, fully paid-for book directly from personalizedStories
+    // and skip the free-preview personalization gate entirely — the
+    // caregiver already personalized and paid for this story, so it must
+    // never bounce back to the personalize wizard (cart/payment flow Bug 4).
+    if (personalizedStoryIdFromQuery) {
+      let cancelled = false;
+      const showLoadingScreen = !storyLoadStartedRef.current;
+      if (showLoadingScreen) setLoading(true);
+      setError(null);
+
+      loadPersonalizedStoryForReader(
+        personalizedStoryIdFromQuery,
+        (pageNumber) => `/story-images/placeholders/${pageNumber}.jpg`,
+      )
+        .then((loaded) => {
+          if (cancelled) return;
+          pagesFingerprintRef.current = readerPagesFingerprint(loaded.pages);
+          preloadReaderImages([
+            ...collectReaderImageUrls(loaded.pages),
+            ...(loaded.coverImage ? [loaded.coverImage] : []),
+          ]);
+          setIsFullPurchase(true);
+          setStory({
+            id: loaded.id,
+            title: loaded.title || t("search.storyWithoutName"),
+            pages: loaded.pages,
+            language: loaded.language,
+            status: "approved",
+            coverImage: loaded.coverImage,
+            childName: loaded.childName,
+          });
+          storyLoadStartedRef.current = true;
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          console.error("[BookReader] Failed to load purchased story:", err);
+          setError(
+            err instanceof PersonalizedStoryNotAccessibleError || err instanceof Error
+              ? err.message
+              : "Failed to load story",
+          );
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+
+      return () => {
+        cancelled = true;
+      };
     }
 
     const personalizationKey = getStoryPersonalizationStorageKey(storyId);
@@ -381,7 +450,7 @@ export default function BookReaderPage() {
     return () => {
       cancelled = true;
     };
-  }, [storyId, previewIdFromQuery]);
+  }, [storyId, previewIdFromQuery, personalizedStoryIdFromQuery]);
 
   // Live Firestore updates when preview generation completes (debounced, skip no-op writes)
   useEffect(() => {

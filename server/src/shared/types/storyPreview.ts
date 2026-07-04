@@ -1,7 +1,16 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { AgeGroup, Gender, PhotoStatus } from "./common";
 
-export type PreviewKind = "preview" | "direct_purchase";
+/**
+ * Discriminates how a preview's content was produced:
+ * - "preview" — free AI-generated preview (child photo + name).
+ * - "direct_purchase" — buy-without-preview flow (personalizable story, AI generation
+ *   deferred to full-story generation after payment).
+ * - "fixed" — non-personalizable story bought as-is ("Buy Story" CTA). No child data,
+ *   no photo, no AI generation: pages are the specialist-approved sample text/images
+ *   captured at publish time (see `createFixedStoryPreview` in preview.service.ts).
+ */
+export type PreviewKind = "preview" | "direct_purchase" | "fixed";
 
 export type PreviewGenerationStatus =
   | "pending"

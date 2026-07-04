@@ -42,7 +42,8 @@ router.get(
           "generationStatus",
           "isAccessible",
           "createdAt",
-          "templateId"
+          "templateId",
+          "itemType"
         )
         .get();
 
@@ -156,10 +157,29 @@ router.get(
         return;
       }
 
-      // Verify purchase exists and is valid
-      const purchaseId = data.purchaseId as string;
+      // Verify purchase exists and is valid. `purchaseId` must always be set
+      // by both the personalized (fullStoryGeneration.service.ts) and fixed
+      // (finalizeFixedStoryPurchase) creation paths — guard explicitly instead
+      // of letting a missing field reach `.where(..., undefined)`, which
+      // throws synchronously and used to surface as a generic 500 with no
+      // indication of what was actually wrong.
+      const purchaseId = typeof data.purchaseId === "string" ? data.purchaseId : null;
+      if (!purchaseId) {
+        console.error(
+          `Story ${storyDoc.id} is missing purchaseId — cannot verify purchase.`
+        );
+        res.status(500).json({
+          success: false,
+          error: "This story record is missing its purchase reference (purchaseId). Please contact support.",
+        });
+        return;
+      }
+
+      // Uses a collectionGroup query (not a single-caregiver subcollection
+      // query) because that is the query shape `purchaseId` already has a
+      // deployed index for (see firestore.indexes.json fieldOverrides).
       const purchasesSnapshot = await db
-        .collection(COLLECTIONS.purchases(caregiverUid))
+        .collectionGroup("purchases")
         .where("purchaseId", "==", purchaseId)
         .limit(1)
         .get();
@@ -167,16 +187,29 @@ router.get(
       if (purchasesSnapshot.empty) {
         res.status(403).json({
           success: false,
-          error: "Valid purchase not found for this story",
+          error: `Valid purchase not found for this story (purchaseId: ${purchaseId})`,
         });
         return;
       }
 
-      const purchaseData = purchasesSnapshot.docs[0]!.data();
+      const purchaseDoc = purchasesSnapshot.docs[0]!;
+      const purchaseData = purchaseDoc.data();
+
+      // Defense in depth: the collectionGroup query above spans every
+      // caregiver's purchases subcollection, so confirm this purchase
+      // actually belongs to the requesting caregiver before trusting it.
+      if (purchaseData.caregiverUid !== caregiverUid) {
+        res.status(403).json({
+          success: false,
+          error: "Access denied",
+        });
+        return;
+      }
+
       if (purchaseData.status !== "completed" && purchaseData.status !== "paid") {
         res.status(403).json({
           success: false,
-          error: "Purchase is not in a valid state",
+          error: `Purchase is not in a valid state (status: ${purchaseData.status ?? "unknown"})`,
         });
         return;
       }
@@ -190,9 +223,10 @@ router.get(
       });
     } catch (error) {
       console.error("Get story error:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
       res.status(500).json({
         success: false,
-        error: "Failed to retrieve story",
+        error: `Failed to retrieve story: ${message}`,
       });
     }
   }

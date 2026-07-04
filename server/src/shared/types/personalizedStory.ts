@@ -24,6 +24,15 @@ export interface PersonalizedStory {
   purchaseId: string;
   previewId: string;
 
+  /**
+   * Distinguishes a "Buy Story" original/template purchase (no
+   * personalization, `childFirstName` is always "") from a personalized
+   * purchase. Optional for backward compatibility with stories created
+   * before this field existed — callers should fall back to checking
+   * `childFirstName` for those.
+   */
+  itemType?: "template" | "personalized";
+
   childFirstName: string;
   childGender: Gender;
   childAgeGroup: AgeGroup;

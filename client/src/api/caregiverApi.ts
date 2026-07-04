@@ -173,6 +173,8 @@ export interface PurchasedStoryItem {
   generationStatus: StoryGenerationStatus;
   isAccessible: boolean;
   createdAt: unknown;
+  /** Absent on stories created before this field existed — fall back to `childFirstName`. */
+  itemType?: "template" | "personalized";
 }
 
 export interface PersonalizedStoryData {
@@ -180,6 +182,8 @@ export interface PersonalizedStoryData {
   caregiverUid: string;
   purchaseId: string;
   previewId: string;
+  /** Absent on stories created before this field existed — fall back to `childFirstName`. */
+  itemType?: "template" | "personalized";
   childFirstName: string;
   childGender: Gender;
   childAgeGroup: AgeGroup;
@@ -493,6 +497,21 @@ export async function createDirectPurchasePreview(input: {
     throw new ApiError("Request failed", { status: res.status });
   }
   return json.data;
+}
+
+/**
+ * "Buy Story" for a story that does not support personalization: no child
+ * name/gender/photo needed. Creates a cart-ready preview from the template's
+ * original (specialist-approved) content.
+ */
+export async function createFixedStoryPreview(templateId: string): Promise<{ previewId: string }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/caregiver/previews/fixed-purchase`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ templateId }),
+  });
+  return handleResponse<{ previewId: string }>(res);
 }
 
 /**

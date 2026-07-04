@@ -407,9 +407,14 @@
         "savedBadge": "معاينة محفوظة",
         "untitledStory": "قصة مخصصة",
         "personalizedFor": "مخصص لـ {name}",
+        "originalStoryLabel": "القصة الأصلية",
         "readCta": "اقرأ المعاينة",
         "buyCta": "اشترِ القصة كاملة",
-        "opening": "جارٍ الفتح..."
+        "opening": "جارٍ الفتح...",
+        "addToCartCta": "أضف إلى السلة",
+        "addingToCart": "جارٍ الإضافة...",
+        "inCartLabel": "في السلة",
+        "viewCartCta": "عرض السلة"
       },
       "favorites": {
         "emptyTitle": "لا توجد مفضلات بعد",
@@ -845,7 +850,9 @@
     "buyThisStoryComingSoon": "الشراء قريبًا",
     "personalizeThisStory": "خصّص القصة لطفلك",
     "buyThisStory": "اشترِ القصة",
-    "fixedVersionLabel": "نسخة ثابتة"
+    "fixedVersionLabel": "نسخة ثابتة",
+    "addingToCart": "جارٍ الإضافة إلى السلة...",
+    "buyStoryError": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
   },
   "backToCatalog": "جميع القصص",
   "personalizeThisStory": "إضفاء الطابع الشخصي على هذه القصة",

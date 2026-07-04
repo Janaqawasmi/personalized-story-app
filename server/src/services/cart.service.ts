@@ -104,11 +104,17 @@ export async function validateCartItems(
       continue;
     }
 
-    // Check 4: Photo availability from preview document
+    // Check 4: Photo availability from preview document.
+    // "fixed" previews (non-personalizable "Buy Story" purchases) have no child
+    // photo at all — their content is the specialist-approved sample story, so
+    // they are always ready to pay regardless of photoStatus.
     const previewData = previewDoc.data()!;
     const photoStatus = previewData.photoStatus as string;
+    const previewKind = previewData.kind as string | undefined;
 
-    if (photoStatus === "preview_used" || photoStatus === "uploaded") {
+    if (previewKind === "fixed") {
+      readyToPay.push(item);
+    } else if (photoStatus === "preview_used" || photoStatus === "uploaded") {
       readyToPay.push(item);
     } else if (photoStatus === "deleted" || photoStatus === "expired") {
       photosNeeded.push({

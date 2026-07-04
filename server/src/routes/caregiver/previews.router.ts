@@ -5,6 +5,7 @@ import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware"
 import { COLLECTIONS, STORAGE_PATHS } from "../../shared/firestore/paths";
 import {
   createDirectPurchasePreview,
+  createFixedStoryPreview,
   generatePreview,
   isPreviewQuotaEnabled,
   PreviewQuotaError,
@@ -47,7 +48,28 @@ const upload = multer({
 
 const VALID_AGE_GROUPS = ["0_3", "3_6", "6_9", "9_12"] as const;
 const VALID_GENDERS = ["male", "female"] as const;
-const HIDDEN_PREVIEW_STATUSES = new Set(["expired", "converted"]);
+
+/**
+ * Preview lifecycle statuses that should never surface in the "My previews"
+ * tab:
+ *  - "expired" / "converted": legacy terminal states.
+ *  - "purchased": the checkout flow has already claimed this preview and
+ *    created a Purchase for it (see checkout.router.ts). Once purchased, the
+ *    story belongs in "Purchased"/"My Stories", not in the active previews
+ *    list — showing it in both places is confusing and looks like the
+ *    purchase silently reverted (see cart/payment flow Bug 3).
+ *
+ * "added_to_cart" is intentionally NOT hidden: the caregiver hasn't paid yet,
+ * so the preview should stay visible, just clearly labeled "In cart" by the
+ * client instead of being treated as purchased.
+ */
+const HIDDEN_PREVIEW_STATUSES = new Set(["expired", "converted", "purchased"]);
+
+/** Exported for unit testing the My-Previews visibility rule in isolation. */
+export function isPreviewVisibleInMyPreviews(status: unknown): boolean {
+  return !HIDDEN_PREVIEW_STATUSES.has(String(status ?? ""));
+}
+
 type PreviewListRecord = { previewId: string; status?: unknown } & Record<string, unknown>;
 
 function toSortableMs(value: unknown): number {
@@ -138,7 +160,7 @@ router.get("/", requireCaregiverAuth, async (req: Request, res: Response): Promi
         ...(doc.data() as Record<string, unknown>),
       } as PreviewListRecord;
 
-      if (!HIDDEN_PREVIEW_STATUSES.has(String(preview.status ?? ""))) {
+      if (isPreviewVisibleInMyPreviews(preview.status)) {
         previews.push(preview);
       }
     }
@@ -448,6 +470,50 @@ router.post(
       res.status(500).json({
         success: false,
         error: { code: "INTERNAL", message: "Failed to create purchase preview." },
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/caregiver/previews/fixed-purchase
+ *
+ * "Buy Story" for a non-personalizable story: no child data, no photo, no AI
+ * generation. Creates a `kind: "fixed"` preview from the template's approved
+ * sample text/images so it can go straight to the cart.
+ */
+router.post(
+  "/fixed-purchase",
+  requireAuth,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const caregiverUid = req.user!.uid;
+      const { templateId } = req.body as { templateId?: string };
+
+      if (!templateId) {
+        res.status(400).json({
+          success: false,
+          error: { code: "MISSING_FIELDS", message: "templateId is required." },
+        });
+        return;
+      }
+
+      const result = await createFixedStoryPreview({ caregiverUid, templateId });
+      res.status(201).json({ success: true, data: result });
+    } catch (err) {
+      if (err instanceof PreviewQuotaError) {
+        if (err.code === "TEMPLATE_NOT_FOUND" || err.code === "TEMPLATE_INACTIVE") {
+          res.status(404).json({
+            success: false,
+            error: { code: err.code, message: err.message },
+          });
+          return;
+        }
+      }
+      console.error("[previews.fixed-purchase] error", err);
+      res.status(500).json({
+        success: false,
+        error: { code: "INTERNAL", message: "Failed to create purchase." },
       });
     }
   }

@@ -5,8 +5,15 @@ import { useLangNavigate } from "../i18n/navigation";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/useLanguage";
 import { useMyPreviews } from "../hooks/useMyPreviews";
-import { getPreviewPersonalization, getPurchasedStories, type PurchasedStoryItem } from "../api/caregiverApi";
+import {
+  addToCart,
+  getPreviewPersonalization,
+  getPurchasedStories,
+  type PurchasedStoryItem,
+} from "../api/caregiverApi";
 import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
+import { getPreviewCartState } from "../utils/previewCartState";
+import { getPreviewSubtitleKey } from "../utils/previewSubtitle";
 import { useAuth } from "../contexts/AuthContext";
 import { listFavorites, type FavoriteStory } from "../api/favorites";
 import StoryGridCard from "../components/StoryGridCard";
@@ -86,7 +93,10 @@ function PurchasedStoryCard({
           {story.templateTitle || "Personalized Story"}
         </Typography>
         <Typography sx={{ fontSize: 12, color: "#9a8a92", mb: 1 }}>
-          {t("pages.myStories.previews.personalizedFor", { name: story.childFirstName })}
+          {(() => {
+            const subtitle = getPreviewSubtitleKey(story.childFirstName);
+            return t(subtitle.key, subtitle.params);
+          })()}
         </Typography>
 
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
@@ -171,6 +181,7 @@ export default function MyStoriesPage() {
   const activeTab = tabFromSearchParams(searchParams);
   const { previews, loading: previewsLoading, error: previewsError } = useMyPreviews();
   const [navigatingPreviewId, setNavigatingPreviewId] = useState<string | null>(null);
+  const [addingToCartId, setAddingToCartId] = useState<string | null>(null);
   const [purchasedStories, setPurchasedStories] = useState<PurchasedStoryItem[]>([]);
   const [purchasedLoading, setPurchasedLoading] = useState(false);
   const [purchasedError, setPurchasedError] = useState<string | null>(null);
@@ -262,6 +273,22 @@ export default function MyStoriesPage() {
       setNavigatingPreviewId(null);
     }
     navigate(`/stories/${templateId}/read?previewId=${encodeURIComponent(previewId)}`);
+  };
+
+  // Adds a "ready" preview to the cart. Does NOT mark it as purchased —
+  // that only happens after checkout + payment (see checkout.router.ts /
+  // processPaymentEvent). The preview stays in "My previews" with an
+  // "In cart" label until the caregiver actually pays.
+  const handleAddToCart = async (previewId: string) => {
+    setAddingToCartId(previewId);
+    try {
+      await addToCart(previewId);
+    } catch (err) {
+      console.warn("Add to cart failed:", err);
+    } finally {
+      setAddingToCartId(null);
+    }
+    navigate("/cart");
   };
 
   return (
@@ -375,7 +402,11 @@ export default function MyStoriesPage() {
                     key={story.storyId}
                     story={story}
                     t={t}
-                    onRead={() => navigate(`/stories/${story.templateId}/read`)}
+                    onRead={() =>
+                      navigate(
+                        `/stories/${story.templateId}/read?personalizedStoryId=${encodeURIComponent(story.storyId)}`,
+                      )
+                    }
                   />
                 ))}
               </Box>
@@ -456,9 +487,10 @@ export default function MyStoriesPage() {
                         {preview.templateTitle || t("pages.myStories.previews.untitledStory")}
                       </Typography>
                       <Typography sx={{ fontSize: 12, color: "#9a8a92", mb: 1 }}>
-                        {t("pages.myStories.previews.personalizedFor", {
-                          name: preview.childFirstName,
-                        })}
+                        {(() => {
+                          const subtitle = getPreviewSubtitleKey(preview.childFirstName);
+                          return t(subtitle.key, subtitle.params);
+                        })()}
                       </Typography>
                       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                         <Box
@@ -475,6 +507,22 @@ export default function MyStoriesPage() {
                         >
                           {t("pages.myStories.previews.savedBadge")}
                         </Box>
+                        {getPreviewCartState(preview.status) === "in_cart" && (
+                          <Box
+                            sx={{
+                              fontSize: 10,
+                              px: "8px",
+                              py: "2px",
+                              borderRadius: "999px",
+                              background: "#FCEFD9",
+                              color: "#8A5A00",
+                              border: "0.5px solid #E3B658",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {t("pages.myStories.previews.inCartLabel")}
+                          </Box>
+                        )}
                         {preview.language && (
                           <Box
                             sx={{
@@ -525,28 +573,56 @@ export default function MyStoriesPage() {
                           ? t("pages.myStories.previews.opening")
                           : t("pages.myStories.previews.readCta")}
                       </Button>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => navigate(`/stories/${preview.templateId}/personalize`)}
-                        sx={{
-                          borderColor: "#824D5C",
-                          color: "#824D5C",
-                          "&:hover": {
-                            borderColor: "#6f404d",
-                            backgroundColor: "rgba(130,77,92,0.06)",
-                          },
-                          textTransform: "none",
-                          borderRadius: "10px",
-                          fontSize: 12,
-                          px: 2,
-                          py: 0.75,
-                          fontWeight: 600,
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {t("pages.myStories.previews.buyCta")}
-                      </Button>
+                      {getPreviewCartState(preview.status) === "in_cart" ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => navigate("/cart")}
+                          sx={{
+                            borderColor: "#824D5C",
+                            color: "#824D5C",
+                            "&:hover": {
+                              borderColor: "#6f404d",
+                              backgroundColor: "rgba(130,77,92,0.06)",
+                            },
+                            textTransform: "none",
+                            borderRadius: "10px",
+                            fontSize: 12,
+                            px: 2,
+                            py: 0.75,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {t("pages.myStories.previews.viewCartCta")}
+                        </Button>
+                      ) : (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={addingToCartId === preview.previewId}
+                          onClick={() => handleAddToCart(preview.previewId)}
+                          sx={{
+                            borderColor: "#824D5C",
+                            color: "#824D5C",
+                            "&:hover": {
+                              borderColor: "#6f404d",
+                              backgroundColor: "rgba(130,77,92,0.06)",
+                            },
+                            textTransform: "none",
+                            borderRadius: "10px",
+                            fontSize: 12,
+                            px: 2,
+                            py: 0.75,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {addingToCartId === preview.previewId
+                            ? t("pages.myStories.previews.addingToCart")
+                            : t("pages.myStories.previews.addToCartCta")}
+                        </Button>
+                      )}
                     </Box>
                   </Box>
                 ))}
