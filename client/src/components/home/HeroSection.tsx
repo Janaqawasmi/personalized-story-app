@@ -195,10 +195,10 @@ export default function HeroSection() {
       <Box
         sx={{
           position: "relative",
-          display: { xs: "none", md: "flex" },
+          display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          p: { md: "32px 32px 32px 16px", lg: "40px 40px 40px 20px" },
+          p: { xs: "0 16px 32px", md: "32px 32px 32px 16px", lg: "40px 40px 40px 20px" },
           background: "linear-gradient(135deg, #f9f4ef 0%, #ede5dc 100%)",
           overflow: "hidden",
           "&::before": {
