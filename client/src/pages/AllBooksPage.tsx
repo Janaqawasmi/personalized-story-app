@@ -147,7 +147,7 @@ export default function AllBooksPage() {
         )
       : [];
     pool.forEach((book) => {
-      const topic = (book as any).specificSituation || (book as any).topicKey;
+      const topic = (book as any).situationId || (book as any).topicKey;
       if (topic && topic !== selectedCategory) {
         topics.add(topic);
       }
@@ -181,7 +181,7 @@ export default function AllBooksPage() {
     if (selectedTopic) {
       filtered = filtered.filter(
         (book) =>
-          (book as any).specificSituation === selectedTopic ||
+          (book as any).situationId === selectedTopic ||
           (book as any).topicKey === selectedTopic
       );
     }
@@ -335,6 +335,7 @@ export default function AllBooksPage() {
                 ageGroup: (story as any).ageGroup,
                 primaryTopic: (story as any).primaryTopic,
                 specificSituation: (story as any).specificSituation,
+                situationId: (story as any).situationId,
                 coverImageUrl: (story as any).coverImageUrl,
                 category: (story as any).category ?? null,
               }}

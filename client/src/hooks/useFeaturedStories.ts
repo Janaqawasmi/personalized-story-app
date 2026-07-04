@@ -38,7 +38,6 @@ function resolveTopic(story: Story): StoryTopic {
   const raw = String(
     story.topicKey ||
       (story as Story & { primaryTopic?: string }).primaryTopic ||
-      (story as Story & { specificSituation?: string }).specificSituation ||
       ""
   )
     .toLowerCase()

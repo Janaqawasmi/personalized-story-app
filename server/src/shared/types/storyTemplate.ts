@@ -129,6 +129,29 @@ export interface StoryTemplate {
   topicKey?: string;
   specificSituation: string;
   /**
+   * Controlled taxonomy id from `referenceData/situations`. This is the field
+   * public catalog/search filtering matches on — never `specificSituation`,
+   * which is free clinical text and does not reliably equal a taxonomy id.
+   * Absent only on templates published before this field existed (see
+   * `scripts/backfillSituationIds.ts`) or while a `situationProposal` is pending.
+   */
+  situationId?: string;
+  /**
+   * A specialist's request for a new situation that doesn't exist yet in
+   * `referenceData/situations`. Reviewed out-of-band via
+   * `scripts/approveSituationProposal.ts`; approval creates the official
+   * `referenceData/situations` item and sets `situationId` on this template.
+   */
+  situationProposal?: {
+    labelHe?: string;
+    labelAr?: string;
+    labelEn?: string;
+    reason?: string;
+    status: "pending" | "approved" | "rejected";
+    createdBy?: string;
+    createdAt?: Timestamp;
+  };
+  /**
    * Story target age range. Stored as the exact brief `ageRange`
    * ("3-5" | "5-7" | "7-9" | "9-12") so the public catalog age filter matches
    * the Specialist Dashboard 1:1.

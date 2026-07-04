@@ -21,7 +21,10 @@ export function pickLocalized(field: unknown, lang: string): string {
 }
 
 function pickTopicLabel(data: Record<string, any>, lang: string): string {
-  const sources = [data.displayTopic, data.specificSituation, data.primaryTopic, data.topicKey];
+  // Note: `specificSituation` is free clinical text, not a display label — never
+  // shown as a public topic badge. `displayTopic` (specialist-authored) is the
+  // primary source; `primaryTopic`/`topicKey` are the domain-key fallback.
+  const sources = [data.displayTopic, data.primaryTopic, data.topicKey];
   for (const src of sources) {
     const s = pickLocalized(src, lang);
     if (s.trim()) return s;

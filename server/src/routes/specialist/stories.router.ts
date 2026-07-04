@@ -1097,6 +1097,16 @@ async function handlePublishStory(req: Request, res: Response): Promise<void> {
   if (typeof raw?.["shortDescriptionAr"] === "string") body.shortDescriptionAr = raw["shortDescriptionAr"];
   if (typeof raw?.["displayTopicHe"] === "string") body.displayTopicHe = raw["displayTopicHe"];
   if (typeof raw?.["displayTopicAr"] === "string") body.displayTopicAr = raw["displayTopicAr"];
+  if (typeof raw?.["situationId"] === "string") body.situationId = raw["situationId"];
+  if (raw?.["situationProposal"] && typeof raw["situationProposal"] === "object") {
+    const sp = raw["situationProposal"] as Record<string, unknown>;
+    body.situationProposal = {
+      ...(typeof sp["labelHe"] === "string" ? { labelHe: sp["labelHe"] } : {}),
+      ...(typeof sp["labelAr"] === "string" ? { labelAr: sp["labelAr"] } : {}),
+      ...(typeof sp["labelEn"] === "string" ? { labelEn: sp["labelEn"] } : {}),
+      ...(typeof sp["reason"] === "string" ? { reason: sp["reason"] } : {}),
+    };
+  }
 
   try {
     const { templateId } = await publishStory({ storyId, uid: ownerUid, body });

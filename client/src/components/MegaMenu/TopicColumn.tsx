@@ -3,6 +3,7 @@ import { ReferenceSituation } from "../../hooks/useReferenceData";
 import * as s from "./styles";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { getLocalizedReferenceLabel } from "../../utils/referenceDataLabel";
 
 type Props = {
   situations: ReferenceSituation[];
@@ -24,14 +25,8 @@ export function TopicColumn({
   const { language } = useLanguage();
   
   // Get label based on current language
-  const getLabel = (situation: ReferenceSituation): string => {
-    if (language === "en") {
-      // For English, prefer label_en if available, fallback to label_he
-      return situation.label_en || situation.label_he || situation.id;
-    }
-    // For Hebrew and Arabic, use label_he
-    return situation.label_he || situation.id;
-  };
+  const getLabel = (situation: ReferenceSituation): string =>
+    getLocalizedReferenceLabel(situation, language);
   
   if (!selectedTopicKey) {
     return (

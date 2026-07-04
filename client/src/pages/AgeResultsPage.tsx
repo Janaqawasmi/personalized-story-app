@@ -15,6 +15,7 @@ import FilterBar from "../components/FilterBar/FilterBar";
 import type { FilterGroup, LockedFilter } from "../components/FilterBar/types";
 import { getTopicColor } from "../constants/topicColors";
 import SuggestStoryBanner from "../components/SuggestStoryBanner";
+import { getLocalizedReferenceLabel } from "../utils/referenceDataLabel";
 import {
   storyCatalogGridSx,
   catalogPageHeaderTitleSx,
@@ -119,7 +120,7 @@ export default function AgeResultsPage() {
       { value: "", label: t("filters.all") },
       ...availableCategories.map((tp) => ({
         value: tp.id,
-        label: language === "en" ? tp.label_en || tp.label_he : tp.label_he,
+        label: getLocalizedReferenceLabel(tp, language),
         dotColor: getTopicColor(tp.id),
         category: tp.parentCategory ?? groupLabel,
       })),
@@ -144,7 +145,7 @@ export default function AgeResultsPage() {
             { value: "", label: t("filters.all") },
             ...availableTopics.map((sit) => ({
               value: sit.id,
-              label: language === "en" ? sit.label_en || sit.label_he : sit.label_he,
+              label: getLocalizedReferenceLabel(sit, language),
             })),
           ],
           value: selectedTopic ?? "",
@@ -198,6 +199,7 @@ export default function AgeResultsPage() {
                 ageGroup: (story as any).ageGroup,
                 primaryTopic: (story as any).primaryTopic,
                 specificSituation: (story as any).specificSituation,
+                situationId: (story as any).situationId,
                 coverImageUrl: (story as any).coverImageUrl,
                 category: (story as any).category ?? null,
               }}

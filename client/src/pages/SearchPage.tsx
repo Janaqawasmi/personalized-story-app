@@ -60,7 +60,11 @@ export default function SearchPage() {
     };
 
     performSearch();
-  }, [query, t]);
+    // `t` intentionally excluded: useTranslation() returns a new function
+    // identity every render, so including it here would refire this effect
+    // (and its network fetch) on every render, causing a flicker/reload loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   // Update local state when URL query changes
   useEffect(() => {
@@ -158,6 +162,7 @@ export default function SearchPage() {
                       generationConfig: story.generationConfig,
                       primaryTopic: (story as any).primaryTopic,
                       specificSituation: (story as any).specificSituation,
+                      situationId: (story as any).situationId,
                       topicKey: story.topicKey,
                       coverImageUrl: (story as any).coverImageUrl,
                       category: (story as any).category ?? null,

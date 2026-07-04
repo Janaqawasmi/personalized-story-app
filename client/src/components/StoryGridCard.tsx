@@ -29,6 +29,7 @@ export type StoryGridCardStory = Omit<Story, "coverImage"> & {
   coverImageUrl?: string;
   primaryTopic?: string;
   specificSituation?: string;
+  situationId?: string;
   ageGroup?: string;
   generationConfig?: { targetAgeGroup?: string };
   category?: string | null;
@@ -72,7 +73,6 @@ function resolveTopic(story: StoryGridCardStory): StoryTopic {
   const raw = String(
     story.topicKey ||
       story.primaryTopic ||
-      story.specificSituation ||
       story.topicLabel ||
       ""
   )
@@ -117,7 +117,6 @@ function getTopicBadgeLabel(story: StoryGridCardStory): string {
     (story.topicLabel && story.topicLabel.trim()) ||
     story.primaryTopic ||
     story.topicKey ||
-    story.specificSituation ||
     ""
   );
 }
@@ -173,7 +172,7 @@ export default function StoryGridCard({
     coverImage: coverUrl ?? null,
     ageGroup: story.ageGroup ?? story.targetAgeGroup ?? null,
     category: story.category ?? null,
-    topic: story.topicKey ?? story.primaryTopic ?? story.specificSituation ?? null,
+    topic: story.topicKey ?? story.primaryTopic ?? null,
   });
 
   const handleView = () => {
