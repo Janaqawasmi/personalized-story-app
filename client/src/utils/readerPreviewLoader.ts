@@ -5,6 +5,26 @@ import type { PreviewReaderOverride } from "./storyPersonalization";
 
 export type { PreviewReaderOverride };
 
+/**
+ * Resolves which `storyPreviews/{id}` document (if any) should be live-merged
+ * into the reader's pages.
+ *
+ * A full purchase (`personalizedStoryId` present — "Read Story" from the
+ * Purchased tab) is already 100% final content and must NEVER be merged with
+ * preview data. Without this guard, a *stale* `dammah.preview.{templateId}`
+ * value left in localStorage from an unrelated earlier preview/personalization
+ * attempt on the same template would leak that other preview's images/text
+ * onto the fully purchased story.
+ */
+export function resolveActivePreviewId(opts: {
+  personalizedStoryId: string | null;
+  previewIdFromQuery: string | null;
+  storedPreviewId: string | null;
+}): string | null {
+  if (opts.personalizedStoryId) return null;
+  return opts.previewIdFromQuery || opts.storedPreviewId || null;
+}
+
 /** Avoid repeated getDownloadURL calls on every Firestore snapshot. */
 const storageDownloadUrlByPath = new Map<string, string>();
 

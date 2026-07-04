@@ -3,7 +3,7 @@ import { admin, db } from "../config/firebase";
 import { COLLECTIONS, STORAGE_PATHS } from "../shared/firestore/paths";
 import { storyTemplateConverter } from "../shared/firestore/converters";
 import { StoryPreview, PreviewPage, PreviewStatus, PreviewKind } from "../shared/types/storyPreview";
-import { StoryTemplate } from "../shared/types/storyTemplate";
+import { StoryTemplate, StoryTemplatePage } from "../shared/types/storyTemplate";
 import { ImageGenerationProvider, ImageGenerationResult } from "../shared/types/aiProvider";
 import { CHILDRENS_BOOK_PAGE_ILLUSTRATION } from "../shared/seedreamImageSize";
 import {
@@ -370,6 +370,37 @@ export interface CreateFixedStoryPreviewInput {
  * full-story pipeline unchanged; `generateFullStory` recognizes `kind: "fixed"`
  * and finalizes it immediately instead of running AI generation.
  */
+/**
+ * Resolves the best available *original, specialist-approved* image for a
+ * template page, for the "Buy Story" (non-personalizable) fixed flow.
+ *
+ * `sampleImageUrl` (per-page) is the canonical field, but several templates
+ * were published before every page carried one — those only ever captured
+ * exactly two page images, in `previewSpreads` (the same two images shown on
+ * the public Story Detail Page), plus a single cover image. In that case:
+ *   1. Use the page's own `sampleImageUrl` when present (exact, per-page).
+ *   2. For the first two pages (by pageNumber), fall back to the matching
+ *      `previewSpreads[index]` image — this is still that exact page's own
+ *      approved illustration, just captured under a different field name.
+ *   3. For any other page with no captured image, fall back to the
+ *      template's own cover image rather than a cross-story-generic
+ *      placeholder — still this story's own approved art, never another
+ *      story's or a filler asset.
+ * Returns null only if the template has no approved image at all.
+ */
+export function resolveFixedStoryPageImage(
+  page: StoryTemplatePage,
+  pageIndexInOrder: number,
+  template: Pick<StoryTemplate, "previewSpreads" | "coverImage" | "coverImageUrl">
+): string | null {
+  if (page.sampleImageUrl) return page.sampleImageUrl;
+
+  const spreadImage = template.previewSpreads?.[pageIndexInOrder]?.imageUrl;
+  if (spreadImage) return spreadImage;
+
+  return template.coverImage || template.coverImageUrl || null;
+}
+
 export async function createFixedStoryPreview(
   input: CreateFixedStoryPreviewInput
 ): Promise<{ previewId: string }> {
@@ -394,11 +425,12 @@ export async function createFixedStoryPreview(
   const now = admin.firestore.Timestamp.now();
   const nowIso = new Date().toISOString();
 
-  const pages: PreviewPage[] = (template.pages ?? []).map((page) => ({
+  const sortedPages = (template.pages ?? []).slice().sort((a, b) => a.pageNumber - b.pageNumber);
+  const pages: PreviewPage[] = sortedPages.map((page, index) => ({
     pageNumber: page.pageNumber,
     personalizedText: page.textTemplate?.masculine || page.textTemplate?.feminine || "",
     imagePromptUsed: page.imagePromptTemplate ?? "",
-    generatedImagePath: page.sampleImageUrl ?? null,
+    generatedImagePath: resolveFixedStoryPageImage(page, index, template),
     aiMetadata: null,
   }));
 

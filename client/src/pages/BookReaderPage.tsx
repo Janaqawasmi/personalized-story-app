@@ -68,6 +68,7 @@ import {
 import {
   loadPreviewReaderOverrides,
   previewOverridesFromDocData,
+  resolveActivePreviewId,
   type PreviewReaderOverride,
 } from "../utils/readerPreviewLoader";
 import {
@@ -171,17 +172,19 @@ export default function BookReaderPage() {
     };
   }, []);
 
-  const previewIdFromQuery = searchParams.get("previewId");
-  const previewId =
-    previewIdFromQuery ||
-    (storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null);
-
   // Present only when opened from "Purchased" → "Read Story" (see MyStoriesPage.tsx).
   // Identifies a `personalizedStories/{id}` record: the fully generated, fully
   // paid-for book. When set, the reader skips the free-preview personalization
   // gate/lock entirely (cart/payment flow Bug 4).
   const personalizedStoryIdFromQuery = searchParams.get("personalizedStoryId");
   const [isFullPurchase, setIsFullPurchase] = useState(false);
+
+  const previewIdFromQuery = searchParams.get("previewId");
+  const previewId = resolveActivePreviewId({
+    personalizedStoryId: personalizedStoryIdFromQuery,
+    previewIdFromQuery,
+    storedPreviewId: storyId ? localStorage.getItem(`dammah.preview.${storyId}`) : null,
+  });
 
   const CURRENT_LANGUAGE = uiLanguage || getCurrentLanguage();
   const isRTL = CURRENT_LANGUAGE === "he" || CURRENT_LANGUAGE === "ar";
