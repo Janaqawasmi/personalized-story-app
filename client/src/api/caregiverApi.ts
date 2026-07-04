@@ -109,6 +109,25 @@ export interface PreviewData {
   updatedAt: unknown;
 }
 
+export interface SavedPreviewItem {
+  previewId: string;
+  caregiverUid: string;
+  templateId: string;
+  childAgeGroup: AgeGroup;
+  childFirstName: string;
+  childGender: Gender;
+  templateTitle: string;
+  language: "ar" | "he";
+  previewPageCount: number;
+  coverImageUrl: string | null;
+  generationStatus: string;
+  pagesCompleted: number;
+  photoStatus?: string;
+  status: string;
+  expiresAt: string | null;
+  createdAt: unknown;
+}
+
 export interface CartItemData {
   cartItemId: string;
   caregiverUid: string;
@@ -234,20 +253,57 @@ export interface PreviewPersonalization {
   dedicationName: string | null;
 }
 
+function extractApiErrorMessage(payload: unknown, fallback: string): string {
+  if (typeof payload === "string" && payload.trim()) {
+    return payload;
+  }
+  if (payload && typeof payload === "object" && "message" in payload) {
+    const message = (payload as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
+function extractApiErrorCode(payload: unknown): string | undefined {
+  if (payload && typeof payload === "object" && "code" in payload) {
+    const code = (payload as { code?: unknown }).code;
+    if (typeof code === "string" && code.trim()) {
+      return code;
+    }
+  }
+  return undefined;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({
       error: `Request failed with status ${res.status}`,
     }));
+    const payload = errorData.error ?? errorData.details;
     throw new ApiError(
-      errorData.error || errorData.details || `Request failed (${res.status})`,
-      { code: errorData.code, status: res.status }
+      extractApiErrorMessage(payload, `Request failed (${res.status})`),
+      {
+        code:
+          (typeof errorData.code === "string" && errorData.code) ||
+          extractApiErrorCode(payload),
+        status: res.status,
+      }
     );
   }
 
   const json = (await res.json()) as ApiResponse<T>;
   if (!json.success) {
-    throw new ApiError(json.error || "Request failed", { code: json.code, status: res.status });
+    throw new ApiError(
+      extractApiErrorMessage(json.error, "Request failed"),
+      {
+        code:
+          (typeof json.code === "string" && json.code) ||
+          extractApiErrorCode(json.error),
+        status: res.status,
+      }
+    );
   }
 
   return json.data as T;
@@ -256,6 +312,12 @@ async function handleResponse<T>(res: Response): Promise<T> {
 // ============================================================================
 // Preview API
 // ============================================================================
+
+export async function getMyPreviews(): Promise<SavedPreviewItem[]> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/caregiver/previews`, { headers });
+  return handleResponse<SavedPreviewItem[]>(res);
+}
 
 export async function getPreviewQuota(): Promise<PreviewQuota> {
   const headers = await getAuthHeaders();

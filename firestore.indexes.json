@@ -94,6 +94,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "caregiverUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" },
+        { "fieldPath": "status", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "storyPreviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caregiverUid", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
@@ -147,6 +156,14 @@
       "fields": [
         { "fieldPath": "generationStatus", "order": "ASCENDING" },
         { "fieldPath": "generationStartedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "personalizedStories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "caregiverUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {

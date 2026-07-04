@@ -1,34 +1,8 @@
 import { useState, useEffect } from "react";
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-} from "firebase/firestore";
-import { db } from "../firebase";
 import { getAuth } from "firebase/auth";
+import { getMyPreviews, type SavedPreviewItem } from "../api/caregiverApi";
 
-const STORY_PREVIEWS_COLLECTION = "storyPreviews";
-
-export interface PreviewListItem {
-  previewId: string;
-  caregiverUid: string;
-  templateId: string;
-  childAgeGroup: "0_3" | "3_6" | "6_9" | "9_12";
-  childFirstName: string;
-  childGender: "male" | "female";
-  templateTitle: string;
-  language: "ar" | "he";
-  previewPageCount: number;
-  coverImageUrl: string | null;
-  generationStatus: string;
-  pagesCompleted: number;
-  photoStatus?: string;
-  status: string;
-  expiresAt: string | null;
-  createdAt: unknown;
-}
+export type PreviewListItem = SavedPreviewItem;
 
 interface UseMyPreviewsResult {
   previews: PreviewListItem[];
@@ -37,9 +11,8 @@ interface UseMyPreviewsResult {
 }
 
 /**
- * Real-time listener on the caregiver's story previews.
- * Excludes previews with status "expired" or "converted".
- * Auth required.
+ * Loads the user's saved previews through the caregiver API.
+ * Using the server route avoids fragile client-side composite-index requirements.
  */
 export function useMyPreviews(): UseMyPreviewsResult {
   const [previews, setPreviews] = useState<PreviewListItem[]>([]);
@@ -56,32 +29,34 @@ export function useMyPreviews(): UseMyPreviewsResult {
       return;
     }
 
-    const q = query(
-      collection(db, STORY_PREVIEWS_COLLECTION),
-      where("caregiverUid", "==", user.uid),
-      where("status", "not-in", ["expired", "converted"]),
-      orderBy("createdAt", "desc")
-    );
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const items: PreviewListItem[] = snapshot.docs.map((doc) => ({
-          previewId: doc.id,
-          ...(doc.data() as Omit<PreviewListItem, "previewId">),
-        }));
-        setPreviews(items);
-        setLoading(false);
-        setError(null);
-      },
-      (err) => {
-        console.error("Preview snapshot error:", err);
-        setError(err.message);
-        setLoading(false);
-      }
-    );
+    getMyPreviews()
+      .then((items) => {
+        if (!cancelled) {
+          setPreviews(items);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        console.error("Preview list error:", err);
+        if (!cancelled) {
+          const msg =
+            err && typeof err === "object" && "message" in err
+              ? String((err as { message?: string }).message)
+              : "Failed to load previews";
+          setError(msg);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { previews, loading, error };

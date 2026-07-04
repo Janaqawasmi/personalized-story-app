@@ -47,6 +47,28 @@ const upload = multer({
 
 const VALID_AGE_GROUPS = ["0_3", "3_6", "6_9", "9_12"] as const;
 const VALID_GENDERS = ["male", "female"] as const;
+const HIDDEN_PREVIEW_STATUSES = new Set(["expired", "converted"]);
+type PreviewListRecord = { previewId: string; status?: unknown } & Record<string, unknown>;
+
+function toSortableMs(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  if (value && typeof value === "object") {
+    const maybeTimestamp = value as { toMillis?: () => number; _seconds?: unknown };
+    if (typeof maybeTimestamp.toMillis === "function") {
+      return maybeTimestamp.toMillis();
+    }
+    if (typeof maybeTimestamp._seconds === "number") {
+      return maybeTimestamp._seconds * 1000;
+    }
+  }
+  return 0;
+}
 
 /** Dev-only: reset free-preview quota fields on caregivers/{uid} (non-production only). */
 if (process.env.NODE_ENV !== "production") {
@@ -76,6 +98,62 @@ if (process.env.NODE_ENV !== "production") {
     }
   );
 }
+
+/**
+ * GET /api/caregiver/previews
+ *
+ * Returns the authenticated user's saved previews for the "My previews" tab.
+ * Filters out lifecycle states that should no longer be shown in the library UI.
+ */
+router.get("/", requireCaregiverAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const caregiverUid = req.caregiverUser!.uid;
+
+    const snapshot = await db
+      .collection(COLLECTIONS.STORY_PREVIEWS)
+      .where("caregiverUid", "==", caregiverUid)
+      .select(
+        "caregiverUid",
+        "templateId",
+        "childAgeGroup",
+        "childFirstName",
+        "childGender",
+        "templateTitle",
+        "language",
+        "previewPageCount",
+        "coverImageUrl",
+        "generationStatus",
+        "pagesCompleted",
+        "photoStatus",
+        "status",
+        "expiresAt",
+        "createdAt"
+      )
+      .get();
+
+    const previews: PreviewListRecord[] = [];
+    for (const doc of snapshot.docs) {
+      const preview = {
+        previewId: doc.id,
+        ...(doc.data() as Record<string, unknown>),
+      } as PreviewListRecord;
+
+      if (!HIDDEN_PREVIEW_STATUSES.has(String(preview.status ?? ""))) {
+        previews.push(preview);
+      }
+    }
+
+    previews.sort((a, b) => toSortableMs(b.createdAt) - toSortableMs(a.createdAt));
+
+    res.status(200).json({ success: true, data: previews });
+  } catch (err) {
+    console.error("[previews.list] error", err);
+    res.status(500).json({
+      success: false,
+      error: { code: "INTERNAL", message: "Failed to retrieve previews." },
+    });
+  }
+});
 
 /**
  * GET /api/caregiver/previews/quota

@@ -169,7 +169,7 @@ export default function MyStoriesPage() {
   const { direction } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = tabFromSearchParams(searchParams);
-  const { previews, loading: previewsLoading } = useMyPreviews();
+  const { previews, loading: previewsLoading, error: previewsError } = useMyPreviews();
   const [navigatingPreviewId, setNavigatingPreviewId] = useState<string | null>(null);
   const [purchasedStories, setPurchasedStories] = useState<PurchasedStoryItem[]>([]);
   const [purchasedLoading, setPurchasedLoading] = useState(false);
@@ -388,6 +388,10 @@ export default function MyStoriesPage() {
             {previewsLoading ? (
               <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
                 <CircularProgress sx={{ color: "#824D5C" }} />
+              </Box>
+            ) : previewsError ? (
+              <Box sx={{ textAlign: "center", py: 8 }}>
+                <Typography sx={{ fontSize: 14, color: "error.main" }}>{previewsError}</Typography>
               </Box>
             ) : previews.length === 0 ? (
               <Box sx={{ textAlign: "center", py: 8 }}>
