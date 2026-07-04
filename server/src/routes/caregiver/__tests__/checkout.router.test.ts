@@ -108,6 +108,30 @@ describe("processPaymentEvent", () => {
       expect(generateFullStory).toHaveBeenCalledWith("purchase-1", "preview-1");
     });
 
+    it("creates a print order for paid print purchases", async () => {
+      const doc = makePurchaseDoc(
+        "purchase-1",
+        pendingPurchase({ purchaseFormat: "print", printOrder: null })
+      );
+      purchaseDocsFixture = [doc];
+
+      await processPaymentEvent({
+        type: "checkout.completed",
+        data: { sessionId: "mock_sess_1", chargeId: "mock_ch_1" },
+      });
+
+      expect(doc.ref.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: "paid",
+          printOrder: expect.objectContaining({
+            status: "paid_pending_preparation",
+            needsAdminFollowUp: true,
+          }),
+        })
+      );
+      expect(generateFullStory).toHaveBeenCalledWith("purchase-1", "preview-1");
+    });
+
     it("is idempotent: a purchase that is no longer pending is skipped", async () => {
       const doc = makePurchaseDoc("purchase-1", pendingPurchase({ status: "paid" }));
       purchaseDocsFixture = [doc];

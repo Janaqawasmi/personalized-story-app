@@ -68,6 +68,7 @@ function cartItem(overrides: Partial<DocData> = {}): DocData {
     templateTitle: "Test Story",
     childFirstName: "Noa",
     coverImageUrl: null,
+    purchaseFormat: "digital",
     priceCents: 2999,
     currency: "ILS",
     language: "he",
@@ -107,6 +108,16 @@ describe("validateCartItems", () => {
     expect(result.readyToPay[0]!.cartItemId).toBe("cart-1");
     expect(result.invalid).toHaveLength(0);
     expect(result.photosNeeded).toHaveLength(0);
+  });
+
+  it("refreshes a digital cart item's price from the current template price", async () => {
+    cartItemsFixture = [cartItem({ priceCents: 2999 })];
+    previewsFixture["preview-1"] = readyPreview();
+    templatesFixture["template-1"] = activeTemplate({ priceCents: 3499 });
+
+    const result = await validateCartItems(CAREGIVER_UID);
+
+    expect(result.readyToPay[0]!.priceCents).toBe(3499);
   });
 
   it("rejects an item whose preview no longer exists", async () => {
@@ -204,6 +215,37 @@ describe("validateCartItems", () => {
     expect(result.readyToPay[0]!.cartItemId).toBe("cart-1");
     expect(result.photosNeeded).toHaveLength(0);
     expect(result.invalid).toHaveLength(0);
+  });
+
+  it("keeps a print cart item ready when print pricing is available", async () => {
+    cartItemsFixture = [cartItem({ purchaseFormat: "print", priceCents: 0 })];
+    previewsFixture["preview-1"] = readyPreview();
+    templatesFixture["template-1"] = activeTemplate({
+      printAvailable: true,
+      printPriceCents: 5999,
+    });
+
+    const result = await validateCartItems(CAREGIVER_UID);
+
+    expect(result.readyToPay).toHaveLength(1);
+    expect(result.readyToPay[0]!.purchaseFormat).toBe("print");
+    expect(result.readyToPay[0]!.priceCents).toBe(5999);
+  });
+
+  it("rejects a print cart item when print is unavailable", async () => {
+    cartItemsFixture = [cartItem({ purchaseFormat: "print" })];
+    previewsFixture["preview-1"] = readyPreview();
+    templatesFixture["template-1"] = activeTemplate({
+      printAvailable: false,
+      printPriceCents: 5999,
+    });
+
+    const result = await validateCartItems(CAREGIVER_UID);
+
+    expect(result.readyToPay).toHaveLength(0);
+    expect(result.invalid).toEqual([
+      { cartItemId: "cart-1", reason: "Print version is no longer available" },
+    ]);
   });
 
   it("rejects an item with an unrecognized photo status", async () => {

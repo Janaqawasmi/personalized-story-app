@@ -11,7 +11,6 @@ import {
 } from "../../../utils/referenceDataLabel";
 
 const DEFAULT_DIGITAL_BOOK_PRICE = 29.99;
-const DEFAULT_PRINT_BOOK_PRICE = 59.99;
 const DEFAULT_BOOK_CURRENCY = "ILS";
 
 /** Single locale string from Firestore map `{ en, he, ar }` or legacy flat string. */
@@ -183,7 +182,7 @@ export function mapFirestoreToStoryDetailVM(
     readAmountFromCents(data?.pricing?.printPriceCents) ??
     readAmountFromCents(data?.printPriceCents);
   const resolvedDigital = digital ?? DEFAULT_DIGITAL_BOOK_PRICE;
-  const resolvedPrint = data.printAvailable === false ? undefined : (print ?? DEFAULT_PRINT_BOOK_PRICE);
+  const resolvedPrint = data.printAvailable === false ? undefined : print;
 
   let status: StoryDetailStatus = "published";
   if (data.comingSoon === true || data.status === "coming_soon") {
@@ -193,7 +192,7 @@ export function mapFirestoreToStoryDetailVM(
   }
 
   const hasPrintPrice = typeof resolvedPrint === "number" && Number.isFinite(resolvedPrint);
-  const printAvailable = data.printAvailable !== false && hasPrintPrice;
+  const printAvailable = data.printAvailable === true && hasPrintPrice;
 
   return {
     id,
@@ -213,7 +212,7 @@ export function mapFirestoreToStoryDetailVM(
     // Keep the public detail page aligned with checkout's current default price
     // until every published template carries explicit pricing fields.
     priceDigital: resolvedDigital,
-    pricePrint: resolvedPrint,
+    pricePrint: printAvailable ? resolvedPrint : undefined,
     currency:
       typeof data.currency === "string"
         ? data.currency

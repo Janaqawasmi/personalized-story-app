@@ -38,6 +38,8 @@ import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/LanguageContext";
 import { useReader } from "../contexts/ReaderContext";
 import { addToCart, ApiError } from "../api/caregiverApi";
+import type { PurchaseFormat } from "../types/commerce";
+import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
 import {
   ttsSpeak,
   ttsPause,
@@ -80,6 +82,7 @@ import {
   collectReaderImageUrls,
   readerPagesFingerprint,
 } from "../utils/readerPagesFingerprint";
+import { getPurchaseOptionsFromTemplateData } from "../utils/purchaseOptions";
 
 type StoryTemplate = {
   id: string;
@@ -92,6 +95,10 @@ type StoryTemplate = {
   status?: string;
   coverImage?: string;
   childName?: string;
+  currency?: string;
+  priceDigital?: number;
+  pricePrint?: number;
+  printAvailable?: boolean;
 };
 
 function getCurrentLanguage(): string {
@@ -151,6 +158,8 @@ export default function BookReaderPage() {
   const [caregiverVoiceId, setCaregiverVoiceId] = useState<string | null>(null);
   const [useClonedVoice, setUseClonedVoice] = useState(true);
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
+  const [addingToCartFormat, setAddingToCartFormat] = useState<PurchaseFormat | null>(null);
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -291,6 +300,7 @@ export default function BookReaderPage() {
             status: "approved",
             coverImage: loaded.coverImage,
             childName: loaded.childName,
+            printAvailable: false,
           });
           storyLoadStartedRef.current = true;
         })
@@ -436,6 +446,7 @@ export default function BookReaderPage() {
             status: data.status,
             coverImage: resolvedCoverImage,
             childName: displayName,
+            ...getPurchaseOptionsFromTemplateData(data as Record<string, unknown>),
           });
           storyLoadStartedRef.current = true;
         }
@@ -765,6 +776,30 @@ export default function BookReaderPage() {
     setPreviewUnlockOverlayOpen(false);
   };
 
+  const handlePreviewAddToCart = async (purchaseFormat: PurchaseFormat) => {
+    if (!previewId) {
+      setFormatDialogOpen(false);
+      setPreviewUnlockOverlayOpen(false);
+      navigate("/cart");
+      return;
+    }
+
+    setAddingToCartFormat(purchaseFormat);
+
+    try {
+      await addToCart(previewId, purchaseFormat);
+      setPreviewUnlockOverlayOpen(false);
+      navigate("/cart");
+    } catch (e) {
+      if (e instanceof ApiError) {
+        console.warn("Add to cart failed:", e.message, e.code);
+      } else {
+        console.warn("Add to cart failed:", e);
+      }
+      setAddingToCartFormat(null);
+    }
+  };
+
   const handlePrev = () => {
     if (!autoRead) handleStopReading();
     if (spreadIndex > 0) {
@@ -1019,25 +1054,7 @@ export default function BookReaderPage() {
                     subtitle={t("pages.bookReader.previewUnlockSubtitle")}
                     teaserLine={t("pages.bookReader.previewTeaserLine")}
                     addToCartLabel={t("pages.bookReader.addToCart")}
-                    onAddToCart={async () => {
-                      if (!previewId) {
-                        setPreviewUnlockOverlayOpen(false);
-                        navigate("/cart");
-                        return;
-                      }
-                      try {
-                        await addToCart(previewId);
-                      } catch (e) {
-                        if (e instanceof ApiError) {
-                          console.warn("Add to cart failed:", e.message, e.code);
-                        } else {
-                          console.warn("Add to cart failed:", e);
-                        }
-                      } finally {
-                        setPreviewUnlockOverlayOpen(false);
-                        navigate("/cart");
-                      }
-                    }}
+                    onAddToCart={() => setFormatDialogOpen(true)}
                     onDismiss={() => setPreviewUnlockOverlayOpen(false)}
                     dismissLabel={t("pages.bookReader.previewEndModalClose")}
                     ctaAnchorRef={previewCtaAnchorRef}
@@ -1368,25 +1385,7 @@ export default function BookReaderPage() {
                       subtitle={t("pages.bookReader.previewUnlockSubtitle")}
                       teaserLine={t("pages.bookReader.previewTeaserLine")}
                       addToCartLabel={t("pages.bookReader.addToCart")}
-                      onAddToCart={async () => {
-                        if (!previewId) {
-                          setPreviewUnlockOverlayOpen(false);
-                          navigate("/cart");
-                          return;
-                        }
-                        try {
-                          await addToCart(previewId);
-                        } catch (e) {
-                          if (e instanceof ApiError) {
-                            console.warn("Add to cart failed:", e.message, e.code);
-                          } else {
-                            console.warn("Add to cart failed:", e);
-                          }
-                        } finally {
-                          setPreviewUnlockOverlayOpen(false);
-                          navigate("/cart");
-                        }
-                      }}
+                      onAddToCart={() => setFormatDialogOpen(true)}
                       onDismiss={() => setPreviewUnlockOverlayOpen(false)}
                       dismissLabel={t("pages.bookReader.previewEndModalClose")}
                       ctaAnchorRef={previewCtaAnchorRef}
@@ -1450,6 +1449,17 @@ export default function BookReaderPage() {
           setUseClonedVoice(true);
         }}
         isRTL={isRTL}
+      />
+
+      <PurchaseFormatDialog
+        open={formatDialogOpen}
+        onClose={() => !addingToCartFormat && setFormatDialogOpen(false)}
+        onSelect={handlePreviewAddToCart}
+        currency={story.currency ?? "ILS"}
+        digitalPrice={story.priceDigital}
+        printPrice={story.pricePrint}
+        printAvailable={story.printAvailable === true}
+        loadingFormat={addingToCartFormat}
       />
     </>
   );

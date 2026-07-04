@@ -11,9 +11,16 @@ import {
   getPurchasedStories,
   type PurchasedStoryItem,
 } from "../api/caregiverApi";
+import type { PurchaseFormat } from "../types/commerce";
 import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
 import { getPreviewCartState } from "../utils/previewCartState";
 import { getPreviewSubtitleKey } from "../utils/previewSubtitle";
+import {
+  fetchPurchaseOptions,
+  getPrintOrderStatusLabel,
+  getPurchaseFormatLabel,
+  type PurchaseOptionData,
+} from "../utils/purchaseOptions";
 import { useAuth } from "../contexts/AuthContext";
 import { listFavorites, type FavoriteStory } from "../api/favorites";
 import StoryGridCard from "../components/StoryGridCard";
@@ -21,6 +28,7 @@ import { storyCatalogGridLooseSx } from "../components/catalog/catalogStyles";
 import AutoAwesomeOutlined from "@mui/icons-material/AutoAwesomeOutlined";
 import BookOutlined from "@mui/icons-material/BookOutlined";
 import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
+import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
 
 type TabId = "purchased" | "previews" | "favorites";
 
@@ -33,6 +41,7 @@ function PurchasedStoryCard({
   t: (k: string, vars?: Record<string, string | number>) => string;
   onRead: () => void;
 }) {
+  const isPrintPurchase = story.purchaseFormat === "print";
   const isAccessible = story.isAccessible && story.generationStatus === "completed";
   const isGenerating = story.generationStatus === "in_progress" || story.generationStatus === "pending";
   const isPartiallyFailed = story.generationStatus === "partially_failed";
@@ -40,7 +49,15 @@ function PurchasedStoryCard({
 
   let statusChipLabel = "";
   let statusChipColor: "success" | "warning" | "error" | "default" = "default";
-  if (isAccessible) {
+  if (isPrintPurchase) {
+    statusChipLabel = getPrintOrderStatusLabel(story.printOrderStatus);
+    statusChipColor =
+      story.printOrderStatus === "delivered"
+        ? "success"
+        : story.printOrderStatus === "cancelled"
+          ? "error"
+          : "default";
+  } else if (isAccessible) {
     statusChipLabel = t("pages.myStories.purchased.readingLabel") || "Ready";
     statusChipColor = "success";
   } else if (isGenerating) {
@@ -100,6 +117,12 @@ function PurchasedStoryCard({
         </Typography>
 
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+          <Chip
+            label={getPurchaseFormatLabel(story.purchaseFormat ?? "digital")}
+            size="small"
+            variant="outlined"
+            sx={{ fontSize: 10, height: 20 }}
+          />
           {statusChipLabel && (
             <Chip
               label={statusChipLabel}
@@ -111,6 +134,11 @@ function PurchasedStoryCard({
           {isGenerating && (
             <CircularProgress size={12} sx={{ color: "#824D5C" }} />
           )}
+          {isPrintPurchase && isGenerating && (
+            <Typography sx={{ fontSize: 10, color: "#9a8a92" }}>
+              Preparing story files
+            </Typography>
+          )}
           {(isPartiallyFailed || isFailed) && (
             <Typography sx={{ fontSize: 10, color: "#9a8a92" }}>
               {t(`pages.myStories.purchased.${isPartiallyFailed ? "partiallyFailedLabel" : "failedLabel"}`)}
@@ -121,7 +149,7 @@ function PurchasedStoryCard({
 
       {/* Action */}
       <Box sx={{ flexShrink: 0 }}>
-        {isAccessible ? (
+        {!isPrintPurchase && isAccessible ? (
           <Button
             size="small"
             variant="contained"
@@ -185,6 +213,11 @@ export default function MyStoriesPage() {
   const [purchasedStories, setPurchasedStories] = useState<PurchasedStoryItem[]>([]);
   const [purchasedLoading, setPurchasedLoading] = useState(false);
   const [purchasedError, setPurchasedError] = useState<string | null>(null);
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
+  const [formatOptionsLoading, setFormatOptionsLoading] = useState(false);
+  const [formatOptions, setFormatOptions] = useState<PurchaseOptionData | null>(null);
+  const [pendingCartPreview, setPendingCartPreview] = useState<{ previewId: string; templateId: string } | null>(null);
+  const [addingToCartFormat, setAddingToCartFormat] = useState<PurchaseFormat | null>(null);
   const { currentUser } = useAuth();
   const [favorites, setFavorites] = useState<FavoriteStory[]>([]);
   const [favoritesLoading, setFavoritesLoading] = useState(false);
@@ -279,16 +312,39 @@ export default function MyStoriesPage() {
   // that only happens after checkout + payment (see checkout.router.ts /
   // processPaymentEvent). The preview stays in "My previews" with an
   // "In cart" label until the caregiver actually pays.
-  const handleAddToCart = async (previewId: string) => {
+  const handleOpenFormatDialog = async (previewId: string, templateId: string) => {
     setAddingToCartId(previewId);
+    setPendingCartPreview({ previewId, templateId });
+    setFormatDialogOpen(true);
+    setFormatOptionsLoading(true);
+
     try {
-      await addToCart(previewId);
+      setFormatOptions(await fetchPurchaseOptions(templateId));
     } catch (err) {
-      console.warn("Add to cart failed:", err);
+      console.warn("Failed to load purchase options:", err);
+      setFormatOptions({
+        currency: "ILS",
+        digitalPrice: 29.99,
+        printPrice: undefined,
+        printAvailable: false,
+      });
     } finally {
+      setFormatOptionsLoading(false);
       setAddingToCartId(null);
     }
-    navigate("/cart");
+  };
+
+  const handleAddToCart = async (purchaseFormat: PurchaseFormat) => {
+    if (!pendingCartPreview) return;
+
+    setAddingToCartFormat(purchaseFormat);
+    try {
+      await addToCart(pendingCartPreview.previewId, purchaseFormat);
+      navigate("/cart");
+    } catch (err) {
+      console.warn("Add to cart failed:", err);
+      setAddingToCartFormat(null);
+    }
   };
 
   return (
@@ -601,7 +657,7 @@ export default function MyStoriesPage() {
                           size="small"
                           variant="outlined"
                           disabled={addingToCartId === preview.previewId}
-                          onClick={() => handleAddToCart(preview.previewId)}
+                          onClick={() => handleOpenFormatDialog(preview.previewId, preview.templateId)}
                           sx={{
                             borderColor: "#824D5C",
                             color: "#824D5C",
@@ -695,6 +751,18 @@ export default function MyStoriesPage() {
           </Box>
         )}
       </Box>
+
+      <PurchaseFormatDialog
+        open={formatDialogOpen}
+        onClose={() => !addingToCartFormat && setFormatDialogOpen(false)}
+        onSelect={handleAddToCart}
+        currency={formatOptions?.currency ?? "ILS"}
+        digitalPrice={formatOptions?.digitalPrice}
+        printPrice={formatOptions?.printPrice}
+        printAvailable={formatOptions?.printAvailable === true}
+        loadingFormat={addingToCartFormat}
+        loadingOptions={formatOptionsLoading}
+      />
     </Box>
   );
 }

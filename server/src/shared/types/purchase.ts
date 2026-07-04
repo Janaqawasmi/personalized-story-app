@@ -1,4 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
+import { PrintOrder, PurchaseFormat } from "./commerce";
 
 export type PurchaseStatus =
   | "pending"
@@ -20,6 +21,8 @@ export interface Purchase {
   caregiverUid: string;
   previewId: string;
   templateId: string;
+  templateTitle: string;
+  childFirstName: string;
   personalizedStoryId: string | null;
 
   /**
@@ -28,6 +31,8 @@ export interface Purchase {
    * compatibility with purchases created before this field existed.
    */
   itemType?: "template" | "personalized";
+  purchaseFormat: PurchaseFormat;
+  printOrder: PrintOrder | null;
 
   // Generic payment fields (not provider-specific)
   paymentTransactionId: string;

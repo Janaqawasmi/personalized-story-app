@@ -17,7 +17,6 @@ function normalizeAgeGroup(value?: string): string | null {
 type UiLang = "en" | "he" | "ar";
 
 const DEFAULT_DIGITAL_BOOK_PRICE = 29.99;
-const DEFAULT_PRINT_BOOK_PRICE = 59.99;
 const DEFAULT_BOOK_CURRENCY = "ILS";
 
 function isUiLang(s: string): s is UiLang {
@@ -115,14 +114,17 @@ function mapDocToStory(doc: { id: string; data: () => Record<string, any> }, lan
     readAmount(data.pricing?.printPrice) ??
     readAmountFromCents(data.pricing?.printPriceCents) ??
     readAmountFromCents(data.printPriceCents);
-  const resolvedPrint = data.printAvailable === false ? undefined : (print ?? DEFAULT_PRINT_BOOK_PRICE);
+  const resolvedPrint = data.printAvailable === false ? undefined : print;
 
   return {
     id: doc.id,
     title: resolveLocalizedField(data.title, lang) || data.title || "",
     // Match the current checkout fallback so catalog cards and detail views do
     // not show "Coming soon" for purchasable templates missing explicit pricing.
-    pricing: { digital: digital ?? DEFAULT_DIGITAL_BOOK_PRICE, print: resolvedPrint },
+    pricing: {
+      digital: digital ?? DEFAULT_DIGITAL_BOOK_PRICE,
+      print: data.printAvailable === true && typeof resolvedPrint === "number" ? resolvedPrint : undefined,
+    },
     currency:
       typeof data.currency === "string"
         ? data.currency

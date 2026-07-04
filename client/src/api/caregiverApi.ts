@@ -7,6 +7,7 @@
 
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "./api";
+import type { PrintOrder, PrintOrderStatus, PurchaseFormat } from "../types/commerce";
 
 // ============================================================================
 // Configuration
@@ -136,6 +137,7 @@ export interface CartItemData {
   templateTitle: string;
   childFirstName: string;
   coverImageUrl: string | null;
+  purchaseFormat: PurchaseFormat;
   priceCents: number;
   currency: string;
   language: "ar" | "he";
@@ -162,6 +164,7 @@ export type StoryGenerationStatus =
 
 export interface PurchasedStoryItem {
   storyId: string;
+  purchaseId: string;
   templateId: string;
   templateTitle: string;
   coverImageUrl: string | null;
@@ -175,6 +178,9 @@ export interface PurchasedStoryItem {
   createdAt: unknown;
   /** Absent on stories created before this field existed — fall back to `childFirstName`. */
   itemType?: "template" | "personalized";
+  purchaseFormat?: PurchaseFormat;
+  printOrderStatus?: PrintOrderStatus | null;
+  printOrder?: PrintOrder | null;
 }
 
 export interface PersonalizedStoryData {
@@ -624,12 +630,15 @@ export async function listCartItems(): Promise<CartItemData[]> {
 /**
  * Add a preview to the cart.
  */
-export async function addToCart(previewId: string): Promise<CartItemData> {
+export async function addToCart(
+  previewId: string,
+  purchaseFormat: PurchaseFormat,
+): Promise<CartItemData> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/caregiver/cart`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ previewId }),
+    body: JSON.stringify({ previewId, purchaseFormat }),
   });
   return handleResponse<CartItemData>(res);
 }

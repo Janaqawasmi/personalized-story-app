@@ -32,6 +32,7 @@ router.get(
         .orderBy("createdAt", "desc")
         .select(
           "storyId",
+          "purchaseId",
           "templateTitle",
           "coverImageUrl",
           "childFirstName",
@@ -47,10 +48,51 @@ router.get(
         )
         .get();
 
-      const stories = snapshot.docs.map((doc) => ({
-        storyId: doc.id,
-        ...doc.data(),
-      }));
+      const purchasesSnapshot = await db
+        .collection(COLLECTIONS.purchases(caregiverUid))
+        .select("purchaseId", "purchaseFormat", "printOrder")
+        .get();
+
+      const purchasesById = new Map(
+        purchasesSnapshot.docs.map((doc) => {
+          const data = doc.data();
+          const purchaseId =
+            typeof data.purchaseId === "string" && data.purchaseId.trim()
+              ? data.purchaseId
+              : doc.id;
+
+          return [purchaseId, data];
+        })
+      );
+
+      const stories = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        const purchaseId =
+          typeof data.purchaseId === "string" && data.purchaseId.trim()
+            ? data.purchaseId
+            : "";
+        const purchaseData = purchasesById.get(purchaseId);
+
+        return {
+          storyId: doc.id,
+          ...data,
+          purchaseId,
+          purchaseFormat:
+            typeof purchaseData?.purchaseFormat === "string"
+              ? purchaseData.purchaseFormat
+              : "digital",
+          printOrderStatus:
+            purchaseData?.printOrder &&
+            typeof purchaseData.printOrder === "object" &&
+            typeof (purchaseData.printOrder as { status?: unknown }).status === "string"
+              ? (purchaseData.printOrder as { status: string }).status
+              : null,
+          printOrder:
+            purchaseData?.printOrder && typeof purchaseData.printOrder === "object"
+              ? purchaseData.printOrder
+              : null,
+        };
+      });
 
       res.status(200).json({ success: true, data: stories });
     } catch (error) {

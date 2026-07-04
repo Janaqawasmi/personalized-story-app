@@ -7,6 +7,7 @@ import { useLanguage } from "../i18n/context/useLanguage";
 import { useMyCart } from "../hooks/useMyCart";
 import { removeFromCart, checkout } from "../api/caregiverApi";
 import { getPreviewSubtitleKey } from "../utils/previewSubtitle";
+import { getPurchaseFormatLabel } from "../utils/purchaseOptions";
 
 function formatPrice(cents: number, currency: string): string {
   return `${(cents / 100).toFixed(2)} ${currency}`;
@@ -155,6 +156,9 @@ export default function CartPage() {
                         const subtitle = getPreviewSubtitleKey(item.childFirstName);
                         return t(subtitle.key, subtitle.params);
                       })()}
+                    </Typography>
+                    <Typography sx={{ fontSize: 11, color: "#6f404d", mb: 0.5, fontWeight: 600 }}>
+                      {getPurchaseFormatLabel(item.purchaseFormat)}
                     </Typography>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: "#824D5C" }}>
                       {formatPrice(item.priceCents, item.currency)}

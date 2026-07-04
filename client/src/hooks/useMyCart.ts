@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase";
 import { getAuth } from "firebase/auth";
+import type { PurchaseFormat } from "../types/commerce";
 
 export interface CartItemView {
   cartItemId: string;
@@ -11,6 +12,7 @@ export interface CartItemView {
   templateTitle: string;
   childFirstName: string;
   coverImageUrl: string | null;
+  purchaseFormat: PurchaseFormat;
   priceCents: number;
   currency: string;
   language: "ar" | "he";
@@ -50,10 +52,17 @@ export function useMyCart(): UseMyCartResult {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const cartItems: CartItemView[] = snapshot.docs.map((doc) => ({
-          cartItemId: doc.id,
-          ...(doc.data() as Omit<CartItemView, "cartItemId">),
-        }));
+        const cartItems: CartItemView[] = snapshot.docs.map((doc) => {
+          const data = doc.data() as Omit<CartItemView, "cartItemId"> & {
+            purchaseFormat?: PurchaseFormat;
+          };
+
+          return {
+            cartItemId: doc.id,
+            ...data,
+            purchaseFormat: data.purchaseFormat ?? "digital",
+          };
+        });
         setItems(cartItems);
         setLoading(false);
         setError(null);

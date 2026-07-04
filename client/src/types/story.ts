@@ -231,6 +231,10 @@ export interface StoryTemplate {
   generationConfig?: {
     targetAgeGroup?: string;
   };
+  currency?: string;
+  priceDigital?: number;
+  pricePrint?: number;
+  printAvailable?: boolean;
   /** e.g. "{{CHILD_NAME}} took a deep breath..." — live preview on Name step */
   previewSentence?: string;
   /** Template cover image, used e.g. as puzzle art on the waiting screen. */

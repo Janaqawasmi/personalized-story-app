@@ -35,6 +35,9 @@ import {
 import { usePreviewQuota } from "../hooks/usePreviewQuota";
 import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
 import WaitingScreenPicker from "../components/waiting/WaitingScreenPicker";
+import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
+import type { PurchaseFormat } from "../types/commerce";
+import { getPurchaseOptionsFromTemplateData } from "../utils/purchaseOptions";
 
 type VisualStyle =
   | "watercolor"
@@ -690,6 +693,8 @@ export default function PersonalizeStoryPage() {
     childName: string;
     photoPreviewUrl: string | null;
   } | null>(null);
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
+  const [addingToCartFormat, setAddingToCartFormat] = useState<PurchaseFormat | null>(null);
 
   useEffect(() => {
     if (quota?.hasUsedPreview) {
@@ -839,6 +844,7 @@ export default function PersonalizeStoryPage() {
           targetAgeGroup: data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
           topic: data.primaryTopic ?? data.topicKey ?? data.topic,
           generationConfig: data.generationConfig,
+          ...getPurchaseOptionsFromTemplateData(data as Record<string, unknown>),
           previewSentence: typeof data.previewSentence === "string" ? data.previewSentence : undefined,
           coverImage: typeof data.coverImage === "string" ? data.coverImage : data.coverImageUrl,
         });
@@ -1203,6 +1209,19 @@ export default function PersonalizeStoryPage() {
 
   const storyTitleForUi = pickLang(story.title, language) || t("personalize.story");
 
+  const handleDirectPurchaseAddToCart = async (purchaseFormat: PurchaseFormat) => {
+    if (!directPurchaseResult) return;
+
+    setAddingToCartFormat(purchaseFormat);
+    try {
+      await addToCart(directPurchaseResult.previewId, purchaseFormat);
+      navigate("/cart");
+    } catch (err) {
+      console.warn("Add to cart failed:", err);
+      setAddingToCartFormat(null);
+    }
+  };
+
   if (directPurchaseResult) {
     return (
       <Box
@@ -1215,15 +1234,7 @@ export default function PersonalizeStoryPage() {
         <DirectPurchaseSummary
           result={directPurchaseResult}
           storyTitle={storyTitleForUi}
-          onAddToCart={async () => {
-            try {
-              await addToCart(directPurchaseResult.previewId);
-            } catch (err) {
-              console.warn("Add to cart failed:", err);
-            } finally {
-              navigate("/cart");
-            }
-          }}
+          onAddToCart={() => setFormatDialogOpen(true)}
           onBack={() => setDirectPurchaseResult(null)}
           existingPreviewId={quota?.existingPreviewId ?? null}
           existingTemplateId={quota?.existingTemplateId ?? null}
@@ -1254,6 +1265,17 @@ export default function PersonalizeStoryPage() {
             }
             navigate(`/stories/${etid}/read?previewId=${encodeURIComponent(eid)}`);
           }}
+        />
+
+        <PurchaseFormatDialog
+          open={formatDialogOpen}
+          onClose={() => !addingToCartFormat && setFormatDialogOpen(false)}
+          onSelect={handleDirectPurchaseAddToCart}
+          currency={story.currency ?? "ILS"}
+          digitalPrice={story.priceDigital}
+          printPrice={story.pricePrint}
+          printAvailable={story.printAvailable === true}
+          loadingFormat={addingToCartFormat}
         />
       </Box>
     );

@@ -7,6 +7,10 @@ import { validateCartItems } from "../../services/cart.service";
 import { generateFullStory } from "../../services/fullStoryGeneration.service";
 import { PaymentProvider } from "../../shared/types/paymentProvider";
 import { Purchase } from "../../shared/types/purchase";
+import {
+  PurchasePricingError,
+  resolveTemplatePurchasePricing,
+} from "../../services/purchasePricing.service";
 
 const router = Router();
 
@@ -105,6 +109,60 @@ router.post(
         return;
       }
 
+      const pricingInvalidItems: Array<{ cartItemId: string; reason: string }> = [];
+      const pricedCheckoutItems: typeof checkoutItems = [];
+
+      for (const item of checkoutItems) {
+        const templateDoc = await db
+          .collection(COLLECTIONS.STORY_TEMPLATES)
+          .doc(item.templateId)
+          .get();
+
+        if (!templateDoc.exists) {
+          pricingInvalidItems.push({
+            cartItemId: item.cartItemId,
+            reason: "This story is no longer available",
+          });
+          continue;
+        }
+
+        try {
+          const pricing = resolveTemplatePurchasePricing(
+            templateDoc.data() as Record<string, unknown>,
+            item.purchaseFormat ?? "digital",
+          );
+
+          pricedCheckoutItems.push({
+            ...item,
+            purchaseFormat: pricing.purchaseFormat,
+            priceCents: pricing.priceCents,
+            currency: pricing.currency,
+          });
+        } catch (error) {
+          if (
+            error instanceof PurchasePricingError &&
+            error.code === "PRINT_NOT_AVAILABLE"
+          ) {
+            pricingInvalidItems.push({
+              cartItemId: item.cartItemId,
+              reason: "Print version is no longer available",
+            });
+            continue;
+          }
+
+          throw error;
+        }
+      }
+
+      if (pricingInvalidItems.length > 0) {
+        res.status(400).json({
+          success: false,
+          error: "invalid_items",
+          invalidItems: [...invalidItems, ...pricingInvalidItems],
+        });
+        return;
+      }
+
       // Load caregiver for payment customer ID
       const caregiverDoc = await db
         .collection(COLLECTIONS.CAREGIVERS)
@@ -118,13 +176,13 @@ router.post(
       const paymentProvider = requirePaymentProvider();
 
       // Build line items
-      const lineItems = checkoutItems.map((item) => ({
+      const lineItems = pricedCheckoutItems.map((item) => ({
         name: item.templateTitle,
         // Fixed ("Buy Story") purchases have no child data — describe them as
         // the original story rather than "Personalized story for " (blank name).
         description: item.childFirstName
-          ? `Personalized story for ${item.childFirstName}`
-          : `Original story: ${item.templateTitle}`,
+          ? `Personalized ${item.purchaseFormat} story for ${item.childFirstName}`
+          : `${item.purchaseFormat === "print" ? "Printed" : "Original"} story: ${item.templateTitle}`,
         amountCents: item.priceCents,
         currency: item.currency,
         quantity: 1,
@@ -132,13 +190,14 @@ router.post(
           previewId: item.previewId,
           templateId: item.templateId,
           cartItemId: item.cartItemId,
+          purchaseFormat: item.purchaseFormat,
         },
       }));
 
       // Build metadata for the session
       const sessionMetadata: Record<string, string> = {
         caregiverUid,
-        itemCount: String(checkoutItems.length),
+        itemCount: String(pricedCheckoutItems.length),
       };
 
       // Create checkout session with payment provider
@@ -155,7 +214,7 @@ router.post(
       const batch = db.batch();
       const purchaseIds: string[] = [];
 
-      for (const item of checkoutItems) {
+      for (const item of pricedCheckoutItems) {
         const purchaseRef = db
           .collection(COLLECTIONS.purchases(caregiverUid))
           .doc();
@@ -167,8 +226,12 @@ router.post(
           caregiverUid,
           previewId: item.previewId,
           templateId: item.templateId,
+          templateTitle: item.templateTitle,
+          childFirstName: item.childFirstName,
           personalizedStoryId: null,
           itemType: item.childFirstName ? "personalized" : "template",
+          purchaseFormat: item.purchaseFormat,
+          printOrder: null,
           paymentTransactionId: session.paymentIntentId,
           paymentSessionId: session.sessionId,
           paymentChargeId: null,
@@ -228,6 +291,19 @@ interface PaymentEvent {
   };
 }
 
+function createPendingPrintOrder() {
+  const now = new Date().toISOString();
+  return {
+    status: "paid_pending_preparation" as const,
+    needsAdminFollowUp: true,
+    shippingAddress: null,
+    phoneNumber: null,
+    deliveryNotes: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 /**
  * Applies a payment-provider event to the matching purchase(s). Shared by the
  * real webhook route and the sandbox-only mock-simulate route so both paths
@@ -266,6 +342,10 @@ export async function processPaymentEvent(event: PaymentEvent): Promise<void> {
         status: "paid",
         paidAt: new Date().toISOString(),
         paymentChargeId: event.data?.chargeId || null,
+        printOrder:
+          purchase.purchaseFormat === "print"
+            ? purchase.printOrder ?? createPendingPrintOrder()
+            : null,
         updatedAt: admin.firestore.Timestamp.now(),
       });
 

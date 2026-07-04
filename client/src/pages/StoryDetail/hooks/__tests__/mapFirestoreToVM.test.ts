@@ -197,12 +197,12 @@ describe("mapFirestoreToStoryDetailVM — hasValidTextTemplates + canStartPerson
     expect(vm.topicLabel).toBe("");
   });
 
-  it("defaults published stories to digital and print prices when pricing fields are missing", () => {
+  it("defaults published stories to a digital price and hides print until print pricing exists", () => {
     const vm = mapFirestoreToStoryDetailVM("id11", buildData(), "he");
 
     expect(vm.priceDigital).toBe(29.99);
-    expect(vm.pricePrint).toBe(59.99);
-    expect(vm.printAvailable).toBe(true);
+    expect(vm.pricePrint).toBeUndefined();
+    expect(vm.printAvailable).toBe(false);
     expect(vm.currency).toBe("ILS");
   });
 

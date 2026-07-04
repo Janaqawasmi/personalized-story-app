@@ -3,6 +3,11 @@ import { admin, db } from "../../config/firebase";
 import { requireCaregiverAuth } from "../../middleware/caregiverAuth.middleware";
 import { COLLECTIONS } from "../../shared/firestore/paths";
 import { cartItemConverter } from "../../shared/firestore/converters";
+import {
+  normalizePurchaseFormat,
+  PurchasePricingError,
+  resolveTemplatePurchasePricing,
+} from "../../services/purchasePricing.service";
 
 const router = Router();
 
@@ -46,7 +51,7 @@ router.get(
  * Adds a preview to the caregiver's cart.
  * Validates that the preview belongs to the caregiver and is in "ready" status.
  *
- * Input: { previewId: string }
+ * Input: { previewId: string, purchaseFormat: "digital" | "print" }
  */
 router.post(
   "/",
@@ -54,12 +59,24 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.caregiverUser!.uid;
-      const { previewId } = req.body as { previewId?: string };
+      const { previewId, purchaseFormat: rawPurchaseFormat } = req.body as {
+        previewId?: string;
+        purchaseFormat?: string;
+      };
+      const purchaseFormat = normalizePurchaseFormat(rawPurchaseFormat);
 
       if (!previewId) {
         res.status(400).json({
           success: false,
           error: "previewId is required",
+        });
+        return;
+      }
+
+      if (!purchaseFormat) {
+        res.status(400).json({
+          success: false,
+          error: "purchaseFormat must be 'digital' or 'print'",
         });
         return;
       }
@@ -88,27 +105,10 @@ router.post(
         return;
       }
 
-      if (preview.status !== "ready") {
+      if (preview.status !== "ready" && preview.status !== "added_to_cart") {
         res.status(400).json({
           success: false,
           error: `Preview is not ready for cart. Current status: ${preview.status}`,
-        });
-        return;
-      }
-
-      // Check if already in cart
-      const existingCartItem = await db
-        .collection(COLLECTIONS.cart(caregiverUid))
-        .where("previewId", "==", previewId)
-        .limit(1)
-        .get();
-
-      if (!existingCartItem.empty) {
-        const existing = existingCartItem.docs[0]!;
-        res.status(200).json({
-          success: true,
-          data: { cartItemId: existing.id, ...existing.data() },
-          message: "Preview already in cart",
         });
         return;
       }
@@ -119,9 +119,66 @@ router.post(
         .doc(preview.templateId as string)
         .get();
 
-      const templateData = templateDoc.exists ? templateDoc.data() : null;
-      const priceCents = (templateData?.priceCents as number) ?? 2999; // Default price
-      const currency = (templateData?.currency as string) ?? "ILS";
+      if (!templateDoc.exists) {
+        res.status(404).json({
+          success: false,
+          error: "Story template not found",
+        });
+        return;
+      }
+
+      let priceCents: number;
+      let currency: string;
+
+      try {
+        const pricing = resolveTemplatePurchasePricing(
+          templateDoc.data() as Record<string, unknown>,
+          purchaseFormat,
+        );
+        priceCents = pricing.priceCents;
+        currency = pricing.currency;
+      } catch (error) {
+        if (
+          error instanceof PurchasePricingError &&
+          error.code === "PRINT_NOT_AVAILABLE"
+        ) {
+          res.status(400).json({
+            success: false,
+            error: "Print version coming soon",
+          });
+          return;
+        }
+
+        throw error;
+      }
+
+      // Check if already in cart. If so, refresh the item to the newest format/pricing.
+      const existingCartItem = await db
+        .collection(COLLECTIONS.cart(caregiverUid))
+        .where("previewId", "==", previewId)
+        .limit(1)
+        .get();
+
+      if (!existingCartItem.empty) {
+        const existing = existingCartItem.docs[0]!;
+        const existingData = existing.data();
+        const refreshedItem = {
+          ...existingData,
+          purchaseFormat,
+          priceCents,
+          currency,
+          addedAt: admin.firestore.Timestamp.now(),
+        };
+
+        await existing.ref.update(refreshedItem);
+
+        res.status(200).json({
+          success: true,
+          data: { cartItemId: existing.id, ...refreshedItem },
+          message: "Preview already in cart",
+        });
+        return;
+      }
 
       // Create cart item
       const cartRef = db
@@ -135,6 +192,7 @@ router.post(
         templateTitle: preview.templateTitle as string,
         childFirstName: preview.childFirstName as string,
         coverImageUrl: (preview.coverImageUrl as string) || null,
+        purchaseFormat,
         priceCents,
         currency,
         language: preview.language as "ar" | "he",

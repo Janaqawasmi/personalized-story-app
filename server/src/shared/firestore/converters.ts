@@ -10,6 +10,7 @@ import { StoryPreview } from "../types/storyPreview";
 import { CartItem } from "../types/cartItem";
 import { Purchase } from "../types/purchase";
 import { PersonalizedStory } from "../types/personalizedStory";
+import { PrintOrder, PurchaseFormat } from "../types/commerce";
 
 /**
  * Generic converter factory that ensures Firestore Timestamp fields
@@ -110,6 +111,7 @@ export const cartItemConverter: FirestoreDataConverter<CartItem> = {
       templateTitle: data.templateTitle as string,
       childFirstName: data.childFirstName as string,
       coverImageUrl: data.coverImageUrl as string | null,
+      purchaseFormat: (data.purchaseFormat as PurchaseFormat | undefined) ?? "digital",
       priceCents: data.priceCents as number,
       currency: data.currency as string,
       language: data.language as "ar" | "he",
@@ -124,12 +126,18 @@ export const purchaseConverter: FirestoreDataConverter<Purchase> = {
   },
   fromFirestore(snapshot: QueryDocumentSnapshot): Purchase {
     const data = snapshot.data();
+    const itemType = data.itemType as Purchase["itemType"] | undefined;
+
     return {
       purchaseId: snapshot.id,
       caregiverUid: data.caregiverUid as string,
       previewId: data.previewId as string,
       templateId: data.templateId as string,
+      templateTitle: (data.templateTitle as string | undefined) ?? "",
+      childFirstName: (data.childFirstName as string | undefined) ?? "",
       personalizedStoryId: data.personalizedStoryId as string | null,
+      purchaseFormat: (data.purchaseFormat as PurchaseFormat | undefined) ?? "digital",
+      printOrder: (data.printOrder as PrintOrder | null | undefined) ?? null,
       paymentTransactionId: data.paymentTransactionId as string,
       paymentSessionId: data.paymentSessionId as string | null,
       paymentChargeId: data.paymentChargeId as string | null,
@@ -144,6 +152,7 @@ export const purchaseConverter: FirestoreDataConverter<Purchase> = {
       paymentRefundId: data.paymentRefundId as string | null,
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
+      ...(itemType ? { itemType } : {}),
     };
   },
 };
