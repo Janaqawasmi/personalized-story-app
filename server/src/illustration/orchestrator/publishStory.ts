@@ -16,7 +16,7 @@ import {
   readLatestVisualBible,
 } from "@/illustration/shared/artefact-store";
 import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@/models/story.model";
-import type { AgeRange } from "@/models/storyBrief.model";
+import { coerceStoryLanguage, type AgeRange } from "@/models/storyBrief.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { generateTextVariants } from "@/services/textVariants.service";
 import { checkReferenceItem } from "@/services/referenceData.service";
@@ -135,7 +135,7 @@ export async function publishStory(params: {
   const brief = story.brief;
   const ageRange = brief.ageAndScope.ageRange;
   const ageGroup = ageRange;
-  const language: "ar" | "he" = "he";
+  const language = coerceStoryLanguage(brief.outputLanguage);
   const isPersonalizable = brief.storyWorld.personalization === true;
 
   // ── Load Visual Bible (once) ──────────────────────────────────────────────

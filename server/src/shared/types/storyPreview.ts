@@ -1,5 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { AgeGroup, Gender, PhotoStatus } from "./common";
+import type { StoryLanguage } from "../../models/storyBrief.model";
 
 /**
  * Discriminates how a preview's content was produced:
@@ -70,7 +71,7 @@ export interface StoryPreview {
   // --- Template snapshot ---
   templateTitle: string;
   templateVersion: number;
-  language: "ar" | "he";
+  language: StoryLanguage;
   dedicationName: string | null;
 
   // --- Preview content ---

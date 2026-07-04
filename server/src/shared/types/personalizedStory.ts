@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { AgeGroup, Gender } from "./common";
 import type { IllustrationStyleId } from "./visualStyles";
+import type { StoryLanguage } from "../../models/storyBrief.model";
 
 export type StoryGenerationStatus = "pending" | "in_progress" | "completed" | "failed" | "partially_failed";
 
@@ -39,7 +40,7 @@ export interface PersonalizedStory {
   templateId: string;
   templateTitle: string;
   templateVersion: number;
-  language: "ar" | "he";
+  language: StoryLanguage;
   dedicationName: string | null;
 
   coverImageUrl: string;

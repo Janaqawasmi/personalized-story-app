@@ -1,5 +1,6 @@
 import { Gender } from "../shared/types/common";
 import { StoryTemplatePage } from "../shared/types/storyTemplate";
+import type { StoryLanguage } from "../models/storyBrief.model";
 
 // ============================================================================
 // Pronoun Sets
@@ -16,7 +17,7 @@ export interface ChildData {
   gender: Gender;
 }
 
-const PRONOUN_MAPS: Record<"he" | "ar", Record<Gender, PronounSet>> = {
+const PRONOUN_MAPS: Record<StoryLanguage, Record<Gender, PronounSet>> = {
   he: {
     male: {
       subject: "הוא",
@@ -41,6 +42,18 @@ const PRONOUN_MAPS: Record<"he" | "ar", Record<Gender, PronounSet>> = {
       possessive: "ها",
     },
   },
+  en: {
+    male: {
+      subject: "he",
+      object: "him",
+      possessive: "his",
+    },
+    female: {
+      subject: "she",
+      object: "her",
+      possessive: "her",
+    },
+  },
 };
 
 // ============================================================================
@@ -59,7 +72,7 @@ const CHARACTER_DESCRIPTIONS: Record<Gender, string> = {
 /**
  * Returns the pronoun set for a given gender and language.
  */
-export function getPronounSet(gender: Gender, language: "ar" | "he"): PronounSet {
+export function getPronounSet(gender: Gender, language: StoryLanguage): PronounSet {
   return PRONOUN_MAPS[language][gender];
 }
 
@@ -85,7 +98,7 @@ export function selectTextVariant(page: StoryTemplatePage, gender: Gender): stri
 export function personalizeText(
   template: string,
   child: ChildData,
-  language: "ar" | "he",
+  language: StoryLanguage,
 ): string {
   const pronouns = getPronounSet(child.gender, language);
 
