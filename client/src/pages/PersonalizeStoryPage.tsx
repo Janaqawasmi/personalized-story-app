@@ -38,6 +38,7 @@ import WaitingScreenPicker from "../components/waiting/WaitingScreenPicker";
 import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
 import type { PurchaseFormat } from "../types/commerce";
 import { getPurchaseOptionsFromTemplateData } from "../utils/purchaseOptions";
+import { isTextPersonalizationReady } from "../utils/textPersonalizationReadiness";
 
 type VisualStyle =
   | "watercolor"
@@ -814,17 +815,11 @@ export default function PersonalizeStoryPage() {
           return;
         }
         // The wizard requires text AND visual personalization to both be ready.
-        // Text readiness is derived from actual page data — not the stale flag.
-        const pages: unknown[] = Array.isArray(data.pages) ? data.pages : [];
-        const textReady = pages.length > 0 && pages.every((page) => {
-          const tt = (page as Record<string, unknown>).textTemplate as { masculine?: string; feminine?: string } | null | undefined;
-          const masc = tt?.masculine;
-          const fem  = tt?.feminine;
-          return (
-            typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
-            typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
-          );
-        });
+        // Text readiness prefers the authoritative textPersonalizationReady flag
+        // (set by finalizeTextVariants() using the correct per-page/source-text
+        // rule — not every page needs to mention the child) and falls back to
+        // the blanket per-page check only for legacy-patched templates.
+        const textReady = isTextPersonalizationReady(data);
         if (
           !textReady ||
           data.visualPersonalizationEnabled !== true ||

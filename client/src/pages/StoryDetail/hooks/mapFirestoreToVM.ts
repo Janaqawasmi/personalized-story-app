@@ -9,6 +9,12 @@ import {
   getLocalizedSituationLabel,
   getLocalizedTopicLabel,
 } from "../../../utils/referenceDataLabel";
+import {
+  hasValidTextTemplates,
+  isTextPersonalizationReady,
+} from "../../../utils/textPersonalizationReadiness";
+
+export { hasValidTextTemplates };
 
 const DEFAULT_DIGITAL_BOOK_PRICE = 29.99;
 const DEFAULT_BOOK_CURRENCY = "ILS";
@@ -141,50 +147,6 @@ function mapFaq(raw: unknown): FaqItemVM[] {
       answer: toLangRecord(x.answer),
     }))
     .filter((x) => x.question.en || x.question.he || x.answer.en || x.answer.he);
-}
-
-/**
- * Returns true when every page has a non-empty masculine and feminine text
- * template each containing `{{CHILD_NAME}}`.
- *
- * IMPORTANT: this is a blanket, per-page-unconditional check — it does NOT
- * know which pages actually needed `{{CHILD_NAME}}` in their source text
- * (that per-page source text lives in the `textVariants` subcollection,
- * which is locked to specialists/admins by firestore.rules and is not
- * readable from the public story detail page). It exists ONLY as a fallback
- * for templates whose `pages[]` were patched outside the normal review flow
- * (e.g. `scripts/patchTextTemplates.ts`, which always writes `{{CHILD_NAME}}`
- * on every page) and therefore never went through `finalizeTextVariants()` to
- * get `textPersonalizationReady` flipped to `true`.
- *
- * The actual public readiness gate is `isTextPersonalizationReady()` below,
- * which prefers the authoritative `textPersonalizationReady` flag (set by
- * `finalizeTextVariants()` in server/src/services/textVariants.service.ts,
- * using the correct per-page/source-text-derived placeholder rule) and only
- * falls back to this blanket check when that flag is false.
- */
-export function hasValidTextTemplates(pages: unknown): boolean {
-  if (!Array.isArray(pages) || pages.length === 0) return false;
-  return (pages as Record<string, unknown>[]).every((page) => {
-    const tt = page.textTemplate as { masculine?: string; feminine?: string } | null | undefined;
-    const masc = tt?.masculine;
-    const fem  = tt?.feminine;
-    return (
-      typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
-      typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
-    );
-  });
-}
-
-/**
- * The public-facing text-readiness gate: true when the specialist has
- * finalized/activated text personalization (the authoritative signal — see
- * `hasValidTextTemplates` above for why we can't re-derive the per-page rule
- * on the client), OR when the blanket per-page check happens to already
- * pass (the legacy-patched-template fallback).
- */
-function isTextPersonalizationReady(data: Record<string, unknown>): boolean {
-  return data.textPersonalizationReady === true || hasValidTextTemplates(data.pages);
 }
 
 /**
