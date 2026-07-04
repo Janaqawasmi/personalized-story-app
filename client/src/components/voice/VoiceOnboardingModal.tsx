@@ -229,7 +229,10 @@ export default function VoiceOnboardingModal({
       onSuccess(voiceId);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("voiceOnboarding.uploadFailed"));
+      // Log the raw (often English, server-provided) detail for debugging, but always
+      // show the user a localized message — the raw text isn't translatable content.
+      console.error("[VoiceOnboarding] upload error:", e);
+      setError(t("voiceOnboarding.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -287,7 +290,7 @@ export default function VoiceOnboardingModal({
                 mb: 1,
               }}
             >
-              Your voice, your privacy
+              {t("voiceOnboarding.consent.title")}
             </Typography>
 
             <Typography
@@ -298,7 +301,7 @@ export default function VoiceOnboardingModal({
                 fontFamily: isRTL ? BOOK_FONTS.bodyRtl : BOOK_FONTS.bodyLtr,
               }}
             >
-              Before you record, here's what happens with your voice data.
+              {t("voiceOnboarding.consent.subtitle")}
             </Typography>
 
             <Box
@@ -314,19 +317,19 @@ export default function VoiceOnboardingModal({
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
                 <CloseIcon sx={{ color: BOOK_COLORS.rose, fontSize: 20, mt: "2px", flexShrink: 0 }} />
                 <Typography sx={{ fontSize: "0.9rem", color: BOOK_COLORS.ink }}>
-                  Your recording is not saved on DAMMAH's servers
+                  {t("voiceOnboarding.consent.pointNotSaved")}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
                 <SendIcon sx={{ color: BOOK_COLORS.rose, fontSize: 20, mt: "2px", flexShrink: 0 }} />
                 <Typography sx={{ fontSize: "0.9rem", color: BOOK_COLORS.ink }}>
-                  It's sent to ElevenLabs (a third-party AI voice service) to create a voice model
+                  {t("voiceOnboarding.consent.pointSentToProvider")}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5 }}>
                 <DeleteOutlineIcon sx={{ color: BOOK_COLORS.rose, fontSize: 20, mt: "2px", flexShrink: 0 }} />
                 <Typography sx={{ fontSize: "0.9rem", color: BOOK_COLORS.ink }}>
-                  You can delete your voice model at any time from your profile
+                  {t("voiceOnboarding.consent.pointDeleteAnytime")}
                 </Typography>
               </Box>
             </Box>
@@ -345,7 +348,7 @@ export default function VoiceOnboardingModal({
               }
               label={
                 <Typography sx={{ fontSize: "0.85rem", color: BOOK_COLORS.ink, mt: "10px" }}>
-                  I give consent for my voice to be processed by ElevenLabs to enable narration on DAMMAH
+                  {t("voiceOnboarding.consent.checkboxLabel")}
                 </Typography>
               }
             />
@@ -362,10 +365,10 @@ export default function VoiceOnboardingModal({
                 "&:hover": { background: BOOK_GRADIENTS.ctaPrimaryHover },
               }}
             >
-              Accept and record
+              {t("voiceOnboarding.consent.accept")}
             </Button>
             <Button fullWidth variant="text" onClick={onClose} sx={{ color: BOOK_COLORS.inkMuted }}>
-              Skip — use default voice
+              {t("voiceOnboarding.consent.skip")}
             </Button>
           </DialogActions>
         </>
