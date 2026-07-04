@@ -473,9 +473,6 @@ export default function BookReaderPage() {
         if (!cancelled) {
           setCaregiverVoiceId(profile.elevenLabsVoiceId);
           setUseClonedVoice(Boolean(profile.elevenLabsVoiceId));
-          if (!profile.elevenLabsVoiceId) {
-            setVoiceModalOpen(true);
-          }
         }
       } catch (err) {
         console.warn("[BookReader] Failed to load caregiver voice profile:", err);
