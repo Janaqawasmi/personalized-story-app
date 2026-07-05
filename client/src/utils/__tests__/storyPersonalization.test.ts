@@ -4,6 +4,8 @@ import {
   pickTextTemplateVariant,
   resolveTemplatePageText,
   personalizeStoryTemplateString,
+  normalizeStoryLanguage,
+  DEFAULT_PREVIEW_IDENTITY,
   PREVIEW_SPREAD_LIMIT,
 } from "../storyPersonalization";
 
@@ -145,5 +147,84 @@ describe("personalizeStoryTemplateString", () => {
     );
     expect(out).toContain("דני");
     expect(out).toContain("הוא");
+  });
+
+  it("resolves bracket-format tokens (raw Agent 1 manuscript text) in English", () => {
+    const out = personalizeStoryTemplateString(
+      "[CHILD_NAME] felt scared. [HE/SHE/THEY] took a deep breath and told [HIM/HER/THEM]self it was [HIS/HER/THEIR] turn.",
+      "Adam",
+      "male",
+      "en"
+    );
+    expect(out).toBe("Adam felt scared. he took a deep breath and told himself it was his turn.");
+    expect(out).not.toMatch(/\[CHILD_NAME\]|\[HE\/SHE\/THEY\]|\[HIM\/HER\/THEM\]|\[HIS\/HER\/THEIR\]/);
+  });
+
+  it("resolves bracket-format tokens in Hebrew", () => {
+    const out = personalizeStoryTemplateString(
+      "[CHILD_NAME] הלך הביתה. [HE/SHE/THEY] היה שמח.",
+      "אדם",
+      "male",
+      "he"
+    );
+    expect(out).toContain("אדם");
+    expect(out).toContain("הוא");
+    expect(out).not.toMatch(/\[CHILD_NAME\]|\[HE\/SHE\/THEY\]/);
+  });
+
+  it("resolves bracket-format tokens in Arabic", () => {
+    const out = personalizeStoryTemplateString(
+      "[CHILD_NAME] ذهب إلى المنزل. [HIS/HER/THEIR] قلب كان سعيدًا.",
+      "آدم",
+      "male",
+      "ar"
+    );
+    expect(out).toContain("آدم");
+    expect(out).toContain("ه");
+    expect(out).not.toMatch(/\[CHILD_NAME\]|\[HIS\/HER\/THEIR\]/);
+  });
+
+  it("still resolves brace-format tokens for a real (non-default) child unaffected by the bracket-token fix", () => {
+    const out = personalizeStoryTemplateString(
+      "{{CHILD_NAME}} smiled. {{PRONOUN_SUBJECT}} was proud of {{PRONOUN_OBJECT}}self.",
+      "Sarah",
+      "female",
+      "en"
+    );
+    expect(out).toBe("Sarah smiled. she was proud of herself.");
+    expect(out).not.toContain("Adam");
+  });
+});
+
+describe("normalizeStoryLanguage", () => {
+  it("detects English as its own case, not a Hebrew fallthrough", () => {
+    expect(normalizeStoryLanguage("en")).toBe("en");
+  });
+
+  it("detects Hebrew", () => {
+    expect(normalizeStoryLanguage("he")).toBe("he");
+  });
+
+  it("detects Arabic", () => {
+    expect(normalizeStoryLanguage("ar")).toBe("ar");
+  });
+
+  it("is case-insensitive", () => {
+    expect(normalizeStoryLanguage("EN")).toBe("en");
+    expect(normalizeStoryLanguage("AR")).toBe("ar");
+  });
+
+  it("falls back to Hebrew only for missing/unrecognized values", () => {
+    expect(normalizeStoryLanguage(undefined)).toBe("he");
+    expect(normalizeStoryLanguage("")).toBe("he");
+    expect(normalizeStoryLanguage("fr")).toBe("he");
+  });
+});
+
+describe("DEFAULT_PREVIEW_IDENTITY", () => {
+  it("provides a masculine default identity per language, in the story's own script", () => {
+    expect(DEFAULT_PREVIEW_IDENTITY.en).toEqual({ name: "Adam", gender: "male" });
+    expect(DEFAULT_PREVIEW_IDENTITY.he).toEqual({ name: "אדם", gender: "male" });
+    expect(DEFAULT_PREVIEW_IDENTITY.ar).toEqual({ name: "آدم", gender: "male" });
   });
 });

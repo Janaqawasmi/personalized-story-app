@@ -109,9 +109,11 @@ export function readPersonalizationFromStorage(storyId: string | undefined): Sto
   }
 }
 
-export function normalizeStoryLanguage(lang: string | undefined): "ar" | "he" {
-  const n = (lang || "he").toLowerCase();
-  return n === "ar" ? "ar" : "he";
+export function normalizeStoryLanguage(lang: string | undefined): "en" | "he" | "ar" {
+  const n = (lang || "").toLowerCase();
+  if (n === "ar") return "ar";
+  if (n === "en") return "en";
+  return "he";
 }
 
 /** @see file header — missing gender ⇒ masculine variant + pronouns */
@@ -119,7 +121,7 @@ export function resolveGenderForPreview(gender: StoryGender | undefined): StoryG
   return gender === "female" ? "female" : "male";
 }
 
-const PRONOUN_MAPS: Record<"he" | "ar", Record<StoryGender, { subject: string; object: string; possessive: string }>> = {
+const PRONOUN_MAPS: Record<"en" | "he" | "ar", Record<StoryGender, { subject: string; object: string; possessive: string }>> = {
   he: {
     male: { subject: "הוא", object: "אותו", possessive: "שלו" },
     female: { subject: "היא", object: "אותה", possessive: "שלה" },
@@ -128,6 +130,22 @@ const PRONOUN_MAPS: Record<"he" | "ar", Record<StoryGender, { subject: string; o
     male: { subject: "هو", object: "ه", possessive: "ه" },
     female: { subject: "هي", object: "ها", possessive: "ها" },
   },
+  en: {
+    male: { subject: "he", object: "him", possessive: "his" },
+    female: { subject: "she", object: "her", possessive: "her" },
+  },
+};
+
+/**
+ * Default masculine identity used to resolve name/pronoun tokens in the
+ * non-personalized story-detail preview (before a caregiver has chosen a
+ * real child name/gender). Keyed by the story's frozen output language —
+ * never UI language.
+ */
+export const DEFAULT_PREVIEW_IDENTITY: Record<"en" | "he" | "ar", { name: string; gender: StoryGender }> = {
+  en: { name: "Adam", gender: "male" },
+  he: { name: "אדם", gender: "male" },
+  ar: { name: "آدم", gender: "male" },
 };
 
 function pickFromGenderedObject(obj: Record<string, unknown>, gender: StoryGender): string {
@@ -205,12 +223,21 @@ export function resolveTemplatePageText(
 
 /**
  * Substitutes name + pronouns + optional dedication. `childDisplayName` may be a localized generic label.
+ *
+ * Recognizes two token syntaxes, resolved through the same PRONOUN_MAPS lookup:
+ *   - {{CHILD_NAME}} / {{PRONOUN_SUBJECT}} / {{PRONOUN_OBJECT}} / {{PRONOUN_POSSESSIVE}}
+ *     — the finalized text-variant format (server generateTextVariants output).
+ *   - [CHILD_NAME] / [HE/SHE/THEY] / [HIM/HER/THEM] / [HIS/HER/THEIR]
+ *     — Agent 1's raw author-facing manuscript tokens (see
+ *     server/src/agent1/step2-author/prompt-sections/section-j-output-format.ts),
+ *     which is what `previewSpreads[].text` is frozen with at publish time and
+ *     never gets rewritten into the {{...}} format.
  */
 export function personalizeStoryTemplateString(
   template: string,
   childDisplayName: string,
   gender: StoryGender,
-  language: "ar" | "he"
+  language: "en" | "ar" | "he"
 ): string {
   if (!template) return "";
   const pronouns = PRONOUN_MAPS[language][gender];
@@ -221,6 +248,10 @@ export function personalizeStoryTemplateString(
   result = result.replace(/\{\{PRONOUN_OBJECT\}\}/g, pronouns.object);
   result = result.replace(/\{\{PRONOUN_POSSESSIVE\}\}/g, pronouns.possessive);
   result = result.replace(/\{\{DEDICATION_NAME\}\}/g, "");
+  result = result.replace(/\[CHILD_NAME\]/g, childDisplayName);
+  result = result.replace(/\[HE\/SHE\/THEY\]/g, pronouns.subject);
+  result = result.replace(/\[HIM\/HER\/THEM\]/g, pronouns.object);
+  result = result.replace(/\[HIS\/HER\/THEIR\]/g, pronouns.possessive);
   return result;
 }
 
@@ -232,7 +263,7 @@ export function buildPersonalizedReaderPages(
   opts: {
     gender: StoryGender;
     childDisplayName: string;
-    language: "ar" | "he";
+    language: "en" | "ar" | "he";
     photoPreviewUrl?: string;
     fallbackImageUrl: (pageNumber: number) => string;
     /** Only these spreads use the child's name and photo; later spreads use `lockedPlaceholderName` and template art only. */
