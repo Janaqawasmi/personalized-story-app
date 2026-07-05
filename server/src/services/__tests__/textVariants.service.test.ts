@@ -133,6 +133,9 @@ function setVariantDoc(
   masculine: string,
   feminine: string,
   reviewStatus: "pending" | "approved" = "pending",
+  // Defaults to a source text that mentions the child, matching the existing
+  // tests below (which use masculine/feminine that also contain {{CHILD_NAME}}).
+  originalText = "{{CHILD_NAME}} original",
 ) {
   const key = `${TEMPLATE_ID}:page:${pageNumber}`;
   variantDocs[key] = {
@@ -140,7 +143,7 @@ function setVariantDoc(
     masculine,
     feminine,
     reviewStatus,
-    originalText: "original",
+    originalText,
     generatedAt: Date.now(),
     ...(reviewStatus === "approved"
       ? { reviewedBy: UID, reviewedAt: Date.now() }
@@ -280,5 +283,140 @@ describe("approveTextVariant — validates before marking approved", () => {
     setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "pending");
 
     await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+  });
+});
+
+// ── Placeholder requirements are page-specific / source-text-specific ────────
+//
+// A placeholder is only required in a page's variants if it actually appears
+// in that page's original text. A short descriptive page that never mentions
+// the protagonist must not be blocked for lacking {{CHILD_NAME}}.
+
+describe("placeholder validation is derived from each page's original text", () => {
+  test("1) original has no {{CHILD_NAME}}; variants also have none → approve succeeds", async () => {
+    setVariantDoc(
+      1,
+      "הגננת הניחה על השולחן צנצנות קטנות.",
+      "הגננת הניחה על השולחן צנצנות קטנות.",
+      "pending",
+      "הגננת הניחה על השולחן צנצנות קטנות.", // originalText — no placeholder
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+  });
+
+  test("1b) same case also passes at finalize time (not just approve)", async () => {
+    setVariantDoc(
+      1,
+      "הגננת הניחה על השולחן צנצנות קטנות.",
+      "הגננת הניחה על השולחן צנצנות קטנות.",
+      "approved",
+      "הגננת הניחה על השולחן צנצנות קטנות.",
+    );
+    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+
+    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).resolves.toBeUndefined();
+    expect(directUpdates[0]?.textPersonalizationReady).toBe(true);
+  });
+
+  test("2) original has {{CHILD_NAME}}; a variant drops it → approve rejects", async () => {
+    setVariantDoc(
+      1,
+      "ילד בלי פלייסהולדר",
+      "{{CHILD_NAME}} ילדה",
+      "pending",
+      "{{CHILD_NAME}} הרגיש פחד.",
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
+  });
+
+  test("3) original has {{CHILD_NAME}}; all variants preserve it → approve succeeds", async () => {
+    setVariantDoc(
+      1,
+      "{{CHILD_NAME}} הרגיש פחד.",
+      "{{CHILD_NAME}} הרגישה פחד.",
+      "pending",
+      "{{CHILD_NAME}} הרגיש פחד.",
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+  });
+
+  test("4) a non-CHILD_NAME placeholder in the original is also enforced when present", async () => {
+    setVariantDoc(
+      1,
+      "{{CHILD_NAME}} הרגיש פחד.", // drops {{PRONOUN_SUBJECT}} from the original
+      "{{CHILD_NAME}} {{PRONOUN_SUBJECT}} הרגישה פחד.",
+      "pending",
+      "{{CHILD_NAME}} {{PRONOUN_SUBJECT}} הרגיש פחד.",
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
+  });
+
+  test("4b) a placeholder absent from the original is never required, even if unusual", async () => {
+    setVariantDoc(
+      1,
+      "{{CHILD_NAME}} הרגיש פחד.",
+      "{{CHILD_NAME}} הרגישה פחד.",
+      "pending",
+      "{{CHILD_NAME}} הרגיש פחד.", // no {{PRONOUN_SUBJECT}} in the original
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+  });
+
+  test("finalize still blocks when {{CHILD_NAME}} required by the original is missing from a variant", async () => {
+    setVariantDoc(
+      1,
+      "ילד בלי פלייסהולדר",
+      "{{CHILD_NAME}} ילדה",
+      "approved",
+      "{{CHILD_NAME}} הרגיש פחד.",
+    );
+    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+
+    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
+    expect(directUpdates).toHaveLength(0);
+  });
+
+  test("first-generation source text uses Agent 1's [CHILD_NAME] bracket format, not {{CHILD_NAME}} — still enforced", async () => {
+    // On a page's very first variant generation, `originalText` is the raw
+    // manuscript, which uses Agent 1's [CHILD_NAME]/[HE/SHE/THEY] bracket
+    // authoring tokens (see section-j-output-format.ts), not the caregiver-
+    // facing {{CHILD_NAME}} format. A page referencing the protagonist this
+    // way must still require {{CHILD_NAME}} in the rewritten variant.
+    setVariantDoc(
+      1,
+      "ילד בלי פלייסהולדר",
+      "{{CHILD_NAME}} ילדה",
+      "pending",
+      "[CHILD_NAME] הרגיש פחד.",
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
+  });
+
+  test("bracket-only pronoun reference ([HE/SHE/THEY]) also requires {{CHILD_NAME}} in the variant", async () => {
+    setVariantDoc(
+      1,
+      "הרגיש פחד ללא שם.", // no {{CHILD_NAME}} at all
+      "{{CHILD_NAME}} הרגישה פחד.",
+      "pending",
+      "[HE/SHE/THEY] הרגיש פחד.",
+    );
+
+    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
   });
 });

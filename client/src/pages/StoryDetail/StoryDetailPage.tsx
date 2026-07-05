@@ -18,6 +18,8 @@ import StickyMobileCta from "./components/StickyMobileCta";
 import { heroVariant, fadeUpVariant } from "./animations/variants";
 import { getPersonalizeRoute } from "./storyDetailRoutes";
 import { createFixedStoryPreview, addToCart } from "../../api/caregiverApi";
+import type { PurchaseFormat, ShippingDetails } from "../../types/commerce";
+import PurchaseFormatDialog from "../../components/commerce/PurchaseFormatDialog";
 import { COLORS } from "../../theme";
 
 function pickLang(rec: Record<string, string>, lang: string): string {
@@ -69,7 +71,9 @@ export default function StoryDetailPage() {
   const previewRef = useRef<HTMLDivElement>(null);
   const [stickyVisible, setStickyVisible] = useState(false);
   const [buying, setBuying] = useState(false);
+  const [buyingFormat, setBuyingFormat] = useState<PurchaseFormat | null>(null);
   const [buyError, setBuyError] = useState<string | null>(null);
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!routeStoryId) {
@@ -101,18 +105,26 @@ export default function StoryDetailPage() {
   // "Personalize", this never opens the wizard: the original story/template
   // is added directly to the cart (no child name/gender/photo needed), then
   // the user is taken straight to checkout via the cart page.
-  const handleBuy = async () => {
+  const handleBuy = () => {
+    if (!storyVm || buying) return;
+    setFormatDialogOpen(true);
+  };
+
+  const handleBuyWithFormat = async (purchaseFormat: PurchaseFormat, shippingDetails?: ShippingDetails) => {
     if (!storyVm || buying) return;
     setBuying(true);
+    setBuyingFormat(purchaseFormat);
     setBuyError(null);
     try {
       const { previewId } = await createFixedStoryPreview(storyVm.id);
-      await addToCart(previewId);
+      await addToCart(previewId, purchaseFormat, shippingDetails);
       navigate("/cart");
     } catch (err) {
       console.error("[StoryDetailPage] Failed to add story to cart:", err);
       setBuyError(t("storyDetail.buyStoryError"));
       setBuying(false);
+      setBuyingFormat(null);
+      setFormatDialogOpen(false);
     }
   };
 
@@ -254,6 +266,17 @@ export default function StoryDetailPage() {
         onBuy={handleBuy}
         buying={buying}
         onPreviewClick={() => previewRef.current?.scrollIntoView({ behavior: "smooth" })}
+      />
+
+      <PurchaseFormatDialog
+        open={formatDialogOpen}
+        onClose={() => !buying && setFormatDialogOpen(false)}
+        onSelect={handleBuyWithFormat}
+        currency={storyVm.currency}
+        digitalPrice={storyVm.priceDigital}
+        printPrice={storyVm.pricePrint}
+        printAvailable={storyVm.printAvailable}
+        loadingFormat={buyingFormat}
       />
     </Box>
   );

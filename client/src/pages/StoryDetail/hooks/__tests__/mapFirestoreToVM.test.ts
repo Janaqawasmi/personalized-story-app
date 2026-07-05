@@ -1,5 +1,19 @@
 import { hasValidTextTemplates, mapFirestoreToStoryDetailVM } from "../mapFirestoreToVM";
 
+const referenceData = {
+  topics: [
+    {
+      id: "fear_anxiety",
+      active: true,
+      order: 1,
+      label_en: "Fear & Anxiety",
+      label_he: "פחד וחרדה",
+      label_ar: "الخوف والقلق",
+    },
+  ],
+  situations: [],
+};
+
 // ─── hasValidTextTemplates unit tests ────────────────────────────────────────
 
 const VALID = (suffix = "") => ({
@@ -131,14 +145,140 @@ describe("mapFirestoreToStoryDetailVM — hasValidTextTemplates + canStartPerson
     expect(vm.canStartPersonalization).toBe(false);
   });
 
-  it("carries textPersonalizationReady from Firestore as legacy field without gating on it", () => {
+  it("returns canStartPersonalization=true when pages are raw-valid even if textPersonalizationReady=false (legacy-patched fallback)", () => {
     const vmTrue = mapFirestoreToStoryDetailVM("id7a", buildData({ textPersonalizationReady: true }), "he");
     const vmFalse = mapFirestoreToStoryDetailVM("id7b", buildData({ textPersonalizationReady: false }), "he");
     // Both should have the same canStartPersonalization since pages are valid in both
     expect(vmTrue.canStartPersonalization).toBe(true);
     expect(vmFalse.canStartPersonalization).toBe(true);
-    // But the legacy field is still mapped for reference
     expect(vmTrue.textPersonalizationReady).toBe(true);
     expect(vmFalse.textPersonalizationReady).toBe(false);
+  });
+
+  // ── Regression: scene-setting pages that never mention the child ─────────
+  //
+  // A page whose original text never referenced the protagonist (e.g. a
+  // short scene-setting page) legitimately has no {{CHILD_NAME}} in its
+  // masculine/feminine templates. The blanket per-page `hasValidTextTemplates`
+  // check would incorrectly flag that as invalid; the public CTA must instead
+  // trust `textPersonalizationReady` (set by finalizeTextVariants(), which
+  // already applies the correct per-page/source-text-derived rule).
+
+  const SCENE_SETTING_PAGE = {
+    textTemplate: {
+      masculine: "The kindergarten teacher set small jars on the table.",
+      feminine: "The kindergarten teacher set small jars on the table.",
+    },
+  };
+
+  it("Published story with ready personalization (incl. a child-name-free page) → CTA enabled", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-ready",
+      buildData({
+        textPersonalizationReady: true,
+        pages: [VALID("1"), SCENE_SETTING_PAGE, VALID("2")],
+      }),
+      "he",
+    );
+    // The blanket raw check would fail (scene-setting page has no {{CHILD_NAME}})...
+    expect(vm.hasValidTextTemplates).toBe(false);
+    // ...but the authoritative flag makes the CTA usable anyway.
+    expect(vm.canStartPersonalization).toBe(true);
+    expect(vm.personalizationBlockedReason).toBeNull();
+  });
+
+  it("Published story without ready personalization (same child-name-free page, not finalized) → CTA disabled", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-not-ready",
+      buildData({
+        textPersonalizationReady: false,
+        pages: [VALID("1"), SCENE_SETTING_PAGE, VALID("2")],
+      }),
+      "he",
+    );
+    expect(vm.hasValidTextTemplates).toBe(false);
+    expect(vm.canStartPersonalization).toBe(false);
+    expect(vm.personalizationBlockedReason).toContain("textPersonalizationReady=false");
+  });
+
+  it("surfaces a blocked reason mentioning the visual gate when text is ready but visual isn't", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-visual-blocked",
+      buildData({
+        textPersonalizationReady: true,
+        visualPersonalizationReady: false,
+      }),
+      "he",
+    );
+    expect(vm.canStartPersonalization).toBe(false);
+    expect(vm.personalizationBlockedReason).toContain("visualPersonalizationReady=false");
+    expect(vm.personalizationBlockedReason).not.toContain("textPersonalizationReady=false");
+  });
+
+  it("returns a null blocked reason when personalization isn't enabled at all", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id-not-personalizable",
+      buildData({ personalizationEnabled: false }),
+      "he",
+    );
+    expect(vm.personalizationBlockedReason).toBeNull();
+  });
+
+  it("ignores raw displayTopic ids and falls back to the localized topic label", () => {
+    const vmHe = mapFirestoreToStoryDetailVM(
+      "id8",
+      buildData({
+        displayTopic: { he: "fear_anxiety", ar: "fear_anxiety" },
+        primaryTopic: "fear_anxiety",
+        topicKey: "fear_anxiety",
+      }),
+      "he",
+      referenceData,
+    );
+    const vmAr = mapFirestoreToStoryDetailVM(
+      "id9",
+      buildData({
+        displayTopic: { he: "fear_anxiety", ar: "fear_anxiety" },
+        primaryTopic: "fear_anxiety",
+        topicKey: "fear_anxiety",
+      }),
+      "ar",
+      referenceData,
+    );
+
+    expect(vmHe.topicLabel).toBe("פחד וחרדה");
+    expect(vmAr.topicLabel).toBe("الخوف والقلق");
+  });
+
+  it("never exposes the raw topic key when reference data is unavailable", () => {
+    const vm = mapFirestoreToStoryDetailVM(
+      "id10",
+      buildData({
+        displayTopic: { he: "fear_anxiety", ar: "fear_anxiety" },
+        primaryTopic: "fear_anxiety",
+        topicKey: "fear_anxiety",
+      }),
+      "he",
+      null,
+    );
+
+    expect(vm.topicLabel).toBe("");
+  });
+
+  it("defaults published stories to a digital price and hides print until print pricing exists", () => {
+    const vm = mapFirestoreToStoryDetailVM("id11", buildData(), "he");
+
+    expect(vm.priceDigital).toBe(29.99);
+    expect(vm.pricePrint).toBeUndefined();
+    expect(vm.printAvailable).toBe(false);
+    expect(vm.currency).toBe("ILS");
+  });
+
+  it("hides the print tab when the template explicitly disables print", () => {
+    const vm = mapFirestoreToStoryDetailVM("id12", buildData({ printAvailable: false }), "he");
+
+    expect(vm.priceDigital).toBe(29.99);
+    expect(vm.pricePrint).toBeUndefined();
+    expect(vm.printAvailable).toBe(false);
   });
 });

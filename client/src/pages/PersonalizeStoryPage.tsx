@@ -35,6 +35,10 @@ import {
 import { usePreviewQuota } from "../hooks/usePreviewQuota";
 import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
 import WaitingScreenPicker from "../components/waiting/WaitingScreenPicker";
+import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
+import type { PurchaseFormat, ShippingDetails } from "../types/commerce";
+import { getPurchaseOptionsFromTemplateData } from "../utils/purchaseOptions";
+import { isTextPersonalizationReady } from "../utils/textPersonalizationReadiness";
 
 type VisualStyle =
   | "watercolor"
@@ -690,6 +694,8 @@ export default function PersonalizeStoryPage() {
     childName: string;
     photoPreviewUrl: string | null;
   } | null>(null);
+  const [formatDialogOpen, setFormatDialogOpen] = useState(false);
+  const [addingToCartFormat, setAddingToCartFormat] = useState<PurchaseFormat | null>(null);
 
   useEffect(() => {
     if (quota?.hasUsedPreview) {
@@ -809,17 +815,11 @@ export default function PersonalizeStoryPage() {
           return;
         }
         // The wizard requires text AND visual personalization to both be ready.
-        // Text readiness is derived from actual page data — not the stale flag.
-        const pages: unknown[] = Array.isArray(data.pages) ? data.pages : [];
-        const textReady = pages.length > 0 && pages.every((page) => {
-          const tt = (page as Record<string, unknown>).textTemplate as { masculine?: string; feminine?: string } | null | undefined;
-          const masc = tt?.masculine;
-          const fem  = tt?.feminine;
-          return (
-            typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
-            typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
-          );
-        });
+        // Text readiness prefers the authoritative textPersonalizationReady flag
+        // (set by finalizeTextVariants() using the correct per-page/source-text
+        // rule — not every page needs to mention the child) and falls back to
+        // the blanket per-page check only for legacy-patched templates.
+        const textReady = isTextPersonalizationReady(data);
         if (
           !textReady ||
           data.visualPersonalizationEnabled !== true ||
@@ -831,6 +831,13 @@ export default function PersonalizeStoryPage() {
         }
 
         setEligibility("ok");
+        // getPurchaseOptionsFromTemplateData() returns { currency, digitalPrice,
+        // printPrice, printAvailable } — mapped explicitly rather than spread,
+        // since StoryTemplate uses priceDigital/pricePrint. A prior spread of
+        // the mismatched names silently left priceDigital/pricePrint
+        // undefined, making the Add to Cart dialog show "Coming soon" for
+        // both formats even on fully-priced templates.
+        const purchaseOptions = getPurchaseOptionsFromTemplateData(data as Record<string, unknown>);
         setStory({
           id: storySnap.id,
           title: data.title || t("personalize.story"),
@@ -839,6 +846,10 @@ export default function PersonalizeStoryPage() {
           targetAgeGroup: data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
           topic: data.primaryTopic ?? data.topicKey ?? data.topic,
           generationConfig: data.generationConfig,
+          currency: purchaseOptions.currency,
+          priceDigital: purchaseOptions.digitalPrice,
+          pricePrint: purchaseOptions.printPrice,
+          printAvailable: purchaseOptions.printAvailable,
           previewSentence: typeof data.previewSentence === "string" ? data.previewSentence : undefined,
           coverImage: typeof data.coverImage === "string" ? data.coverImage : data.coverImageUrl,
         });
@@ -1203,6 +1214,19 @@ export default function PersonalizeStoryPage() {
 
   const storyTitleForUi = pickLang(story.title, language) || t("personalize.story");
 
+  const handleDirectPurchaseAddToCart = async (purchaseFormat: PurchaseFormat, shippingDetails?: ShippingDetails) => {
+    if (!directPurchaseResult) return;
+
+    setAddingToCartFormat(purchaseFormat);
+    try {
+      await addToCart(directPurchaseResult.previewId, purchaseFormat, shippingDetails);
+      navigate("/cart");
+    } catch (err) {
+      console.warn("Add to cart failed:", err);
+      setAddingToCartFormat(null);
+    }
+  };
+
   if (directPurchaseResult) {
     return (
       <Box
@@ -1215,15 +1239,7 @@ export default function PersonalizeStoryPage() {
         <DirectPurchaseSummary
           result={directPurchaseResult}
           storyTitle={storyTitleForUi}
-          onAddToCart={async () => {
-            try {
-              await addToCart(directPurchaseResult.previewId);
-            } catch (err) {
-              console.warn("Add to cart failed:", err);
-            } finally {
-              navigate("/cart");
-            }
-          }}
+          onAddToCart={() => setFormatDialogOpen(true)}
           onBack={() => setDirectPurchaseResult(null)}
           existingPreviewId={quota?.existingPreviewId ?? null}
           existingTemplateId={quota?.existingTemplateId ?? null}
@@ -1254,6 +1270,17 @@ export default function PersonalizeStoryPage() {
             }
             navigate(`/stories/${etid}/read?previewId=${encodeURIComponent(eid)}`);
           }}
+        />
+
+        <PurchaseFormatDialog
+          open={formatDialogOpen}
+          onClose={() => !addingToCartFormat && setFormatDialogOpen(false)}
+          onSelect={handleDirectPurchaseAddToCart}
+          currency={story.currency ?? "ILS"}
+          digitalPrice={story.priceDigital}
+          printPrice={story.pricePrint}
+          printAvailable={story.printAvailable === true}
+          loadingFormat={addingToCartFormat}
         />
       </Box>
     );

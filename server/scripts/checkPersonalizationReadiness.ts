@@ -23,6 +23,7 @@ import admin from "firebase-admin";
 import path from "path";
 import fs from "fs";
 import { ILLUSTRATION_STYLE_IDS, isValidIllustrationStyleId } from "../src/shared/types/visualStyles";
+import { findMissingPlaceholders } from "../src/shared/utils/placeholderValidation";
 
 // ─── Firebase init ────────────────────────────────────────────────────────────
 
@@ -135,7 +136,52 @@ interface PageRecord {
   sampleImageUrl?: unknown;
 }
 
-function checkTextTemplates(pages: PageRecord[], r: Report): void {
+/**
+ * Loads each page's source text (`originalText`) from the `textVariants`
+ * subcollection, keyed by pageNumber. This is the same data
+ * textVariants.service.ts writes at generation time and never deletes, and
+ * mirrors `loadOriginalTextByPage` in preview.service.ts — kept as a small
+ * local copy here (rather than importing preview.service.ts) so this script
+ * stays free of the full server module graph, matching the existing
+ * scripts/ convention of minimal, self-contained dependencies.
+ */
+async function loadOriginalTextByPage(
+  db: admin.firestore.Firestore,
+  templateId: string,
+): Promise<Map<number, string>> {
+  const snap = await db
+    .collection("story_templates")
+    .doc(templateId)
+    .collection("textVariants")
+    .get();
+
+  const map = new Map<number, string>();
+  for (const doc of snap.docs) {
+    const data = doc.data() as { pageNumber?: number; originalText?: string };
+    if (typeof data.pageNumber === "number" && typeof data.originalText === "string") {
+      map.set(data.pageNumber, data.originalText);
+    }
+  }
+  return map;
+}
+
+/**
+ * Validates pages[].textTemplate against the placeholders each page's
+ * *source* text actually required — not every page mentions the child, so
+ * {{CHILD_NAME}} (or any other placeholder) must not be demanded on pages
+ * whose source text never had it. Uses the same `findMissingPlaceholders`
+ * shared utility as textVariants.service.ts / preview.service.ts.
+ *
+ * A page with no `textVariants` doc (no source-text record — e.g. variants
+ * were never generated, or this is a legacy template) falls back to the
+ * conservative default of requiring {{CHILD_NAME}}, exactly like
+ * preview.service.ts's hasValidTextTemplates().
+ */
+function checkTextTemplates(
+  pages: PageRecord[],
+  originalTextByPage: Map<number, string>,
+  r: Report,
+): void {
   header("2 · Text personalization — page templates");
 
   if (pages.length === 0) {
@@ -144,6 +190,7 @@ function checkTextTemplates(pages: PageRecord[], r: Report): void {
     return;
   }
   console.log(INFO(`Total pages: ${pages.length}`));
+  console.log(INFO(`Pages with a textVariants source-text record: ${originalTextByPage.size} / ${pages.length}`));
 
   const pagesWithoutPlaceholder: number[] = [];
   const pagesWithEmptyVariant:   number[] = [];
@@ -170,13 +217,24 @@ function checkTextTemplates(pages: PageRecord[], r: Report): void {
       continue;
     }
 
-    const mascMissing = !masc.includes("{{CHILD_NAME}}");
-    const femMissing  = !fem.includes("{{CHILD_NAME}}");
+    const originalText = originalTextByPage.get(pgNum);
+    const mascMissing =
+      originalText === undefined
+        ? (masc.includes("{{CHILD_NAME}}") ? [] : ["{{CHILD_NAME}}"])
+        : findMissingPlaceholders(originalText, masc);
+    const femMissing =
+      originalText === undefined
+        ? (fem.includes("{{CHILD_NAME}}") ? [] : ["{{CHILD_NAME}}"])
+        : findMissingPlaceholders(originalText, fem);
 
-    if (mascMissing || femMissing) {
+    if (originalText === undefined) {
+      console.log(INFO(`    page ${pgNum}: no textVariants source-text record — using conservative {{CHILD_NAME}}-required fallback`));
+    }
+
+    if (mascMissing.length > 0 || femMissing.length > 0) {
       pagesWithoutPlaceholder.push(pgNum);
-      if (mascMissing) console.log(INFO(`    page ${pgNum} masculine missing {{CHILD_NAME}}: "${masc.slice(0, 80)}..."`));
-      if (femMissing)  console.log(INFO(`    page ${pgNum} feminine  missing {{CHILD_NAME}}: "${fem.slice(0, 80)}..."`));
+      if (mascMissing.length > 0) console.log(INFO(`    page ${pgNum} masculine missing [${mascMissing.join(", ")}]: "${masc.slice(0, 80)}..."`));
+      if (femMissing.length > 0)  console.log(INFO(`    page ${pgNum} feminine  missing [${femMissing.join(", ")}]: "${fem.slice(0, 80)}..."`));
     }
   }
 
@@ -187,12 +245,12 @@ function checkTextTemplates(pages: PageRecord[], r: Report): void {
     r.fail(`Pages with empty masculine or feminine: [${pagesWithEmptyVariant.join(", ")}]`);
   }
   if (pagesWithoutPlaceholder.length > 0) {
-    r.fail(`Pages where {{CHILD_NAME}} is missing from one or both variants: [${pagesWithoutPlaceholder.join(", ")}]`);
+    r.fail(`Pages where a placeholder required by their source text is missing from one or both variants: [${pagesWithoutPlaceholder.join(", ")}]`);
   }
 
   const totalBad = pagesWithMissingTemplate.length + pagesWithEmptyVariant.length + pagesWithoutPlaceholder.length;
   if (totalBad === 0) {
-    r.pass(`All ${pages.length} pages have valid textTemplate.masculine + feminine with {{CHILD_NAME}}`);
+    r.pass(`All ${pages.length} pages preserve every placeholder their source text required`);
   } else {
     r.info("  Fix: run the Phase 3 text-variant generation pipeline for the source story, then re-publish.");
   }
@@ -513,7 +571,8 @@ async function run(): Promise<void> {
   const r5 = new Report();
 
   checkGeneralFlags(d, r1);
-  checkTextTemplates(pages, r2);
+  const originalTextByPage = await loadOriginalTextByPage(db, templateId);
+  checkTextTemplates(pages, originalTextByPage, r2);
   checkStyleConfig(d, r3);
   await checkArtDirection(d, db, templateId, pages.length, r4);
   checkSampleImages(pages, r5);
@@ -592,7 +651,7 @@ async function run(): Promise<void> {
   console.log(
     '\n  After this update "Personalize this story" will appear on the public site because:\n' +
     "    canStartPersonalization = personalizationEnabled (✅)\n" +
-    "                           && hasValidTextTemplates from page data (✅)\n" +
+    "                           && (textPersonalizationReady || hasValidTextTemplates from page data) (✅)\n" +
     "                           && visualPersonalizationEnabled (✅)\n" +
     "                           && visualPersonalizationReady (✅)\n",
   );

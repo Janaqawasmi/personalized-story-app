@@ -47,16 +47,22 @@ export interface StoryDetailVM {
    */
   personalizationEnabled: boolean;
   /**
-   * @deprecated No longer used as a CTA gate.
-   * Text readiness is derived from `hasValidTextTemplates` instead, which
-   * inspects the actual page data so that stories with valid templates are
-   * never blocked by a stale flag.
+   * Authoritative technical gate, set to `true` by `finalizeTextVariants()`
+   * (server/src/services/textVariants.service.ts) once the specialist
+   * approves every page's text variants and clicks "Activate text
+   * personalization". Preferred over `hasValidTextTemplates` for gating
+   * because it reflects the correct per-page/source-text-derived placeholder
+   * rule; `hasValidTextTemplates` is a blanket fallback only (see its doc
+   * comment in mapFirestoreToVM.ts).
    */
   textPersonalizationReady: boolean;
   /**
    * Derived: true when every page has non-empty masculine + feminine
    * textTemplate strings each containing `{{CHILD_NAME}}`.
    * Computed in mapFirestoreToStoryDetailVM from `pages[]` — never stored.
+   * This is a blanket, per-page-unconditional check used only as a fallback
+   * for templates patched outside the normal review flow; prefer
+   * `textPersonalizationReady` (see its doc comment above).
    */
   hasValidTextTemplates: boolean;
   /**
@@ -73,10 +79,17 @@ export interface StoryDetailVM {
   /**
    * Derived: true only when the full wizard flow (name + photo) can run end-to-end.
    * Computed in mapFirestoreToStoryDetailVM — never stored in Firestore.
-   *   = personalizationEnabled && hasValidTextTemplates
+   *   = personalizationEnabled
+   *     && (textPersonalizationReady || hasValidTextTemplates)
    *     && visualPersonalizationEnabled && visualPersonalizationReady
    */
   canStartPersonalization: boolean;
+  /**
+   * Short technical explanation for why `canStartPersonalization` is false,
+   * for development/admin diagnostics only — never rendered to caregivers in
+   * production. Null when personalization isn't blocked or isn't applicable.
+   */
+  personalizationBlockedReason: string | null;
 }
 
 export interface RelatedStoryCardVM {

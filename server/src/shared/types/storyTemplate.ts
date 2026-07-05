@@ -186,6 +186,14 @@ export interface StoryTemplate {
   isPublished: boolean;
   publishedAt: Timestamp | null;
   purchaseCount: number;
+  /** Canonical public purchase price in the smallest currency unit (agorot / cents). */
+  priceCents: number;
+  /** Canonical print purchase price in the smallest currency unit (agorot / cents). */
+  printPriceCents: number;
+  /** ISO currency code for the public purchase price. */
+  currency: string;
+  /** Controls whether the public Story Detail pricing card should show the Print tab. */
+  printAvailable: boolean;
   previewPageCount: number;
   totalPageCount: number;
   /** One sentence with `{{CHILD_NAME}}` for the personalize flow live name preview. */

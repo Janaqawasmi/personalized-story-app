@@ -37,6 +37,7 @@ export default function PricingCard({
   const comingSoon = status === "coming_soon";
   const hasDigital = typeof priceDigital === "number" && Number.isFinite(priceDigital);
   const hasPrint = typeof pricePrint === "number" && Number.isFinite(pricePrint) && printAvailable;
+  const showPrintTab = printAvailable;
 
   const activePrice = mode === "print" && hasPrint ? pricePrint : priceDigital;
   const hasActivePrice = typeof activePrice === "number" && Number.isFinite(activePrice);
@@ -52,7 +53,7 @@ export default function PricingCard({
         mb: 2.25,
       }}
     >
-      {hasPrint ? (
+      {showPrintTab ? (
         <ToggleButtonGroup
           exclusive
           value={mode}

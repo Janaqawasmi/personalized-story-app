@@ -70,6 +70,9 @@ async function allocateUniqueSlug(base: string): Promise<string> {
  * the snapshot goes to the personalizationArtefacts subcollection instead.
  */
 const INLINE_SIZE_LIMIT_BYTES = 700_000;
+const DEFAULT_TEMPLATE_PRICE_CENTS = 2999;
+const DEFAULT_TEMPLATE_PRINT_PRICE_CENTS = 5999;
+const DEFAULT_TEMPLATE_CURRENCY = "ILS";
 
 function estimateJsonBytes(value: unknown): number {
   return Buffer.byteLength(JSON.stringify(value), "utf8");
@@ -295,8 +298,11 @@ export async function publishStory(params: {
   const primaryApproach = brief.therapeuticArchitecture.primaryApproach;
   const primaryTopic = brief.storyType;
   const displayTopic = {
-    he: body.displayTopicHe?.trim() || primaryTopic || story.title,
-    ar: body.displayTopicAr?.trim() || primaryTopic || story.title,
+    // Leave this blank when the specialist does not provide an override.
+    // The public client resolves the visible label from referenceData and should
+    // never persist the raw taxonomy id (e.g. `fear_anxiety`) as display text.
+    he: body.displayTopicHe?.trim() || "",
+    ar: body.displayTopicAr?.trim() || "",
   };
 
   const slugBase = slugifyTitle(story.title);
@@ -340,6 +346,11 @@ export async function publishStory(params: {
     isPublished: true,
     publishedAt: Timestamp.now(),
     purchaseCount: 0,
+    // Keep published templates aligned with the public pricing card / cart.
+    priceCents: DEFAULT_TEMPLATE_PRICE_CENTS,
+    printPriceCents: DEFAULT_TEMPLATE_PRINT_PRICE_CENTS,
+    currency: DEFAULT_TEMPLATE_CURRENCY,
+    printAvailable: true,
     previewPageCount: 2,
     totalPageCount: templatePages.length,
 

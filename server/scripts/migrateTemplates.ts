@@ -127,8 +127,8 @@ async function migrateTemplates() {
     // 6. Fix displayTopic
     if (!data.displayTopic) {
       updates.displayTopic = {
-        ar: data.primaryTopic || "",
-        he: data.primaryTopic || "",
+        ar: "",
+        he: "",
       };
       missingFields.push("displayTopic");
     }

@@ -2,6 +2,10 @@ import { db } from "../config/firebase";
 import { COLLECTIONS } from "../shared/firestore/paths";
 import { cartItemConverter } from "../shared/firestore/converters";
 import { CartItem } from "../shared/types/cartItem";
+import {
+  PurchasePricingError,
+  resolveTemplatePurchasePricing,
+} from "./purchasePricing.service";
 
 export interface CartItemValidationError {
   cartItemId: string;
@@ -90,6 +94,25 @@ export async function validateCartItems(
         const templateData = templateDoc.data()!;
         if (!templateData.isActive || !templateData.isPublished) {
           invalidReason = "This story is no longer available";
+        } else {
+          try {
+            const pricing = resolveTemplatePurchasePricing(
+              templateData as Record<string, unknown>,
+              item.purchaseFormat ?? "digital"
+            );
+            item.priceCents = pricing.priceCents;
+            item.currency = pricing.currency;
+            item.purchaseFormat = pricing.purchaseFormat;
+          } catch (error) {
+            if (
+              error instanceof PurchasePricingError &&
+              error.code === "PRINT_NOT_AVAILABLE"
+            ) {
+              invalidReason = "Print version is no longer available";
+            } else {
+              invalidReason = "This story is no longer available";
+            }
+          }
         }
       }
     }

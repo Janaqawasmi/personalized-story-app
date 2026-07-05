@@ -9,6 +9,15 @@ import {
   getLocalizedSituationLabel,
   getLocalizedTopicLabel,
 } from "../../../utils/referenceDataLabel";
+import {
+  hasValidTextTemplates,
+  isTextPersonalizationReady,
+} from "../../../utils/textPersonalizationReadiness";
+
+export { hasValidTextTemplates };
+
+const DEFAULT_DIGITAL_BOOK_PRICE = 29.99;
+const DEFAULT_BOOK_CURRENCY = "ILS";
 
 /** Single locale string from Firestore map `{ en, he, ar }` or legacy flat string. */
 export function pickLocalized(field: unknown, lang: string): string {
@@ -35,14 +44,34 @@ function pickTopicLabel(
   lang: "he" | "en" | "ar",
   referenceData?: ReferenceData | null,
 ): string {
+  const normalize = (value: unknown): string =>
+    typeof value === "string" ? value.trim().toLowerCase() : "";
+  const rawKeys = new Set(
+    [
+      data.displayTopic,
+      data.primaryTopic,
+      data.topicKey,
+      data.situationId,
+    ]
+      .flatMap((value) =>
+        value && typeof value === "object" && !Array.isArray(value)
+          ? Object.values(value as Record<string, unknown>)
+          : [value],
+      )
+      .map(normalize)
+      .filter(Boolean),
+  );
+  const isRawKey = (value: string): boolean => rawKeys.has(normalize(value));
+
   // Note: `specificSituation` is free clinical text, not a display label — never
   // shown as a public topic badge. `displayTopic` (specialist-authored) is the
   // primary source; `primaryTopic`/`topicKey` are the domain-key fallback.
-  const displayTopic = pickLocalized(data.displayTopic, lang);
-  if (displayTopic.trim()) return displayTopic;
+  const displayTopic = pickLocalized(data.displayTopic, lang).trim();
+  if (displayTopic && !isRawKey(displayTopic)) return displayTopic;
 
-  if (typeof data.situationId === "string" && data.situationId.trim()) {
-    return getLocalizedSituationLabel(data.situationId, lang, referenceData);
+  if (referenceData && typeof data.situationId === "string" && data.situationId.trim()) {
+    const label = getLocalizedSituationLabel(data.situationId, lang, referenceData);
+    if (label && !isRawKey(label)) return label;
   }
 
   const topicId =
@@ -52,8 +81,9 @@ function pickTopicLabel(
         ? data.topicKey
         : "";
 
-  if (topicId) {
-    return getLocalizedTopicLabel(topicId, lang, referenceData);
+  if (referenceData && topicId) {
+    const label = getLocalizedTopicLabel(topicId, lang, referenceData);
+    if (label && !isRawKey(label)) return label;
   }
 
   return "";
@@ -75,6 +105,11 @@ function readAmount(value: unknown): number | undefined {
     return (value as { current: number }).current;
   }
   return undefined;
+}
+
+function readAmountFromCents(value: unknown): number | undefined {
+  const cents = readAmount(value);
+  return typeof cents === "number" ? Number((cents / 100).toFixed(2)) : undefined;
 }
 
 /** Normalize Firestore localized string / plain string to { en, he, ar }. */
@@ -115,24 +150,33 @@ function mapFaq(raw: unknown): FaqItemVM[] {
 }
 
 /**
- * Returns true when every page has a non-empty masculine and feminine text
- * template each containing `{{CHILD_NAME}}`.
- *
- * This is the client-side equivalent of `hasValidTextTemplates` in preview.service.ts.
- * It replaces the deprecated `textPersonalizationReady` flag so that stories with
- * valid page data are never blocked by a stale Firestore flag.
+ * Builds a short, technical explanation for why `canStartPersonalization` is
+ * false, for development/admin diagnostics only (never shown to caregivers
+ * in production — see CtaRow.tsx). Returns null when personalization isn't
+ * blocked, or isn't applicable (story isn't meant to be personalizable).
  */
-export function hasValidTextTemplates(pages: unknown): boolean {
-  if (!Array.isArray(pages) || pages.length === 0) return false;
-  return (pages as Record<string, unknown>[]).every((page) => {
-    const tt = page.textTemplate as { masculine?: string; feminine?: string } | null | undefined;
-    const masc = tt?.masculine;
-    const fem  = tt?.feminine;
-    return (
-      typeof masc === "string" && masc.trim().length > 0 && masc.includes("{{CHILD_NAME}}") &&
-      typeof fem  === "string" && fem.trim().length  > 0 && fem.includes("{{CHILD_NAME}}")
+function computeBlockedReason(
+  data: Record<string, unknown>,
+  textReady: boolean,
+): string | null {
+  if (data.personalizationEnabled !== true) return null;
+
+  const reasons: string[] = [];
+  if (!textReady) {
+    reasons.push(
+      "textPersonalizationReady=false and pages[] still contain unresolved placeholders " +
+        "— the specialist needs to approve and “Activate text personalization” " +
+        "on the Text Variants Review page",
     );
-  });
+  }
+  if (data.visualPersonalizationEnabled !== true) {
+    reasons.push("visualPersonalizationEnabled=false");
+  } else if (data.visualPersonalizationReady !== true) {
+    reasons.push(
+      "visualPersonalizationReady=false — the Visual Bible / art-direction snapshot was not captured at publish time",
+    );
+  }
+  return reasons.length > 0 ? reasons.join("; ") : null;
 }
 
 export function mapFirestoreToStoryDetailVM(
@@ -141,8 +185,19 @@ export function mapFirestoreToStoryDetailVM(
   lang: "he" | "en" | "ar",
   referenceData?: ReferenceData | null,
 ): StoryDetailVM {
-  const digital = readAmount(data?.pricing?.digital) ?? readAmount(data?.pricing?.digitalPrice);
-  const print = readAmount(data?.pricing?.print);
+  const digital =
+    readAmount(data?.pricing?.digital) ??
+    readAmount(data?.pricing?.digitalPrice) ??
+    readAmount(data?.price) ??
+    readAmountFromCents(data?.pricing?.priceCents) ??
+    readAmountFromCents(data?.priceCents);
+  const print =
+    readAmount(data?.pricing?.print) ??
+    readAmount(data?.pricing?.printPrice) ??
+    readAmountFromCents(data?.pricing?.printPriceCents) ??
+    readAmountFromCents(data?.printPriceCents);
+  const resolvedDigital = digital ?? DEFAULT_DIGITAL_BOOK_PRICE;
+  const resolvedPrint = data.printAvailable === false ? undefined : print;
 
   let status: StoryDetailStatus = "published";
   if (data.comingSoon === true || data.status === "coming_soon") {
@@ -151,8 +206,8 @@ export function mapFirestoreToStoryDetailVM(
     status = "draft";
   }
 
-  const hasPrintPrice = typeof print === "number" && Number.isFinite(print);
-  const printAvailable = data.printAvailable !== false && hasPrintPrice;
+  const hasPrintPrice = typeof resolvedPrint === "number" && Number.isFinite(resolvedPrint);
+  const printAvailable = data.printAvailable === true && hasPrintPrice;
 
   return {
     id,
@@ -169,9 +224,16 @@ export function mapFirestoreToStoryDetailVM(
     primaryTopic: typeof data.primaryTopic === "string" ? data.primaryTopic : "",
     topicKey: typeof data.topicKey === "string" ? data.topicKey : "",
     topicLabel: pickTopicLabel(data, lang, referenceData),
-    priceDigital: digital,
-    pricePrint: print,
-    currency: typeof data.currency === "string" ? data.currency : "ILS",
+    // Keep the public detail page aligned with checkout's current default price
+    // until every published template carries explicit pricing fields.
+    priceDigital: resolvedDigital,
+    pricePrint: printAvailable ? resolvedPrint : undefined,
+    currency:
+      typeof data.currency === "string"
+        ? data.currency
+        : typeof data.pricing?.currency === "string"
+          ? data.pricing.currency
+          : DEFAULT_BOOK_CURRENCY,
     printAvailable,
     previewSpreads: mapPreviewSpreads(data.previewSpreads),
     faq: mapFaq(data.faq),
@@ -182,17 +244,18 @@ export function mapFirestoreToStoryDetailVM(
     storyLanguage: data.language || data.generationConfig?.language,
     // Default false for pre-Phase-1 templates that don't have this field.
     personalizationEnabled: data.personalizationEnabled === true,
-    // @deprecated — kept in the VM for legacy compatibility; not used for gating.
+    // Authoritative signal set by finalizeTextVariants() — see isTextPersonalizationReady().
     textPersonalizationReady: data.textPersonalizationReady === true,
-    // Derived from actual page data — never relies on the stale Firestore flag.
+    // Blanket per-page fallback only — see the doc comment on hasValidTextTemplates().
     hasValidTextTemplates: hasValidTextTemplates(data.pages),
     visualPersonalizationEnabled: data.visualPersonalizationEnabled === true,
     visualPersonalizationReady: data.visualPersonalizationReady === true,
     // Derived: all four gates must pass before the wizard can run end-to-end.
     canStartPersonalization:
       data.personalizationEnabled === true &&
-      hasValidTextTemplates(data.pages) &&
+      isTextPersonalizationReady(data) &&
       data.visualPersonalizationEnabled === true &&
       data.visualPersonalizationReady === true,
+    personalizationBlockedReason: computeBlockedReason(data, isTextPersonalizationReady(data)),
   };
 }

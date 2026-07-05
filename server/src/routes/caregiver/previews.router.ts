@@ -53,15 +53,21 @@ const VALID_GENDERS = ["male", "female"] as const;
  * Preview lifecycle statuses that should never surface in the "My previews"
  * tab:
  *  - "expired" / "converted": legacy terminal states.
- *  - "purchased": the checkout flow has already claimed this preview and
- *    created a Purchase for it (see checkout.router.ts). Once purchased, the
- *    story belongs in "Purchased"/"My Stories", not in the active previews
- *    list — showing it in both places is confusing and looks like the
- *    purchase silently reverted (see cart/payment flow Bug 3).
+ *  - "purchased": payment has been CONFIRMED (processPaymentEvent already
+ *    ran) and a Purchase now owns this preview (see checkout.router.ts).
+ *    Once purchased, the story belongs in "Purchased"/"My Stories", not in
+ *    the active previews list — showing it in both places is confusing and
+ *    looks like the purchase silently reverted (see cart/payment flow Bug 3).
  *
- * "added_to_cart" is intentionally NOT hidden: the caregiver hasn't paid yet,
- * so the preview should stay visible, just clearly labeled "In cart" by the
- * client instead of being treated as purchased.
+ * "added_to_cart" and "checkout_pending" are intentionally NOT hidden:
+ *  - "added_to_cart": the caregiver hasn't started checkout yet — labeled
+ *    "In cart" by the client.
+ *  - "checkout_pending": checkout has started (redirected to the payment
+ *    provider) but payment is not yet confirmed. It must stay visible and
+ *    must NOT look purchased — if the caregiver abandons checkout or payment
+ *    fails, the preview should still be right where they left it, not
+ *    vanished. See processPaymentEvent() in checkout.router.ts, which is the
+ *    only place that promotes a preview to "purchased".
  */
 const HIDDEN_PREVIEW_STATUSES = new Set(["expired", "converted", "purchased"]);
 

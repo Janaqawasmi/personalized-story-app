@@ -16,6 +16,9 @@ function normalizeAgeGroup(value?: string): string | null {
 
 type UiLang = "en" | "he" | "ar";
 
+const DEFAULT_DIGITAL_BOOK_PRICE = 29.99;
+const DEFAULT_BOOK_CURRENCY = "ILS";
+
 function isUiLang(s: string): s is UiLang {
   return s === "en" || s === "he" || s === "ar";
 }
@@ -80,33 +83,58 @@ export type Story = {
   personalizationEnabled?: boolean;
 };
 
+function readAmount(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (
+    value &&
+    typeof value === "object" &&
+    typeof (value as { current?: unknown }).current === "number" &&
+    Number.isFinite((value as { current?: number }).current)
+  ) {
+    return (value as { current: number }).current;
+  }
+  return undefined;
+}
+
+function readAmountFromCents(value: unknown): number | undefined {
+  const cents = readAmount(value);
+  return typeof cents === "number" ? Number((cents / 100).toFixed(2)) : undefined;
+}
+
 /**
  * Maps raw Firestore document data to a Story object,
  * resolving localized fields to plain strings for the given UI language.
  */
 function mapDocToStory(doc: { id: string; data: () => Record<string, any> }, lang: string): Story {
   const data = doc.data();
-  const readAmount = (value: unknown): number | undefined => {
-    if (typeof value === "number" && Number.isFinite(value)) return value;
-    if (
-      value &&
-      typeof value === "object" &&
-      typeof (value as { current?: unknown }).current === "number" &&
-      Number.isFinite((value as { current?: number }).current)
-    ) {
-      return (value as { current: number }).current;
-    }
-    return undefined;
-  };
-
-  const digital = readAmount(data.pricing?.digital);
-  const print = readAmount(data.pricing?.print);
+  const digital =
+    readAmount(data.pricing?.digital) ??
+    readAmount(data.pricing?.digitalPrice) ??
+    readAmount(data.price) ??
+    readAmountFromCents(data.pricing?.priceCents) ??
+    readAmountFromCents(data.priceCents);
+  const print =
+    readAmount(data.pricing?.print) ??
+    readAmount(data.pricing?.printPrice) ??
+    readAmountFromCents(data.pricing?.printPriceCents) ??
+    readAmountFromCents(data.printPriceCents);
+  const resolvedPrint = data.printAvailable === false ? undefined : print;
 
   return {
     id: doc.id,
     title: resolveLocalizedField(data.title, lang) || data.title || "",
-    pricing: digital != null || print != null ? { digital, print } : undefined,
-    currency: typeof data.currency === "string" ? data.currency : undefined,
+    // Match the current checkout fallback so catalog cards and detail views do
+    // not show "Coming soon" for purchasable templates missing explicit pricing.
+    pricing: {
+      digital: digital ?? DEFAULT_DIGITAL_BOOK_PRICE,
+      print: data.printAvailable === true && typeof resolvedPrint === "number" ? resolvedPrint : undefined,
+    },
+    currency:
+      typeof data.currency === "string"
+        ? data.currency
+        : typeof data.pricing?.currency === "string"
+          ? data.pricing.currency
+          : DEFAULT_BOOK_CURRENCY,
     shortDescription: resolveLocalizedField(data.shortDescription, lang),
     coverImage: data.coverImage || data.coverImageUrl,
     targetAgeGroup: data.targetAgeGroup || data.ageGroup || data.generationConfig?.targetAgeGroup,
