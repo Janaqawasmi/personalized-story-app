@@ -106,12 +106,19 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
       : DEFAULT_PREVIEW_IDENTITY[langNorm];
     return spreads.map((sp, idx) => {
       const spreadText = pickLang(sp.text, language).trim() || extractPreviewSpreadText(sp);
-      let raw = spreadText;
-      if (!raw && templatePages?.[idx]) {
-        raw = resolveTemplatePageText(templatePages[idx], publicVariant, spreadText);
-      }
-      raw = personalizeStoryTemplateString(raw, identity.name, identity.gender, langNorm);
-      return { imageUrl: sp.imageUrl, body: raw };
+      // Prefer the specialist-reviewed, gender-specific text variant
+      // (pages[].textTemplate.masculine/feminine — clean prose, correctly
+      // conjugated) over the raw previewSpreads snapshot, which is frozen at
+      // publish time straight from Agent 1's manuscript and may still contain
+      // gender-ambiguous notation (e.g. Hebrew "עמד/ה") that no token-level
+      // substitution can resolve. Falls back to the raw snapshot only when no
+      // variant exists yet (pre-specialist-review), via resolveTemplatePageText's
+      // own spreadTextFallback.
+      const raw = templatePages?.[idx]
+        ? resolveTemplatePageText(templatePages[idx], identity.gender, spreadText)
+        : spreadText;
+      const body = personalizeStoryTemplateString(raw, identity.name, identity.gender, langNorm);
+      return { imageUrl: sp.imageUrl, body };
     });
   }, [spreads, language, templatePages, childName, childGender, langNorm]);
 
