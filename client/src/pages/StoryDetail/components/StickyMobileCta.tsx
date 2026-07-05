@@ -1,6 +1,7 @@
 import { Box, Typography, Button, useTheme } from "@mui/material";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
+import { Z_INDEX_STICKY_MOBILE_CTA } from "../../../constants/zIndex";
 
 interface StickyMobileCtaProps {
   visible: boolean;
@@ -43,7 +44,7 @@ export default function StickyMobileCta({
         alignItems: "center",
         justifyContent: "space-between",
         gap: 2,
-        zIndex: 90,
+        zIndex: Z_INDEX_STICKY_MOBILE_CTA,
         background: COLORS.surface,
         borderTop: `1px solid ${COLORS.border}`,
         padding: "12px 20px",

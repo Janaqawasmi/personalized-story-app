@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import type { AgeRange } from "../../models/storyBrief.model";
+import type { AgeRange, StoryLanguage } from "../../models/storyBrief.model";
 import type { IllustrationStyleId } from "./visualStyles";
 
 export interface LocalizedString {
@@ -158,7 +158,7 @@ export interface StoryTemplate {
    */
   ageGroup: AgeRange;
   generationConfig: {
-    language: "ar" | "he";
+    language: StoryLanguage;
     targetAgeGroup: string;
     length: string;
     tone: string;

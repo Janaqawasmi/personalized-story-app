@@ -83,6 +83,8 @@ export default function AllBooksPage() {
   const [selectedAge, setSelectedAge] = useState<string>("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("");
+  const [selectedPersonalization, setSelectedPersonalization] = useState<string>("");
   const t = useTranslation();
   const { language } = useLanguage();
   const { data: referenceData } = useReferenceData();
@@ -197,16 +199,38 @@ export default function AllBooksPage() {
       );
     }
 
+    if (selectedLanguage) {
+      filtered = filtered.filter((book) => (book as any).language === selectedLanguage);
+    }
+
+    if (selectedPersonalization) {
+      const wantPersonalized = selectedPersonalization === "personalized";
+      filtered = filtered.filter(
+        (book) => Boolean((book as any).personalizationEnabled) === wantPersonalized
+      );
+    }
+
     return filtered;
-  }, [allBooks, selectedAge, selectedCategory, selectedTopic]);
+  }, [
+    allBooks,
+    selectedAge,
+    selectedCategory,
+    selectedTopic,
+    selectedLanguage,
+    selectedPersonalization,
+  ]);
 
   const handleClearAll = () => {
     setSelectedAge("");
     setSelectedCategory("");
     setSelectedTopic("");
+    setSelectedLanguage("");
+    setSelectedPersonalization("");
   };
 
-  const hasActiveFilters = Boolean(selectedAge || selectedCategory || selectedTopic);
+  const hasActiveFilters = Boolean(
+    selectedAge || selectedCategory || selectedTopic || selectedLanguage || selectedPersonalization
+  );
 
   const graphCategoryLabel = t("filters.groupTopics");
 
@@ -274,10 +298,39 @@ export default function AllBooksPage() {
         }
       : null;
 
+  const languageGroup: FilterGroup = {
+    type: "chips",
+    key: "language",
+    label: t("filters.language"),
+    options: [
+      { value: "", label: t("filters.allLanguages") },
+      { value: "ar", label: t("filters.languageArabic") },
+      { value: "he", label: t("filters.languageHebrew") },
+      { value: "en", label: t("filters.languageEnglish") },
+    ],
+    value: selectedLanguage,
+    onChange: setSelectedLanguage,
+  };
+
+  const personalizationGroup: FilterGroup = {
+    type: "chips",
+    key: "personalization",
+    label: t("filters.personalization"),
+    options: [
+      { value: "", label: t("filters.all") },
+      { value: "personalized", label: t("filters.personalizedOnly") },
+      { value: "not_personalized", label: t("filters.notPersonalizedOnly") },
+    ],
+    value: selectedPersonalization,
+    onChange: setSelectedPersonalization,
+  };
+
   const filterGroups: FilterGroup[] = [
     ageGroup,
     categoryGroup,
     ...(topicGroup ? [topicGroup] : []),
+    languageGroup,
+    personalizationGroup,
   ];
 
   const containerSx = { px: { xs: 2, md: 4 }, py: 3 };

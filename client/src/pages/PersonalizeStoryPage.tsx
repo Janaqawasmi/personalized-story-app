@@ -461,7 +461,7 @@ function ProgressBar({
   const clickable = (i: number) => i <= activeStep;
 
   return (
-    <Box sx={{ px: "44px", pt: "32px", pb: 0 }}>
+    <Box sx={{ px: { xs: "20px", md: "44px" }, pt: "32px", pb: 0 }}>
       <Box sx={{ display: "flex", alignItems: "center", mb: "10px" }}>
         {Array.from({ length: totalSteps }).map((_, i) => (
           <React.Fragment key={i}>
@@ -1490,7 +1490,7 @@ export default function PersonalizeStoryPage() {
             <Box
               sx={{
                 flex: 1,
-                px: "44px",
+                px: { xs: "20px", md: "44px" },
                 py: "28px",
                 display: "flex",
                 flexDirection: "column",
@@ -2258,7 +2258,7 @@ export default function PersonalizeStoryPage() {
             <Box
               dir={direction}
               sx={{
-                px: "44px",
+                px: { xs: "20px", md: "44px" },
                 py: "20px",
                 borderTop: "1px solid #f8f4ef",
                 display: "flex",

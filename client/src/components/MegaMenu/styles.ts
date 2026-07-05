@@ -6,7 +6,7 @@ import { Z_INDEX_MEGA_MENU_PANEL } from "../../constants/zIndex";
 // Dropdown panel - attached to navbar
 export const panel: SystemStyleObject<Theme> = {
   position: "fixed",
-  top: 64, // Height of AppBar
+  top: { xs: 56, md: 60 }, // Height of AppBar (must match Navbar.tsx's source of truth)
   left: 0,
   right: 0,
   zIndex: Z_INDEX_MEGA_MENU_PANEL, // Above AppBar
@@ -17,6 +17,8 @@ export const panel: SystemStyleObject<Theme> = {
   boxShadow: "none", // No shadow - looks integrated with navbar
   direction: "rtl",
   overflow: "hidden",
+  maxHeight: { xs: "calc(100vh - 56px)", md: "calc(100vh - 60px)" },
+  overflowY: "auto",
   display: "flex",
   flexDirection: "column",
 };
@@ -28,13 +30,13 @@ export const container: SystemStyleObject<Theme> = {
   width: "100%",
 };
 
-// Grid layout - 2 columns
+// Grid layout - 2 columns on desktop, stacked on mobile
 export const grid: SystemStyleObject<Theme> = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: 40,
-  px: 5,
-  py: 5,
+  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+  gap: { xs: 3, md: 40 },
+  px: { xs: 2.5, md: 5 },
+  py: { xs: 3, md: 5 },
 };
 
 export const column: SystemStyleObject<Theme> = {
