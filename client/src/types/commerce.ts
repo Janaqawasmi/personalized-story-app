@@ -1,20 +1,32 @@
 export type PurchaseFormat = "digital" | "print";
 
+/** Customer-facing print fulfillment states — no internal/admin jargon. */
 export type PrintOrderStatus =
-  | "paid_pending_preparation"
-  | "preparing_file"
-  | "sent_to_print"
-  | "printed"
+  | "order_received"
+  | "in_preparation"
+  | "ready"
   | "shipped"
-  | "delivered"
+  | "completed"
   | "cancelled";
 
 export interface PrintOrder {
   status: PrintOrderStatus;
-  needsAdminFollowUp: boolean;
-  shippingAddress: string | null;
-  phoneNumber: string | null;
-  deliveryNotes: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+}
+
+/**
+ * Simple contact/address details collected before checkout for print
+ * purchases only. Digital purchases never collect this.
+ */
+export interface ShippingDetails {
+  fullName: string;
+  phoneNumber: string;
+  email?: string;
+  city: string;
+  streetAddress: string;
+  buildingOrHouseNumber?: string;
+  apartment?: string;
+  postalCode?: string;
+  deliveryNotes?: string;
 }

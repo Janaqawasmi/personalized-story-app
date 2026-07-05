@@ -73,27 +73,75 @@ export async function fetchPurchaseOptions(templateId: string): Promise<Purchase
   return getPurchaseOptionsFromTemplateData(snapshot.data() as Record<string, unknown>);
 }
 
-export function getPurchaseFormatLabel(format: PurchaseFormat): string {
-  return format === "print" ? "Print" : "Digital";
-}
-
 export function getPrintOrderStatusLabel(status?: PrintOrderStatus | null): string {
   switch (status) {
-    case "paid_pending_preparation":
-      return "Print order received";
-    case "preparing_file":
-      return "Preparing for print";
-    case "sent_to_print":
-      return "Sent to print";
-    case "printed":
-      return "Printed";
+    case "order_received":
+      return "Order received";
+    case "in_preparation":
+      return "In preparation";
+    case "ready":
+      return "Ready";
     case "shipped":
       return "Shipped";
-    case "delivered":
-      return "Delivered";
+    case "completed":
+      return "Completed";
     case "cancelled":
       return "Cancelled";
     default:
-      return "Print order received";
+      return "Order received";
   }
+}
+
+export interface TranslationKeyResult {
+  key: string;
+  params?: Record<string, string>;
+}
+
+/**
+ * Caregiver-facing (translated) "Digital"/"Print" label — e.g. for the cart
+ * page's format line. Replaces the old hardcoded-English getPurchaseFormatLabel().
+ */
+export function getPurchaseFormatLabelKey(format: PurchaseFormat): TranslationKeyResult {
+  return { key: format === "print" ? "pages.purchaseFormat.printLabel" : "pages.purchaseFormat.digitalLabel" };
+}
+
+/**
+ * Caregiver-facing (translated) label combining purchase format + personalization
+ * type for the "Purchased Stories" tab — e.g. "Digital personalized story" /
+ * "Print original story". `itemType` is absent on records created before the
+ * field existed, so falls back to `childFirstName` presence (same rule as
+ * getPreviewSubtitleKey).
+ */
+export function getPurchaseTypeLabelKey(
+  purchaseFormat: PurchaseFormat | null | undefined,
+  itemType: "template" | "personalized" | null | undefined,
+  childFirstName: string | null | undefined,
+): TranslationKeyResult {
+  const format = purchaseFormat === "print" ? "print" : "digital";
+  const personalized = itemType ? itemType === "personalized" : !!childFirstName?.trim();
+  const variant = personalized ? "Personalized" : "Original";
+  return { key: `pages.myStories.purchased.type.${format}${variant}` };
+}
+
+const KNOWN_PRINT_ORDER_STATUSES: PrintOrderStatus[] = [
+  "order_received",
+  "in_preparation",
+  "ready",
+  "shipped",
+  "completed",
+  "cancelled",
+];
+
+/**
+ * Caregiver-facing (translated) print-order status label for the "Purchased
+ * Stories" tab. Distinct from getPrintOrderStatusLabel(), which returns
+ * hardcoded English used by the admin dashboard. Deliberately customer-facing
+ * only — never surfaces internal fulfillment/admin-follow-up wording.
+ */
+export function getPrintOrderStatusLabelKey(
+  status?: PrintOrderStatus | null,
+): TranslationKeyResult {
+  const resolved =
+    status && KNOWN_PRINT_ORDER_STATUSES.includes(status) ? status : "order_received";
+  return { key: `pages.myStories.purchased.printStatus.${resolved}` };
 }

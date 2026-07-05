@@ -342,7 +342,11 @@
       "autoReadOff": "Auto-read off",
       "voice": "Voice",
       "voiceAuto": "Auto (best)",
-      "close": "Close"
+      "close": "Close",
+      "errorMissingPersonalizedStoryId": "This purchased story link is missing its story reference. Please open it again from \"My Stories\".",
+      "errorReferencePersonalizedStory": "Reference: personalized story {id}",
+      "errorReferencePreview": "Reference: preview {id}",
+      "errorReferenceTemplate": "Reference: story {id}"
     },
     "placeholder": {
       "backToHome": "Back to Home"
@@ -357,6 +361,38 @@
       "totalLabel": "Total",
       "checkoutCta": "Checkout",
       "checkoutError": "Something went wrong starting checkout. Please try again."
+    },
+    "purchaseFormat": {
+      "title": "Which version do you want?",
+      "digitalLabel": "Digital",
+      "printLabel": "Print",
+      "digitalDescription": "Read online after purchase",
+      "printDescriptionAvailable": "Printed book prepared by our team",
+      "printDescriptionUnavailable": "Print version coming soon",
+      "comingSoon": "Coming soon"
+    },
+    "shipping": {
+      "title": "Shipping details",
+      "subtitle": "We'll use this to prepare and send your printed book.",
+      "fullNameLabel": "Full name",
+      "phoneNumberLabel": "Phone number",
+      "emailLabel": "Email (optional)",
+      "cityLabel": "City",
+      "streetAddressLabel": "Street address",
+      "buildingOrHouseNumberLabel": "Building / house number (optional)",
+      "apartmentLabel": "Apartment (optional)",
+      "postalCodeLabel": "Postal code (optional)",
+      "deliveryNotesLabel": "Delivery notes (optional)",
+      "back": "Back",
+      "continue": "Continue",
+      "errors": {
+        "fullNameRequired": "Full name is required",
+        "phoneNumberRequired": "Phone number is required",
+        "phoneNumberInvalid": "Enter a valid phone number",
+        "cityRequired": "City is required",
+        "streetAddressRequired": "Street address is required",
+        "emailInvalid": "Enter a valid email address"
+      }
     },
     "checkoutMock": {
       "title": "Sandbox Payment",
@@ -398,7 +434,22 @@
         "partiallyFailedLabel": "Story generation needs support. Please contact us.",
         "failedLabel": "Story generation failed. Please contact us.",
         "contactSupport": "Contact support",
-        "pagesProgress": "{completed} of {total} pages"
+        "pagesProgress": "{completed} of {total} pages",
+        "printGeneratingNote": "Preparing your story files",
+        "type": {
+          "digitalPersonalized": "Digital personalized story",
+          "digitalOriginal": "Digital original story",
+          "printPersonalized": "Print personalized story",
+          "printOriginal": "Print original story"
+        },
+        "printStatus": {
+          "order_received": "Order received",
+          "in_preparation": "In preparation",
+          "ready": "Ready",
+          "shipped": "Shipped",
+          "completed": "Completed",
+          "cancelled": "Cancelled"
+        }
       },
       "previews": {
         "emptyTitle": "No saved previews yet",
@@ -414,7 +465,9 @@
         "addToCartCta": "Add to cart",
         "addingToCart": "Adding...",
         "inCartLabel": "In cart",
-        "viewCartCta": "View cart"
+        "viewCartCta": "View cart",
+        "checkoutPendingLabel": "Checkout in progress",
+        "checkoutPendingCta": "Checkout in progress"
       },
       "favorites": {
         "emptyTitle": "No favorites yet",

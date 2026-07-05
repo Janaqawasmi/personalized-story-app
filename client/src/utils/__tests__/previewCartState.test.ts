@@ -13,6 +13,10 @@ describe("getPreviewCartState", () => {
     expect(getPreviewCartState("purchased")).toBe("available");
   });
 
+  it("labels a preview mid-checkout as checkout_pending, not in_cart or available", () => {
+    expect(getPreviewCartState("checkout_pending")).toBe("checkout_pending");
+  });
+
   it("defaults to available for missing/undefined status", () => {
     expect(getPreviewCartState(undefined)).toBe("available");
     expect(getPreviewCartState(null)).toBe("available");

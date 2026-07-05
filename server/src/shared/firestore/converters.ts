@@ -10,7 +10,7 @@ import { StoryPreview } from "../types/storyPreview";
 import { CartItem } from "../types/cartItem";
 import { Purchase } from "../types/purchase";
 import { PersonalizedStory } from "../types/personalizedStory";
-import { PrintOrder, PurchaseFormat } from "../types/commerce";
+import { PrintOrder, PurchaseFormat, ShippingDetails } from "../types/commerce";
 
 /**
  * Generic converter factory that ensures Firestore Timestamp fields
@@ -116,6 +116,7 @@ export const cartItemConverter: FirestoreDataConverter<CartItem> = {
       currency: data.currency as string,
       language: data.language as "ar" | "he",
       addedAt: data.addedAt as Timestamp,
+      ...(data.shippingDetails ? { shippingDetails: data.shippingDetails as ShippingDetails } : {}),
     };
   },
 };
@@ -138,6 +139,7 @@ export const purchaseConverter: FirestoreDataConverter<Purchase> = {
       personalizedStoryId: data.personalizedStoryId as string | null,
       purchaseFormat: (data.purchaseFormat as PurchaseFormat | undefined) ?? "digital",
       printOrder: (data.printOrder as PrintOrder | null | undefined) ?? null,
+      shippingDetails: (data.shippingDetails as ShippingDetails | null | undefined) ?? null,
       paymentTransactionId: data.paymentTransactionId as string,
       paymentSessionId: data.paymentSessionId as string | null,
       paymentChargeId: data.paymentChargeId as string | null,
@@ -153,6 +155,7 @@ export const purchaseConverter: FirestoreDataConverter<Purchase> = {
       createdAt: data.createdAt as Timestamp,
       updatedAt: data.updatedAt as Timestamp,
       ...(itemType ? { itemType } : {}),
+      ...(data.cartItemId ? { cartItemId: data.cartItemId as string } : {}),
     };
   },
 };

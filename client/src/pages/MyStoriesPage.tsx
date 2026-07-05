@@ -11,14 +11,14 @@ import {
   getPurchasedStories,
   type PurchasedStoryItem,
 } from "../api/caregiverApi";
-import type { PurchaseFormat } from "../types/commerce";
+import type { PurchaseFormat, ShippingDetails } from "../types/commerce";
 import { getStoryPersonalizationStorageKey } from "../utils/storyPersonalization";
 import { getPreviewCartState } from "../utils/previewCartState";
 import { getPreviewSubtitleKey } from "../utils/previewSubtitle";
 import {
   fetchPurchaseOptions,
-  getPrintOrderStatusLabel,
-  getPurchaseFormatLabel,
+  getPrintOrderStatusLabelKey,
+  getPurchaseTypeLabelKey,
   type PurchaseOptionData,
 } from "../utils/purchaseOptions";
 import { useAuth } from "../contexts/AuthContext";
@@ -50,9 +50,9 @@ function PurchasedStoryCard({
   let statusChipLabel = "";
   let statusChipColor: "success" | "warning" | "error" | "default" = "default";
   if (isPrintPurchase) {
-    statusChipLabel = getPrintOrderStatusLabel(story.printOrderStatus);
+    statusChipLabel = t(getPrintOrderStatusLabelKey(story.printOrderStatus).key);
     statusChipColor =
-      story.printOrderStatus === "delivered"
+      story.printOrderStatus === "completed"
         ? "success"
         : story.printOrderStatus === "cancelled"
           ? "error"
@@ -118,7 +118,10 @@ function PurchasedStoryCard({
 
         <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
           <Chip
-            label={getPurchaseFormatLabel(story.purchaseFormat ?? "digital")}
+            label={t(
+              getPurchaseTypeLabelKey(story.purchaseFormat, story.itemType, story.childFirstName)
+                .key,
+            )}
             size="small"
             variant="outlined"
             sx={{ fontSize: 10, height: 20 }}
@@ -136,7 +139,7 @@ function PurchasedStoryCard({
           )}
           {isPrintPurchase && isGenerating && (
             <Typography sx={{ fontSize: 10, color: "#9a8a92" }}>
-              Preparing story files
+              {t("pages.myStories.purchased.printGeneratingNote")}
             </Typography>
           )}
           {(isPartiallyFailed || isFailed) && (
@@ -334,12 +337,12 @@ export default function MyStoriesPage() {
     }
   };
 
-  const handleAddToCart = async (purchaseFormat: PurchaseFormat) => {
+  const handleAddToCart = async (purchaseFormat: PurchaseFormat, shippingDetails?: ShippingDetails) => {
     if (!pendingCartPreview) return;
 
     setAddingToCartFormat(purchaseFormat);
     try {
-      await addToCart(pendingCartPreview.previewId, purchaseFormat);
+      await addToCart(pendingCartPreview.previewId, purchaseFormat, shippingDetails);
       navigate("/cart");
     } catch (err) {
       console.warn("Add to cart failed:", err);
@@ -505,7 +508,9 @@ export default function MyStoriesPage() {
               </Box>
             ) : (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                {previews.map((preview) => (
+                {previews.map((preview) => {
+                  const cartState = getPreviewCartState(preview.status);
+                  return (
                   <Box
                     key={preview.previewId}
                     sx={{
@@ -563,7 +568,7 @@ export default function MyStoriesPage() {
                         >
                           {t("pages.myStories.previews.savedBadge")}
                         </Box>
-                        {getPreviewCartState(preview.status) === "in_cart" && (
+                        {cartState === "in_cart" && (
                           <Box
                             sx={{
                               fontSize: 10,
@@ -577,6 +582,22 @@ export default function MyStoriesPage() {
                             }}
                           >
                             {t("pages.myStories.previews.inCartLabel")}
+                          </Box>
+                        )}
+                        {cartState === "checkout_pending" && (
+                          <Box
+                            sx={{
+                              fontSize: 10,
+                              px: "8px",
+                              py: "2px",
+                              borderRadius: "999px",
+                              background: "#EDE5F5",
+                              color: "#5A3B8A",
+                              border: "0.5px solid #B398D9",
+                              fontWeight: 500,
+                            }}
+                          >
+                            {t("pages.myStories.previews.checkoutPendingLabel")}
                           </Box>
                         )}
                         {preview.language && (
@@ -629,7 +650,7 @@ export default function MyStoriesPage() {
                           ? t("pages.myStories.previews.opening")
                           : t("pages.myStories.previews.readCta")}
                       </Button>
-                      {getPreviewCartState(preview.status) === "in_cart" ? (
+                      {cartState === "in_cart" ? (
                         <Button
                           size="small"
                           variant="outlined"
@@ -651,6 +672,25 @@ export default function MyStoriesPage() {
                           }}
                         >
                           {t("pages.myStories.previews.viewCartCta")}
+                        </Button>
+                      ) : cartState === "checkout_pending" ? (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled
+                          sx={{
+                            borderColor: "#ddd4ca",
+                            color: "#9a8a92",
+                            textTransform: "none",
+                            borderRadius: "10px",
+                            fontSize: 12,
+                            px: 2,
+                            py: 0.75,
+                            fontWeight: 600,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {t("pages.myStories.previews.checkoutPendingCta")}
                         </Button>
                       ) : (
                         <Button
@@ -681,7 +721,8 @@ export default function MyStoriesPage() {
                       )}
                     </Box>
                   </Box>
-                ))}
+                  );
+                })}
               </Box>
             )}
           </Box>

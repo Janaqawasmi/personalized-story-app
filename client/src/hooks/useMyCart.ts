@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import { db } from "../firebase";
 import { getAuth } from "firebase/auth";
-import type { PurchaseFormat } from "../types/commerce";
+import type { PurchaseFormat, ShippingDetails } from "../types/commerce";
 
 export interface CartItemView {
   cartItemId: string;
@@ -17,6 +17,7 @@ export interface CartItemView {
   currency: string;
   language: "ar" | "he";
   addedAt: unknown;
+  shippingDetails?: ShippingDetails;
 }
 
 interface UseMyCartResult {

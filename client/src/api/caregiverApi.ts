@@ -7,7 +7,7 @@
 
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "./api";
-import type { PrintOrder, PrintOrderStatus, PurchaseFormat } from "../types/commerce";
+import type { PrintOrder, PrintOrderStatus, PurchaseFormat, ShippingDetails } from "../types/commerce";
 
 // ============================================================================
 // Configuration
@@ -142,6 +142,7 @@ export interface CartItemData {
   currency: string;
   language: "ar" | "he";
   addedAt: unknown;
+  shippingDetails?: ShippingDetails;
 }
 
 export interface StoryLibraryItem {
@@ -628,17 +629,19 @@ export async function listCartItems(): Promise<CartItemData[]> {
 }
 
 /**
- * Add a preview to the cart.
+ * Add a preview to the cart. `shippingDetails` is required by the server
+ * when purchaseFormat === "print" and ignored otherwise.
  */
 export async function addToCart(
   previewId: string,
   purchaseFormat: PurchaseFormat,
+  shippingDetails?: ShippingDetails,
 ): Promise<CartItemData> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/caregiver/cart`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ previewId, purchaseFormat }),
+    body: JSON.stringify({ previewId, purchaseFormat, shippingDetails }),
   });
   return handleResponse<CartItemData>(res);
 }

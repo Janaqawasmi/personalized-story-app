@@ -36,7 +36,7 @@ import { usePreviewQuota } from "../hooks/usePreviewQuota";
 import { DirectPurchaseSummary } from "../components/preview/DirectPurchaseSummary";
 import WaitingScreenPicker from "../components/waiting/WaitingScreenPicker";
 import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
-import type { PurchaseFormat } from "../types/commerce";
+import type { PurchaseFormat, ShippingDetails } from "../types/commerce";
 import { getPurchaseOptionsFromTemplateData } from "../utils/purchaseOptions";
 import { isTextPersonalizationReady } from "../utils/textPersonalizationReadiness";
 
@@ -831,6 +831,13 @@ export default function PersonalizeStoryPage() {
         }
 
         setEligibility("ok");
+        // getPurchaseOptionsFromTemplateData() returns { currency, digitalPrice,
+        // printPrice, printAvailable } — mapped explicitly rather than spread,
+        // since StoryTemplate uses priceDigital/pricePrint. A prior spread of
+        // the mismatched names silently left priceDigital/pricePrint
+        // undefined, making the Add to Cart dialog show "Coming soon" for
+        // both formats even on fully-priced templates.
+        const purchaseOptions = getPurchaseOptionsFromTemplateData(data as Record<string, unknown>);
         setStory({
           id: storySnap.id,
           title: data.title || t("personalize.story"),
@@ -839,7 +846,10 @@ export default function PersonalizeStoryPage() {
           targetAgeGroup: data.targetAgeGroup || data.generationConfig?.targetAgeGroup,
           topic: data.primaryTopic ?? data.topicKey ?? data.topic,
           generationConfig: data.generationConfig,
-          ...getPurchaseOptionsFromTemplateData(data as Record<string, unknown>),
+          currency: purchaseOptions.currency,
+          priceDigital: purchaseOptions.digitalPrice,
+          pricePrint: purchaseOptions.printPrice,
+          printAvailable: purchaseOptions.printAvailable,
           previewSentence: typeof data.previewSentence === "string" ? data.previewSentence : undefined,
           coverImage: typeof data.coverImage === "string" ? data.coverImage : data.coverImageUrl,
         });
@@ -1204,12 +1214,12 @@ export default function PersonalizeStoryPage() {
 
   const storyTitleForUi = pickLang(story.title, language) || t("personalize.story");
 
-  const handleDirectPurchaseAddToCart = async (purchaseFormat: PurchaseFormat) => {
+  const handleDirectPurchaseAddToCart = async (purchaseFormat: PurchaseFormat, shippingDetails?: ShippingDetails) => {
     if (!directPurchaseResult) return;
 
     setAddingToCartFormat(purchaseFormat);
     try {
-      await addToCart(directPurchaseResult.previewId, purchaseFormat);
+      await addToCart(directPurchaseResult.previewId, purchaseFormat, shippingDetails);
       navigate("/cart");
     } catch (err) {
       console.warn("Add to cart failed:", err);

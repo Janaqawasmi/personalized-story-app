@@ -18,7 +18,7 @@ import StickyMobileCta from "./components/StickyMobileCta";
 import { heroVariant, fadeUpVariant } from "./animations/variants";
 import { getPersonalizeRoute } from "./storyDetailRoutes";
 import { createFixedStoryPreview, addToCart } from "../../api/caregiverApi";
-import type { PurchaseFormat } from "../../types/commerce";
+import type { PurchaseFormat, ShippingDetails } from "../../types/commerce";
 import PurchaseFormatDialog from "../../components/commerce/PurchaseFormatDialog";
 import { COLORS } from "../../theme";
 
@@ -110,14 +110,14 @@ export default function StoryDetailPage() {
     setFormatDialogOpen(true);
   };
 
-  const handleBuyWithFormat = async (purchaseFormat: PurchaseFormat) => {
+  const handleBuyWithFormat = async (purchaseFormat: PurchaseFormat, shippingDetails?: ShippingDetails) => {
     if (!storyVm || buying) return;
     setBuying(true);
     setBuyingFormat(purchaseFormat);
     setBuyError(null);
     try {
       const { previewId } = await createFixedStoryPreview(storyVm.id);
-      await addToCart(previewId, purchaseFormat);
+      await addToCart(previewId, purchaseFormat, shippingDetails);
       navigate("/cart");
     } catch (err) {
       console.error("[StoryDetailPage] Failed to add story to cart:", err);

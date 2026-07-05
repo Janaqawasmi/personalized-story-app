@@ -38,7 +38,7 @@ import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/LanguageContext";
 import { useReader } from "../contexts/ReaderContext";
 import { addToCart, ApiError } from "../api/caregiverApi";
-import type { PurchaseFormat } from "../types/commerce";
+import type { PurchaseFormat, ShippingDetails } from "../types/commerce";
 import PurchaseFormatDialog from "../components/commerce/PurchaseFormatDialog";
 import {
   ttsSpeak,
@@ -77,6 +77,7 @@ import {
   loadPersonalizedStoryForReader,
   PersonalizedStoryNotAccessibleError,
 } from "../utils/personalizedStoryReaderLoader";
+import { getReaderErrorReference } from "../utils/readerErrorReference";
 import { preloadReaderImages } from "../utils/readerImageCache";
 import {
   collectReaderImageUrls,
@@ -185,6 +186,7 @@ export default function BookReaderPage() {
   // Identifies a `personalizedStories/{id}` record: the fully generated, fully
   // paid-for book. When set, the reader skips the free-preview personalization
   // gate/lock entirely (cart/payment flow Bug 4).
+  const personalizedStoryIdParamPresent = searchParams.has("personalizedStoryId");
   const personalizedStoryIdFromQuery = searchParams.get("personalizedStoryId");
   const [isFullPurchase, setIsFullPurchase] = useState(false);
 
@@ -265,6 +267,16 @@ export default function BookReaderPage() {
   useEffect(() => {
     if (!storyId) {
       setError("Story ID is missing");
+      setLoading(false);
+      return;
+    }
+
+    // The "personalizedStoryId" param being present but empty (a malformed
+    // "Read Story" link) must surface as a clear error, not silently fall
+    // through to the free-preview branch below and bounce a caregiver who
+    // already paid back to the personalize wizard.
+    if (personalizedStoryIdParamPresent && !personalizedStoryIdFromQuery) {
+      setError(t("pages.bookReader.errorMissingPersonalizedStoryId"));
       setLoading(false);
       return;
     }
@@ -438,6 +450,14 @@ export default function BookReaderPage() {
             ...collectReaderImageUrls(pages),
             ...(resolvedCoverImage ? [resolvedCoverImage] : []),
           ]);
+          // getPurchaseOptionsFromTemplateData() returns { currency, digitalPrice,
+          // printPrice, printAvailable } — field names deliberately mapped here
+          // rather than spread, since this component's StoryTemplate type uses
+          // priceDigital/pricePrint (matching PurchaseFormatDialog's props).
+          // A prior spread of the mismatched names silently left priceDigital/
+          // pricePrint undefined, which made the Add to Cart dialog show
+          // "Coming soon" for both formats even on fully-priced templates.
+          const purchaseOptions = getPurchaseOptionsFromTemplateData(data as Record<string, unknown>);
           setStory({
             id: storySnap.id,
             title: data.title || t("search.storyWithoutName"),
@@ -446,7 +466,10 @@ export default function BookReaderPage() {
             status: data.status,
             coverImage: resolvedCoverImage,
             childName: displayName,
-            ...getPurchaseOptionsFromTemplateData(data as Record<string, unknown>),
+            currency: purchaseOptions.currency,
+            priceDigital: purchaseOptions.digitalPrice,
+            pricePrint: purchaseOptions.printPrice,
+            printAvailable: purchaseOptions.printAvailable,
           });
           storyLoadStartedRef.current = true;
         }
@@ -464,7 +487,10 @@ export default function BookReaderPage() {
     return () => {
       cancelled = true;
     };
-  }, [storyId, previewIdFromQuery, personalizedStoryIdFromQuery]);
+    // `t` intentionally omitted (matches existing convention in this effect):
+    // useTranslation() returns a new function identity every render, so
+    // including it would re-run this effect (and re-fetch) on every render.
+  }, [storyId, previewIdFromQuery, personalizedStoryIdFromQuery, personalizedStoryIdParamPresent]);
 
   // Live Firestore updates when preview generation completes (debounced, skip no-op writes)
   useEffect(() => {
@@ -776,7 +802,7 @@ export default function BookReaderPage() {
     setPreviewUnlockOverlayOpen(false);
   };
 
-  const handlePreviewAddToCart = async (purchaseFormat: PurchaseFormat) => {
+  const handlePreviewAddToCart = async (purchaseFormat: PurchaseFormat, shippingDetails?: ShippingDetails) => {
     if (!previewId) {
       setFormatDialogOpen(false);
       setPreviewUnlockOverlayOpen(false);
@@ -787,7 +813,7 @@ export default function BookReaderPage() {
     setAddingToCartFormat(purchaseFormat);
 
     try {
-      await addToCart(previewId, purchaseFormat);
+      await addToCart(previewId, purchaseFormat, shippingDetails);
       setPreviewUnlockOverlayOpen(false);
       navigate("/cart");
     } catch (e) {
@@ -921,9 +947,19 @@ export default function BookReaderPage() {
   }
 
   if (error || !story) {
+    const errorRef = getReaderErrorReference({
+      personalizedStoryId: personalizedStoryIdFromQuery,
+      previewId: previewIdFromQuery,
+      storyId,
+    });
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default, px: 3 }}>
         <Typography sx={{ color: theme.palette.text.secondary, mb: 2, textAlign: "center" }}>{error || t("pages.bookReader.error")}</Typography>
+        {errorRef && (
+          <Typography sx={{ color: theme.palette.text.disabled, fontSize: 12, mb: 2, textAlign: "center" }}>
+            {t(errorRef.key, { id: errorRef.id })}
+          </Typography>
+        )}
         <IconButton onClick={() => navigate(-1)}><CloseIcon /></IconButton>
       </Box>
     );

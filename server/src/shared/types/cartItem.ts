@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PurchaseFormat } from "./commerce";
+import { PurchaseFormat, ShippingDetails } from "./commerce";
 
 export interface CartItem {
   cartItemId: string;
@@ -14,4 +14,6 @@ export interface CartItem {
   currency: string;
   language: "ar" | "he";
   addedAt: Timestamp;
+  /** Required and present only when purchaseFormat === "print". */
+  shippingDetails?: ShippingDetails;
 }

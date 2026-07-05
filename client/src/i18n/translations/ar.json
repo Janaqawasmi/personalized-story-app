@@ -342,7 +342,11 @@
       "autoReadOff": "القراءة التلقائية معطّلة",
       "voice": "الصوت",
       "voiceAuto": "تلقائي (الأفضل)",
-      "close": "إغلاق"
+      "close": "إغلاق",
+      "errorMissingPersonalizedStoryId": "رابط القصة المشتراة يفتقد إلى معرّف القصة. يرجى فتحه مجددًا من \"مكتبتي\".",
+      "errorReferencePersonalizedStory": "المرجع: قصة مخصصة {id}",
+      "errorReferencePreview": "المرجع: معاينة {id}",
+      "errorReferenceTemplate": "المرجع: قصة {id}"
     },
     "placeholder": {
       "backToHome": "العودة إلى المنزل"
@@ -357,6 +361,38 @@
       "totalLabel": "المجموع",
       "checkoutCta": "الدفع",
       "checkoutError": "حدث خطأ أثناء بدء الدفع. يرجى المحاولة مرة أخرى."
+    },
+    "purchaseFormat": {
+      "title": "أي نسخة تريد؟",
+      "digitalLabel": "رقمية",
+      "printLabel": "مطبوعة",
+      "digitalDescription": "القراءة عبر الموقع بعد الشراء",
+      "printDescriptionAvailable": "كتاب مطبوع يُجهّزه فريقنا",
+      "printDescriptionUnavailable": "النسخة المطبوعة قريبًا",
+      "comingSoon": "قريبًا"
+    },
+    "shipping": {
+      "title": "تفاصيل الشحن",
+      "subtitle": "سنستخدم هذه التفاصيل لتحضير الكتاب المطبوع وإرساله.",
+      "fullNameLabel": "الاسم الكامل",
+      "phoneNumberLabel": "رقم الهاتف",
+      "emailLabel": "البريد الإلكتروني (اختياري)",
+      "cityLabel": "المدينة",
+      "streetAddressLabel": "العنوان (الشارع والرقم)",
+      "buildingOrHouseNumberLabel": "رقم المبنى (اختياري)",
+      "apartmentLabel": "الشقة (اختياري)",
+      "postalCodeLabel": "الرمز البريدي (اختياري)",
+      "deliveryNotesLabel": "ملاحظات التوصيل (اختياري)",
+      "back": "رجوع",
+      "continue": "متابعة",
+      "errors": {
+        "fullNameRequired": "الاسم الكامل مطلوب",
+        "phoneNumberRequired": "رقم الهاتف مطلوب",
+        "phoneNumberInvalid": "أدخل رقم هاتف صالحًا",
+        "cityRequired": "المدينة مطلوبة",
+        "streetAddressRequired": "العنوان مطلوب",
+        "emailInvalid": "أدخل بريدًا إلكترونيًا صالحًا"
+      }
     },
     "checkoutMock": {
       "title": "دفع في بيئة تجريبية",
@@ -398,7 +434,22 @@
         "partiallyFailedLabel": "فشل إنشاء القصة جزئيًا. يُرجى التواصل مع الدعم.",
         "failedLabel": "فشل إنشاء القصة. يُرجى التواصل مع الدعم.",
         "contactSupport": "تواصل مع الدعم",
-        "pagesProgress": "{completed} من {total} صفحة"
+        "pagesProgress": "{completed} من {total} صفحة",
+        "printGeneratingNote": "جارٍ تجهيز ملفات القصة",
+        "type": {
+          "digitalPersonalized": "قصة رقمية مخصصة",
+          "digitalOriginal": "قصة رقمية أصلية",
+          "printPersonalized": "قصة مطبوعة مخصصة",
+          "printOriginal": "قصة مطبوعة أصلية"
+        },
+        "printStatus": {
+          "order_received": "تم استلام الطلب",
+          "in_preparation": "قيد التحضير",
+          "ready": "جاهز",
+          "shipped": "تم الشحن",
+          "completed": "مكتمل",
+          "cancelled": "أُلغي"
+        }
       },
       "previews": {
         "emptyTitle": "لا توجد معاينات محفوظة بعد",
@@ -414,7 +465,9 @@
         "addToCartCta": "أضف إلى السلة",
         "addingToCart": "جارٍ الإضافة...",
         "inCartLabel": "في السلة",
-        "viewCartCta": "عرض السلة"
+        "viewCartCta": "عرض السلة",
+        "checkoutPendingLabel": "الدفع قيد المعالجة",
+        "checkoutPendingCta": "الدفع قيد المعالجة"
       },
       "favorites": {
         "emptyTitle": "لا توجد مفضلات بعد",

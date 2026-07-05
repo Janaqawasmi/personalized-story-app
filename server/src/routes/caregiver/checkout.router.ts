@@ -7,12 +7,76 @@ import { validateCartItems } from "../../services/cart.service";
 import { generateFullStory } from "../../services/fullStoryGeneration.service";
 import { PaymentProvider } from "../../shared/types/paymentProvider";
 import { Purchase } from "../../shared/types/purchase";
+import { CartItem } from "../../shared/types/cartItem";
+import { PurchaseFormat } from "../../shared/types/commerce";
 import {
   PurchasePricingError,
   resolveTemplatePurchasePricing,
 } from "../../services/purchasePricing.service";
+import { validateShippingDetails } from "../../services/shippingValidation.service";
 
 const router = Router();
+
+export interface CheckoutItemPricingResult {
+  valid: boolean;
+  reason?: string;
+  purchaseFormat?: PurchaseFormat;
+  priceCents?: number;
+  currency?: string;
+}
+
+/**
+ * Resolves server-side price/currency for a single cart item at checkout,
+ * and — for print items — re-validates shipping/contact details before the
+ * item can proceed to a pending purchase.
+ *
+ * cart.router.ts already validates shippingDetails when a print item is
+ * added to the cart, but that's a UX check at add-time, not a security
+ * boundary: the cart Firestore rules allow the owning buyer to write cart
+ * items directly (bypassing the REST API), so checkout — the point where a
+ * pending Purchase and payment session are actually created — must
+ * re-validate independently rather than trust whatever is stored on the
+ * cart item. Digital items are never required to have shipping details.
+ *
+ * Exported for unit testing (no Firestore access — templateData is passed
+ * in already-fetched, matching the pattern of resolveTemplatePurchasePricing).
+ */
+export function priceAndValidateCheckoutItem(
+  item: CartItem,
+  templateData: Record<string, unknown> | null,
+): CheckoutItemPricingResult {
+  if (!templateData) {
+    return { valid: false, reason: "This story is no longer available" };
+  }
+
+  try {
+    const pricing = resolveTemplatePurchasePricing(templateData, item.purchaseFormat ?? "digital");
+
+    if (pricing.purchaseFormat === "print") {
+      const shippingValidation = validateShippingDetails(
+        item.shippingDetails as Record<string, unknown> | undefined,
+      );
+      if (!shippingValidation.valid) {
+        return {
+          valid: false,
+          reason: `Shipping details are invalid: ${shippingValidation.errors.join(", ")}`,
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      purchaseFormat: pricing.purchaseFormat,
+      priceCents: pricing.priceCents,
+      currency: pricing.currency,
+    };
+  } catch (error) {
+    if (error instanceof PurchasePricingError && error.code === "PRINT_NOT_AVAILABLE") {
+      return { valid: false, reason: "Print version is no longer available" };
+    }
+    throw error;
+  }
+}
 
 let _paymentProvider: PaymentProvider | null = null;
 
@@ -37,8 +101,11 @@ function requirePaymentProvider(): PaymentProvider {
  * POST /api/caregiver/checkout
  *
  * Initiates checkout for cart items or specific previews.
- * Validates all items, creates pending purchase documents,
- * and returns the payment provider's checkout URL.
+ * Validates all items, creates pending purchase documents, marks the
+ * corresponding previews as "checkout_pending" (NOT "purchased" — payment
+ * has not been confirmed yet), and returns the payment provider's checkout
+ * URL. The preview only becomes "purchased" once processPaymentEvent()
+ * confirms the payment succeeded.
  *
  * Input: { cartItemIds: string[] } OR { previewIds: string[] }
  */
@@ -118,40 +185,22 @@ router.post(
           .doc(item.templateId)
           .get();
 
-        if (!templateDoc.exists) {
-          pricingInvalidItems.push({
-            cartItemId: item.cartItemId,
-            reason: "This story is no longer available",
-          });
+        const result = priceAndValidateCheckoutItem(
+          item,
+          templateDoc.exists ? (templateDoc.data() as Record<string, unknown>) : null,
+        );
+
+        if (!result.valid) {
+          pricingInvalidItems.push({ cartItemId: item.cartItemId, reason: result.reason! });
           continue;
         }
 
-        try {
-          const pricing = resolveTemplatePurchasePricing(
-            templateDoc.data() as Record<string, unknown>,
-            item.purchaseFormat ?? "digital",
-          );
-
-          pricedCheckoutItems.push({
-            ...item,
-            purchaseFormat: pricing.purchaseFormat,
-            priceCents: pricing.priceCents,
-            currency: pricing.currency,
-          });
-        } catch (error) {
-          if (
-            error instanceof PurchasePricingError &&
-            error.code === "PRINT_NOT_AVAILABLE"
-          ) {
-            pricingInvalidItems.push({
-              cartItemId: item.cartItemId,
-              reason: "Print version is no longer available",
-            });
-            continue;
-          }
-
-          throw error;
-        }
+        pricedCheckoutItems.push({
+          ...item,
+          purchaseFormat: result.purchaseFormat!,
+          priceCents: result.priceCents!,
+          currency: result.currency!,
+        });
       }
 
       if (pricingInvalidItems.length > 0) {
@@ -229,9 +278,11 @@ router.post(
           templateTitle: item.templateTitle,
           childFirstName: item.childFirstName,
           personalizedStoryId: null,
+          cartItemId: item.cartItemId,
           itemType: item.childFirstName ? "personalized" : "template",
           purchaseFormat: item.purchaseFormat,
           printOrder: null,
+          shippingDetails: item.purchaseFormat === "print" ? item.shippingDetails ?? null : null,
           paymentTransactionId: session.paymentIntentId,
           paymentSessionId: session.sessionId,
           paymentChargeId: null,
@@ -250,12 +301,17 @@ router.post(
 
         batch.set(purchaseRef, purchaseData);
 
-        // Update preview status
+        // Mark the preview as mid-checkout. This is NOT "purchased" — payment
+        // has not been confirmed yet (the caregiver is about to be redirected
+        // to the payment provider). "purchased" is only set by
+        // processPaymentEvent() once the webhook/mock-simulate callback
+        // confirms success. If payment fails or is abandoned, this reverts to
+        // "ready" (see the payment.failed branch of processPaymentEvent).
         const previewRef = db
           .collection(COLLECTIONS.STORY_PREVIEWS)
           .doc(item.previewId);
         batch.update(previewRef, {
-          status: "purchased",
+          status: "checkout_pending",
           purchaseId,
           updatedAt: admin.firestore.Timestamp.now(),
         });
@@ -294,14 +350,41 @@ interface PaymentEvent {
 function createPendingPrintOrder() {
   const now = new Date().toISOString();
   return {
-    status: "paid_pending_preparation" as const,
-    needsAdminFollowUp: true,
-    shippingAddress: null,
-    phoneNumber: null,
-    deliveryNotes: null,
+    status: "order_received" as const,
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/**
+ * Removes the cart item a now-confirmed purchase came from, so a purchased
+ * story never lingers in "caregivers/{uid}/cart" — a stale purchased cart
+ * item fails cart.service.ts's re-validation on the next checkout attempt
+ * ("Already purchased" / "Preview is in an unexpected state"), and since the
+ * client sends every cart item id on checkout, that one stale item blocks
+ * the whole request (cart/payment flow Bug 6). Only ever called after
+ * payment is confirmed — never on checkout initiation or payment failure, so
+ * a failed/cancelled payment always leaves the item in the cart to retry.
+ *
+ * Prefers the purchase's own `cartItemId` (exact, O(1) delete). Falls back
+ * to a previewId lookup for purchases created before that field existed.
+ * Best-effort: the purchase/preview state is already correctly updated by
+ * the time this runs, so a failure here is logged, not fatal.
+ */
+async function deleteCartItemForPurchase(purchase: Purchase): Promise<void> {
+  try {
+    if (purchase.cartItemId) {
+      await db.collection(COLLECTIONS.cart(purchase.caregiverUid)).doc(purchase.cartItemId).delete();
+      return;
+    }
+    const staleCartItems = await db
+      .collection(COLLECTIONS.cart(purchase.caregiverUid))
+      .where("previewId", "==", purchase.previewId)
+      .get();
+    await Promise.all(staleCartItems.docs.map((doc) => doc.ref.delete()));
+  } catch (error) {
+    console.warn(`Failed to remove cart item for purchase ${purchase.purchaseId}:`, error);
+  }
 }
 
 /**
@@ -309,8 +392,10 @@ function createPendingPrintOrder() {
  * real webhook route and the sandbox-only mock-simulate route so both paths
  * exercise identical purchase-finalization logic.
  *
- * On payment success: updates purchase to "paid", triggers full story generation.
- * On payment failure: updates purchase to "failed" and reverts the preview.
+ * On payment success: updates purchase to "paid", moves the preview from
+ * "checkout_pending" to "purchased", and triggers full story generation.
+ * On payment failure: updates purchase to "failed" and reverts the preview
+ * to "ready" (undoing the "checkout_pending" mark from checkout initiation).
  * Idempotent: purchases not in "pending" status are skipped.
  */
 export async function processPaymentEvent(event: PaymentEvent): Promise<void> {
@@ -348,6 +433,21 @@ export async function processPaymentEvent(event: PaymentEvent): Promise<void> {
             : null,
         updatedAt: admin.firestore.Timestamp.now(),
       });
+
+      // Payment is now confirmed — only now does the preview become
+      // "purchased" (moving it out of "My previews"). generateFullStory()
+      // will later advance it to "converted" once the story is generated.
+      await db
+        .collection(COLLECTIONS.STORY_PREVIEWS)
+        .doc(purchase.previewId)
+        .update({
+          status: "purchased",
+          updatedAt: admin.firestore.Timestamp.now(),
+        });
+
+      // Payment confirmed — the purchased item must never linger in the
+      // cart (it would fail re-validation and block the next checkout).
+      await deleteCartItemForPurchase(purchase);
 
       // Trigger full story generation
       generateFullStory(purchase.purchaseId, purchase.previewId).catch((error) => {

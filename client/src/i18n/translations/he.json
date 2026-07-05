@@ -342,7 +342,11 @@
       "autoReadOff": "קריאה אוטומטית כבויה",
       "voice": "קול",
       "voiceAuto": "אוטומטי (מומלץ)",
-      "close": "סגירה"
+      "close": "סגירה",
+      "errorMissingPersonalizedStoryId": "בקישור לסיפור שנרכש חסר מזהה. אנא פתחו אותו מחדש מתוך \"הספרייה שלי\".",
+      "errorReferencePersonalizedStory": "מזהה: סיפור מותאם אישית {id}",
+      "errorReferencePreview": "מזהה: תצוגה מקדימה {id}",
+      "errorReferenceTemplate": "מזהה: סיפור {id}"
     },
     "placeholder": {
       "backToHome": "חזרה לדף הבית"
@@ -357,6 +361,38 @@
       "totalLabel": "סה\"כ",
       "checkoutCta": "לתשלום",
       "checkoutError": "משהו השתבש בתהליך התשלום. נסה שוב."
+    },
+    "purchaseFormat": {
+      "title": "איזו גרסה תרצו?",
+      "digitalLabel": "דיגיטלית",
+      "printLabel": "מודפסת",
+      "digitalDescription": "קריאה באתר לאחר הרכישה",
+      "printDescriptionAvailable": "ספר מודפס בהכנת הצוות שלנו",
+      "printDescriptionUnavailable": "הגרסה המודפסת תהיה זמינה בקרוב",
+      "comingSoon": "בקרוב"
+    },
+    "shipping": {
+      "title": "פרטי משלוח",
+      "subtitle": "נשתמש בפרטים אלו כדי להכין ולשלוח את הספר המודפס.",
+      "fullNameLabel": "שם מלא",
+      "phoneNumberLabel": "מספר טלפון",
+      "emailLabel": "אימייל (לא חובה)",
+      "cityLabel": "עיר",
+      "streetAddressLabel": "כתובת (רחוב ומספר)",
+      "buildingOrHouseNumberLabel": "מספר בניין (לא חובה)",
+      "apartmentLabel": "דירה (לא חובה)",
+      "postalCodeLabel": "מיקוד (לא חובה)",
+      "deliveryNotesLabel": "הערות למשלוח (לא חובה)",
+      "back": "חזרה",
+      "continue": "המשך",
+      "errors": {
+        "fullNameRequired": "יש להזין שם מלא",
+        "phoneNumberRequired": "יש להזין מספר טלפון",
+        "phoneNumberInvalid": "יש להזין מספר טלפון תקין",
+        "cityRequired": "יש להזין עיר",
+        "streetAddressRequired": "יש להזין כתובת",
+        "emailInvalid": "יש להזין כתובת אימייל תקינה"
+      }
     },
     "checkoutMock": {
       "title": "תשלום בסביבת בדיקה",
@@ -398,7 +434,22 @@
         "partiallyFailedLabel": "יצירת הסיפור נכשלה חלקית. אנא פנה לתמיכה.",
         "failedLabel": "יצירת הסיפור נכשלה. אנא פנה לתמיכה.",
         "contactSupport": "פנה לתמיכה",
-        "pagesProgress": "{completed} מתוך {total} עמודים"
+        "pagesProgress": "{completed} מתוך {total} עמודים",
+        "printGeneratingNote": "מכינים את קובצי הסיפור",
+        "type": {
+          "digitalPersonalized": "סיפור דיגיטלי מותאם אישית",
+          "digitalOriginal": "סיפור דיגיטלי מקורי",
+          "printPersonalized": "סיפור מודפס מותאם אישית",
+          "printOriginal": "סיפור מודפס מקורי"
+        },
+        "printStatus": {
+          "order_received": "ההזמנה התקבלה",
+          "in_preparation": "בהכנה",
+          "ready": "מוכן",
+          "shipped": "נשלח",
+          "completed": "הושלם",
+          "cancelled": "בוטל"
+        }
       },
       "previews": {
         "emptyTitle": "אין תצוגות שמורות עדיין",
@@ -414,7 +465,9 @@
         "addToCartCta": "הוסף לעגלה",
         "addingToCart": "מוסיף...",
         "inCartLabel": "בעגלה",
-        "viewCartCta": "צפה בעגלה"
+        "viewCartCta": "צפה בעגלה",
+        "checkoutPendingLabel": "תשלום בתהליך",
+        "checkoutPendingCta": "תשלום בתהליך"
       },
       "favorites": {
         "emptyTitle": "אין מועדפים עדיין",

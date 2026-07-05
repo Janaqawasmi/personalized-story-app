@@ -8,6 +8,7 @@ import {
   PurchasePricingError,
   resolveTemplatePurchasePricing,
 } from "../../services/purchasePricing.service";
+import { validateShippingDetails } from "../../services/shippingValidation.service";
 
 const router = Router();
 
@@ -59,9 +60,10 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     try {
       const caregiverUid = req.caregiverUser!.uid;
-      const { previewId, purchaseFormat: rawPurchaseFormat } = req.body as {
+      const { previewId, purchaseFormat: rawPurchaseFormat, shippingDetails: rawShippingDetails } = req.body as {
         previewId?: string;
         purchaseFormat?: string;
+        shippingDetails?: Record<string, unknown>;
       };
       const purchaseFormat = normalizePurchaseFormat(rawPurchaseFormat);
 
@@ -79,6 +81,22 @@ router.post(
           error: "purchaseFormat must be 'digital' or 'print'",
         });
         return;
+      }
+
+      // Print purchases require basic contact/address details — collected by
+      // the client's shipping form, but never trusted without re-validating
+      // here (the client validation is UX only).
+      let shippingDetails: ReturnType<typeof validateShippingDetails>["value"];
+      if (purchaseFormat === "print") {
+        const validation = validateShippingDetails(rawShippingDetails);
+        if (!validation.valid) {
+          res.status(400).json({
+            success: false,
+            error: `Shipping details are invalid: ${validation.errors.join(", ")}`,
+          });
+          return;
+        }
+        shippingDetails = validation.value;
       }
 
       // Load preview and verify ownership + status
@@ -161,16 +179,24 @@ router.post(
 
       if (!existingCartItem.empty) {
         const existing = existingCartItem.docs[0]!;
-        const existingData = existing.data();
+        // Strip any stale shippingDetails from the previous add — it is
+        // re-added below only when the (possibly changed) format is print.
+        const { shippingDetails: _staleShippingDetails, ...existingData } = existing.data();
         const refreshedItem = {
           ...existingData,
           purchaseFormat,
           priceCents,
           currency,
           addedAt: admin.firestore.Timestamp.now(),
+          ...(purchaseFormat === "print" ? { shippingDetails } : {}),
         };
 
-        await existing.ref.update(refreshedItem);
+        // FieldValue.delete() is a write-only sentinel — it must never appear
+        // in the JSON response, so it's added to the Firestore write only.
+        await existing.ref.update({
+          ...refreshedItem,
+          ...(purchaseFormat === "digital" ? { shippingDetails: admin.firestore.FieldValue.delete() } : {}),
+        });
 
         res.status(200).json({
           success: true,
@@ -197,6 +223,7 @@ router.post(
         currency,
         language: preview.language as "ar" | "he",
         addedAt: admin.firestore.Timestamp.now(),
+        ...(purchaseFormat === "print" ? { shippingDetails } : {}),
       };
 
       await cartRef.set(cartItemData);

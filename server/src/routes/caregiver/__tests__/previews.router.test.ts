@@ -30,6 +30,10 @@ describe("isPreviewVisibleInMyPreviews", () => {
     expect(isPreviewVisibleInMyPreviews("added_to_cart")).toBe(true);
   });
 
+  it("shows a preview mid-checkout (payment not yet confirmed)", () => {
+    expect(isPreviewVisibleInMyPreviews("checkout_pending")).toBe(true);
+  });
+
   it("hides a preview once it has been purchased", () => {
     expect(isPreviewVisibleInMyPreviews("purchased")).toBe(false);
   });

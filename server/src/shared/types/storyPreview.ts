@@ -24,6 +24,15 @@ export type PreviewStatus =
   | "ready"
   | "failed"
   | "added_to_cart"
+  /**
+   * Checkout has been initiated (a pending Purchase exists and the caregiver
+   * has been redirected to the payment provider) but payment has not yet been
+   * confirmed. Distinct from "purchased" on purpose: nothing should be
+   * treated as sold until the payment-provider webhook/mock-simulate callback
+   * confirms success (see processPaymentEvent in checkout.router.ts). If the
+   * caregiver abandons or the payment fails, the preview reverts to "ready".
+   */
+  | "checkout_pending"
   | "purchased"
   | "converted"
   /**

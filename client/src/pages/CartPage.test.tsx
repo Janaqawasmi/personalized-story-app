@@ -47,6 +47,9 @@ describe("CartPage", () => {
     render(<CartPage />);
 
     expect(screen.getByText("Brave Night")).toBeInTheDocument();
-    expect(screen.getByText("Print")).toBeInTheDocument();
+    // useTranslation is mocked as the identity function here, so the label
+    // renders as its translation key rather than literal "Print" text —
+    // see getPurchaseFormatLabelKey() in utils/purchaseOptions.ts.
+    expect(screen.getByText("pages.purchaseFormat.printLabel")).toBeInTheDocument();
   });
 });

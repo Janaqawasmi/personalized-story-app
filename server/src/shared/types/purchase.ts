@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase-admin/firestore";
-import { PrintOrder, PurchaseFormat } from "./commerce";
+import { PrintOrder, PurchaseFormat, ShippingDetails } from "./commerce";
 
 export type PurchaseStatus =
   | "pending"
@@ -26,6 +26,16 @@ export interface Purchase {
   personalizedStoryId: string | null;
 
   /**
+   * The cart item this purchase was created from, so processPaymentEvent()
+   * can remove it from `caregivers/{uid}/cart` once payment is confirmed
+   * (a purchased item must never linger in the cart and block future
+   * checkout — see cart/payment flow Bug 6). Optional for backward
+   * compatibility with purchases created before this field existed; those
+   * fall back to a previewId lookup instead (see deleteCartItemForPurchase).
+   */
+  cartItemId?: string | null;
+
+  /**
    * Distinguishes a "Buy Story" original/template purchase (no
    * personalization) from a personalized purchase. Optional for backward
    * compatibility with purchases created before this field existed.
@@ -33,6 +43,11 @@ export interface Purchase {
   itemType?: "template" | "personalized";
   purchaseFormat: PurchaseFormat;
   printOrder: PrintOrder | null;
+  /**
+   * Contact/address details for a print purchase, carried over from the cart
+   * item at checkout time. Always null for digital purchases.
+   */
+  shippingDetails: ShippingDetails | null;
 
   // Generic payment fields (not provider-specific)
   paymentTransactionId: string;
