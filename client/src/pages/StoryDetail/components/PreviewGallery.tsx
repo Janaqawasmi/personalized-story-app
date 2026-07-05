@@ -9,10 +9,12 @@ import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
 import { SDGradients, SDRadii, SDShadows } from "../StoryDetail.styles";
 import {
+  DEFAULT_PREVIEW_IDENTITY,
   extractPreviewSpreadText,
   normalizeStoryLanguage,
   personalizeStoryTemplateString,
   resolveTemplatePageText,
+  type StoryGender,
 } from "../../../utils/storyPersonalization";
 
 /** framer-motion v11 + React 19: AnimatePresence return type includes `undefined`; cast for valid JSX. */
@@ -31,11 +33,13 @@ interface PreviewGalleryProps {
   onPersonalize: () => void;
   templatePages?: StoryTemplatePageVM[];
   storyLanguage?: string;
-  childPlaceholder: string;
+  /** Real child data, if the caller ever has it (not used by the story-detail teaser today — falls back to DEFAULT_PREVIEW_IDENTITY). */
+  childName?: string;
+  childGender?: StoryGender;
 }
 
 const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function PreviewGallery(
-  { spreads, language, onPersonalize, templatePages, storyLanguage, childPlaceholder },
+  { spreads, language, onPersonalize, templatePages, storyLanguage, childName, childGender },
   ref,
 ) {
   const t = useTranslation();
@@ -94,16 +98,22 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
 
   const resolvedSpreads = useMemo(() => {
     if (!spreads || spreads.length < 2) return null;
+    // No real child data yet (story-detail teaser, pre-"Personalize") ⇒ resolve
+    // name/pronoun tokens against a default masculine identity for the story's
+    // own frozen language, rather than leaving raw tokens unresolved.
+    const identity = childName
+      ? { name: childName, gender: childGender ?? publicVariant }
+      : DEFAULT_PREVIEW_IDENTITY[langNorm];
     return spreads.map((sp, idx) => {
       const spreadText = pickLang(sp.text, language).trim() || extractPreviewSpreadText(sp);
       let raw = spreadText;
       if (!raw && templatePages?.[idx]) {
         raw = resolveTemplatePageText(templatePages[idx], publicVariant, spreadText);
       }
-      raw = personalizeStoryTemplateString(raw, childPlaceholder, publicVariant, langNorm);
+      raw = personalizeStoryTemplateString(raw, identity.name, identity.gender, langNorm);
       return { imageUrl: sp.imageUrl, body: raw };
     });
-  }, [spreads, language, templatePages, childPlaceholder, langNorm]);
+  }, [spreads, language, templatePages, childName, childGender, langNorm]);
 
   if (!resolvedSpreads) {
     return (

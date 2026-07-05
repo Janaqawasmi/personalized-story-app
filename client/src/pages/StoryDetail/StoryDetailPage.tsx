@@ -222,7 +222,6 @@ export default function StoryDetailPage() {
                 onPersonalize={handlePersonalize}
                 templatePages={storyVm.templatePages}
                 storyLanguage={storyVm.storyLanguage}
-                childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
               />
             </Box>
           </motion.div>
@@ -234,7 +233,6 @@ export default function StoryDetailPage() {
               onPersonalize={handlePersonalize}
               templatePages={storyVm.templatePages}
               storyLanguage={storyVm.storyLanguage}
-              childPlaceholder={t("storyDetail.previewPlaceholderChildName")}
             />
           </Box>
         )}
