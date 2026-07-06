@@ -219,7 +219,8 @@ export default function AdminLayout() {
     <Box
       sx={{
         display: "flex",
-        height: "100vh",
+        // Sit below the fixed site Navbar (Navbar.tsx: 56px mobile / 60px desktop)
+        height: { xs: "calc(100vh - 56px)", md: "calc(100vh - 60px)" },
         overflow: "hidden",
         direction: isRTL ? "rtl" : "ltr",
       }}
@@ -231,6 +232,11 @@ export default function AdminLayout() {
         onClose={() => setMobileNavOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
+          // Permanent MUI drawers use position:fixed on the paper unless the root
+          // claims horizontal space in the flex row — without this, main content
+          // renders underneath the sidebar.
+          width: isDesktop ? SIDEBAR_WIDTH : 0,
+          flexShrink: 0,
           "& .MuiDrawer-paper": {
             width: SIDEBAR_WIDTH,
             boxSizing: "border-box",
@@ -397,7 +403,10 @@ export default function AdminLayout() {
         </Box>
       </Drawer>
 
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <Box
+        component="main"
+        sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}
+      >
         <Box
           sx={{
             px: { xs: 2, md: 3 },
