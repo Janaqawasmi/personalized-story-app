@@ -68,6 +68,7 @@ function AppContent() {
   const { isFullScreen } = useReader();
   const { pathname } = useLocation();
   const isSpecialistRoute = /\/specialist(\/|$)/.test(pathname);
+  const isAdminRoute = /\/admin(\/|$)/.test(pathname);
 
   return (
     <ThemeWrapper>
@@ -152,7 +153,7 @@ function AppContent() {
         </Routes>
       </Box>
 
-      {!isFullScreen && !isSpecialistRoute && <Footer />}
+      {!isFullScreen && !isSpecialistRoute && !isAdminRoute && <Footer />}
     </Box>
     </ThemeWrapper>
   );
