@@ -25,6 +25,7 @@ import {
   MonitorHeartOutlined,
   NotificationsOutlined,
   MenuOutlined,
+  RateReviewOutlined,
 } from "@mui/icons-material";
 import {
   collection,
@@ -104,6 +105,12 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         labelKey: "admin.nav.ai",
         icon: <SmartToyOutlined />,
         path: "ai",
+      },
+      {
+        key: "reviews",
+        labelKey: "admin.nav.reviews",
+        icon: <RateReviewOutlined />,
+        path: "reviews",
       },
     ],
   },

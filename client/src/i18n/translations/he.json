@@ -1051,6 +1051,7 @@
       "stories": "סיפורים",
       "moderation": "ניהול תוכן",
       "ai": "שימוש ב-AI",
+      "reviews": "ביקורות",
       "revenue": "הכנסות",
       "system": "בריאות המערכת"
     },
@@ -1082,6 +1083,10 @@
       "ai": {
         "title": "שימוש ובריאות AI",
         "subtitle": "מעקב שגיאות, עלויות ויציבות יצירה"
+      },
+      "reviews": {
+        "title": "ביקורות על סיפורים",
+        "subtitle": "דירוגים, משוב רגשי ואוצרות לדף הבית"
       },
       "revenue": {
         "title": "הכנסות",
@@ -1157,6 +1162,21 @@
       "statusActive": "פעיל",
       "statusPending": "ממתין",
       "statusReview": "בבדיקה"
+    },
+    "reviews": {
+      "sectionEyebrow": "ביקורות על סיפורים",
+      "title": "כל הביקורות",
+      "allStories": "כל הסיפורים",
+      "sortDate": "החדשות ביותר",
+      "sortRating": "המדורגות ביותר",
+      "colStory": "סיפור",
+      "colRating": "דירוג",
+      "colShift": "לפני ← אחרי",
+      "colReview": "ביקורת",
+      "colDate": "תאריך",
+      "colFeature": "הצגה בדף הבית",
+      "displayNamePlaceholder": "שם תצוגה פומבי (למשל \"אמא של נועה\")",
+      "empty": "אין עדיין ביקורות."
     },
     "users": {
       "title": "מטפלים",

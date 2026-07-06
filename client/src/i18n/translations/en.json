@@ -1051,6 +1051,7 @@
       "stories": "Stories",
       "moderation": "Moderation",
       "ai": "AI Usage",
+      "reviews": "Reviews",
       "revenue": "Revenue",
       "system": "System Health"
     },
@@ -1082,6 +1083,10 @@
       "ai": {
         "title": "AI usage & health",
         "subtitle": "Generation health, errors and cost tracking"
+      },
+      "reviews": {
+        "title": "Story reviews",
+        "subtitle": "Ratings, emotional-shift feedback and homepage curation"
       },
       "revenue": {
         "title": "Revenue",
@@ -1157,6 +1162,21 @@
       "statusActive": "Active",
       "statusPending": "Pending",
       "statusReview": "Review"
+    },
+    "reviews": {
+      "sectionEyebrow": "Story reviews",
+      "title": "All reviews",
+      "allStories": "All stories",
+      "sortDate": "Newest first",
+      "sortRating": "Highest rated",
+      "colStory": "Story",
+      "colRating": "Rating",
+      "colShift": "Before → After",
+      "colReview": "Review",
+      "colDate": "Date",
+      "colFeature": "Feature on homepage",
+      "displayNamePlaceholder": "Public display name (e.g. \"Noa's mom\")",
+      "empty": "No reviews yet."
     },
     "users": {
       "title": "Caregivers",
