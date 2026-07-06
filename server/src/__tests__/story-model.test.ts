@@ -2,8 +2,11 @@ import type { StoryBrief } from "@/models/storyBrief.model";
 import {
   ALLOWED_TRANSITIONS,
   STORY_STATUSES,
+  DEFAULT_STORY_TITLE,
   createStoryForGeneration,
+  isPlaceholderStoryTitle,
   isTransitionAllowed,
+  resolveStoryTitleAfterGeneration,
 } from "@/models/story.model";
 
 // ---------------------------------------------------------------------------
@@ -175,6 +178,103 @@ describe("createStoryForGeneration", () => {
     expect(story.illustrationPages).toBeNull();
     expect(story.currentVisualBibleVersion).toBeNull();
     expect(story.illustrationWorkspaceOpenedAt).toBeNull();
+  });
+});
+
+// ============================================================================
+// Group 5: isPlaceholderStoryTitle
+// ============================================================================
+
+describe("isPlaceholderStoryTitle", () => {
+  test("true for undefined", () => {
+    expect(isPlaceholderStoryTitle(undefined)).toBe(true);
+  });
+
+  test("true for null", () => {
+    expect(isPlaceholderStoryTitle(null)).toBe(true);
+  });
+
+  test("true for empty string", () => {
+    expect(isPlaceholderStoryTitle("")).toBe(true);
+  });
+
+  test("true for whitespace-only string", () => {
+    expect(isPlaceholderStoryTitle("   ")).toBe(true);
+  });
+
+  test("true for the default placeholder 'Untitled story'", () => {
+    expect(isPlaceholderStoryTitle("Untitled story")).toBe(true);
+  });
+
+  test("true for 'Untitled' (case-insensitive, surrounding whitespace)", () => {
+    expect(isPlaceholderStoryTitle("untitled")).toBe(true);
+    expect(isPlaceholderStoryTitle("UNTITLED")).toBe(true);
+    expect(isPlaceholderStoryTitle("  Untitled  ")).toBe(true);
+  });
+
+  test("false for a real, specialist-authored title", () => {
+    expect(isPlaceholderStoryTitle("The Brave Little Fox")).toBe(false);
+  });
+});
+
+// ============================================================================
+// Group 6: resolveStoryTitleAfterGeneration
+// ============================================================================
+
+describe("resolveStoryTitleAfterGeneration", () => {
+  test("new story with default title receives the generated title", () => {
+    expect(
+      resolveStoryTitleAfterGeneration(DEFAULT_STORY_TITLE, "The Brave Little Fox"),
+    ).toBe("The Brave Little Fox");
+  });
+
+  test("regenerated story with default title receives the new generated title", () => {
+    // First generation adopted a title; a rerun's new title should also be adopted
+    // as long as the top-level title is still the untouched placeholder.
+    const afterFirstGeneration = resolveStoryTitleAfterGeneration(
+      DEFAULT_STORY_TITLE,
+      "The Brave Little Fox",
+    );
+    // Simulate: specialist never edited the title, so it's still the placeholder
+    // going into the rerun.
+    expect(
+      resolveStoryTitleAfterGeneration(DEFAULT_STORY_TITLE, "The Fox Who Found Courage"),
+    ).toBe("The Fox Who Found Courage");
+    expect(afterFirstGeneration).not.toBe("The Fox Who Found Courage");
+  });
+
+  test("manually edited title is not overwritten by regeneration", () => {
+    expect(
+      resolveStoryTitleAfterGeneration("Ari's Nighttime Adventure", "AI Generated Title"),
+    ).toBe("Ari's Nighttime Adventure");
+  });
+
+  test("empty/missing generated title does not replace a valid existing title", () => {
+    expect(resolveStoryTitleAfterGeneration("Ari's Nighttime Adventure", "")).toBe(
+      "Ari's Nighttime Adventure",
+    );
+    expect(resolveStoryTitleAfterGeneration("Ari's Nighttime Adventure", undefined)).toBe(
+      "Ari's Nighttime Adventure",
+    );
+  });
+
+  test("empty/missing generated title falls back to the default placeholder when current title is also a placeholder", () => {
+    expect(resolveStoryTitleAfterGeneration(DEFAULT_STORY_TITLE, "")).toBe(
+      DEFAULT_STORY_TITLE,
+    );
+    expect(resolveStoryTitleAfterGeneration(undefined, undefined)).toBe(DEFAULT_STORY_TITLE);
+  });
+
+  test("generated title is trimmed before being adopted", () => {
+    expect(resolveStoryTitleAfterGeneration(DEFAULT_STORY_TITLE, "  The Brave Little Fox  ")).toBe(
+      "The Brave Little Fox",
+    );
+  });
+
+  test("current title is trimmed when preserved", () => {
+    expect(resolveStoryTitleAfterGeneration("  Ari's Nighttime Adventure  ", "AI Title")).toBe(
+      "Ari's Nighttime Adventure",
+    );
   });
 });
 

@@ -16,6 +16,8 @@ import {
   createStoryForGeneration,
   fillIllustrationV2DocDefaults,
   isTransitionAllowed,
+  DEFAULT_STORY_TITLE,
+  resolveStoryTitleAfterGeneration,
 } from "@/models/story.model";
 import type { Story, StoryStatus } from "@/models/story.model";
 import type { StoryBrief } from "@/models/storyBrief.model";
@@ -1412,7 +1414,7 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
       briefStatus: "submitted",
       parentStoryId:
         clientStory.parentStoryId ?? existingStory.parentStoryId ?? null,
-      title: clientStory.title ?? existingStory.title ?? "Untitled story",
+      title: clientStory.title ?? existingStory.title ?? DEFAULT_STORY_TITLE,
       updatedAt: now,
       submittedAt: now,
       editHistory: [...existingStory.editHistory, generateEvent],
@@ -1447,8 +1449,13 @@ async function handleGenerate(req: Request, res: Response): Promise<void> {
     ]);
 
     const now = Date.now();
+    // Adopt the AI-generated title as the top-level Story.title as long as the
+    // specialist hasn't already replaced the placeholder with a real title —
+    // this is what the public site, story lists, and publish flow read.
+    const resolvedTitle = resolveStoryTitleAfterGeneration(story.title, agent1Result.title);
     const updatedFields: Partial<Story> = {
       status: "awaiting_review",
+      title: resolvedTitle,
       agent1Result,
       agent1Versions: [...story.agent1Versions, agent1Result],
       currentDraft: {
