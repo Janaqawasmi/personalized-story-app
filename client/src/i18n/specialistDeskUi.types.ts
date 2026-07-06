@@ -158,10 +158,6 @@ export interface SpecialistDeskUi {
   illDrawingPage: (pageIndex: number) => string;
   illUnderThirty: string;
   illNewVersionLabel: string;
-  illPubApprovedTitle: string;
-  illPubProgressTitle: string;
-  illPubApprovedSub: string;
-  illPubProgressSub: (approved: number, total: number) => string;
   illPubReady: string;
   illPubMore: (remaining: number) => string;
   illGalAllApproved: string;

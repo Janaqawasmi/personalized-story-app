@@ -11,7 +11,7 @@ import Typography from "@mui/material/Typography";
 import type { PageCardViewModel } from "../../../hooks/useIllustrationWorkspaceState";
 import { useSpecialistDeskUi } from "../../../../i18n/specialistDeskUi";
 import { COLORS } from "../../../../theme";
-import { DRAFT_B, FONTS } from "../../draftB/tokens";
+import { DRAFT_B } from "../../draftB/tokens";
 
 interface Props {
   pages: PageCardViewModel[];
@@ -41,9 +41,6 @@ export default function PublishBar({
   const [markBusy, setMarkBusy] = useState(false);
   const [markErr, setMarkErr] = useState<string | null>(null);
 
-  const total = pages.length;
-  const approvedCount = pages.filter((p) => p.subStatus === "approved").length;
-
   const markDisabled = readOnly || markBusy || !showMarkReady;
   const markAria = desk.illPubReady;
 
@@ -68,37 +65,9 @@ export default function PublishBar({
       }}
     >
       <Stack spacing={1.5}>
-        <Typography
-          sx={{
-            fontFamily: `'Playfair Display', Georgia, serif`,
-            fontWeight: 700,
-            fontSize: 20,
-            color: DRAFT_B.ink,
-            letterSpacing: "-0.02em",
-          }}
-        >
-          {allApproved ? desk.illPubApprovedTitle : desk.illPubProgressTitle}
-        </Typography>
-        <Typography variant="body2" sx={{ color: DRAFT_B.inkSoft, fontFamily: FONTS.sans }}>
-          {allApproved ? desk.illPubApprovedSub : desk.illPubProgressSub(approvedCount, total)}
-        </Typography>
-
-        <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" aria-label={desk.illPubProgressSub(approvedCount, total)}>
-          {pages.map((p) => (
-            <Box
-              key={p.pageNumber}
-              sx={{
-                width: 6,
-                height: 10,
-                borderRadius: 999,
-                bgcolor: p.subStatus === "approved" ? COLORS.success : "transparent",
-                border: `1px solid ${p.subStatus === "approved" ? COLORS.success : DRAFT_B.border}`,
-                flexShrink: 0,
-              }}
-            />
-          ))}
-        </Stack>
-
+        {/* Approval progress (count, status, bar) lives solely in
+            IllustrationProgressHeader at the top of the workspace — this bar
+            is action-only to avoid showing the same progress twice. */}
         <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap">
           {canPreview ? (
             <Button variant="outlined" onClick={onPreviewClick} sx={{ textTransform: "none", fontWeight: 600 }}>

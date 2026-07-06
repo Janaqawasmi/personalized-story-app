@@ -533,4 +533,44 @@ describe("IllustrationsTabV2", () => {
     expect(screen.getByText("2 of 2 illustrations approved")).toBeTruthy();
     expect(screen.getByText(SPECIALIST_DESK_EN.illProgressStatusReady)).toBeTruthy();
   });
+
+  // ---------------------------------------------------------------------
+  // Regression: the bottom publish/action bar used to render its own
+  // "Approval progress" / "N of 2 pages approved." readout, duplicating the
+  // top-level indicator above. Only one tracker (IllustrationProgressHeader)
+  // should render its count/status; the bottom bar is action-only.
+  // ---------------------------------------------------------------------
+
+  it("shows exactly one approval-progress readout with zero pages approved", () => {
+    mockUseVm.mockReturnValue(
+      twoPageVm({
+        subStatuses: ["awaiting_review", "awaiting_review"],
+        status: "illustration_workspace",
+        allApproved: false,
+        readOnly: false,
+      }),
+    );
+    render(<IllustrationsTabV2 story={approvedStory()} />);
+
+    expect(screen.getByText("0 of 2 illustrations approved")).toBeTruthy();
+    expect(screen.queryByText(/pages approved/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Approval progress")).not.toBeInTheDocument();
+  });
+
+  it("shows exactly one approval-progress readout once all pages are approved", () => {
+    mockUseVm.mockReturnValue(
+      twoPageVm({
+        subStatuses: ["approved", "approved"],
+        status: "illustration_ready",
+        allApproved: true,
+        readOnly: true,
+      }),
+    );
+    render(<IllustrationsTabV2 story={approvedStory()} />);
+
+    expect(screen.getByText("2 of 2 illustrations approved")).toBeTruthy();
+    expect(screen.queryByText(/pages approved/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Approval progress")).not.toBeInTheDocument();
+    expect(screen.queryByText("All pages approved")).not.toBeInTheDocument();
+  });
 });

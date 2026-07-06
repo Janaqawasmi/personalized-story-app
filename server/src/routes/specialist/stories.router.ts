@@ -112,7 +112,7 @@ function splitBodyIntoPages(body: string): StoryPage[] {
  *  - Draft diverges from the generated pages → rebuild pages from the edited body.
  *  - No structured pages yet (legacy text format) but a draft exists → derive them.
  */
-function reconcilePagesFromDraft(story: Story): StoryPage[] | null {
+export function reconcilePagesFromDraft(story: Story): StoryPage[] | null {
   const body = story.currentDraft?.body?.trim() ?? "";
   if (!body) return null;
 
@@ -127,6 +127,45 @@ function reconcilePagesFromDraft(story: Story): StoryPage[] | null {
   }
 
   return splitBodyIntoPages(body);
+}
+
+/** Client-supplied draft naming the exact generation/edits to approve (see POST .../transitions). */
+export interface ApprovalDraftInput {
+  title: string;
+  body: string;
+  wordCount: number;
+  /** `Agent1Result.generationId` this draft was derived from, if any. */
+  sourceGenerationId?: string;
+}
+
+/**
+ * Parses the optional `draft` field on an `approved` transition request. This
+ * is how the client tells the server exactly what was on screen (which may be
+ * a non-latest version, a model variant, or unsaved manual edits) rather than
+ * relying on whatever `currentDraft` happens to already be persisted.
+ * Returns `null` when `raw` isn't a usable draft object (missing/empty body).
+ */
+export function parseApprovalDraft(raw: unknown): ApprovalDraftInput | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.title !== "string" || typeof o.body !== "string") return null;
+  if (!o.body.trim()) return null;
+
+  const wordCount =
+    typeof o.wordCount === "number" && Number.isFinite(o.wordCount)
+      ? o.wordCount
+      : countWordsInText(o.body);
+  const sourceGenerationId =
+    typeof o.sourceGenerationId === "string" && o.sourceGenerationId.trim()
+      ? o.sourceGenerationId.trim()
+      : undefined;
+
+  return {
+    title: o.title,
+    body: o.body,
+    wordCount,
+    ...(sourceGenerationId ? { sourceGenerationId } : {}),
+  };
 }
 
 router.use(requireAuth);
@@ -384,7 +423,7 @@ async function handlePatchStory(req: Request, res: Response): Promise<void> {
   const FORBIDDEN = [
     "status", "brief", "agent1Result", "agent1Versions",
     "editHistory", "ownerUid", "id", "parentStoryId",
-    "createdAt", "submittedAt", "approvedAt",
+    "createdAt", "submittedAt", "approvedAt", "approvedGenerationId",
   ];
   const forbidden = Object.keys(patch).filter((k) => FORBIDDEN.includes(k));
   if (forbidden.length > 0) {
@@ -523,10 +562,60 @@ async function handleTransition(req: Request, res: Response): Promise<void> {
   }
 
   if (to === "approved") {
+    const rawDraft = (req.body as Record<string, unknown>).draft;
+    const approvalDraft = parseApprovalDraft(rawDraft);
+    if (rawDraft !== undefined && !approvalDraft) {
+      res.status(400).json({
+        error: "INVALID_INPUT",
+        message:
+          "Invalid 'draft' payload: expected { title, body } strings with a non-empty body.",
+      });
+      return;
+    }
+
+    // The client tells us exactly what was on screen (which may be a
+    // non-latest version, a model variant, or unsaved manual edits) via
+    // `draft`. Never trust the already-persisted `currentDraft` alone —
+    // the specialist may have switched versions without saving.
+    let effectiveDraft = story.currentDraft;
+    let approvedGenerationId: string | null =
+      story.currentDraft?.sourceGenerationId ?? story.agent1Result?.generationId ?? null;
+
+    if (approvalDraft) {
+      const knownGenerationIds = new Set(
+        [story.agent1Result?.generationId, ...story.agent1Versions.map((v) => v.generationId)]
+          .filter((id): id is string => Boolean(id)),
+      );
+      if (
+        approvalDraft.sourceGenerationId &&
+        !knownGenerationIds.has(approvalDraft.sourceGenerationId)
+      ) {
+        res.status(400).json({
+          error: "INVALID_INPUT",
+          message: "draft.sourceGenerationId does not match a known version of this story.",
+        });
+        return;
+      }
+
+      effectiveDraft = {
+        title: approvalDraft.title,
+        body: approvalDraft.body,
+        wordCount: approvalDraft.wordCount,
+        updatedAt: now,
+        ...(approvalDraft.sourceGenerationId
+          ? { sourceGenerationId: approvalDraft.sourceGenerationId }
+          : {}),
+      };
+      extraFields.currentDraft = effectiveDraft;
+      approvedGenerationId = approvalDraft.sourceGenerationId ?? approvedGenerationId;
+    }
+
     extraFields.approvedAt = now;
-    // Make the approved manuscript canonical: fold any manual edits living in
-    // `currentDraft` back into `pages` so illustration/publish use the edited text.
-    const reconciledPages = reconcilePagesFromDraft(story);
+    extraFields.approvedGenerationId = approvedGenerationId;
+
+    // Make the approved manuscript canonical: fold the approved draft's text
+    // into `pages` so illustration/publish use exactly what was approved.
+    const reconciledPages = reconcilePagesFromDraft({ ...story, currentDraft: effectiveDraft });
     if (reconciledPages) {
       extraFields.pages = reconciledPages;
     }

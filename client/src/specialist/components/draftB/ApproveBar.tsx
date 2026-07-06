@@ -316,7 +316,7 @@ export default function ApproveBar({
               },
             }}
           >
-            Mark approved
+            Approve current version
           </Button>
         )}
       </Box>

@@ -336,7 +336,22 @@ export default function DraftTabB({
         const opened = await draftStore.transitionStatus(story.id, "in_review");
         onStoryUpdate(opened);
       }
-      const updatedStory = await draftStore.transitionStatus(story.id, "approved");
+      // Send exactly what's on screen — the selected version plus any
+      // unsaved manual edits — so the server approves that text atomically
+      // rather than whatever `currentDraft` happens to already be persisted.
+      const sourceGenerationId = (
+        versions[selectedVersionIndex] ?? story.agent1Result
+      )?.generationId;
+      const updatedStory = await draftStore.transitionStatus(story.id, "approved", {
+        draft: {
+          title: editorTitle,
+          body: editorBody,
+          wordCount: currentWordCount,
+          ...(sourceGenerationId ? { sourceGenerationId } : {}),
+        },
+      });
+      setHasUnsavedChanges(false);
+      setLastSavedAt(Date.now());
       onStoryUpdate(updatedStory);
     } catch (err) {
       setSnackbar({

@@ -156,6 +156,13 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
+  /**
+   * `Agent1Result.generationId` of the version that was approved — i.e. the
+   * version backing `currentDraft`/`pages` at the moment of the `approved`
+   * transition. Audit trail only; optional so existing Firestore docs and
+   * fixtures predating this field remain valid.
+   */
+  approvedGenerationId?: string | null;
 
   // v2 illustration workspace (spec §10.6 / §10.7)
   /** Per-page illustration state; null until workspace opens. */
@@ -316,6 +323,7 @@ export function createStoryForGeneration(params: {
     lastOpenedAt: now,
     submittedAt: now,
     approvedAt: null,
+    approvedGenerationId: null,
 
     illustrationPages: null,
     currentVisualBibleVersion: null,
