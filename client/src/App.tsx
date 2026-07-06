@@ -44,6 +44,7 @@ import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
 import AdminPsychologistsPage from "./pages/admin/AdminPsychologistsPage";
+import AdminSpecialistDetailPage from "./pages/admin/AdminSpecialistDetailPage";
 import AdminStoriesPage from "./pages/admin/AdminStoriesPage";
 import AdminAIPage from "./pages/admin/AdminAIPage";
 import AdminRevenuePage from "./pages/admin/AdminRevenuePage";
@@ -120,6 +121,7 @@ function AppContent() {
               <Route path="analytics" element={<AdminAnalyticsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="psychologists" element={<AdminPsychologistsPage />} />
+              <Route path="psychologists/:specialistId" element={<AdminSpecialistDetailPage />} />
               <Route path="stories" element={<AdminStoriesPage />} />
               <Route path="moderation" element={<AdminModerationPage />} />
               <Route path="ai" element={<AdminAIPage />} />

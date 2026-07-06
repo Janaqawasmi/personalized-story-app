@@ -158,34 +158,32 @@ export default function AdminLayout() {
   const { direction } = useLanguage();
   const t = useTranslation();
   const { currentUser } = useAuth();
-  const [pendingBadges, setPendingBadges] = useState<{ moderation?: number; psychologists?: number }>(
-    {}
-  );
+  const [pendingBadges, setPendingBadges] = useState<{ moderation?: number }>({});
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isRTL = direction === "rtl";
 
-  const currentPage = location.pathname.split("/").pop() ?? "overview";
+  // Anchor on the segment right after "admin" rather than the last segment,
+  // so nested detail routes (e.g. /admin/psychologists/:specialistId) still
+  // resolve to the "psychologists" nav item/title instead of the id itself.
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const adminIndex = pathSegments.indexOf("admin");
+  const currentPage = (adminIndex >= 0 ? pathSegments[adminIndex + 1] : undefined) ?? "overview";
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadBadges() {
-      const [mod, psych] = await Promise.all([
-        tryCount(
-          query(
-            collection(db, "story_templates"),
-            where("status", "==", "pending_review")
-          )
-        ),
-        tryCount(
-          query(collection(db, "psychologists"), where("status", "==", "pending"))
-        ),
-      ]);
+      const mod = await tryCount(
+        query(
+          collection(db, "story_templates"),
+          where("status", "==", "pending_review")
+        )
+      );
       if (!cancelled) {
-        setPendingBadges({ moderation: mod, psychologists: psych });
+        setPendingBadges({ moderation: mod });
       }
     }
 
@@ -219,8 +217,20 @@ export default function AdminLayout() {
     <Box
       sx={{
         display: "flex",
-        // Sit below the fixed site Navbar (Navbar.tsx: 56px mobile / 60px desktop)
-        height: { xs: "calc(100vh - 56px)", md: "calc(100vh - 60px)" },
+        // Pin the entire admin shell to the viewport below the fixed site Navbar
+        // (Navbar.tsx: 56px mobile / 60px desktop) instead of sizing a normal-flow
+        // box to calc(100vh - Npx). MUI's Drawer paper is ALWAYS position:fixed
+        // internally (even variant="permanent"), so if this root box were left in
+        // normal document flow, any stray page-level scroll (mobile URL-bar
+        // collapse, sub-pixel rounding, focus scroll) would desync the fixed
+        // drawer paper from its non-fixed "docked" placeholder — the
+        // floating/jumping behavior. Making the whole shell fixed removes body
+        // scroll from the equation entirely.
+        position: "fixed",
+        top: { xs: 56, md: 60 },
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflow: "hidden",
         direction: isRTL ? "rtl" : "ltr",
       }}
@@ -238,6 +248,13 @@ export default function AdminLayout() {
           width: isDesktop ? SIDEBAR_WIDTH : 0,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
+            // Explicit top/height so the fixed paper matches this root box's
+            // fixed region exactly, instead of MUI's default top:0/height:100%
+            // (which only *looked* right because the navbar's z-index masks the
+            // overlap — see comment on the root Box above).
+            position: "fixed",
+            top: { xs: 56, md: 60 },
+            height: { xs: "calc(100vh - 56px)", md: "calc(100vh - 60px)" },
             width: SIDEBAR_WIDTH,
             boxSizing: "border-box",
             bgcolor: "#F7F4F1",
@@ -304,12 +321,7 @@ export default function AdminLayout() {
               </Typography>
               {section.items.map((item) => {
                 const isActive = currentPage === item.key;
-                const badge =
-                  item.key === "moderation"
-                    ? pendingBadges.moderation
-                    : item.key === "psychologists"
-                      ? pendingBadges.psychologists
-                      : undefined;
+                const badge = item.key === "moderation" ? pendingBadges.moderation : undefined;
                 return (
                   <ListItemButton
                     key={item.key}

@@ -28,7 +28,6 @@ export interface AdminStats {
   totalPurchases: number;
   totalTemplates: number;
   pendingTemplates: number;
-  pendingPsychologists: number;
   activeAlerts: Alert[];
   recentActivity: ActivityItem[];
   loading: boolean;
@@ -106,7 +105,6 @@ export function useAdminStats(): AdminStats {
     totalPurchases: 0,
     totalTemplates: 0,
     pendingTemplates: 0,
-    pendingPsychologists: 0,
     activeAlerts: [],
     recentActivity: [],
     loading: true,
@@ -124,7 +122,6 @@ export function useAdminStats(): AdminStats {
           totalPurchases,
           totalTemplates,
           pendingTemplates,
-          pendingPsychologists,
         ] = await Promise.all([
           tryCount(collection(db, "storyPreviews")),
           tryCount(collection(db, "caregivers")),
@@ -139,9 +136,6 @@ export function useAdminStats(): AdminStats {
               collection(db, "story_templates"),
               where("status", "==", "pending_review")
             )
-          ),
-          tryCount(
-            query(collection(db, "psychologists"), where("status", "==", "pending"))
           ),
         ]);
 
@@ -160,7 +154,6 @@ export function useAdminStats(): AdminStats {
           totalPurchases,
           totalTemplates,
           pendingTemplates,
-          pendingPsychologists,
           activeAlerts,
           recentActivity,
           loading: false,

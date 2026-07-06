@@ -63,6 +63,7 @@ import caregiverVoiceRouter from "./routes/caregiver/voice.router";
 import caregiverFeedbackRouter from "./routes/caregiver/feedback.router";
 import adminPrintOrdersRouter from "./routes/admin/printOrders.router";
 import adminFeedbackRouter from "./routes/admin/feedback.router";
+import adminSpecialistsRouter from "./routes/admin/specialists.router";
 
 // ---------- IMAGE PROVIDER ----------
 // Register Seedream as the image generation backend for all services.
@@ -125,6 +126,7 @@ app.use("/api/ideas", ideasRouter);
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
 app.use("/api/admin/print-orders", adminPrintOrdersRouter);
 app.use("/api/admin/feedback", adminFeedbackRouter);
+app.use("/api/admin/specialists", adminSpecialistsRouter);
 app.use("/api/specialist/stories", specialistStoriesRouter);
 app.use("/api/specialist/templates", specialistTemplatesRouter);
 

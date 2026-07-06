@@ -1145,17 +1145,31 @@
     },
     "psychologists": {
       "sectionEyebrow": "פסיכולוגים ויוצרי סיפורים",
-      "leaderboard": "לוח מובילים",
+      "leaderboard": "כל המומחים",
+      "searchPlaceholder": "חיפוש לפי שם או אימייל…",
       "colCreator": "יוצר",
-      "colSpecialty": "התמחות",
       "colStories": "סיפורים",
-      "colPersonalizations": "התאמות",
-      "colCompletion": "השלמה",
+      "colPurchases": "רכישות",
+      "colRating": "דירוג",
       "colStatus": "סטטוס",
       "joined": "הצטרף {date}",
       "statusActive": "פעיל",
-      "statusPending": "ממתין",
-      "statusReview": "בבדיקה"
+      "statusDisabled": "מושבת",
+      "empty": "לא נמצאו מומחים."
+    },
+    "specialistDetail": {
+      "back": "חזרה למומחים",
+      "storyCount": "סיפורים שנוצרו",
+      "totalPurchases": "סך הרכישות",
+      "avgRating": "דירוג ממוצע",
+      "stories": "סיפורים",
+      "colTitle": "כותרת",
+      "colTopic": "נושא",
+      "colAge": "טווח גילאים",
+      "colPurchases": "רכישות",
+      "colRating": "דירוג",
+      "colPublished": "פורסם",
+      "empty": "המומחה הזה עדיין לא פרסם סיפורים."
     },
     "reviews": {
       "sectionEyebrow": "ביקורות על סיפורים",

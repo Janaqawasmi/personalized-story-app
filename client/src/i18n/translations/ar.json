@@ -1144,18 +1144,32 @@
       "waitingDays": "في انتظار {days}د"
     },
     "psychologists": {
-      "sectionEyebrow": "علماء النفس ومبدعي القصص",
-      "leaderboard": "المتصدرين الخالق",
-      "colCreator": "الخالق",
-      "colSpecialty": "التخصص",
-      "colStories": "قصص",
-      "colPersonalizations": "التخصيصات",
-      "colCompletion": "الانتهاء",
+      "sectionEyebrow": "علماء النفس ومبدعو القصص",
+      "leaderboard": "جميع الأخصائيين",
+      "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني…",
+      "colCreator": "المُنشئ",
+      "colStories": "القصص",
+      "colPurchases": "المشتريات",
+      "colRating": "التقييم",
       "colStatus": "الحالة",
       "joined": "انضم {date}",
       "statusActive": "نشط",
-      "statusPending": "في انتظار",
-      "statusReview": "مراجعة"
+      "statusDisabled": "معطل",
+      "empty": "لم يتم العثور على أخصائيين."
+    },
+    "specialistDetail": {
+      "back": "العودة إلى الأخصائيين",
+      "storyCount": "القصص المُنشأة",
+      "totalPurchases": "إجمالي المشتريات",
+      "avgRating": "متوسط التقييم",
+      "stories": "القصص",
+      "colTitle": "العنوان",
+      "colTopic": "الموضوع",
+      "colAge": "الفئة العمرية",
+      "colPurchases": "المشتريات",
+      "colRating": "التقييم",
+      "colPublished": "تاريخ النشر",
+      "empty": "لم ينشر هذا الأخصائي أي قصص بعد."
     },
     "reviews": {
       "sectionEyebrow": "تقييمات القصص",

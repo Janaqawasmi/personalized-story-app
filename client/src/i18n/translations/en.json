@@ -1145,17 +1145,31 @@
     },
     "psychologists": {
       "sectionEyebrow": "Psychologists & story creators",
-      "leaderboard": "Creator leaderboard",
+      "leaderboard": "All specialists",
+      "searchPlaceholder": "Search by name or email…",
       "colCreator": "Creator",
-      "colSpecialty": "Specialty",
       "colStories": "Stories",
-      "colPersonalizations": "Personalizations",
-      "colCompletion": "Completion",
+      "colPurchases": "Purchases",
+      "colRating": "Rating",
       "colStatus": "Status",
       "joined": "Joined {date}",
       "statusActive": "Active",
-      "statusPending": "Pending",
-      "statusReview": "Review"
+      "statusDisabled": "Disabled",
+      "empty": "No specialists found."
+    },
+    "specialistDetail": {
+      "back": "Back to specialists",
+      "storyCount": "Stories created",
+      "totalPurchases": "Total purchases",
+      "avgRating": "Average rating",
+      "stories": "Stories",
+      "colTitle": "Title",
+      "colTopic": "Topic",
+      "colAge": "Age group",
+      "colPurchases": "Purchases",
+      "colRating": "Rating",
+      "colPublished": "Published",
+      "empty": "This specialist hasn't published any stories yet."
     },
     "reviews": {
       "sectionEyebrow": "Story reviews",
