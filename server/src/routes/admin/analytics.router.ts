@@ -52,13 +52,24 @@ router.get(
       let totalRevenueCents = 0;
       let totalCount = 0;
       let paidCount = 0;
+      // All-time totals, computed from the same fetch (no extra query cost)
+      // so KPIs that want a true all-time figure (e.g. Overview's Revenue
+      // card) don't have to re-fetch the whole collectionGroup themselves.
+      let allTimeRevenueCents = 0;
+      let allTimePaidPurchases = 0;
 
       for (const doc of snap.docs) {
         const data = doc.data() as Purchase;
         const createdAt = toDate(data.createdAt);
+        const isPaid = data.status !== "pending" && data.status !== "failed";
+
+        if (isPaid) {
+          allTimePaidPurchases += 1;
+          allTimeRevenueCents += data.amountCents ?? 0;
+        }
+
         if (!createdAt || createdAt < cutoff) continue;
 
-        const isPaid = data.status !== "pending" && data.status !== "failed";
         totalCount += 1;
         if (isPaid) {
           paidCount += 1;
@@ -92,6 +103,8 @@ router.get(
           totalRevenueCents,
           totalPaidPurchases: paidCount,
           totalPurchaseAttempts: totalCount,
+          allTimeRevenueCents,
+          allTimePaidPurchases,
         },
       });
     } catch (error) {

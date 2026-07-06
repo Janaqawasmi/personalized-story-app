@@ -1097,27 +1097,22 @@
       }
     },
     "overview": {
-      "kpiEyebrow": "מדדי מפתח · החודש"
+      "kpiEyebrow": "מדדי מפתח · כל הזמנים"
     },
     "kpi": {
       "personalizations": "סיפורים מותאמים",
       "caregivers": "מטפלים פעילים",
       "conversionRate": "שיעור המרה",
       "revenue": "הכנסות (₪)",
-      "deltaUpPersonalizations": "+18% לעומת חודש קודם",
-      "deltaUpCaregivers": "+11% לעומת חודש קודם",
-      "deltaDownConversion": "↓ 2.1% לעומת חודש קודם",
-      "deltaUpRevenue": "+24% לעומת חודש קודם"
+      "allTime": "כל הזמנים",
+      "realConversion": "תצוגות מקדימות ← רכישות"
     },
     "funnel": {
       "title": "משפך המרה",
-      "thisMonth": "החודש",
-      "catalogViews": "צפיות בקטלוג (משוער)",
-      "storyDetail": "צפיות בעמוד סיפור",
+      "allTime": "כל הזמנים",
       "personalizeStarted": "התחלת התאמה",
-      "previewRead": "קריאת תצוגה מקדימה",
       "purchased": "נרכש",
-      "insight": "נשירה גבוהה מתצוגה מקדימה לרכישה. שקלו הוספת ציטוט מטפל אחרי התצוגה."
+      "insight": "{pct}% מהתצוגות המקדימות הומרו לרכישה, מאז ומתמיד."
     },
     "categories": {
       "title": "קטגוריות טיפוליות מובילות"

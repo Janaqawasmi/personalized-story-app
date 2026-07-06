@@ -12,6 +12,9 @@ export default function AdminOverviewPage() {
   const stats = useAdminStats();
   const t = useTranslation();
 
+  const conversionRate =
+    stats.totalPersonalizations > 0 ? (stats.totalPurchases / stats.totalPersonalizations) * 100 : 0;
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography
@@ -31,9 +34,9 @@ export default function AdminOverviewPage() {
           <AdminKpiCard
             label={t("admin.kpi.personalizations")}
             value={stats.loading ? "—" : stats.totalPersonalizations.toLocaleString()}
-            delta={t("admin.kpi.deltaUpPersonalizations")}
-            deltaType="up"
-            fillPct={72}
+            delta={t("admin.kpi.allTime")}
+            deltaType="neutral"
+            fillPct={100}
             fillColor={COLORS.secondary}
           />
         </Grid>
@@ -41,29 +44,29 @@ export default function AdminOverviewPage() {
           <AdminKpiCard
             label={t("admin.kpi.caregivers")}
             value={stats.loading ? "—" : stats.totalCaregivers.toLocaleString()}
-            delta={t("admin.kpi.deltaUpCaregivers")}
-            deltaType="up"
-            fillPct={58}
+            delta={t("admin.kpi.allTime")}
+            deltaType="neutral"
+            fillPct={100}
             fillColor="#0F6E56"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <AdminKpiCard
             label={t("admin.kpi.conversionRate")}
-            value="31.4%"
-            delta={t("admin.kpi.deltaDownConversion")}
-            deltaType="down"
-            fillPct={31}
+            value={stats.loading ? "—" : `${conversionRate.toFixed(1)}%`}
+            delta={t("admin.kpi.realConversion")}
+            deltaType="neutral"
+            fillPct={Math.min(100, conversionRate)}
             fillColor="#BA7517"
           />
         </Grid>
         <Grid size={{ xs: 6, md: 3 }}>
           <AdminKpiCard
             label={t("admin.kpi.revenue")}
-            value={stats.loading ? "—" : `₪${(stats.totalPurchases * 39).toLocaleString()}`}
-            delta={t("admin.kpi.deltaUpRevenue")}
-            deltaType="up"
-            fillPct={84}
+            value={stats.loading ? "—" : `₪${(stats.allTimeRevenueCents / 100).toLocaleString()}`}
+            delta={t("admin.kpi.allTime")}
+            deltaType="neutral"
+            fillPct={100}
             fillColor="#185FA5"
           />
         </Grid>

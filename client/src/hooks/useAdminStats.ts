@@ -8,12 +8,11 @@ import {
   limit,
   getDocs,
   Timestamp,
-  type Query,
-  type CollectionReference,
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { getPurchasesTimeseries } from "../api/adminAnalytics";
 
-async function tryCount(q: Query | CollectionReference): Promise<number> {
+async function tryCount(q: ReturnType<typeof query> | ReturnType<typeof collection>): Promise<number> {
   try {
     const snap = await getCountFromServer(q);
     return snap.data().count;
@@ -28,6 +27,7 @@ export interface AdminStats {
   totalPurchases: number;
   totalTemplates: number;
   pendingTemplates: number;
+  allTimeRevenueCents: number;
   activeAlerts: Alert[];
   recentActivity: ActivityItem[];
   loading: boolean;
@@ -57,42 +57,101 @@ function toDate(value: unknown): Date {
   return new Date();
 }
 
-async function safeAlerts(): Promise<Alert[]> {
+/**
+ * Real recent activity, built from actual Firestore documents (most recent
+ * previews + most recently submitted templates) rather than reading
+ * `admin_activity_log` — nothing in the codebase ever writes to that
+ * collection, so it was always empty.
+ */
+async function loadRecentActivity(): Promise<ActivityItem[]> {
   try {
-    const snap = await getDocs(
-      query(collection(db, "admin_alerts"), where("resolved", "==", false), limit(20))
-    );
-    const rows = snap.docs.map((docSnap) => {
+    const [previewsSnap, templatesSnap] = await Promise.all([
+      getDocs(query(collection(db, "storyPreviews"), orderBy("createdAt", "desc"), limit(8))),
+      getDocs(
+        query(
+          collection(db, "story_templates"),
+          where("status", "==", "pending_review"),
+          limit(8),
+        ),
+      ),
+    ]);
+
+    const previewItems: ActivityItem[] = previewsSnap.docs.map((docSnap) => {
+      const data = docSnap.data();
+      const childName = typeof data.childFirstName === "string" ? data.childFirstName : "";
+      const title = typeof data.templateTitle === "string" ? data.templateTitle : "";
+      const isPurchased = data.status === "purchased";
+      return {
+        id: docSnap.id,
+        type: isPurchased ? "purchase" : "personalization",
+        message: childName
+          ? `${childName} — ${title || "personalized story"}`
+          : title || "New personalization",
+        timestamp: toDate(data.createdAt),
+      };
+    });
+
+    const templateItems: ActivityItem[] = templatesSnap.docs.map((docSnap) => {
       const data = docSnap.data();
       return {
         id: docSnap.id,
-        type: (data.type as Alert["type"]) ?? "info",
-        message: String(data.message ?? ""),
-        source: String(data.source ?? ""),
-        timestamp: toDate(data.timestamp),
+        type: "template_submitted",
+        message: `${data.title ?? "Untitled story"} — submitted for review`,
+        timestamp: toDate(data.submittedAt ?? data.createdAt),
       };
     });
-    rows.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    return rows.slice(0, 5);
+
+    return [...previewItems, ...templateItems]
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 10);
   } catch {
     return [];
   }
 }
 
-async function safeRecentActivity(): Promise<ActivityItem[]> {
+/**
+ * Real operational alerts computed from actual counts (pending review
+ * backlog, failed generations) instead of reading `admin_alerts` — nothing
+ * in the codebase ever writes to that collection either.
+ */
+async function loadActiveAlerts(): Promise<Alert[]> {
   try {
-    const snap = await getDocs(
-      query(collection(db, "admin_activity_log"), orderBy("timestamp", "desc"), limit(10))
-    );
-    return snap.docs.map((docSnap) => {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        type: (data.type as ActivityItem["type"]) ?? "personalization",
-        message: String(data.message ?? ""),
-        timestamp: toDate(data.timestamp),
-      };
-    });
+    const [pendingCount, failedCount] = await Promise.all([
+      tryCount(query(collection(db, "story_templates"), where("status", "==", "pending_review"))),
+      tryCount(query(collection(db, "storyPreviews"), where("generationStatus", "==", "failed"))),
+    ]);
+
+    const alerts: Alert[] = [];
+    const now = new Date();
+
+    if (failedCount > 0) {
+      alerts.push({
+        id: "failed-generations",
+        type: "danger",
+        message: `${failedCount} personalization${failedCount === 1 ? "" : "s"} failed to generate`,
+        timestamp: now,
+        source: "storyPreviews",
+      });
+    }
+    if (pendingCount > 5) {
+      alerts.push({
+        id: "pending-backlog",
+        type: "warn",
+        message: `${pendingCount} stories waiting for review`,
+        timestamp: now,
+        source: "story_templates",
+      });
+    } else if (pendingCount > 0) {
+      alerts.push({
+        id: "pending-backlog",
+        type: "info",
+        message: `${pendingCount} stor${pendingCount === 1 ? "y" : "ies"} waiting for review`,
+        timestamp: now,
+        source: "story_templates",
+      });
+    }
+
+    return alerts;
   } catch {
     return [];
   }
@@ -105,6 +164,7 @@ export function useAdminStats(): AdminStats {
     totalPurchases: 0,
     totalTemplates: 0,
     pendingTemplates: 0,
+    allTimeRevenueCents: 0,
     activeAlerts: [],
     recentActivity: [],
     loading: true,
@@ -141,9 +201,10 @@ export function useAdminStats(): AdminStats {
 
         if (cancelled) return;
 
-        const [activeAlerts, recentActivity] = await Promise.all([
-          safeAlerts(),
-          safeRecentActivity(),
+        const [activeAlerts, recentActivity, revenueSummary] = await Promise.all([
+          loadActiveAlerts(),
+          loadRecentActivity(),
+          getPurchasesTimeseries(90).catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -154,6 +215,7 @@ export function useAdminStats(): AdminStats {
           totalPurchases,
           totalTemplates,
           pendingTemplates,
+          allTimeRevenueCents: revenueSummary?.allTimeRevenueCents ?? 0,
           activeAlerts,
           recentActivity,
           loading: false,

@@ -1097,27 +1097,22 @@
       }
     },
     "overview": {
-      "kpiEyebrow": "Key metrics · this month"
+      "kpiEyebrow": "Key metrics · all time"
     },
     "kpi": {
       "personalizations": "Stories personalized",
       "caregivers": "Active caregivers",
       "conversionRate": "Conversion rate",
       "revenue": "Revenue (ILS)",
-      "deltaUpPersonalizations": "+18% vs last month",
-      "deltaUpCaregivers": "+11% vs last month",
-      "deltaDownConversion": "↓ 2.1% vs last month",
-      "deltaUpRevenue": "+24% vs last month"
+      "allTime": "All time",
+      "realConversion": "Previews → purchases"
     },
     "funnel": {
       "title": "Conversion funnel",
-      "thisMonth": "this month",
-      "catalogViews": "Catalog views (est.)",
-      "storyDetail": "Story detail views",
+      "allTime": "all time",
       "personalizeStarted": "Personalize started",
-      "previewRead": "Preview read",
       "purchased": "Purchased",
-      "insight": "Preview → Purchase drop-off is high. Consider adding a post-preview therapist quote nudge."
+      "insight": "{pct}% of previews have converted to a purchase, all time."
     },
     "categories": {
       "title": "Top therapeutic categories"

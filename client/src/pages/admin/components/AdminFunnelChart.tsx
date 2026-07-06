@@ -18,6 +18,8 @@ export default function AdminFunnelChart() {
   const [steps, setSteps] = useState<FunnelStep[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [conversionPct, setConversionPct] = useState(0);
+
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -33,27 +35,16 @@ export default function AdminFunnelChart() {
 
         const totalPreviews = previewsSnap.data().count;
         const totalPurchases = purchasesSnap.data().count;
-        const totalViews = Math.max(totalPreviews * 10, totalPreviews);
 
+        // Only two real, measured stages exist in this product — there is no
+        // page-view/analytics-event tracking pipeline, so "catalog views" or
+        // "story detail views" cannot be reported honestly. Do not fabricate
+        // intermediate steps.
         setSteps([
-          { label: t("admin.funnel.catalogViews"), count: totalViews, color: "#824D5C" },
-          {
-            label: t("admin.funnel.storyDetail"),
-            count: Math.round(totalViews * 0.71),
-            color: "#8A5B6A",
-          },
-          {
-            label: t("admin.funnel.personalizeStarted"),
-            count: totalPreviews,
-            color: "#9E7080",
-          },
-          {
-            label: t("admin.funnel.previewRead"),
-            count: Math.round(totalPreviews * 0.83),
-            color: "#B07A8A",
-          },
+          { label: t("admin.funnel.personalizeStarted"), count: totalPreviews, color: "#824D5C" },
           { label: t("admin.funnel.purchased"), count: totalPurchases, color: "#C4A0AC" },
         ]);
+        setConversionPct(totalPreviews > 0 ? (totalPurchases / totalPreviews) * 100 : 0);
         setLoading(false);
       } catch {
         if (!cancelled) setLoading(false);
@@ -93,7 +84,7 @@ export default function AdminFunnelChart() {
             borderRadius: "4px",
           }}
         >
-          {t("admin.funnel.thisMonth")}
+          {t("admin.funnel.allTime")}
         </Typography>
       </Box>
 
@@ -162,7 +153,9 @@ export default function AdminFunnelChart() {
           border: "0.5px solid #FAC775",
         }}
       >
-        <Typography sx={{ fontSize: 11, color: "#633806" }}>{t("admin.funnel.insight")}</Typography>
+        <Typography sx={{ fontSize: 11, color: "#633806" }}>
+          {t("admin.funnel.insight", { pct: conversionPct.toFixed(1) })}
+        </Typography>
       </Box>
     </Paper>
   );

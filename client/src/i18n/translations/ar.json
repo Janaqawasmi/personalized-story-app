@@ -1097,27 +1097,22 @@
       }
     },
     "overview": {
-      "kpiEyebrow": "المقاييس الرئيسية · هذا الشهر"
+      "kpiEyebrow": "المقاييس الرئيسية · كل الأوقات"
     },
     "kpi": {
       "personalizations": "قصص شخصية",
       "caregivers": "مقدمي الرعاية النشطين",
       "conversionRate": "معدل التحويل",
       "revenue": "الإيرادات (بالشيكل الإسرائيلي)",
-      "deltaUpPersonalizations": "+18% مقارنة بالشهر الماضي",
-      "deltaUpCaregivers": "+11% مقارنة بالشهر الماضي",
-      "deltaDownConversion": "↓ 2.1% مقابل الشهر الماضي",
-      "deltaUpRevenue": "+24% مقارنة بالشهر الماضي"
+      "allTime": "كل الأوقات",
+      "realConversion": "معاينات ← مشتريات"
     },
     "funnel": {
       "title": "قمع التحويل",
-      "thisMonth": "هذا الشهر",
-      "catalogViews": "مشاهدات الكتالوج (تقديرات)",
-      "storyDetail": "طرق عرض تفاصيل القصة",
+      "allTime": "كل الأوقات",
       "personalizeStarted": "بدأ التخصيص",
-      "previewRead": "قراءة المعاينة",
       "purchased": "تم شراؤها",
-      "insight": "معاينة → انخفاض نسبة الشراء مرتفع. فكر في إضافة دفعة اقتباس للمعالج بعد المعاينة."
+      "insight": "{pct}% من المعاينات تحولت إلى عملية شراء، منذ البداية."
     },
     "categories": {
       "title": "أعلى الفئات العلاجية"
