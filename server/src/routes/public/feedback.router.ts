@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { db } from "../../config/firebase";
 import { COLLECTIONS } from "../../shared/firestore/paths";
+import { resolveCaregiverDisplayName } from "../../shared/utils/caregiverDisplayName";
 
 const router = Router();
 
@@ -35,14 +36,38 @@ router.get("/featured-reviews", async (_req: Request, res: Response): Promise<vo
     );
     const titleByTemplateId = new Map(templateEntries);
 
+    // Real names are resolved here, at read time, from the caregiver's own
+    // account — never stored/typed by an admin — so a later name change on
+    // the account is reflected immediately. caregiverUid itself never
+    // leaves this function.
+    const caregiverUidsNeedingName = Array.from(
+      new Set(
+        snap.docs
+          .filter((d) => d.data().useRealName === true)
+          .map((d) => d.data().caregiverUid as string | undefined)
+          .filter((v): v is string => typeof v === "string" && v.trim().length > 0),
+      ),
+    );
+
+    const caregiverNameEntries = await Promise.all(
+      caregiverUidsNeedingName.map(async (uid) => {
+        const caregiverSnap = await db.collection(COLLECTIONS.CAREGIVERS).doc(uid).get();
+        const name = resolveCaregiverDisplayName(caregiverSnap.data());
+        return [uid, name] as const;
+      }),
+    );
+    const nameByCaregiverUid = new Map(caregiverNameEntries);
+
     // Explicit field-by-field construction — never spread `data` — so a
     // future field added to storyFeedback can never leak here by accident.
     const reviews = snap.docs.map((doc) => {
       const data = doc.data();
+      const featuredDisplayName =
+        data.useRealName === true ? (nameByCaregiverUid.get(data.caregiverUid) ?? null) : null;
       return {
         rating: (data.rating as number | undefined) ?? null,
         reviewText: (data.reviewText as string | undefined) ?? null,
-        featuredDisplayName: (data.featuredDisplayName as string | undefined) ?? null,
+        featuredDisplayName,
         storyTitle: titleByTemplateId.get(data.storyTemplateId as string) ?? "",
       };
     });

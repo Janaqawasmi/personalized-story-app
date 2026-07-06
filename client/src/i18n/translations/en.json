@@ -1169,7 +1169,10 @@
       "colReview": "Review",
       "colDate": "Date",
       "colFeature": "Feature on homepage",
-      "displayNamePlaceholder": "Public display name (e.g. \"Noa's mom\")",
+      "nameAnonymous": "Anonymous",
+      "nameReal": "Real name",
+      "nameAnonymousPreview": "Shows as \"DAMMAH family\"",
+      "nameRealMissing": "No account name on file",
       "empty": "No reviews yet."
     },
     "users": {

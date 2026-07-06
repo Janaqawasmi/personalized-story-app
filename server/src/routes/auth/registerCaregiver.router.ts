@@ -89,7 +89,8 @@ router.post("/register-caregiver", async (req: Request, res: Response) => {
     // ── 4. Create the caregivers/{uid} document (merge: true) ──────────────
     const caregiverData = {
       uid,
-      fullName: displayName,
+      displayName,
+      fullName: displayName, // legacy field — kept for older docs/readers
       email,
       role: "caregiver",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

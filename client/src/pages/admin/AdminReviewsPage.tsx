@@ -4,7 +4,8 @@ import {
   MenuItem,
   Select,
   Switch,
-  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   Paper,
 } from "@mui/material";
@@ -73,7 +74,7 @@ export default function AdminReviewsPage() {
       await updateAdminFeedbackFeature({
         feedbackId: item.feedbackId,
         isFeatured: checked,
-        featuredDisplayName: item.featuredDisplayName,
+        useRealName: item.useRealName,
       });
     } catch (err) {
       setItems(prevItems);
@@ -83,20 +84,32 @@ export default function AdminReviewsPage() {
     }
   };
 
-  const handleDisplayNameBlur = async (item: AdminFeedbackItem, value: string) => {
-    const trimmed = value.trim() || null;
-    if (trimmed === item.featuredDisplayName) return;
+  const handleUseRealNameChange = async (item: AdminFeedbackItem, useRealName: boolean) => {
+    if (useRealName === item.useRealName) return;
     setSavingId(item.feedbackId);
     const prevItems = items;
     setItems((prev) =>
-      prev.map((i) => (i.feedbackId === item.feedbackId ? { ...i, featuredDisplayName: trimmed } : i)),
+      prev.map((i) =>
+        i.feedbackId === item.feedbackId ? { ...i, useRealName, resolvedDisplayName: null } : i,
+      ),
     );
     try {
-      await updateAdminFeedbackFeature({
+      const result = await updateAdminFeedbackFeature({
         feedbackId: item.feedbackId,
         isFeatured: item.isFeatured,
-        featuredDisplayName: trimmed,
+        useRealName,
       });
+      setItems((prev) =>
+        prev.map((i) =>
+          i.feedbackId === item.feedbackId
+            ? {
+                ...i,
+                useRealName: result.useRealName,
+                resolvedDisplayName: result.resolvedDisplayName,
+              }
+            : i,
+        ),
+      );
     } catch (err) {
       setItems(prevItems);
       setError(err instanceof Error ? err.message : "Failed to update feedback");
@@ -248,22 +261,37 @@ export default function AdminReviewsPage() {
                   <Typography sx={{ fontSize: 11, color: COLORS.textSecondary }}>
                     {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Switch
-                      size="small"
-                      checked={item.isFeatured}
-                      disabled={savingId === item.feedbackId}
-                      onChange={(e) => void handleToggleFeatured(item, e.target.checked)}
-                    />
-                    <TextField
-                      size="small"
-                      variant="standard"
-                      placeholder={t("admin.reviews.displayNamePlaceholder")}
-                      defaultValue={item.featuredDisplayName ?? ""}
-                      onBlur={(e) => void handleDisplayNameBlur(item, e.target.value)}
-                      disabled={savingId === item.feedbackId}
-                      sx={{ fontSize: 12, flex: 1 }}
-                    />
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Switch
+                        size="small"
+                        checked={item.isFeatured}
+                        disabled={savingId === item.feedbackId}
+                        onChange={(e) => void handleToggleFeatured(item, e.target.checked)}
+                      />
+                      <ToggleButtonGroup
+                        size="small"
+                        exclusive
+                        value={item.useRealName ? "real" : "anonymous"}
+                        disabled={savingId === item.feedbackId}
+                        onChange={(_e, value) => {
+                          if (value === null) return;
+                          void handleUseRealNameChange(item, value === "real");
+                        }}
+                      >
+                        <ToggleButton value="anonymous" sx={{ fontSize: 11, px: 1, py: 0.25 }}>
+                          {t("admin.reviews.nameAnonymous")}
+                        </ToggleButton>
+                        <ToggleButton value="real" sx={{ fontSize: 11, px: 1, py: 0.25 }}>
+                          {t("admin.reviews.nameReal")}
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    </Box>
+                    <Typography sx={{ fontSize: 10, color: COLORS.textSecondary, pl: "42px" }}>
+                      {item.useRealName
+                        ? item.resolvedDisplayName || t("admin.reviews.nameRealMissing")
+                        : t("admin.reviews.nameAnonymousPreview")}
+                    </Typography>
                   </Box>
                 </Box>
               );

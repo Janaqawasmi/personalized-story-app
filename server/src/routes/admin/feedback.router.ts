@@ -1,9 +1,23 @@
 import { Router, Request, Response } from "express";
-import { db } from "../../config/firebase";
+import { admin, db } from "../../config/firebase";
 import { requireAuth, requireRole } from "../../middleware/auth.middleware";
 import { COLLECTIONS } from "../../shared/firestore/paths";
+import { resolveCaregiverDisplayName } from "../../shared/utils/caregiverDisplayName";
 
 const router = Router();
+
+async function lookupCaregiverName(uid: string): Promise<string | null> {
+  const snap = await db.collection(COLLECTIONS.CAREGIVERS).doc(uid).get();
+  const fromDoc = resolveCaregiverDisplayName(snap.data());
+  if (fromDoc) return fromDoc;
+
+  try {
+    const user = await admin.auth().getUser(uid);
+    return (user.displayName ?? "").trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 function toIsoString(value: unknown): string | null {
   if (
@@ -58,8 +72,30 @@ router.get(
       );
       const titleByTemplateId = new Map(templateEntries);
 
+      // Resolve caregiver names for every row so the admin preview works
+      // as soon as "Real name" is toggled — never expose caregiverUid itself.
+      const caregiverUids = Array.from(
+        new Set(
+          feedbackSnap.docs
+            .map((d) => d.data().caregiverUid as string | undefined)
+            .filter((v): v is string => typeof v === "string" && v.trim().length > 0),
+        ),
+      );
+
+      const caregiverNameEntries = await Promise.all(
+        caregiverUids.map(async (uid) => {
+          const name = await lookupCaregiverName(uid);
+          return [uid, name] as const;
+        }),
+      );
+      const nameByCaregiverUid = new Map(caregiverNameEntries);
+
       const rows = feedbackSnap.docs.map((doc) => {
         const data = doc.data();
+        const useRealName = data.useRealName === true;
+        const resolvedDisplayName = useRealName
+          ? (nameByCaregiverUid.get(data.caregiverUid) ?? null)
+          : null;
         return {
           feedbackId: doc.id,
           storyTemplateId: data.storyTemplateId ?? "",
@@ -70,7 +106,8 @@ router.get(
           emotionalShift: data.emotionalShift ?? null,
           reviewText: data.reviewText ?? null,
           isFeatured: data.isFeatured === true,
-          featuredDisplayName: data.featuredDisplayName ?? null,
+          useRealName,
+          resolvedDisplayName,
           createdAt: toIsoString(data.createdAt),
         };
       });
@@ -88,11 +125,16 @@ router.get(
 
 /**
  * PATCH /api/admin/feedback/:feedbackId
- * body: { isFeatured?: boolean, featuredDisplayName?: string | null }
+ * body: { isFeatured?: boolean, useRealName?: boolean }
  *
  * Curation-only endpoint. Never touches rating/reviewText/childName/etc —
  * those are the caregiver's own submitted data, immutable once written
  * (see firestore.rules: storyFeedback allows create only, never update).
+ *
+ * Display name is never typed by hand here: it's either "DAMMAH family"
+ * (useRealName false) or resolved server-side from the caregiver's own
+ * account displayName (useRealName true) — see GET's resolvedDisplayName
+ * and the public route's own lookup at read time.
  */
 const PROTECTED_FIELDS = [
   "rating",
@@ -103,6 +145,7 @@ const PROTECTED_FIELDS = [
   "personalizedStoryId",
   "emotionalShift",
   "createdAt",
+  "featuredDisplayName",
 ] as const;
 
 router.patch(
@@ -127,7 +170,7 @@ router.patch(
           success: false,
           error: {
             code: "FORBIDDEN_FIELD",
-            message: `This route only updates isFeatured/featuredDisplayName. "${attemptedProtectedField}" is not editable here.`,
+            message: `This route only updates isFeatured/useRealName. "${attemptedProtectedField}" is not editable here.`,
           },
         });
         return;
@@ -146,21 +189,15 @@ router.patch(
         update.isFeatured = body.isFeatured;
       }
 
-      if ("featuredDisplayName" in body) {
-        if (body.featuredDisplayName !== null && typeof body.featuredDisplayName !== "string") {
+      if ("useRealName" in body) {
+        if (typeof body.useRealName !== "boolean") {
           res.status(400).json({
             success: false,
-            error: {
-              code: "INVALID_DISPLAY_NAME",
-              message: "featuredDisplayName must be a string or null.",
-            },
+            error: { code: "INVALID_USE_REAL_NAME", message: "useRealName must be a boolean." },
           });
           return;
         }
-        update.featuredDisplayName =
-          typeof body.featuredDisplayName === "string"
-            ? body.featuredDisplayName.trim() || null
-            : null;
+        update.useRealName = body.useRealName;
       }
 
       if (Object.keys(update).length === 0) {
@@ -168,7 +205,7 @@ router.patch(
           success: false,
           error: {
             code: "EMPTY_UPDATE",
-            message: "Provide at least one of isFeatured, featuredDisplayName.",
+            message: "Provide at least one of isFeatured, useRealName.",
           },
         });
         return;
@@ -186,7 +223,17 @@ router.patch(
 
       await feedbackRef.set(update, { merge: true });
 
-      res.status(200).json({ success: true, data: { feedbackId, ...update } });
+      const updated = (await feedbackRef.get()).data() ?? {};
+      const useRealName = updated.useRealName === true;
+      const caregiverUid =
+        typeof updated.caregiverUid === "string" ? updated.caregiverUid.trim() : "";
+      const resolvedDisplayName =
+        useRealName && caregiverUid ? await lookupCaregiverName(caregiverUid) : null;
+
+      res.status(200).json({
+        success: true,
+        data: { feedbackId, ...update, resolvedDisplayName },
+      });
     } catch (error) {
       console.error("[admin/feedback] patch error:", error);
       res.status(500).json({

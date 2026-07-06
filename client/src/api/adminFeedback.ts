@@ -10,7 +10,8 @@ export interface AdminFeedbackItem {
   emotionalShift: { before: number; after: number } | null;
   reviewText: string | null;
   isFeatured: boolean;
-  featuredDisplayName: string | null;
+  useRealName: boolean;
+  resolvedDisplayName: string | null;
   createdAt: string | null;
 }
 
@@ -41,23 +42,32 @@ export async function listAdminFeedback(storyTemplateId?: string): Promise<Admin
   return handleAdminResponse<AdminFeedbackItem[]>(res);
 }
 
+export interface AdminFeedbackFeatureUpdate {
+  feedbackId: string;
+  isFeatured: boolean;
+  useRealName: boolean;
+  resolvedDisplayName: string | null;
+}
+
 export async function updateAdminFeedbackFeature(input: {
   feedbackId: string;
   isFeatured: boolean;
-  featuredDisplayName: string | null;
-}): Promise<{ feedbackId: string; isFeatured: boolean; featuredDisplayName: string | null }> {
+  useRealName: boolean;
+}): Promise<AdminFeedbackFeatureUpdate> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${API_BASE}/api/admin/feedback/${encodeURIComponent(input.feedbackId)}`, {
     method: "PATCH",
     headers,
     body: JSON.stringify({
       isFeatured: input.isFeatured,
-      featuredDisplayName: input.featuredDisplayName,
+      useRealName: input.useRealName,
     }),
   });
-  return handleAdminResponse<{
-    feedbackId: string;
-    isFeatured: boolean;
-    featuredDisplayName: string | null;
-  }>(res);
+  const data = await handleAdminResponse<AdminFeedbackFeatureUpdate>(res);
+  return {
+    feedbackId: data.feedbackId,
+    isFeatured: data.isFeatured,
+    useRealName: data.useRealName,
+    resolvedDisplayName: data.resolvedDisplayName ?? null,
+  };
 }
