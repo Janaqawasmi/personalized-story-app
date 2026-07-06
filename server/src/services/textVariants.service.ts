@@ -22,6 +22,7 @@ import { firestore } from "@/config/firebase";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { callLLM } from "@/agent1/shared/llm-client";
 import { findMissingPlaceholders } from "@/shared/utils/placeholderValidation";
+import type { StoryLanguage } from "@/models/storyBrief.model";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -57,15 +58,36 @@ export class TextVariantError extends Error {
 // LLM prompt
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Human-readable language name for the LLM prompt header. */
+const LANGUAGE_NAMES: Record<StoryLanguage, string> = {
+  he: "Hebrew",
+  ar: "Arabic",
+  en: "English",
+};
+
+/**
+ * Gender-grammar instruction, tailored per language. Hebrew and Arabic are
+ * morphologically gendered (verbs/adjectives change form, not just pronouns);
+ * English gender is carried almost entirely by pronouns/possessives, so the
+ * instruction for English must not claim "full morphological changes" —
+ * that would be inaccurate and could confuse the model into over-rewriting.
+ */
+const GENDER_GRAMMAR_RULES: Record<StoryLanguage, string> = {
+  he: "Adjust ALL gendered grammar (verbs, adjectives, pronouns) for the target gender. In Hebrew this means full morphological changes — do NOT simply swap a single pronoun.",
+  ar: "Adjust ALL gendered grammar (verbs, adjectives, pronouns) for the target gender. In Arabic this means full morphological changes — do NOT simply swap a single pronoun.",
+  en: "Adjust gendered pronouns and possessives (he/him/his vs. she/her/hers) for the target gender. English carries almost no other grammatical gender, so verbs, adjectives, and the rest of the sentence structure should otherwise stay the same.",
+};
+
 /**
  * Build a batched prompt that rewrites all pages in one LLM call.
  * The model returns a JSON array; we parse it and validate each entry.
  */
 function buildVariantPrompt(
   pages: Array<{ pageNumber: number; text: string }>,
-  language: "he" | "ar",
+  language: StoryLanguage,
 ): string {
-  const langName = language === "he" ? "Hebrew" : "Arabic";
+  const langName = LANGUAGE_NAMES[language];
+  const genderRule = GENDER_GRAMMAR_RULES[language];
   const pagesBlock = pages
     .map((p) => `Page ${p.pageNumber}:\n${p.text}`)
     .join("\n\n---\n\n");
@@ -82,7 +104,7 @@ For each page, produce TWO versions of the text:
 
 ## Rules (strictly follow all of them)
 1. Replace EVERY reference to the protagonist (name, pronoun, implied subject) with {{CHILD_NAME}}
-2. Adjust ALL gendered grammar (verbs, adjectives, pronouns) for the target gender. In ${langName} this means full morphological changes — do NOT simply swap a single pronoun.
+2. ${genderRule}
 3. Keep the meaning, emotional tone, therapeutic content, and narrative events IDENTICAL across both variants and the original.
 4. Do NOT change settings, other characters, plot, or any non-protagonist language.
 5. Both variants MUST contain the exact string {{CHILD_NAME}} at least once.
@@ -260,12 +282,15 @@ export async function generateTextVariants(templateId: string): Promise<void> {
     return { pageNumber: pn, text: text.trim() };
   });
 
-  const language: "he" | "ar" =
-    typeof data.generationConfig === "object" &&
-    data.generationConfig !== null &&
-    (data.generationConfig as Record<string, unknown>).language === "ar"
-      ? "ar"
-      : "he";
+  const rawLanguage =
+    typeof data.generationConfig === "object" && data.generationConfig !== null
+      ? (data.generationConfig as Record<string, unknown>).language
+      : undefined;
+  // "he" remains the default for missing/unrecognized values (this platform's
+  // Hebrew-first default, unchanged from before). "ar" and "en" are now both
+  // recognized explicitly — "en" must no longer silently fall through to "he".
+  const language: StoryLanguage =
+    rawLanguage === "ar" ? "ar" : rawLanguage === "en" ? "en" : "he";
 
   // Set optimistic status to "generating" so the UI can show a spinner.
   await templateRef.update({ textVariantStatus: "generating" });

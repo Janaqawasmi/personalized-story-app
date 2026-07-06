@@ -110,6 +110,7 @@ const mockCallLLM = callLLM as jest.MockedFunction<typeof callLLM>;
 import {
   finalizeTextVariants,
   approveTextVariant,
+  generateTextVariants,
   TextVariantError,
 } from "../textVariants.service";
 
@@ -257,6 +258,91 @@ describe("finalizeTextVariants — blocked when validation fails", () => {
       code: "VALIDATION_FAILED",
     });
     expect(directUpdates).toHaveLength(0);
+  });
+});
+
+// ── generateTextVariants — language selection drives the LLM prompt ──────────
+//
+// generationConfig.language must select the matching language name/gender-rule
+// in the prompt sent to the LLM. "en" must not silently fall back to "he".
+
+describe("generateTextVariants — language selection", () => {
+  function mockLLMValidResponse() {
+    mockCallLLM.mockResolvedValue({
+      text: JSON.stringify([
+        { pageNumber: 1, masculine: "{{CHILD_NAME}} boy text", feminine: "{{CHILD_NAME}} girl text" },
+        { pageNumber: 2, masculine: "{{CHILD_NAME}} boy text 2", feminine: "{{CHILD_NAME}} girl text 2" },
+      ]),
+      inputTokens: 10,
+      outputTokens: 10,
+      latencyMs: 5,
+    });
+  }
+
+  function promptSentToLLM(): string {
+    expect(mockCallLLM).toHaveBeenCalledTimes(1);
+    return mockCallLLM.mock.calls[0]![0].prompt;
+  }
+
+  test("Hebrew: generationConfig.language === 'he' uses Hebrew instructions", async () => {
+    templateDocData.generationConfig = { language: "he" };
+    mockLLMValidResponse();
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    const prompt = promptSentToLLM();
+    expect(prompt).toContain("Language: Hebrew");
+    expect(prompt).toContain("In Hebrew this means full morphological changes");
+  });
+
+  test("Hebrew is still the default when generationConfig.language is missing (backward compatible)", async () => {
+    delete templateDocData.generationConfig;
+    mockLLMValidResponse();
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    const prompt = promptSentToLLM();
+    expect(prompt).toContain("Language: Hebrew");
+  });
+
+  test("Arabic: generationConfig.language === 'ar' uses Arabic instructions", async () => {
+    templateDocData.generationConfig = { language: "ar" };
+    mockLLMValidResponse();
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    const prompt = promptSentToLLM();
+    expect(prompt).toContain("Language: Arabic");
+    expect(prompt).toContain("In Arabic this means full morphological changes");
+    expect(prompt).not.toContain("Language: Hebrew");
+  });
+
+  test("English: generationConfig.language === 'en' uses English instructions and does not fall back to Hebrew", async () => {
+    templateDocData.generationConfig = { language: "en" };
+    mockLLMValidResponse();
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    const prompt = promptSentToLLM();
+    expect(prompt).toContain("Language: English");
+    expect(prompt).toContain("Adjust gendered pronouns and possessives");
+    // The core regression assertion: English must not silently become Hebrew.
+    expect(prompt).not.toContain("Language: Hebrew");
+    expect(prompt).not.toContain("In Hebrew this means full morphological changes");
+  });
+
+  test("English generation still writes variant docs and sets textVariantStatus = 'pending_review'", async () => {
+    templateDocData.generationConfig = { language: "en" };
+    mockLLMValidResponse();
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    expect(batchSets).toHaveLength(2);
+    const page1 = batchSets.find((s) => s.ref.endsWith("/1"))!;
+    expect((page1.data as { masculine: string }).masculine).toBe("{{CHILD_NAME}} boy text");
+
+    const statusUpdate = batchUpdates.find((u) => "textVariantStatus" in u.data);
+    expect(statusUpdate?.data.textVariantStatus).toBe("pending_review");
   });
 });
 
