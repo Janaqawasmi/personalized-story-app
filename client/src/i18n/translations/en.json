@@ -1268,8 +1268,19 @@
       "noPurchases": "No purchases yet."
     },
     "analytics": {
-      "title": "Analytics",
-      "body": "Detailed charts and exports will connect to your analytics backend. Use the Overview funnel for live Firestore-based metrics."
+      "sectionEyebrow": "Platform analytics",
+      "kpiPreviews": "Total previews",
+      "kpiAllTime": "All time",
+      "kpiConversion": "Preview → purchase",
+      "kpiConversionSub": "Real conversion rate",
+      "kpiRevenue30d": "Revenue",
+      "kpiLast30Days": "Last 30 days",
+      "kpiPurchases30d": "Purchases",
+      "trendTitle": "Purchases — last 30 days",
+      "languageTitle": "Stories by language",
+      "ageTitle": "Stories by age group",
+      "ratingTitle": "Rating distribution",
+      "topSpecialistsTitle": "Top specialists by purchases"
     },
     "ai": {
       "title": "AI usage",

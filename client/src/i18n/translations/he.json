@@ -1268,8 +1268,19 @@
       "noPurchases": "אין עדיין רכישות."
     },
     "analytics": {
-      "title": "אנליטיקה",
-      "body": "גרפים מפורטים וייצוא יתחברו לשרת האנליטיקה. השתמשו בסקירה למדדים חיים מ-Firestore."
+      "sectionEyebrow": "אנליטיקת פלטפורמה",
+      "kpiPreviews": "סך התצוגות המקדימות",
+      "kpiAllTime": "כל הזמנים",
+      "kpiConversion": "תצוגה מקדימה ← רכישה",
+      "kpiConversionSub": "שיעור המרה אמיתי",
+      "kpiRevenue30d": "הכנסות",
+      "kpiLast30Days": "30 הימים האחרונים",
+      "kpiPurchases30d": "רכישות",
+      "trendTitle": "רכישות — 30 הימים האחרונים",
+      "languageTitle": "סיפורים לפי שפה",
+      "ageTitle": "סיפורים לפי קבוצת גיל",
+      "ratingTitle": "התפלגות דירוגים",
+      "topSpecialistsTitle": "המומחים המובילים לפי רכישות"
     },
     "ai": {
       "title": "שימוש ב-AI",

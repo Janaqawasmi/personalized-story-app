@@ -67,6 +67,7 @@ import adminFeedbackRouter from "./routes/admin/feedback.router";
 import adminSpecialistsRouter from "./routes/admin/specialists.router";
 import adminUsersRouter from "./routes/admin/users.router";
 import adminBannersRouter from "./routes/admin/banners.router";
+import adminAnalyticsRouter from "./routes/admin/analytics.router";
 
 // ---------- IMAGE PROVIDER ----------
 // Register Seedream as the image generation backend for all services.
@@ -133,6 +134,7 @@ app.use("/api/admin/feedback", adminFeedbackRouter);
 app.use("/api/admin/specialists", adminSpecialistsRouter);
 app.use("/api/admin/users", adminUsersRouter);
 app.use("/api/admin/banners", adminBannersRouter);
+app.use("/api/admin/analytics", adminAnalyticsRouter);
 app.use("/api/specialist/stories", specialistStoriesRouter);
 app.use("/api/specialist/templates", specialistTemplatesRouter);
 
