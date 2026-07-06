@@ -111,6 +111,7 @@ import {
   finalizeTextVariants,
   approveTextVariant,
   generateTextVariants,
+  getTextVariants,
   TextVariantError,
 } from "../textVariants.service";
 
@@ -343,6 +344,34 @@ describe("generateTextVariants — language selection", () => {
 
     const statusUpdate = batchUpdates.find((u) => "textVariantStatus" in u.data);
     expect(statusUpdate?.data.textVariantStatus).toBe("pending_review");
+  });
+});
+
+// ── getTextVariants — exposes textPersonalizationReady for display ───────────
+//
+// Added for the specialist workspace's persistent "text variants" status chip
+// (WorkspaceHeader), which needs to distinguish "never generated" from
+// "already finalized" — both otherwise look identical via textVariantStatus
+// alone, since finalize() clears it back to "none".
+
+describe("getTextVariants — textPersonalizationReady", () => {
+  test("is false before finalize", async () => {
+    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
+    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+
+    const result = await getTextVariants(TEMPLATE_ID);
+
+    expect(result.textPersonalizationReady).toBe(false);
+  });
+
+  test("is true after finalize", async () => {
+    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
+    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+
+    await finalizeTextVariants(TEMPLATE_ID, UID);
+    const result = await getTextVariants(TEMPLATE_ID);
+
+    expect(result.textPersonalizationReady).toBe(true);
   });
 });
 

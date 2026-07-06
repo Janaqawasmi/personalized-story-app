@@ -17,6 +17,8 @@ export interface TextVariantsResponse {
   templateExists: boolean;
   textVariantStatus: "none" | "generating" | "pending_review" | string;
   personalizationEnabled: boolean;
+  /** True once finalizeTextVariants() has run — display-only "review complete" signal. */
+  textPersonalizationReady: boolean;
   variants: TextVariantDoc[];
 }
 

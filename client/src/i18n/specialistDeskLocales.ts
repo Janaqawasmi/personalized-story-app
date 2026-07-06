@@ -482,6 +482,12 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   illGenerateAllImages: "Generate all images",
   illPageNumber: (n) => `Page ${n} · scene plan`,
 
+  illProgressApprovedCount: (approved, total) =>
+    `${approved} of ${total} illustration${total === 1 ? "" : "s"} approved`,
+  illProgressStatusWorkspace: "In progress",
+  illProgressStatusReady: "Ready to publish",
+  illProgressStatusPublished: "Published",
+
   unsavedDialogTitle: "Unsaved changes",
   unsavedDialogBody:
     "You have unsaved edits on the Story tab. Leave without saving?",
@@ -512,6 +518,14 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   headerArchiveConfirm: "Archive",
   headerCopiedSnackbar: "Copied!",
   agesChipPrefix: "Ages",
+
+  textVariantNotPersonalizable: "Not personalizable",
+  textVariantNotStarted: "Personalization not started",
+  textVariantGenerating: "Generating variants…",
+  textVariantPendingReview: "Text variants pending review",
+  textVariantReady: "Personalization ready",
+  textVariantProgress: (approved, total) => `${approved}/${total} pages reviewed`,
+  textVariantReviewLink: "Review variants",
 
   footCareTitle: "A note on care",
   footCareBody:
@@ -779,6 +793,11 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   illGenerateAllImages: "ייצר את כל האיורים",
   illPageNumber: (n) => `עמוד ${n} · תכנון סצנה`,
 
+  illProgressApprovedCount: (approved, total) => `${approved} מתוך ${total} איורים אושרו`,
+  illProgressStatusWorkspace: "בתהליך",
+  illProgressStatusReady: "מוכן לפרסום",
+  illProgressStatusPublished: "פורסם",
+
   unsavedDialogTitle: "שינויים שלא נשמרו",
   unsavedDialogBody:
     "יש עריכות שלא נשמרו בלשונית הסיפור. לצאת בלי לשמור?",
@@ -808,6 +827,14 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   headerArchiveConfirm: "ארכיון",
   headerCopiedSnackbar: "הועתק!",
   agesChipPrefix: "גילאים",
+
+  textVariantNotPersonalizable: "לא ניתן להתאמה אישית",
+  textVariantNotStarted: "התאמה אישית טרם החלה",
+  textVariantGenerating: "מייצר גרסאות…",
+  textVariantPendingReview: "גרסאות טקסט ממתינות לבדיקה",
+  textVariantReady: "התאמה אישית מוכנה",
+  textVariantProgress: (approved, total) => `${approved}/${total} עמודים נבדקו`,
+  textVariantReviewLink: "בדיקת גרסאות",
 
   footCareTitle: "הערה על אחריות",
   footCareBody:
@@ -1078,6 +1105,11 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   illGenerateAllImages: "ولّد جميع التوضيحات",
   illPageNumber: (n) => `الصفحة ${n} · خطة المشهد`,
 
+  illProgressApprovedCount: (approved, total) => `تمت الموافقة على ${approved} من ${total} توضيحات`,
+  illProgressStatusWorkspace: "قيد التنفيذ",
+  illProgressStatusReady: "جاهز للنشر",
+  illProgressStatusPublished: "منشور",
+
   unsavedDialogTitle: "تغييرات غير محفوظة",
   unsavedDialogBody:
     "هناك تعديلات لم تُحفَظ في تبويب القصة. المغادرة دون حفظ؟",
@@ -1107,6 +1139,14 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   headerArchiveConfirm: "أرشفة",
   headerCopiedSnackbar: "تم النسخ!",
   agesChipPrefix: "أعمار",
+
+  textVariantNotPersonalizable: "غير قابلة للتخصيص",
+  textVariantNotStarted: "التخصيص لم يبدأ بعد",
+  textVariantGenerating: "جارٍ توليد النسخ…",
+  textVariantPendingReview: "نسخ النص بانتظار المراجعة",
+  textVariantReady: "التخصيص جاهز",
+  textVariantProgress: (approved, total) => `${approved}/${total} صفحات تمت مراجعتها`,
+  textVariantReviewLink: "مراجعة النسخ",
 
   footCareTitle: "ملاحظة على العناية",
   footCareBody:

@@ -349,6 +349,11 @@ export async function getTextVariants(templateId: string): Promise<{
   templateExists: boolean;
   textVariantStatus: string;
   personalizationEnabled: boolean;
+  /**
+   * True once finalizeTextVariants() has run — display-only signal for "review
+   * complete" UI (e.g. a workspace status chip). Not used for gating logic.
+   */
+  textPersonalizationReady: boolean;
   variants: TextVariantDoc[];
 }> {
   const templateRef = firestore
@@ -360,6 +365,7 @@ export async function getTextVariants(templateId: string): Promise<{
       templateExists: false,
       textVariantStatus: "none",
       personalizationEnabled: false,
+      textPersonalizationReady: false,
       variants: [],
     };
   }
@@ -368,6 +374,7 @@ export async function getTextVariants(templateId: string): Promise<{
   const textVariantStatus =
     typeof data.textVariantStatus === "string" ? data.textVariantStatus : "none";
   const personalizationEnabled = data.personalizationEnabled === true;
+  const textPersonalizationReady = data.textPersonalizationReady === true;
 
   const variantsSnap = await templateRef
     .collection(COLLECTIONS.TEMPLATE_TEXT_VARIANTS)
@@ -377,7 +384,13 @@ export async function getTextVariants(templateId: string): Promise<{
     .map((d) => d.data() as TextVariantDoc)
     .sort((a, b) => a.pageNumber - b.pageNumber);
 
-  return { templateExists: true, textVariantStatus, personalizationEnabled, variants };
+  return {
+    templateExists: true,
+    textVariantStatus,
+    personalizationEnabled,
+    textPersonalizationReady,
+    variants,
+  };
 }
 
 /**

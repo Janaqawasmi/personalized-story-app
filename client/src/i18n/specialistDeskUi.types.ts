@@ -250,6 +250,12 @@ export interface SpecialistDeskUi {
   illGenerateAllImages: string;
   illPageNumber: (pageIndex: number) => string;
 
+  /** Top-level illustration workspace progress indicator (above the page-card list). */
+  illProgressApprovedCount: (approved: number, total: number) => string;
+  illProgressStatusWorkspace: string;
+  illProgressStatusReady: string;
+  illProgressStatusPublished: string;
+
   unsavedDialogTitle: string;
   unsavedDialogBody: string;
   unsavedLeave: string;
@@ -277,6 +283,15 @@ export interface SpecialistDeskUi {
   headerArchiveConfirm: string;
   headerCopiedSnackbar: string;
   agesChipPrefix: string;
+
+  /** Persistent text-variant (personalization) review status chip in the workspace header. */
+  textVariantNotPersonalizable: string;
+  textVariantNotStarted: string;
+  textVariantGenerating: string;
+  textVariantPendingReview: string;
+  textVariantReady: string;
+  textVariantProgress: (approved: number, total: number) => string;
+  textVariantReviewLink: string;
 
   footCareTitle: string;
   footCareBody: string;

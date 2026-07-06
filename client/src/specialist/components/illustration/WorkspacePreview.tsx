@@ -10,6 +10,7 @@ import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceStat
 import type { BookReaderModel } from "../../../components/book/BookReaderModel";
 import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
 import ApprovalPreviewDialog from "./ApprovalPreviewDialog";
+import IllustrationProgressHeader from "./IllustrationProgressHeader";
 import PublishDialog from "./PublishDialog";
 import GalleryPanel from "./panels/GalleryPanel";
 import WorkspacePanel from "./WorkspacePanel";
@@ -91,8 +92,16 @@ export default function WorkspacePreview({
   const showGalleryHero =
     liveStatus === "illustration_ready" || liveStatus === "published";
 
+  const approvedPageCount = pages.filter((p) => p.subStatus === "approved").length;
+
   return (
     <Stack spacing={3}>
+      <IllustrationProgressHeader
+        approvedCount={approvedPageCount}
+        totalCount={pages.length}
+        liveStatus={liveStatus}
+      />
+
       {readOnly && liveStatus === "illustration_ready" ? (
         <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
           This story is marked ready to publish. Illustrations are locked.

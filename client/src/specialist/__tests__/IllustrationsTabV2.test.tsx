@@ -460,4 +460,77 @@ describe("IllustrationsTabV2", () => {
       screen.queryByRole("button", { name: SPECIALIST_DESK_EN.illWorkspacePublishLibrary }),
     ).not.toBeInTheDocument();
   });
+
+  // ---------------------------------------------------------------------
+  // Top-level illustration progress indicator — must reflect the same live
+  // `pages`/`status` the hook already reports, updating without a refresh.
+  // ---------------------------------------------------------------------
+
+  function twoPageVm(overrides: {
+    subStatuses: [PageCardViewModel["subStatus"], PageCardViewModel["subStatus"]];
+    status: "illustration_workspace" | "illustration_ready" | "published";
+    allApproved: boolean;
+    readOnly: boolean;
+  }) {
+    const basePage = {
+      text: "Hi.",
+      scenePlanVersion: 1,
+      scenePlanVisualBibleVersion: 1,
+      visualBibleIsStale: false,
+      imageVersion: 1,
+      imageUrl: "https://example.com/p.png",
+      lastError: null,
+      pendingJobId: null,
+      rejectionNote: null,
+      scenePlanRegenBusy: false,
+      versionCount: { scenePlans: 1, images: 1 },
+      imageVersionsDesc: [1],
+    };
+    return {
+      kind: "ready" as const,
+      status: overrides.status,
+      publishedTemplateId: null,
+      visualBibleVersion: 1,
+      visualBible: null,
+      visualBibleVersionsDesc: [],
+      visualBibleRegenJob: null,
+      pages: [
+        { ...basePage, pageNumber: 1, subStatus: overrides.subStatuses[0] },
+        { ...basePage, pageNumber: 2, subStatus: overrides.subStatuses[1] },
+      ],
+      allApproved: overrides.allApproved,
+      readOnly: overrides.readOnly,
+      previewModel: null,
+    };
+  }
+
+  it("shows the top-level progress indicator with the correct approved count out of the live pages", () => {
+    mockUseVm.mockReturnValue(
+      twoPageVm({
+        subStatuses: ["approved", "awaiting_review"],
+        status: "illustration_workspace",
+        allApproved: false,
+        readOnly: false,
+      }),
+    );
+    render(<IllustrationsTabV2 story={approvedStory()} />);
+
+    expect(screen.getByText("1 of 2 illustrations approved")).toBeTruthy();
+    expect(screen.getByText(SPECIALIST_DESK_EN.illProgressStatusWorkspace)).toBeTruthy();
+  });
+
+  it("updates the top-level progress indicator once the live vm reports every page approved", () => {
+    mockUseVm.mockReturnValue(
+      twoPageVm({
+        subStatuses: ["approved", "approved"],
+        status: "illustration_ready",
+        allApproved: true,
+        readOnly: true,
+      }),
+    );
+    render(<IllustrationsTabV2 story={approvedStory()} />);
+
+    expect(screen.getByText("2 of 2 illustrations approved")).toBeTruthy();
+    expect(screen.getByText(SPECIALIST_DESK_EN.illProgressStatusReady)).toBeTruthy();
+  });
 });
