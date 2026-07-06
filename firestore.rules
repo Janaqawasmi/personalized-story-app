@@ -176,6 +176,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Homepage promo banners. Public read only for active banners is served
+    // via GET /api/public/banners (Admin SDK, bypasses rules) so it can
+    // filter fields; the admin panel also goes through the Admin SDK
+    // (GET/POST/PATCH/DELETE /api/admin/banners). No client SDK access.
+    match /banners/{bannerId} {
+      allow read, write: if false;
+    }
+
     // ────────────────────────────────────────────────────
     // Specialist collections — specialist/admin only
     // ────────────────────────────────────────────────────

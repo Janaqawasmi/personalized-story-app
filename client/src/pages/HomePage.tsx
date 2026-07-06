@@ -1,6 +1,7 @@
 import { Box, Divider } from "@mui/material";
 
 import HeroSection from "../components/home/HeroSection";
+import PromoBannerSection from "../components/home/PromoBannerSection";
 import CategoryStrip from "../components/home/CategoryStrip";
 import HowItWorksSection from "../components/home/HowItWorksSection";
 import FeaturedStoriesSection from "../components/home/FeaturedStoriesSection";
@@ -12,6 +13,7 @@ export default function HomePage() {
   return (
     <Box>
       <HeroSection />
+      <PromoBannerSection />
       <CategoryStrip />
       <HowItWorksSection />
       <Divider sx={{ borderColor: "#D0C8C0" }} />

@@ -26,6 +26,7 @@ import {
   NotificationsOutlined,
   MenuOutlined,
   RateReviewOutlined,
+  CampaignOutlined,
 } from "@mui/icons-material";
 import {
   collection,
@@ -111,6 +112,12 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         labelKey: "admin.nav.reviews",
         icon: <RateReviewOutlined />,
         path: "reviews",
+      },
+      {
+        key: "banner",
+        labelKey: "admin.nav.banner",
+        icon: <CampaignOutlined />,
+        path: "banner",
       },
     ],
   },

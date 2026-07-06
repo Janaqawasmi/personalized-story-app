@@ -43,6 +43,7 @@ import AdminLayout from "./pages/admin/components/AdminLayout";
 import AdminOverviewPage from "./pages/admin/AdminOverviewPage";
 import AdminAnalyticsPage from "./pages/admin/AdminAnalyticsPage";
 import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminUserDetailPage from "./pages/admin/AdminUserDetailPage";
 import AdminPsychologistsPage from "./pages/admin/AdminPsychologistsPage";
 import AdminSpecialistDetailPage from "./pages/admin/AdminSpecialistDetailPage";
 import AdminStoriesPage from "./pages/admin/AdminStoriesPage";
@@ -51,6 +52,7 @@ import AdminRevenuePage from "./pages/admin/AdminRevenuePage";
 import AdminSystemPage from "./pages/admin/AdminSystemPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
+import AdminBannerPage from "./pages/admin/AdminBannerPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -120,12 +122,14 @@ function AppContent() {
               <Route path="overview" element={<AdminOverviewPage />} />
               <Route path="analytics" element={<AdminAnalyticsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="users/:uid" element={<AdminUserDetailPage />} />
               <Route path="psychologists" element={<AdminPsychologistsPage />} />
               <Route path="psychologists/:specialistId" element={<AdminSpecialistDetailPage />} />
               <Route path="stories" element={<AdminStoriesPage />} />
               <Route path="moderation" element={<AdminModerationPage />} />
               <Route path="ai" element={<AdminAIPage />} />
               <Route path="reviews" element={<AdminReviewsPage />} />
+              <Route path="banner" element={<AdminBannerPage />} />
               <Route path="revenue" element={<AdminRevenuePage />} />
               <Route path="system" element={<AdminSystemPage />} />
             </Route>
