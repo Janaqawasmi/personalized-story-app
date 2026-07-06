@@ -5,6 +5,7 @@ export const COLLECTIONS = {
   STORY_PREVIEWS: "storyPreviews",
   PERSONALIZED_STORIES: "personalizedStories",
   STORY_FEEDBACK: "storyFeedback",
+  PLATFORM_STATS: "platformStats",
 
   /** Specialist story subcollections — v2 illustration artefacts (paths: stories/{id}/...) */
   STORY_VISUAL_BIBLES: "visualBibles",

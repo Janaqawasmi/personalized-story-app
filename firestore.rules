@@ -168,6 +168,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Platform-wide review aggregate (homepage stat banner). Written only by
+    // the onStoryFeedbackCreate Cloud Function (Admin SDK, bypasses rules)
+    // and read only via GET /api/public/review-stats (also Admin SDK) —
+    // never touched by the client SDK in either direction.
+    match /platformStats/{statsId} {
+      allow read, write: if false;
+    }
+
     // ────────────────────────────────────────────────────
     // Specialist collections — specialist/admin only
     // ────────────────────────────────────────────────────

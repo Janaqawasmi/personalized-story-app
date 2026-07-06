@@ -12,12 +12,22 @@ interface FeedbackStats {
   avgEmotionalDelta: number;
 }
 
+interface PlatformReviewSummary {
+  ratingSum: number;
+  totalRatings: number;
+  avgRating: number;
+}
+
 /**
- * Fires on every new storyFeedback doc. Aggregates rating + emotional-shift
- * data onto the source story_templates doc as feedbackStats, so the future
- * "most popular" (ratings volume) and "most effective" (avg emotional delta)
- * catalog sorts have a precomputed field to sort on instead of scanning
- * storyFeedback per request.
+ * Fires on every new storyFeedback doc. In one transaction:
+ *   1. Aggregates rating + emotional-shift data onto the source
+ *      story_templates doc as feedbackStats, so the future "most popular"
+ *      (ratings volume) and "most effective" (avg emotional delta) catalog
+ *      sorts have a precomputed field to sort on instead of scanning
+ *      storyFeedback per request.
+ *   2. Rolls the rating into the platform-wide platformStats/reviewSummary
+ *      doc, which backs GET /api/public/review-stats (the homepage stat
+ *      banner) — computed here once, not summed client-side per request.
  */
 export const onStoryFeedbackCreate = onDocumentCreated(
   `${COLLECTIONS.STORY_FEEDBACK}/{feedbackId}`,
@@ -38,9 +48,15 @@ export const onStoryFeedbackCreate = onDocumentCreated(
     }
 
     const templateRef = firestore.collection(COLLECTIONS.STORY_TEMPLATES).doc(storyTemplateId);
+    const platformStatsRef = firestore.collection(COLLECTIONS.PLATFORM_STATS).doc("reviewSummary");
 
     await firestore.runTransaction(async (tx) => {
-      const templateSnap = await tx.get(templateRef);
+      // Firestore transactions require all reads before any writes.
+      const [templateSnap, platformStatsSnap] = await Promise.all([
+        tx.get(templateRef),
+        tx.get(platformStatsRef),
+      ]);
+
       const existing = (templateSnap.data()?.feedbackStats ?? {}) as Partial<FeedbackStats>;
 
       const ratingSum = (existing.ratingSum ?? 0) + rating!;
@@ -68,12 +84,22 @@ export const onStoryFeedbackCreate = onDocumentCreated(
         avgEmotionalDelta,
       };
 
+      const existingPlatformStats = (platformStatsSnap.data() ?? {}) as Partial<PlatformReviewSummary>;
+      const platformRatingSum = (existingPlatformStats.ratingSum ?? 0) + rating!;
+      const platformTotalRatings = (existingPlatformStats.totalRatings ?? 0) + 1;
+      const platformReviewSummary: PlatformReviewSummary = {
+        ratingSum: platformRatingSum,
+        totalRatings: platformTotalRatings,
+        avgRating: platformRatingSum / platformTotalRatings,
+      };
+
       tx.set(templateRef, { feedbackStats }, { merge: true });
+      tx.set(platformStatsRef, platformReviewSummary, { merge: true });
     });
 
     logger.info(
       `[onStoryFeedbackCreate] updated feedbackStats for story_templates/${storyTemplateId} ` +
-        `(feedbackId=${event.params.feedbackId})`,
+        `and platformStats/reviewSummary (feedbackId=${event.params.feedbackId})`,
     );
   },
 );

@@ -40,6 +40,7 @@ import templateRoutes from "./routes/template.routes";
 import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
+import publicFeedbackRouter from "./routes/public/feedback.router";
 
 // Auth routes (registration)
 import registerCaregiverRouter from "./routes/auth/registerCaregiver.router";
@@ -108,6 +109,7 @@ app.use("/api/story-templates", templateRoutes);
 app.use("/api/stories", storiesRoutes);
 app.use("/api/personalized-stories", personalizedStoryRoutes);
 app.use("/api/reference-data", referenceDataRoutes);
+app.use("/api/public", publicFeedbackRouter);
 
 // Auth routes (no role required — any authenticated user)
 // Final endpoint:

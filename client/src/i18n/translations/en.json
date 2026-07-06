@@ -208,15 +208,9 @@
     "testimonials": {
       "label": "What parents say",
       "title": "Real families, real impact",
-      "t1_quote": "My daughter asked to read her story every night for a week. She kept pointing at the illustrations saying 'that's me!' — it genuinely helped her feel less afraid of the dark.",
-      "t1_name": "Sarah M.",
-      "t1_role": "Mom of a 5-year-old, Tel Aviv",
-      "t2_quote": "As a child psychologist, I was skeptical. But the story was gentle, accurate to CBT principles, and most importantly — my son loved it. I recommend it to all my parents now.",
-      "t2_name": "Dr. Dina R.",
-      "t2_role": "Child Psychologist, Haifa",
-      "t3_quote": "I ordered the printed version for my grandson's birthday. The quality is beautiful and he hasn't put it down. Watching him see his name on every page — priceless.",
-      "t3_name": "Rachel K.",
-      "t3_role": "Grandmother, Jerusalem"
+      "statBanner": "{avg} avg · {count} families",
+      "empty": "Reviews from real families will appear here soon.",
+      "anonymous": "A DAMMAH family"
     },
     "cta_final": {
       "title_line1": "Your child's story",
