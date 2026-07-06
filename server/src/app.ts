@@ -41,6 +41,7 @@ import personalizedStoryRoutes from "./routes/personalizedStory.routes";
 import storiesRoutes from "./routes/stories.routes";
 import referenceDataRoutes from "./routes/referenceData.routes";
 import publicFeedbackRouter from "./routes/public/feedback.router";
+import publicBannersRouter from "./routes/public/banners.router";
 
 // Auth routes (registration)
 import registerCaregiverRouter from "./routes/auth/registerCaregiver.router";
@@ -63,6 +64,10 @@ import caregiverVoiceRouter from "./routes/caregiver/voice.router";
 import caregiverFeedbackRouter from "./routes/caregiver/feedback.router";
 import adminPrintOrdersRouter from "./routes/admin/printOrders.router";
 import adminFeedbackRouter from "./routes/admin/feedback.router";
+import adminSpecialistsRouter from "./routes/admin/specialists.router";
+import adminUsersRouter from "./routes/admin/users.router";
+import adminBannersRouter from "./routes/admin/banners.router";
+import adminAnalyticsRouter from "./routes/admin/analytics.router";
 
 // ---------- IMAGE PROVIDER ----------
 // Register Seedream as the image generation backend for all services.
@@ -110,6 +115,7 @@ app.use("/api/stories", storiesRoutes);
 app.use("/api/personalized-stories", personalizedStoryRoutes);
 app.use("/api/reference-data", referenceDataRoutes);
 app.use("/api/public", publicFeedbackRouter);
+app.use("/api/public", publicBannersRouter);
 
 // Auth routes (no role required — any authenticated user)
 // Final endpoint:
@@ -125,6 +131,10 @@ app.use("/api/ideas", ideasRouter);
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
 app.use("/api/admin/print-orders", adminPrintOrdersRouter);
 app.use("/api/admin/feedback", adminFeedbackRouter);
+app.use("/api/admin/specialists", adminSpecialistsRouter);
+app.use("/api/admin/users", adminUsersRouter);
+app.use("/api/admin/banners", adminBannersRouter);
+app.use("/api/admin/analytics", adminAnalyticsRouter);
 app.use("/api/specialist/stories", specialistStoriesRouter);
 app.use("/api/specialist/templates", specialistTemplatesRouter);
 

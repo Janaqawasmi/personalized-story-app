@@ -1,59 +1,48 @@
-import { useEffect, useState } from "react";
-import { Box, Paper, Typography, Avatar } from "@mui/material";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../../firebase";
+import { useEffect, useMemo, useState } from "react";
+import { Box, Paper, Typography, Avatar, TextField } from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
 import { COLORS } from "../../theme";
 import { useTranslation } from "../../i18n/useTranslation";
-
-interface Psychologist {
-  id: string;
-  displayName: string;
-  specialty: string;
-  storyCount: number;
-  totalPersonalizations: number;
-  avgCompletion: number;
-  status: "active" | "pending" | "review";
-  joinedAt: Date;
-}
+import { listAdminSpecialists, type AdminSpecialistListItem } from "../../api/adminSpecialists";
 
 const STATUS_STYLES = {
   active: { bg: "#EAF3DE", color: "#3B6D11", labelKey: "admin.psychologists.statusActive" as const },
-  pending: { bg: "#FAEEDA", color: "#854F0B", labelKey: "admin.psychologists.statusPending" as const },
-  review: { bg: "#E6F1FB", color: "#185FA5", labelKey: "admin.psychologists.statusReview" as const },
+  disabled: { bg: "#F4E2E2", color: "#A32D2D", labelKey: "admin.psychologists.statusDisabled" as const },
 };
 
 export default function AdminPsychologistsPage() {
   const t = useTranslation();
-  const [psychologists, setPsychologists] = useState<Psychologist[]>([]);
+  const navigate = useNavigate();
+  const { lang } = useParams<{ lang: string }>();
+  const [specialists, setSpecialists] = useState<AdminSpecialistListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const unsub = onSnapshot(
-      collection(db, "psychologists"),
-      (snap) => {
-        const items = snap.docs
-          .map((d) => {
-            const data = d.data() as Record<string, unknown>;
-            const joinedRaw = data.joinedAt as { toDate?: () => Date } | undefined;
-            return {
-              id: d.id,
-              displayName: String(data.displayName ?? "—"),
-              specialty: String(data.specialty ?? ""),
-              storyCount: Number(data.storyCount ?? 0),
-              totalPersonalizations: Number(data.totalPersonalizations ?? 0),
-              avgCompletion: Number(data.avgCompletion ?? 0),
-              status: (data.status as Psychologist["status"]) ?? "pending",
-              joinedAt: joinedRaw?.toDate?.() ?? new Date(),
-            };
-          })
-          .sort((a, b) => b.totalPersonalizations - a.totalPersonalizations);
-        setPsychologists(items);
-        setLoading(false);
-      },
-      () => setLoading(false)
-    );
-    return unsub;
+    let cancelled = false;
+    listAdminSpecialists()
+      .then((rows) => {
+        if (!cancelled) setSpecialists(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load specialists");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const visibleSpecialists = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return specialists;
+    return specialists.filter(
+      (s) => s.displayName.toLowerCase().includes(q) || (s.email ?? "").toLowerCase().includes(q),
+    );
+  }, [specialists, search]);
 
   const getInitials = (name: string) =>
     name
@@ -64,8 +53,8 @@ export default function AdminPsychologistsPage() {
       .join("")
       .toUpperCase();
 
-  const getCompletionColor = (pct: number) =>
-    pct >= 70 ? "#3B6D11" : pct >= 50 ? "#BA7517" : "#A32D2D";
+  const getRatingColor = (rating: number | null) =>
+    rating == null ? COLORS.textSecondary : rating >= 4 ? "#3B6D11" : rating >= 3 ? "#BA7517" : "#A32D2D";
 
   return (
     <Box sx={{ p: 3 }}>
@@ -83,9 +72,20 @@ export default function AdminPsychologistsPage() {
       </Typography>
 
       <Paper elevation={0} sx={{ p: 2, border: `0.5px solid ${COLORS.border}`, borderRadius: "12px", bgcolor: "#fff" }}>
-        <Typography sx={{ fontSize: 13, fontWeight: 500, color: COLORS.textPrimary, mb: 2 }}>
-          {t("admin.psychologists.leaderboard")}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
+          <Typography sx={{ fontSize: 13, fontWeight: 500, color: COLORS.textPrimary }}>
+            {t("admin.psychologists.leaderboard")}
+          </Typography>
+          <TextField
+            size="small"
+            placeholder={t("admin.psychologists.searchPlaceholder")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{ fontSize: 12, minWidth: 220 }}
+          />
+        </Box>
+
+        {error && <Typography sx={{ fontSize: 12, color: "error.main", mb: 2 }}>{error}</Typography>}
 
         {/* Horizontal scroll on mobile keeps columns readable instead of crushing them */}
         <Box sx={{ overflowX: "auto" }}>
@@ -93,7 +93,7 @@ export default function AdminPsychologistsPage() {
             <Box
               sx={{
                 display: "grid",
-                gridTemplateColumns: "2fr 1.5fr 60px 120px 100px 80px",
+                gridTemplateColumns: "2.5fr 100px 120px 100px 100px",
                 gap: 1,
                 px: 1,
                 pb: 1,
@@ -102,10 +102,9 @@ export default function AdminPsychologistsPage() {
             >
               {[
                 t("admin.psychologists.colCreator"),
-                t("admin.psychologists.colSpecialty"),
                 t("admin.psychologists.colStories"),
-                t("admin.psychologists.colPersonalizations"),
-                t("admin.psychologists.colCompletion"),
+                t("admin.psychologists.colPurchases"),
+                t("admin.psychologists.colRating"),
                 t("admin.psychologists.colStatus"),
               ].map((h, idx) => (
                 <Typography key={idx} sx={{ fontSize: 11, color: COLORS.textSecondary }}>
@@ -115,45 +114,55 @@ export default function AdminPsychologistsPage() {
             </Box>
 
             {loading && (
-              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.common.loading")}</Typography>
+              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>
+                {t("admin.common.loading")}
+              </Typography>
             )}
 
-            {psychologists.map((p, i) => {
-              const status = STATUS_STYLES[p.status] ?? STATUS_STYLES.pending;
-              const isLast = i === psychologists.length - 1;
+            {!loading && visibleSpecialists.length === 0 && (
+              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>
+                {t("admin.psychologists.empty")}
+              </Typography>
+            )}
+
+            {visibleSpecialists.map((p, i) => {
+              const status = STATUS_STYLES[p.status] ?? STATUS_STYLES.active;
+              const isLast = i === visibleSpecialists.length - 1;
               return (
                 <Box
                   key={p.id}
+                  onClick={() => navigate(`/${lang}/admin/psychologists/${p.id}`)}
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: "2fr 1.5fr 60px 120px 100px 80px",
+                    gridTemplateColumns: "2.5fr 100px 120px 100px 100px",
                     gap: 1,
                     px: 1,
                     py: 1,
                     borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
                     alignItems: "center",
+                    cursor: "pointer",
+                    "&:hover": { bgcolor: `${COLORS.secondary}0A` },
                   }}
                 >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <Avatar sx={{ width: 28, height: 28, bgcolor: COLORS.secondary, fontSize: 11 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                    <Avatar sx={{ width: 28, height: 28, bgcolor: COLORS.secondary, fontSize: 11, flexShrink: 0 }}>
                       {getInitials(p.displayName)}
                     </Avatar>
-                    <Box>
-                      <Typography sx={{ fontSize: 12, fontWeight: 500, color: COLORS.textPrimary }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography sx={{ fontSize: 12, fontWeight: 500, color: COLORS.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {p.displayName}
                       </Typography>
-                      <Typography sx={{ fontSize: 10, color: COLORS.textSecondary }}>
-                        {t("admin.psychologists.joined", { date: p.joinedAt.toLocaleDateString() })}
+                      <Typography sx={{ fontSize: 10, color: COLORS.textSecondary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {p.joinedAt ? t("admin.psychologists.joined", { date: new Date(p.joinedAt).toLocaleDateString() }) : p.email}
                       </Typography>
                     </Box>
                   </Box>
-                  <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>{p.specialty || "—"}</Typography>
                   <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{p.storyCount}</Typography>
                   <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>
-                    {p.totalPersonalizations.toLocaleString()}
+                    {p.totalPurchases.toLocaleString()}
                   </Typography>
-                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: getCompletionColor(p.avgCompletion) }}>
-                    {p.avgCompletion ? `${p.avgCompletion}%` : "—"}
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: getRatingColor(p.avgRating) }}>
+                    {p.avgRating != null ? `★${p.avgRating.toFixed(1)}` : "—"}
                   </Typography>
                   <Box
                     sx={{
@@ -164,6 +173,7 @@ export default function AdminPsychologistsPage() {
                       py: "2px",
                       borderRadius: "10px",
                       display: "inline-block",
+                      width: "fit-content",
                     }}
                   >
                     {t(status.labelKey)}

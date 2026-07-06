@@ -54,6 +54,12 @@ service firebase.storage {
       allow read, write: if false;
     }
 
+    // Homepage promo banner images — public read; Admin SDK writes only
+    match /banner-images/{bannerId}/{file} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // ────────────────────────────────────────────────────
     // Default: deny everything else
     // ────────────────────────────────────────────────────

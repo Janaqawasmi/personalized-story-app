@@ -1046,6 +1046,7 @@
       "moderation": "الاعتدال",
       "ai": "استخدام الذكاء الاصطناعي",
       "reviews": "التقييمات",
+      "banner": "البانر",
       "revenue": "الإيرادات",
       "system": "صحة النظام"
     },
@@ -1082,6 +1083,10 @@
         "title": "تقييمات القصص",
         "subtitle": "التقييمات والتحول العاطفي وتنسيق الصفحة الرئيسية"
       },
+      "banner": {
+        "title": "بانرات الصفحة الرئيسية",
+        "subtitle": "إدارة البانرات الترويجية المعروضة في الصفحة الرئيسية"
+      },
       "revenue": {
         "title": "الإيرادات",
         "subtitle": "المبيعات ومستويات التسعير ومقاييس الأعمال"
@@ -1092,27 +1097,22 @@
       }
     },
     "overview": {
-      "kpiEyebrow": "المقاييس الرئيسية · هذا الشهر"
+      "kpiEyebrow": "المقاييس الرئيسية · كل الأوقات"
     },
     "kpi": {
       "personalizations": "قصص شخصية",
       "caregivers": "مقدمي الرعاية النشطين",
       "conversionRate": "معدل التحويل",
       "revenue": "الإيرادات (بالشيكل الإسرائيلي)",
-      "deltaUpPersonalizations": "+18% مقارنة بالشهر الماضي",
-      "deltaUpCaregivers": "+11% مقارنة بالشهر الماضي",
-      "deltaDownConversion": "↓ 2.1% مقابل الشهر الماضي",
-      "deltaUpRevenue": "+24% مقارنة بالشهر الماضي"
+      "allTime": "كل الأوقات",
+      "realConversion": "معاينات ← مشتريات"
     },
     "funnel": {
       "title": "قمع التحويل",
-      "thisMonth": "هذا الشهر",
-      "catalogViews": "مشاهدات الكتالوج (تقديرات)",
-      "storyDetail": "طرق عرض تفاصيل القصة",
+      "allTime": "كل الأوقات",
       "personalizeStarted": "بدأ التخصيص",
-      "previewRead": "قراءة المعاينة",
       "purchased": "تم شراؤها",
-      "insight": "معاينة → انخفاض نسبة الشراء مرتفع. فكر في إضافة دفعة اقتباس للمعالج بعد المعاينة."
+      "insight": "{pct}% من المعاينات تحولت إلى عملية شراء، منذ البداية."
     },
     "categories": {
       "title": "أعلى الفئات العلاجية"
@@ -1132,30 +1132,92 @@
       "kpiAvgWait": "متوسط وقت الانتظار",
       "kpiAvgWaitSub": "الهدف: أقل من 48 ساعة",
       "kpiApprovedMonth": "تمت الموافقة عليه هذا الشهر",
-      "kpiApprovedSub": "+4 مقابل الشهر الماضي",
+      "kpiApprovedSub": "عدد فوري",
       "pendingTitle": "قصص في انتظار الموافقة",
       "allClear": "تم اكتشاف كل شيء - لا توجد قصص معلقة.",
       "approve": "موافقة",
       "reject": "رفض",
-      "rejectPrompt": "سبب الرفض (سيتم إرساله إلى منشئ المحتوى):",
       "spreads": "ينتشر",
       "justSubmitted": "قدمت للتو",
       "waitingHours": "في انتظار {hours}h",
-      "waitingDays": "في انتظار {days}د"
+      "waitingDays": "في انتظار {days}د",
+      "catalogTitle": "جميع القصص",
+      "searchPlaceholder": "البحث بالعنوان…",
+      "statusAll": "كل الحالات",
+      "statusApproved": "معتمدة",
+      "statusPendingReview": "في انتظار المراجعة",
+      "statusRejected": "مرفوضة",
+      "topicAll": "كل المواضيع",
+      "colTitle": "العنوان",
+      "colCreator": "المُنشئ",
+      "colTopic": "الموضوع",
+      "colAge": "العمر",
+      "colPurchases": "المشتريات",
+      "colStatus": "الحالة",
+      "colCreated": "تاريخ الإنشاء",
+      "emptyCatalog": "لا توجد قصص مطابقة للفلاتر.",
+      "detailCreator": "المُنشئ",
+      "detailCreated": "تاريخ الإنشاء",
+      "detailReviews": "التقييمات",
+      "detailNoReviews": "لا توجد تقييمات بعد",
+      "detailClose": "إغلاق",
+      "detailPages": "الصفحات",
+      "detailRejectionReason": "سبب الرفض",
+      "rejectDialogTitle": "رفض القصة",
+      "rejectReasonLabel": "سبب الرفض (سيُرسل إلى المُنشئ)",
+      "rejectCancel": "إلغاء",
+      "rejectSubmit": "رفض القصة"
     },
     "psychologists": {
-      "sectionEyebrow": "علماء النفس ومبدعي القصص",
-      "leaderboard": "المتصدرين الخالق",
-      "colCreator": "الخالق",
-      "colSpecialty": "التخصص",
-      "colStories": "قصص",
-      "colPersonalizations": "التخصيصات",
-      "colCompletion": "الانتهاء",
+      "sectionEyebrow": "علماء النفس ومبدعو القصص",
+      "leaderboard": "جميع الأخصائيين",
+      "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني…",
+      "colCreator": "المُنشئ",
+      "colStories": "القصص",
+      "colPurchases": "المشتريات",
+      "colRating": "التقييم",
       "colStatus": "الحالة",
       "joined": "انضم {date}",
       "statusActive": "نشط",
-      "statusPending": "في انتظار",
-      "statusReview": "مراجعة"
+      "statusDisabled": "معطل",
+      "empty": "لم يتم العثور على أخصائيين."
+    },
+    "specialistDetail": {
+      "back": "العودة إلى الأخصائيين",
+      "storyCount": "القصص المُنشأة",
+      "totalPurchases": "إجمالي المشتريات",
+      "avgRating": "متوسط التقييم",
+      "stories": "القصص",
+      "colTitle": "العنوان",
+      "colTopic": "الموضوع",
+      "colAge": "الفئة العمرية",
+      "colPurchases": "المشتريات",
+      "colRating": "التقييم",
+      "colPublished": "تاريخ النشر",
+      "empty": "لم ينشر هذا الأخصائي أي قصص بعد."
+    },
+    "banner": {
+      "title": "بانرات الصفحة الرئيسية",
+      "addNew": "إضافة بانر",
+      "empty": "لا توجد بانرات بعد — أضف واحدًا لعرض عرض ترويجي في الصفحة الرئيسية.",
+      "untitled": "بانر بدون عنوان",
+      "sortOrder": "الترتيب",
+      "editTitle": "تعديل البانر",
+      "createTitle": "بانر جديد",
+      "image": "الصورة",
+      "chooseImage": "اختيار صورة",
+      "imageRequired": "يجب رفع صورة للبانر.",
+      "fieldTitle": "العنوان",
+      "fieldDescription": "الوصف",
+      "fieldButtonText": "نص الزر",
+      "fieldButtonLink": "رابط الزر (مثال: /books)",
+      "fieldSortOrder": "ترتيب العرض",
+      "fieldActive": "معروض في الصفحة الرئيسية",
+      "cancel": "إلغاء",
+      "save": "حفظ",
+      "deleteTitle": "حذف البانر",
+      "deleteConfirm": "سيتم حذف هذا البانر نهائيًا من الصفحة الرئيسية. لا يمكن التراجع عن هذا الإجراء.",
+      "deleteConfirmButton": "حذف"
     },
     "reviews": {
       "sectionEyebrow": "تقييمات القصص",
@@ -1177,14 +1239,43 @@
     },
     "users": {
       "title": "مقدمي الرعاية",
+      "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني…",
+      "empty": "لم يتم العثور على مستخدمين.",
       "colName": "الاسم",
       "colEmail": "البريد الإلكتروني",
       "colPurchases": "المشتريات",
       "colRole": "الدور"
     },
+    "userDetail": {
+      "back": "العودة إلى المستخدمين",
+      "purchaseCount": "إجمالي المشتريات",
+      "freePreview": "المعاينة المجانية",
+      "used": "تم استخدامها",
+      "notUsed": "لم تُستخدم",
+      "language": "اللغة",
+      "purchases": "المشتريات",
+      "colStory": "القصة",
+      "colChild": "الطفل",
+      "colFormat": "الصيغة",
+      "colAmount": "المبلغ",
+      "colStatus": "الحالة",
+      "colDate": "التاريخ",
+      "noPurchases": "لا توجد مشتريات بعد."
+    },
     "analytics": {
-      "title": "التحليلات",
-      "body": "سيتم ربط المخططات والصادرات التفصيلية بالواجهة الخلفية لتحليلاتك. استخدم مسار النظرة العامة للمقاييس المباشرة المستندة إلى Firestore."
+      "sectionEyebrow": "تحليلات المنصة",
+      "kpiPreviews": "إجمالي المعاينات",
+      "kpiAllTime": "كل الأوقات",
+      "kpiConversion": "معاينة ← شراء",
+      "kpiConversionSub": "معدل التحويل الحقيقي",
+      "kpiRevenue30d": "الإيرادات",
+      "kpiLast30Days": "آخر 30 يومًا",
+      "kpiPurchases30d": "المشتريات",
+      "trendTitle": "المشتريات — آخر 30 يومًا",
+      "languageTitle": "القصص حسب اللغة",
+      "ageTitle": "القصص حسب الفئة العمرية",
+      "ratingTitle": "توزيع التقييمات",
+      "topSpecialistsTitle": "أفضل الأخصائيين حسب المشتريات"
     },
     "ai": {
       "title": "استخدام الذكاء الاصطناعي",
