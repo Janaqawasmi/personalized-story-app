@@ -195,12 +195,17 @@ export class HybridDraftStore implements DraftStore {
 
     // Route to API for server stories — only API-patchable fields are forwarded
     const { title, tags, lastOpenedAt, currentDraft } = patch;
-    return await apiClient.updateStory(storyId, {
+    const updated = await apiClient.updateStory(storyId, {
       title,
       tags,
       lastOpenedAt,
       currentDraft,
     });
+
+    this.notifyStoryListeners(storyId, updated);
+    this.notifyListListeners();
+
+    return updated;
   }
 
   async deleteStory(storyId: string): Promise<void> {

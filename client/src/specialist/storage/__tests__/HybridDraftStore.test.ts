@@ -573,4 +573,66 @@ describe("HybridDraftStore", () => {
       expect(callback).not.toHaveBeenCalled();
     });
   });
+
+  describe("Group 10: updateStory - server-backed path notifies subscribers", () => {
+    // Regression coverage for the manual title-edit refresh bug: HybridDraftStore.updateStory()'s
+    // server branch previously returned apiClient.updateStory(...) directly without calling
+    // notifyStoryListeners/notifyListListeners, so WorkspaceHeader's title edit saved correctly
+    // on the backend but the UI kept showing the old title until a full page reload.
+
+    it("notifies subscribeToStory listeners with the updated title after a successful server update", async () => {
+      // No local draft is seeded for this id, so updateStory() must take the server branch.
+      const updatedFromServer = makeStory({
+        id: "server-story-1",
+        ownerUid: "server-user",
+        title: "New title",
+      });
+      mockApi.updateStory.mockResolvedValue(updatedFromServer);
+
+      const callback = jest.fn();
+      store.subscribeToStory("server-story-1", callback);
+
+      const result = await store.updateStory("server-story-1", { title: "New title" });
+
+      expect(mockApi.updateStory).toHaveBeenCalledWith("server-story-1", {
+        title: "New title",
+        tags: undefined,
+        lastOpenedAt: undefined,
+        currentDraft: undefined,
+      });
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback.mock.calls[0][0].title).toBe("New title");
+      expect(result.title).toBe("New title");
+    });
+
+    it("refreshes subscribeToList listeners after a successful server-backed update", async () => {
+      const updatedFromServer = makeStory({ id: "server-story-list", title: "New title" });
+      mockApi.updateStory.mockResolvedValue(updatedFromServer);
+      mockApi.listStories.mockResolvedValue([updatedFromServer]);
+
+      const listCallback = jest.fn();
+      store.subscribeToList(listCallback);
+
+      await store.updateStory("server-story-list", { title: "New title" });
+      await flushPromises();
+
+      expect(mockApi.listStories).toHaveBeenCalled();
+      expect(listCallback).toHaveBeenCalled();
+      const latestList = listCallback.mock.calls[listCallback.mock.calls.length - 1][0] as Story[];
+      expect(latestList.some((s) => s.id === "server-story-list")).toBe(true);
+    });
+
+    it("does not notify subscribers when the server-backed update fails", async () => {
+      mockApi.updateStory.mockRejectedValue(new Error("network error"));
+
+      const callback = jest.fn();
+      store.subscribeToStory("server-story-2", callback);
+
+      await expect(
+        store.updateStory("server-story-2", { title: "Should not apply" }),
+      ).rejects.toThrow("network error");
+
+      expect(callback).not.toHaveBeenCalled();
+    });
+  });
 });
