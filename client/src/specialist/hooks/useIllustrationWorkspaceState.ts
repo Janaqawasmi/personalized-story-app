@@ -14,7 +14,7 @@ import type {
   ScenePlanArtefact,
   VisualBibleArtefact,
 } from "../../types/illustration";
-import type { EditHistoryEntry, Story } from "../../types/story";
+import type { EditHistoryEntry, Story, StoryStatus } from "../../types/story";
 import { STORIES_COLLECTION } from "../../types/story";
 import { useAuth } from "../../contexts/AuthContext";
 import { normalizeStoryFromApi } from "../../utils/storyBriefFromApi";
@@ -51,6 +51,11 @@ export type WorkspaceViewModel =
   | { kind: "running"; jobId: string; progressHint?: string }
   | {
       kind: "ready";
+      /** Live story status from the Firestore listener — use this instead of a
+       *  separately-fetched `story` prop to avoid stale CTA visibility. */
+      status: StoryStatus;
+      /** Live `publishedTemplateId` — set atomically with `status === "published"`. */
+      publishedTemplateId: string | null;
       visualBibleVersion: number;
       visualBible: VisualBibleArtefact | null;
       visualBibleVersionsDesc: VisualBibleArtefact[];
@@ -364,6 +369,8 @@ export function useIllustrationWorkspaceState(storyId: string): WorkspaceViewMod
       });
       return {
         kind: "ready",
+        status: story.status,
+        publishedTemplateId: story.publishedTemplateId,
         visualBibleVersion: vbv,
         visualBible,
         visualBibleVersionsDesc,

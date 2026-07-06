@@ -5,7 +5,7 @@ import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
 import Button from "@mui/material/Button";
 import type { IllustrationJob, VisualBibleArtefact } from "../../../types/illustration";
-import type { Story } from "../../../types/story";
+import type { Story, StoryStatus } from "../../../types/story";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
 import type { BookReaderModel } from "../../../components/book/BookReaderModel";
 import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
@@ -17,6 +17,12 @@ import WorkspacePanel from "./WorkspacePanel";
 interface Props {
   story: Story;
   storyId: string;
+  /** Live status from the Firestore-subscribed hook — use for all CTA/banner
+   *  visibility instead of `story.status`, which is a one-shot REST snapshot
+   *  that never refreshes after illustration/publish mutations. */
+  liveStatus: StoryStatus;
+  /** Live `publishedTemplateId`, paired with `liveStatus`. */
+  livePublishedTemplateId: string | null;
   visualBibleVersion: number;
   visualBible: VisualBibleArtefact | null;
   visualBibleVersionsDesc: VisualBibleArtefact[];
@@ -37,6 +43,8 @@ interface Props {
 export default function WorkspacePreview({
   story,
   storyId,
+  liveStatus,
+  livePublishedTemplateId,
   visualBibleVersion,
   visualBible,
   visualBibleVersionsDesc,
@@ -63,29 +71,29 @@ export default function WorkspacePreview({
 
   const canPreview = !!previewModel;
   const previewVariant =
-    allApproved || story.status === "published" || story.status === "illustration_ready"
+    allApproved || liveStatus === "published" || liveStatus === "illustration_ready"
       ? ("final" as const)
       : previewModel && previewModel.pages.some((p) => p.imageUrl)
         ? ("work_in_progress" as const)
         : ("manuscript_only" as const);
 
   const showMarkReady =
-    story.status === "illustration_workspace" && allApproved && !readOnly;
-  const showPublish = story.status === "illustration_ready";
-  const showPublishedBanner = story.status === "published";
+    liveStatus === "illustration_workspace" && allApproved && !readOnly;
+  const showPublish = liveStatus === "illustration_ready";
+  const showPublishedBanner = liveStatus === "published";
   const publicCatalogUrl =
-    lang && story.publishedTemplateId
-      ? `/${lang}/stories/${encodeURIComponent(story.publishedTemplateId)}`
+    lang && livePublishedTemplateId
+      ? `/${lang}/stories/${encodeURIComponent(livePublishedTemplateId)}`
       : null;
 
   const panelReadOnly = readOnly || showPublishedBanner;
 
   const showGalleryHero =
-    story.status === "illustration_ready" || story.status === "published";
+    liveStatus === "illustration_ready" || liveStatus === "published";
 
   return (
     <Stack spacing={3}>
-      {readOnly && story.status === "illustration_ready" ? (
+      {readOnly && liveStatus === "illustration_ready" ? (
         <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
           This story is marked ready to publish. Illustrations are locked.
         </Typography>
@@ -113,7 +121,7 @@ export default function WorkspacePreview({
 
       {showGalleryHero && lang ? (
         <GalleryPanel
-          published={story.status === "published"}
+          published={liveStatus === "published"}
           storyTitle={story.title?.trim() ?? ""}
           storyId={storyId}
           lang={lang}

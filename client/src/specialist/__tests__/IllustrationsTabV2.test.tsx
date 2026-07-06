@@ -97,6 +97,12 @@ function approvedStory() {
 
 function readyVmOnePage(
   pagePatch: Partial<PageCardViewModel> & Pick<PageCardViewModel, "subStatus">,
+  overrides?: {
+    status?: "illustration_workspace" | "illustration_ready" | "published";
+    publishedTemplateId?: string | null;
+    allApproved?: boolean;
+    readOnly?: boolean;
+  },
 ) {
   const defaults: Omit<PageCardViewModel, "subStatus"> = {
     pageNumber: 1,
@@ -116,13 +122,15 @@ function readyVmOnePage(
   const page: PageCardViewModel = { ...defaults, ...pagePatch };
   return {
     kind: "ready" as const,
+    status: overrides?.status ?? "illustration_workspace",
+    publishedTemplateId: overrides?.publishedTemplateId ?? null,
     visualBibleVersion: 1,
     visualBible: null,
     visualBibleVersionsDesc: [],
     visualBibleRegenJob: null,
     pages: [page],
-    allApproved: false,
-    readOnly: false,
+    allApproved: overrides?.allApproved ?? false,
+    readOnly: overrides?.readOnly ?? false,
     previewModel: null,
   };
 }
@@ -199,6 +207,8 @@ describe("IllustrationsTabV2", () => {
   it("renders ready state with pages section", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
+      status: "illustration_workspace",
+      publishedTemplateId: null,
       visualBibleVersion: 1,
       visualBible: null,
       visualBibleVersionsDesc: [],
@@ -233,6 +243,8 @@ describe("IllustrationsTabV2", () => {
   it("does not show mark ready when not all approved (workspace)", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
+      status: "illustration_workspace",
+      publishedTemplateId: null,
       visualBibleVersion: 1,
       visualBible: null,
       visualBibleVersionsDesc: [],
@@ -287,6 +299,8 @@ describe("IllustrationsTabV2", () => {
   it("shows stale Visual Bible banner when plan is behind current bible version", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
+      status: "illustration_workspace",
+      publishedTemplateId: null,
       visualBibleVersion: 2,
       visualBible: null,
       visualBibleVersionsDesc: [],
@@ -324,6 +338,8 @@ describe("IllustrationsTabV2", () => {
   it("shows rejection feedback banner when a rejection note is present", () => {
     mockUseVm.mockReturnValue({
       kind: "ready",
+      status: "illustration_workspace",
+      publishedTemplateId: null,
       visualBibleVersion: 1,
       visualBible: null,
       visualBibleVersionsDesc: [],
@@ -364,4 +380,84 @@ describe("IllustrationsTabV2", () => {
       expect(screen.getByLabelText(expectedAria)).toBeTruthy();
     },
   );
+
+  // ---------------------------------------------------------------------
+  // Regression coverage for the CTA-refresh bug: the outer `story` prop is
+  // a one-shot REST snapshot (see StoryWorkspacePage) that does not update
+  // after illustration/publish mutations. The CTA visibility in
+  // WorkspacePreview must be driven by the hook's live `vm` fields
+  // (status/allApproved/readOnly/publishedTemplateId), not by `story.status`.
+  // These tests deliberately keep the outer `story` prop "stale" (still
+  // `illustration_workspace`) while the live vm has already moved on, to
+  // prove the CTA no longer depends on a page refresh.
+  // ---------------------------------------------------------------------
+
+  it("shows 'Mark as ready to publish' as soon as the live vm reports allApproved, even before the story prop's status would suggest it", () => {
+    mockUseVm.mockReturnValue(
+      readyVmOnePage(
+        {
+          subStatus: "approved",
+          imageVersion: 1,
+          imageUrl: "https://example.com/p1.png",
+          versionCount: { scenePlans: 1, images: 1 },
+          imageVersionsDesc: [1],
+        },
+        { status: "illustration_workspace", allApproved: true, readOnly: false },
+      ),
+    );
+    // Outer story prop is a stale snapshot — still "approved" pre-workspace status
+    // is not relevant here, so use the same "illustration_workspace" the vm reports.
+    const story = { ...approvedStory(), status: "illustration_workspace" as const };
+    render(<IllustrationsTabV2 story={story} />);
+    expect(
+      screen.getByRole("button", { name: SPECIALIST_DESK_EN.illPubReady }),
+    ).toBeTruthy();
+  });
+
+  it("shows 'Publish to library' immediately once the live vm status is illustration_ready, even though the stale story prop is still illustration_workspace", () => {
+    mockUseVm.mockReturnValue(
+      readyVmOnePage(
+        {
+          subStatus: "approved",
+          imageVersion: 1,
+          imageUrl: "https://example.com/p1.png",
+          versionCount: { scenePlans: 1, images: 1 },
+          imageVersionsDesc: [1],
+        },
+        { status: "illustration_ready", allApproved: true, readOnly: true },
+      ),
+    );
+    // Simulates the exact bug scenario: StoryWorkspacePage's one-shot-fetched
+    // `story` prop never learned about the "Mark ready to publish" transition,
+    // so it is still stuck reporting the pre-transition status.
+    const staleStory = { ...approvedStory(), status: "illustration_workspace" as const };
+    render(<IllustrationsTabV2 story={staleStory} />);
+    expect(
+      screen.getByRole("button", { name: SPECIALIST_DESK_EN.illWorkspacePublishLibrary }),
+    ).toBeTruthy();
+    // The "Mark as ready to publish" action should no longer be offered once
+    // the live status has already advanced past illustration_workspace.
+    expect(
+      screen.queryByRole("button", { name: SPECIALIST_DESK_EN.illPubReady }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not show 'Publish to library' while the live vm status is still illustration_workspace, even if allApproved is true", () => {
+    mockUseVm.mockReturnValue(
+      readyVmOnePage(
+        {
+          subStatus: "approved",
+          imageVersion: 1,
+          imageUrl: "https://example.com/p1.png",
+          versionCount: { scenePlans: 1, images: 1 },
+          imageVersionsDesc: [1],
+        },
+        { status: "illustration_workspace", allApproved: true, readOnly: false },
+      ),
+    );
+    render(<IllustrationsTabV2 story={approvedStory()} />);
+    expect(
+      screen.queryByRole("button", { name: SPECIALIST_DESK_EN.illWorkspacePublishLibrary }),
+    ).not.toBeInTheDocument();
+  });
 });
