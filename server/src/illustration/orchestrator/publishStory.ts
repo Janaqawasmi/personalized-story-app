@@ -81,8 +81,10 @@ function estimateJsonBytes(value: unknown): number {
 export interface PublishStoryBody {
   shortDescriptionHe?: string;
   shortDescriptionAr?: string;
+  shortDescriptionEn?: string;
   displayTopicHe?: string;
   displayTopicAr?: string;
+  displayTopicEn?: string;
   /** Existing `referenceData/situations` id, chosen in the Publish dialog. */
   situationId?: string;
   /** Specialist's request for a new situation, when no existing one fits. */
@@ -254,6 +256,10 @@ export async function publishStory(params: {
   const shortDescription = {
     he: body.shortDescriptionHe?.trim() || creative || story.title,
     ar: body.shortDescriptionAr?.trim() || creative || story.title,
+    // No English fallback to `creative`/`story.title` — that text is
+    // Hebrew-authored clinical prose, not a translation. Leave blank rather
+    // than publish wrong-language text; the specialist enters it explicitly.
+    en: body.shortDescriptionEn?.trim() || "",
   };
 
   // ── Situation (structured taxonomy id, or a pending request for a new one) ─
@@ -303,6 +309,7 @@ export async function publishStory(params: {
     // never persist the raw taxonomy id (e.g. `fear_anxiety`) as display text.
     he: body.displayTopicHe?.trim() || "",
     ar: body.displayTopicAr?.trim() || "",
+    en: body.displayTopicEn?.trim() || "",
   };
 
   const slugBase = slugifyTitle(story.title);

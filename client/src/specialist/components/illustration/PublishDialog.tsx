@@ -32,8 +32,10 @@ export default function PublishDialog({ open, onClose, story, onPublished }: Pro
   const creativeHe = story.brief.section2?.creativeVision?.trim() ?? "";
   const [he, setHe] = useState("");
   const [ar, setAr] = useState("");
+  const [en, setEn] = useState("");
   const [topicHe, setTopicHe] = useState("");
   const [topicAr, setTopicAr] = useState("");
+  const [topicEn, setTopicEn] = useState("");
 
   const [situations, setSituations] = useState<SituationOption[]>([]);
   const [situationsLoading, setSituationsLoading] = useState(false);
@@ -51,8 +53,12 @@ export default function PublishDialog({ open, onClose, story, onPublished }: Pro
     const fallback = creativeHe || story.title;
     setHe(fallback);
     setAr(fallback);
+    // No English fallback — `creativeHe`/`story.title` are Hebrew-authored
+    // text, not a translation. Leave blank until the specialist fills it in.
+    setEn("");
     setTopicHe("");
     setTopicAr("");
+    setTopicEn("");
     setSelectedSituationId("");
     setProposalLabelHe("");
     setProposalLabelAr("");
@@ -79,8 +85,11 @@ export default function PublishDialog({ open, onClose, story, onPublished }: Pro
       <DialogTitle>Publish to library</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Customer-facing copy for the public catalog. Hebrew and Arabic fields are optional; empty
-          values fall back to the brief.
+          Customer-facing copy for the public catalog. All fields are optional. Hebrew and Arabic
+          short descriptions fall back to the brief when left empty; English does not (there is no
+          Hebrew-to-English translation to fall back to, so it is published blank until filled in).
+          Display topic is optional in every language — leaving it blank lets the public site resolve
+          the label from the catalog taxonomy instead.
         </Typography>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <Stack spacing={2} flex={1}>
@@ -114,6 +123,23 @@ export default function PublishDialog({ open, onClose, story, onPublished }: Pro
               label="Display topic"
               value={topicAr}
               onChange={(e) => setTopicAr(e.target.value)}
+              fullWidth
+            />
+          </Stack>
+          <Stack spacing={2} flex={1}>
+            <Typography variant="subtitle2">English</Typography>
+            <TextField
+              label="Short description"
+              value={en}
+              onChange={(e) => setEn(e.target.value)}
+              multiline
+              minRows={3}
+              fullWidth
+            />
+            <TextField
+              label="Display topic"
+              value={topicEn}
+              onChange={(e) => setTopicEn(e.target.value)}
               fullWidth
             />
           </Stack>
@@ -199,8 +225,10 @@ export default function PublishDialog({ open, onClose, story, onPublished }: Pro
             const body: PublishStoryRequestBody = {
               shortDescriptionHe: he.trim() || undefined,
               shortDescriptionAr: ar.trim() || undefined,
+              shortDescriptionEn: en.trim() || undefined,
               displayTopicHe: topicHe.trim() || undefined,
               displayTopicAr: topicAr.trim() || undefined,
+              displayTopicEn: topicEn.trim() || undefined,
               ...(isOther
                 ? {
                     situationProposal: {

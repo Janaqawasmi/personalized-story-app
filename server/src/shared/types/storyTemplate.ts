@@ -5,6 +5,7 @@ import type { IllustrationStyleId } from "./visualStyles";
 export interface LocalizedString {
   ar?: string;
   he?: string;
+  en?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

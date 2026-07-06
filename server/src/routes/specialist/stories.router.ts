@@ -1097,8 +1097,10 @@ async function handlePublishStory(req: Request, res: Response): Promise<void> {
   const body: PublishStoryBody = {};
   if (typeof raw?.["shortDescriptionHe"] === "string") body.shortDescriptionHe = raw["shortDescriptionHe"];
   if (typeof raw?.["shortDescriptionAr"] === "string") body.shortDescriptionAr = raw["shortDescriptionAr"];
+  if (typeof raw?.["shortDescriptionEn"] === "string") body.shortDescriptionEn = raw["shortDescriptionEn"];
   if (typeof raw?.["displayTopicHe"] === "string") body.displayTopicHe = raw["displayTopicHe"];
   if (typeof raw?.["displayTopicAr"] === "string") body.displayTopicAr = raw["displayTopicAr"];
+  if (typeof raw?.["displayTopicEn"] === "string") body.displayTopicEn = raw["displayTopicEn"];
   if (typeof raw?.["situationId"] === "string") body.situationId = raw["situationId"];
   if (raw?.["situationProposal"] && typeof raw["situationProposal"] === "object") {
     const sp = raw["situationProposal"] as Record<string, unknown>;
