@@ -1169,7 +1169,10 @@
       "colReview": "التعليق",
       "colDate": "التاريخ",
       "colFeature": "عرض في الصفحة الرئيسية",
-      "displayNamePlaceholder": "اسم العرض العام (مثال: \"أم نور\")",
+      "nameAnonymous": "مجهول",
+      "nameReal": "الاسم الكامل",
+      "nameAnonymousPreview": "سيظهر باسم \"عائلة DAMMAH\"",
+      "nameRealMissing": "لا يوجد اسم مسجل في الحساب",
       "empty": "لا توجد تقييمات بعد."
     },
     "users": {

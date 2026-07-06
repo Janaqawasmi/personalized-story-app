@@ -1169,7 +1169,10 @@
       "colReview": "ביקורת",
       "colDate": "תאריך",
       "colFeature": "הצגה בדף הבית",
-      "displayNamePlaceholder": "שם תצוגה פומבי (למשל \"אמא של נועה\")",
+      "nameAnonymous": "אנונימי",
+      "nameReal": "שם מלא",
+      "nameAnonymousPreview": "יוצג בתור \"משפחת DAMMAH\"",
+      "nameRealMissing": "אין שם רשום בחשבון",
       "empty": "אין עדיין ביקורות."
     },
     "users": {

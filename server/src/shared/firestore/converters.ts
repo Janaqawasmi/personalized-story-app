@@ -39,7 +39,10 @@ export const caregiverConverter: FirestoreDataConverter<Caregiver> = {
     return {
       uid: snapshot.id,
       email: data.email as string,
-      displayName: data.displayName as string | null,
+      displayName:
+        (typeof data.fullName === "string" && data.fullName.trim()) ||
+        (typeof data.displayName === "string" && data.displayName.trim()) ||
+        null,
       language: data.language as "ar" | "he",
       paymentCustomerId: data.paymentCustomerId as string | null,
       consentTimestamp: data.consentTimestamp as string,
