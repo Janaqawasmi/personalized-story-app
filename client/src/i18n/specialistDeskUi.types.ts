@@ -280,14 +280,12 @@ export interface SpecialistDeskUi {
   headerCopiedSnackbar: string;
   agesChipPrefix: string;
 
-  /** Persistent text-variant (personalization) review status chip in the workspace header. */
+  /** Persistent text-variant (personalization) generation status chip in the workspace header. */
   textVariantNotPersonalizable: string;
   textVariantNotStarted: string;
   textVariantGenerating: string;
-  textVariantPendingReview: string;
   textVariantReady: string;
-  textVariantProgress: (approved: number, total: number) => string;
-  textVariantReviewLink: string;
+  textVariantRetry: string;
 
   footCareTitle: string;
   footCareBody: string;

@@ -3,7 +3,6 @@ import { Link as RouterLink, useParams } from "react-router-dom";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
-import Button from "@mui/material/Button";
 import type { IllustrationJob, VisualBibleArtefact } from "../../../types/illustration";
 import type { Story, StoryStatus } from "../../../types/story";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
@@ -68,7 +67,6 @@ export default function WorkspacePreview({
   const [previewOpen, setPreviewOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [publishedTemplateId, setPublishedTemplateId] = useState<string | null>(null);
 
   const canPreview = !!previewModel;
   const previewVariant =
@@ -183,8 +181,7 @@ export default function WorkspacePreview({
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
         story={story}
-        onPublished={(templateId) => {
-          setPublishedTemplateId(templateId);
+        onPublished={() => {
           setToast("Story published to catalog.");
         }}
       />
@@ -194,20 +191,6 @@ export default function WorkspacePreview({
         autoHideDuration={8000}
         onClose={() => setToast(null)}
         message={toast ?? ""}
-        action={
-          publishedTemplateId && lang ? (
-            <Button
-              component={RouterLink}
-              to={`/${lang}/specialist/templates/${publishedTemplateId}/text-variants`}
-              size="small"
-              color="inherit"
-              sx={{ textTransform: "none", fontWeight: 700 }}
-              onClick={() => setToast(null)}
-            >
-              Set up text personalization →
-            </Button>
-          ) : undefined
-        }
       />
     </Stack>
   );

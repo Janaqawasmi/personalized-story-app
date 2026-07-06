@@ -373,7 +373,7 @@ export async function publishStory(params: {
     //   canUseVisualPersonalization =
     //     personalizationEnabled && visualPersonalizationEnabled && visualPersonalizationReady
     personalizationEnabled: isPersonalizable,
-    textPersonalizationReady: false,  // Phase 3: specialist reviews gendered variants
+    textPersonalizationReady: false,  // flipped true automatically once generateTextVariants() completes (see below)
     visualPersonalizationReady,
     // Intent only — do not combine with visualPersonalizationReady here.
     visualPersonalizationEnabled: isPersonalizable,
@@ -468,12 +468,13 @@ export async function publishStory(params: {
     // Pages[].textTemplate currently holds raw manuscript text (Agent 1's
     // author-facing [CHILD_NAME]/[HIS/HER/THEIR] placeholders, not the
     // {{CHILD_NAME}} format the caregiver flow requires). Kick off variant
-    // generation immediately so the template lands in the specialist's
-    // pending-review queue automatically instead of depending on someone
-    // remembering to click "Generate variants" — a story that is never
-    // revisited would otherwise stay silently un-personalizable forever.
-    // Best-effort: generation failure must not fail the publish itself: the
-    // specialist can always retry from the Text Variants Review page.
+    // generation immediately — it validates and merges the variants into
+    // pages[].textTemplate and flips textPersonalizationReady itself, with
+    // no specialist review/approval step in between. The manuscript text
+    // this is derived from was already approved before publish.
+    // Best-effort: generation failure must not fail the publish itself.
+    // On failure textVariantStatus resets to "none" so a retry (calling
+    // generateTextVariants again) is always safe.
     try {
       await generateTextVariants(templateId);
     } catch (err) {

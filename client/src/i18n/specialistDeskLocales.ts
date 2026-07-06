@@ -518,10 +518,8 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   textVariantNotPersonalizable: "Not personalizable",
   textVariantNotStarted: "Personalization not started",
   textVariantGenerating: "Generating variants…",
-  textVariantPendingReview: "Text variants pending review",
   textVariantReady: "Personalization ready",
-  textVariantProgress: (approved, total) => `${approved}/${total} pages reviewed`,
-  textVariantReviewLink: "Review variants",
+  textVariantRetry: "Generate",
 
   footCareTitle: "A note on care",
   footCareBody:
@@ -823,10 +821,8 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   textVariantNotPersonalizable: "לא ניתן להתאמה אישית",
   textVariantNotStarted: "התאמה אישית טרם החלה",
   textVariantGenerating: "מייצר גרסאות…",
-  textVariantPendingReview: "גרסאות טקסט ממתינות לבדיקה",
   textVariantReady: "התאמה אישית מוכנה",
-  textVariantProgress: (approved, total) => `${approved}/${total} עמודים נבדקו`,
-  textVariantReviewLink: "בדיקת גרסאות",
+  textVariantRetry: "ייצור",
 
   footCareTitle: "הערה על אחריות",
   footCareBody:
@@ -1131,10 +1127,8 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   textVariantNotPersonalizable: "غير قابلة للتخصيص",
   textVariantNotStarted: "التخصيص لم يبدأ بعد",
   textVariantGenerating: "جارٍ توليد النسخ…",
-  textVariantPendingReview: "نسخ النص بانتظار المراجعة",
   textVariantReady: "التخصيص جاهز",
-  textVariantProgress: (approved, total) => `${approved}/${total} صفحات تمت مراجعتها`,
-  textVariantReviewLink: "مراجعة النسخ",
+  textVariantRetry: "توليد",
 
   footCareTitle: "ملاحظة على العناية",
   footCareBody:

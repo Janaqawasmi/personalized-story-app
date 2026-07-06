@@ -15,9 +15,9 @@ export interface TextVariantDoc {
 
 export interface TextVariantsResponse {
   templateExists: boolean;
-  textVariantStatus: "none" | "generating" | "pending_review" | string;
+  textVariantStatus: "none" | "generating" | string;
   personalizationEnabled: boolean;
-  /** True once finalizeTextVariants() has run — display-only "review complete" signal. */
+  /** True once generateTextVariants() has completed successfully — display-only. */
   textPersonalizationReady: boolean;
   variants: TextVariantDoc[];
 }
@@ -35,6 +35,11 @@ export async function getTextVariants(templateId: string): Promise<TextVariantsR
   return res.json() as Promise<TextVariantsResponse>;
 }
 
+/**
+ * Triggers (or retries) LLM text-variant generation for a template. Validates
+ * and merges the results into pages[].textTemplate and flips
+ * textPersonalizationReady server-side — no follow-up approval call needed.
+ */
 export async function generateTextVariants(templateId: string): Promise<TextVariantsResponse> {
   const headers = await getAuthHeaders();
   const res = await fetch(`${BASE}/${encodeURIComponent(templateId)}/text-variants/generate`, {
@@ -43,38 +48,4 @@ export async function generateTextVariants(templateId: string): Promise<TextVari
   });
   await throwIfNotOk(res);
   return res.json() as Promise<TextVariantsResponse>;
-}
-
-export async function updateTextVariant(
-  templateId: string,
-  pageNumber: number,
-  patch: { masculine?: string; feminine?: string },
-): Promise<void> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(
-    `${BASE}/${encodeURIComponent(templateId)}/text-variants/${pageNumber}`,
-    { method: "PATCH", headers, body: JSON.stringify(patch) },
-  );
-  await throwIfNotOk(res);
-}
-
-export async function approveTextVariant(
-  templateId: string,
-  pageNumber: number,
-): Promise<void> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(
-    `${BASE}/${encodeURIComponent(templateId)}/text-variants/${pageNumber}/approve`,
-    { method: "POST", headers },
-  );
-  await throwIfNotOk(res);
-}
-
-export async function finalizeTextVariants(templateId: string): Promise<void> {
-  const headers = await getAuthHeaders();
-  const res = await fetch(
-    `${BASE}/${encodeURIComponent(templateId)}/text-variants/finalize`,
-    { method: "POST", headers },
-  );
-  await throwIfNotOk(res);
 }

@@ -1,20 +1,25 @@
 /** @jest-environment node */
 
 /**
- * Unit tests for textVariants.service — focussed on the three invariants
- * that the user requires before Phase 3 is considered complete:
+ * Unit tests for textVariants.service — focussed on the invariants that
+ * matter now that there is no specialist review/approval step between
+ * variant generation and readiness:
  *
- *  1. finalizeTextVariants() writes approved variants into
- *     pages[].textTemplate.masculine / .feminine on the template doc.
- *  2. textPersonalizationReady stays false until finalize() succeeds.
- *  3. generateTextVariants() / approveTextVariant() never touch
- *     textPersonalizationReady — only finalize() does.
+ *  1. generateTextVariants() writes the generated variants directly into
+ *     pages[].textTemplate.masculine / .feminine on the template doc, in the
+ *     same call that produces them — no separate approve/finalize call.
+ *  2. textPersonalizationReady is only flipped to true once generation
+ *     succeeds (including placeholder validation); it stays false while a
+ *     generation is in flight or after one fails.
+ *  3. A variant that drops a placeholder its page's source text required
+ *     aborts the whole write — pages[]/textPersonalizationReady are left
+ *     untouched and textVariantStatus resets to "none" so a retry is safe.
  *
  * The caregiver preview path (preview.service.ts → selectTextVariant()) reads
- * from pages[].textTemplate, so once finalize() writes the approved text there
- * the caregiver flow automatically uses the reviewed variants.  That rendering
- * path is not re-tested here (it already has its own tests in personalization
- * tests) — the key assertion is that finalize() actually performs the write.
+ * from pages[].textTemplate, so once generateTextVariants() writes the text
+ * there the caregiver flow automatically uses it. That rendering path is not
+ * re-tested here — the key assertion is that generation actually performs
+ * the write, with no gate in between.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -32,21 +37,38 @@ function snap(data: DocData | null): { exists: boolean; data: () => DocData } {
 const batchUpdates: Array<{ ref: string; data: DocData }> = [];
 const batchSets: Array<{ ref: string; data: DocData }> = [];
 
-const makeBatch = () => ({
-  update: jest.fn((ref: { _path: string }, data: DocData) => {
-    batchUpdates.push({ ref: ref._path, data });
-  }),
-  set: jest.fn((ref: { _path: string }, data: DocData) => {
-    batchSets.push({ ref: ref._path, data });
-  }),
-  commit: jest.fn().mockResolvedValue(undefined),
-});
-
 // Variant docs stored per templateId/pageNumber.
 const variantDocs: Record<string, DocData> = {};
 
 // Template doc data (mutable so tests can set it up).
 let templateDocData: DocData = {};
+
+// Mirrors real Firestore semantics: batch writes only take effect on commit().
+const makeBatch = () => {
+  const pendingUpdates: Array<{ ref: string; data: DocData }> = [];
+  const pendingSets: Array<{ ref: string; data: DocData }> = [];
+  return {
+    update: jest.fn((ref: { _path: string }, data: DocData) => {
+      pendingUpdates.push({ ref: ref._path, data });
+    }),
+    set: jest.fn((ref: { _path: string }, data: DocData) => {
+      pendingSets.push({ ref: ref._path, data });
+    }),
+    commit: jest.fn().mockImplementation(async () => {
+      for (const u of pendingUpdates) {
+        batchUpdates.push(u);
+        if (u.ref === "story_templates/" + TEMPLATE_ID) {
+          Object.assign(templateDocData, u.data);
+        }
+      }
+      for (const s of pendingSets) {
+        batchSets.push(s);
+        const varKey = s.ref.replace("story_templates/", "").replace("/textVariants/", ":page:");
+        variantDocs[varKey] = s.data;
+      }
+    }),
+  };
+};
 // Capture direct templateRef.update() calls (outside batch).
 const directUpdates: Array<DocData> = [];
 
@@ -107,20 +129,13 @@ const mockCallLLM = callLLM as jest.MockedFunction<typeof callLLM>;
 // Subject under test
 // ─────────────────────────────────────────────────────────────────────────────
 
-import {
-  finalizeTextVariants,
-  approveTextVariant,
-  generateTextVariants,
-  getTextVariants,
-  TextVariantError,
-} from "../textVariants.service";
+import { generateTextVariants, getTextVariants } from "../textVariants.service";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TEMPLATE_ID = "tmpl-001";
-const UID = "specialist-uid-1";
 
 function makeTemplatePage(pageNumber: number, text: string) {
   return {
@@ -130,27 +145,13 @@ function makeTemplatePage(pageNumber: number, text: string) {
   };
 }
 
-function setVariantDoc(
-  pageNumber: number,
-  masculine: string,
-  feminine: string,
-  reviewStatus: "pending" | "approved" = "pending",
-  // Defaults to a source text that mentions the child, matching the existing
-  // tests below (which use masculine/feminine that also contain {{CHILD_NAME}}).
-  originalText = "{{CHILD_NAME}} original",
-) {
-  const key = `${TEMPLATE_ID}:page:${pageNumber}`;
-  variantDocs[key] = {
-    pageNumber,
-    masculine,
-    feminine,
-    reviewStatus,
-    originalText,
-    generatedAt: Date.now(),
-    ...(reviewStatus === "approved"
-      ? { reviewedBy: UID, reviewedAt: Date.now() }
-      : {}),
-  };
+function mockLLMResponse(entries: Array<{ pageNumber: number; masculine: string; feminine: string }>) {
+  mockCallLLM.mockResolvedValue({
+    text: JSON.stringify(entries),
+    inputTokens: 10,
+    outputTokens: 10,
+    latencyMs: 5,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -166,31 +167,36 @@ beforeEach(() => {
   templateDocData = {
     personalizationEnabled: true,
     textPersonalizationReady: false,
-    textVariantStatus: "pending_review",
-    specialistId: UID,
+    textVariantStatus: "none",
+    generationConfig: { language: "he" },
     pages: [
-      makeTemplatePage(1, "היה פעם {{PROTAGONIST}}..."),
-      makeTemplatePage(2, "{{PROTAGONIST}} הרגיש פחד."),
+      makeTemplatePage(1, "היה פעם [CHILD_NAME]..."),
+      makeTemplatePage(2, "[CHILD_NAME] הרגיש פחד."),
     ],
   };
 });
 
-// ── Invariant 1: finalize writes approved text into pages[].textTemplate ──────
+// ── Invariant 1: generation writes variants straight into pages[].textTemplate ──
 
-describe("finalizeTextVariants — writes approved text into pages[].textTemplate", () => {
-  test("updates pages with masculine/feminine variants on success", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+describe("generateTextVariants — writes variants into pages[].textTemplate on success", () => {
+  test("merges masculine/feminine into pages[] and flips textPersonalizationReady, with no separate approval call", async () => {
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "{{CHILD_NAME}} ילד הרגיש פחד.", feminine: "{{CHILD_NAME}} ילדה הרגישה פחד." },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא אומץ.", feminine: "{{CHILD_NAME}} מצאה אומץ." },
+    ]);
 
-    await finalizeTextVariants(TEMPLATE_ID, UID);
+    await generateTextVariants(TEMPLATE_ID);
 
-    // The direct templateRef.update() call should include the updated pages.
-    expect(directUpdates).toHaveLength(1);
-    const written = directUpdates[0]!;
+    // The batch update to the template doc should include the updated pages
+    // and the ready flag — written in the very call that generated them.
+    const templateUpdate = batchUpdates.find((u) => u.ref === `story_templates/${TEMPLATE_ID}`)!;
+    expect(templateUpdate.data.textPersonalizationReady).toBe(true);
+    expect(templateUpdate.data.textVariantStatus).toBe("none");
 
-    expect(written.textPersonalizationReady).toBe(true);
-
-    const pages = written.pages as Array<{ pageNumber: number; textTemplate: { masculine: string; feminine: string } }>;
+    const pages = templateUpdate.data.pages as Array<{
+      pageNumber: number;
+      textTemplate: { masculine: string; feminine: string };
+    }>;
     expect(pages).toHaveLength(2);
 
     const p1 = pages.find((p) => p.pageNumber === 1)!;
@@ -201,64 +207,84 @@ describe("finalizeTextVariants — writes approved text into pages[].textTemplat
     expect(p2.textTemplate.masculine).toBe("{{CHILD_NAME}} מצא אומץ.");
     expect(p2.textTemplate.feminine).toBe("{{CHILD_NAME}} מצאה אומץ.");
   });
-});
 
-// ── Invariant 2: textPersonalizationReady stays false until finalize ──────────
+  test("writes each page's variant doc already marked approved (no pending intermediate state)", async () => {
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "{{CHILD_NAME}} ילד הרגיש פחד.", feminine: "{{CHILD_NAME}} ילדה הרגישה פחד." },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא אומץ.", feminine: "{{CHILD_NAME}} מצאה אומץ." },
+    ]);
 
-describe("textPersonalizationReady stays false until finalize()", () => {
-  test("approveTextVariant does not touch textPersonalizationReady", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "pending");
+    await generateTextVariants(TEMPLATE_ID);
 
-    await approveTextVariant(TEMPLATE_ID, 1, UID);
-
-    // The approval docRef.update() should NOT set textPersonalizationReady.
-    const allWrittenKeys = directUpdates.flatMap((u) => Object.keys(u));
-    expect(allWrittenKeys).not.toContain("textPersonalizationReady");
-  });
-
-  test("finalize sets textPersonalizationReady = true only when all pages are approved", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
-
-    await finalizeTextVariants(TEMPLATE_ID, UID);
-
-    const written = directUpdates[0]!;
-    expect(written.textPersonalizationReady).toBe(true);
-    expect(written.textVariantStatus).toBe("none");
+    expect(batchSets).toHaveLength(2);
+    for (const s of batchSets) {
+      expect((s.data as { reviewStatus: string }).reviewStatus).toBe("approved");
+    }
   });
 });
 
-// ── Invariant 3: finalize blocks unless every page is fully valid ─────────────
+// ── Invariant 2: textPersonalizationReady only flips once generation fully succeeds ──
 
-describe("finalizeTextVariants — blocked when validation fails", () => {
-  test("throws NOT_ALL_APPROVED when a page is still pending", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "pending");
+describe("textPersonalizationReady only flips on full generation success", () => {
+  test("stays false while textVariantStatus is 'generating'", async () => {
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "{{CHILD_NAME}} א", feminine: "{{CHILD_NAME}} ב" },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} ג", feminine: "{{CHILD_NAME}} ד" },
+    ]);
 
-    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).rejects.toMatchObject({
-      code: "NOT_ALL_APPROVED",
-    });
-    expect(directUpdates).toHaveLength(0);
+    await generateTextVariants(TEMPLATE_ID);
+
+    // The very first direct update sets the optimistic "generating" state,
+    // before anything about readiness is known.
+    expect(directUpdates[0]).toEqual({ textVariantStatus: "generating" });
   });
 
-  test("throws VALIDATION_FAILED when masculine variant missing {{CHILD_NAME}}", async () => {
-    setVariantDoc(1, "ילד בלי פלייסהולדר", "{{CHILD_NAME}} ילדה", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} ילד", "{{CHILD_NAME}} ילדה", "approved");
+  test("getTextVariants reflects textPersonalizationReady=false before generation and true after", async () => {
+    const before = await getTextVariants(TEMPLATE_ID);
+    expect(before.textPersonalizationReady).toBe(false);
 
-    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).rejects.toMatchObject({
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "{{CHILD_NAME}} א", feminine: "{{CHILD_NAME}} ב" },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} ג", feminine: "{{CHILD_NAME}} ד" },
+    ]);
+    await generateTextVariants(TEMPLATE_ID);
+
+    const after = await getTextVariants(TEMPLATE_ID);
+    expect(after.textPersonalizationReady).toBe(true);
+  });
+});
+
+// ── Invariant 3: a bad variant aborts the whole write, no partial state ──
+
+describe("generateTextVariants — aborts entirely when a variant fails validation", () => {
+  test("throws VALIDATION_FAILED and never touches pages[]/textPersonalizationReady when a placeholder is dropped", async () => {
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "ילד בלי פלייסהולדר", feminine: "{{CHILD_NAME}} ילדה" },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא אומץ.", feminine: "{{CHILD_NAME}} מצאה אומץ." },
+    ]);
+
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
       code: "VALIDATION_FAILED",
     });
-    expect(directUpdates).toHaveLength(0);
+
+    // No batch was ever committed with page/readiness data.
+    expect(batchUpdates).toHaveLength(0);
+    expect(batchSets).toHaveLength(0);
+    // Status was reset to "none" so a retry is safe.
+    expect(directUpdates[directUpdates.length - 1]).toEqual({ textVariantStatus: "none" });
+    expect(templateDocData.textPersonalizationReady).toBe(false);
   });
 
-  test("throws VALIDATION_FAILED when feminine variant is empty", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+  test("throws VALIDATION_FAILED when a variant is empty", async () => {
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "{{CHILD_NAME}} ילד הרגיש פחד.", feminine: "" },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא אומץ.", feminine: "{{CHILD_NAME}} מצאה אומץ." },
+    ]);
 
-    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).rejects.toMatchObject({
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
       code: "VALIDATION_FAILED",
     });
-    expect(directUpdates).toHaveLength(0);
+    expect(batchUpdates).toHaveLength(0);
   });
 });
 
@@ -269,15 +295,10 @@ describe("finalizeTextVariants — blocked when validation fails", () => {
 
 describe("generateTextVariants — language selection", () => {
   function mockLLMValidResponse() {
-    mockCallLLM.mockResolvedValue({
-      text: JSON.stringify([
-        { pageNumber: 1, masculine: "{{CHILD_NAME}} boy text", feminine: "{{CHILD_NAME}} girl text" },
-        { pageNumber: 2, masculine: "{{CHILD_NAME}} boy text 2", feminine: "{{CHILD_NAME}} girl text 2" },
-      ]),
-      inputTokens: 10,
-      outputTokens: 10,
-      latencyMs: 5,
-    });
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "{{CHILD_NAME}} boy text", feminine: "{{CHILD_NAME}} girl text" },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} boy text 2", feminine: "{{CHILD_NAME}} girl text 2" },
+    ]);
   }
 
   function promptSentToLLM(): string {
@@ -332,7 +353,7 @@ describe("generateTextVariants — language selection", () => {
     expect(prompt).not.toContain("In Hebrew this means full morphological changes");
   });
 
-  test("English generation still writes variant docs and sets textVariantStatus = 'pending_review'", async () => {
+  test("English generation still writes variant docs and readiness immediately, not a 'pending_review' state", async () => {
     templateDocData.generationConfig = { language: "en" };
     mockLLMValidResponse();
 
@@ -342,62 +363,9 @@ describe("generateTextVariants — language selection", () => {
     const page1 = batchSets.find((s) => s.ref.endsWith("/1"))!;
     expect((page1.data as { masculine: string }).masculine).toBe("{{CHILD_NAME}} boy text");
 
-    const statusUpdate = batchUpdates.find((u) => "textVariantStatus" in u.data);
-    expect(statusUpdate?.data.textVariantStatus).toBe("pending_review");
-  });
-});
-
-// ── getTextVariants — exposes textPersonalizationReady for display ───────────
-//
-// Added for the specialist workspace's persistent "text variants" status chip
-// (WorkspaceHeader), which needs to distinguish "never generated" from
-// "already finalized" — both otherwise look identical via textVariantStatus
-// alone, since finalize() clears it back to "none".
-
-describe("getTextVariants — textPersonalizationReady", () => {
-  test("is false before finalize", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
-
-    const result = await getTextVariants(TEMPLATE_ID);
-
-    expect(result.textPersonalizationReady).toBe(false);
-  });
-
-  test("is true after finalize", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "approved");
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
-
-    await finalizeTextVariants(TEMPLATE_ID, UID);
-    const result = await getTextVariants(TEMPLATE_ID);
-
-    expect(result.textPersonalizationReady).toBe(true);
-  });
-});
-
-// ── approveTextVariant blocks bad variants ────────────────────────────────────
-
-describe("approveTextVariant — validates before marking approved", () => {
-  test("rejects when masculine variant is missing {{CHILD_NAME}}", async () => {
-    setVariantDoc(1, "אין פלייסהולדר כאן", "{{CHILD_NAME}} ילדה", "pending");
-
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
-    });
-  });
-
-  test("rejects when feminine variant is empty", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד", "", "pending");
-
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
-    });
-  });
-
-  test("succeeds when both variants are non-empty and contain {{CHILD_NAME}}", async () => {
-    setVariantDoc(1, "{{CHILD_NAME}} ילד הרגיש פחד.", "{{CHILD_NAME}} ילדה הרגישה פחד.", "pending");
-
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+    const templateUpdate = batchUpdates.find((u) => u.ref === `story_templates/${TEMPLATE_ID}`)!;
+    expect(templateUpdate.data.textVariantStatus).toBe("none");
+    expect(templateUpdate.data.textPersonalizationReady).toBe(true);
   });
 });
 
@@ -408,130 +376,71 @@ describe("approveTextVariant — validates before marking approved", () => {
 // the protagonist must not be blocked for lacking {{CHILD_NAME}}.
 
 describe("placeholder validation is derived from each page's original text", () => {
-  test("1) original has no {{CHILD_NAME}}; variants also have none → approve succeeds", async () => {
-    setVariantDoc(
-      1,
-      "הגננת הניחה על השולחן צנצנות קטנות.",
-      "הגננת הניחה על השולחן צנצנות קטנות.",
-      "pending",
-      "הגננת הניחה על השולחן צנצנות קטנות.", // originalText — no placeholder
-    );
+  test("scene-setting page with no {{CHILD_NAME}} in source and none in the variant → succeeds", async () => {
+    templateDocData.pages = [
+      makeTemplatePage(1, "הגננת הניחה על השולחן צנצנות קטנות."),
+      makeTemplatePage(2, "[CHILD_NAME] מצא אומץ."),
+    ];
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "הגננת הניחה על השולחן צנצנות קטנות.", feminine: "הגננת הניחה על השולחן צנצנות קטנות." },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא אומץ.", feminine: "{{CHILD_NAME}} מצאה אומץ." },
+    ]);
 
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+    await expect(generateTextVariants(TEMPLATE_ID)).resolves.toBeUndefined();
+    const templateUpdate = batchUpdates.find((u) => u.ref === `story_templates/${TEMPLATE_ID}`)!;
+    expect(templateUpdate.data.textPersonalizationReady).toBe(true);
   });
 
-  test("1b) same case also passes at finalize time (not just approve)", async () => {
-    setVariantDoc(
-      1,
-      "הגננת הניחה על השולחן צנצנות קטנות.",
-      "הגננת הניחה על השולחן צנצנות קטנות.",
-      "approved",
-      "הגננת הניחה על השולחן צנצנות קטנות.",
-    );
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
+  test("source has {{CHILD_NAME}}-equivalent [CHILD_NAME] bracket token; a variant drops it → aborts", async () => {
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "ילד בלי פלייסהולדר", feminine: "{{CHILD_NAME}} ילדה" },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא אומץ.", feminine: "{{CHILD_NAME}} מצאה אומץ." },
+    ]);
 
-    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).resolves.toBeUndefined();
-    expect(directUpdates[0]?.textPersonalizationReady).toBe(true);
-  });
-
-  test("2) original has {{CHILD_NAME}}; a variant drops it → approve rejects", async () => {
-    setVariantDoc(
-      1,
-      "ילד בלי פלייסהולדר",
-      "{{CHILD_NAME}} ילדה",
-      "pending",
-      "{{CHILD_NAME}} הרגיש פחד.",
-    );
-
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
       code: "VALIDATION_FAILED",
     });
   });
 
-  test("3) original has {{CHILD_NAME}}; all variants preserve it → approve succeeds", async () => {
-    setVariantDoc(
-      1,
-      "{{CHILD_NAME}} הרגיש פחד.",
-      "{{CHILD_NAME}} הרגישה פחד.",
-      "pending",
-      "{{CHILD_NAME}} הרגיש פחד.",
-    );
+  test("mixed template: one scene-setting page + one protagonist page, both valid → succeeds", async () => {
+    templateDocData.pages = [
+      makeTemplatePage(1, "הגננת הניחה על השולחן צנצנות קטנות."),
+      makeTemplatePage(2, "[CHILD_NAME] הרגיש פחד."),
+    ];
+    mockLLMResponse([
+      { pageNumber: 1, masculine: "הגננת הניחה על השולחן צנצנות קטנות.", feminine: "הגננת הניחה על השולחן צנצנות קטנות." },
+      { pageNumber: 2, masculine: "{{CHILD_NAME}} הרגיש פחד.", feminine: "{{CHILD_NAME}} הרגישה פחד." },
+    ]);
 
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
+    await expect(generateTextVariants(TEMPLATE_ID)).resolves.toBeUndefined();
   });
+});
 
-  test("4) a non-CHILD_NAME placeholder in the original is also enforced when present", async () => {
-    setVariantDoc(
-      1,
-      "{{CHILD_NAME}} הרגיש פחד.", // drops {{PRONOUN_SUBJECT}} from the original
-      "{{CHILD_NAME}} {{PRONOUN_SUBJECT}} הרגישה פחד.",
-      "pending",
-      "{{CHILD_NAME}} {{PRONOUN_SUBJECT}} הרגיש פחד.",
-    );
+// ── Error cases unrelated to placeholder validation ──────────────────────────
 
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
+describe("generateTextVariants — other error cases", () => {
+  test("throws NOT_PERSONALIZABLE when personalizationEnabled is not true", async () => {
+    templateDocData.personalizationEnabled = false;
+
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
+      code: "NOT_PERSONALIZABLE",
     });
   });
 
-  test("4b) a placeholder absent from the original is never required, even if unusual", async () => {
-    setVariantDoc(
-      1,
-      "{{CHILD_NAME}} הרגיש פחד.",
-      "{{CHILD_NAME}} הרגישה פחד.",
-      "pending",
-      "{{CHILD_NAME}} הרגיש פחד.", // no {{PRONOUN_SUBJECT}} in the original
-    );
+  test("throws TEMPLATE_NOT_FOUND when the template doesn't exist", async () => {
+    templateDocData = null as unknown as DocData;
 
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).resolves.toBeUndefined();
-  });
-
-  test("finalize still blocks when {{CHILD_NAME}} required by the original is missing from a variant", async () => {
-    setVariantDoc(
-      1,
-      "ילד בלי פלייסהולדר",
-      "{{CHILD_NAME}} ילדה",
-      "approved",
-      "{{CHILD_NAME}} הרגיש פחד.",
-    );
-    setVariantDoc(2, "{{CHILD_NAME}} מצא אומץ.", "{{CHILD_NAME}} מצאה אומץ.", "approved");
-
-    await expect(finalizeTextVariants(TEMPLATE_ID, UID)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
-    });
-    expect(directUpdates).toHaveLength(0);
-  });
-
-  test("first-generation source text uses Agent 1's [CHILD_NAME] bracket format, not {{CHILD_NAME}} — still enforced", async () => {
-    // On a page's very first variant generation, `originalText` is the raw
-    // manuscript, which uses Agent 1's [CHILD_NAME]/[HE/SHE/THEY] bracket
-    // authoring tokens (see section-j-output-format.ts), not the caregiver-
-    // facing {{CHILD_NAME}} format. A page referencing the protagonist this
-    // way must still require {{CHILD_NAME}} in the rewritten variant.
-    setVariantDoc(
-      1,
-      "ילד בלי פלייסהולדר",
-      "{{CHILD_NAME}} ילדה",
-      "pending",
-      "[CHILD_NAME] הרגיש פחד.",
-    );
-
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
+      code: "TEMPLATE_NOT_FOUND",
     });
   });
 
-  test("bracket-only pronoun reference ([HE/SHE/THEY]) also requires {{CHILD_NAME}} in the variant", async () => {
-    setVariantDoc(
-      1,
-      "הרגיש פחד ללא שם.", // no {{CHILD_NAME}} at all
-      "{{CHILD_NAME}} הרגישה פחד.",
-      "pending",
-      "[HE/SHE/THEY] הרגיש פחד.",
-    );
+  test("resets textVariantStatus to 'none' and rejects when the LLM call throws", async () => {
+    mockCallLLM.mockRejectedValue(new Error("LLM unavailable"));
 
-    await expect(approveTextVariant(TEMPLATE_ID, 1, UID)).rejects.toMatchObject({
-      code: "VALIDATION_FAILED",
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
+      code: "GENERATION_FAILED",
     });
+    expect(directUpdates[directUpdates.length - 1]).toEqual({ textVariantStatus: "none" });
   });
 });

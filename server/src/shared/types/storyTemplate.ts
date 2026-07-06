@@ -217,24 +217,25 @@ export interface StoryTemplate {
   personalizationEnabled?: boolean;
 
   /**
-   * @deprecated No longer used as a hard gate for personalization.
-   * The API and UI now derive text readiness from the actual page data:
-   * every page must have non-empty `textTemplate.masculine` and
-   * `textTemplate.feminine` strings each containing `{{CHILD_NAME}}`.
-   * This flag is kept as legacy metadata; do not use it for gating logic.
+   * Set automatically once `generateTextVariants()` finishes successfully —
+   * there is no specialist review/approval step in between. Not a hard gate
+   * on the server (the API derives text readiness from the actual page
+   * data — see `hasValidTextTemplates()` in preview.service.ts) but is the
+   * primary signal the public client checks (see `isTextPersonalizationReady()`).
    */
   textPersonalizationReady?: boolean;
 
   /**
-   * Review lifecycle for the text-variant step (Phase 3).
-   *   "none"           → no variants generated yet (initial state after publish)
-   *   "generating"     → LLM call in flight (optimistic; reset to "none" on error)
-   *   "pending_review" → variants written to textVariants subcollection, awaiting specialist sign-off
-   * The terminal state ("approved") is represented by textPersonalizationReady = true;
-   * this field is cleared (or absent) once finalized.
+   * Text-variant generation lifecycle, display-only (workspace status chip).
+   *   "none"       → no variants generated yet (initial state after publish),
+   *                  or generation failed and was reset for retry
+   *   "generating" → LLM call in flight (optimistic; reset to "none" on error)
+   * The terminal state is `textPersonalizationReady = true`; this field is
+   * cleared back to "none" as soon as generation completes, since generation
+   * itself — not a separate approval — is what makes variants ready.
    * Pre-Phase-3 templates omit this field; treat absence as "none".
    */
-  textVariantStatus?: "none" | "generating" | "pending_review";
+  textVariantStatus?: "none" | "generating";
 
   /**
    * true when the art-direction snapshot (Visual Bible + per-page structured
