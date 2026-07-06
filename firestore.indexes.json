@@ -203,6 +203,14 @@
       ]
     },
     {
+      "collectionGroup": "storyFeedback",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "storyTemplateId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "storyIdeas",
       "queryScope": "COLLECTION",
       "fields": [
