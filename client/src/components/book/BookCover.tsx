@@ -53,18 +53,30 @@ export default function BookCover({
     }
     setImgLoaded(false);
     setImgFailed(false);
-    const img = new Image();
     let cancelled = false;
-    const done = (failed: boolean) => {
+    const img = new Image();
+    img.onload = () => {
       if (cancelled) return;
       setImgLoaded(true);
-      if (failed) setImgFailed(true);
+      setImgFailed(false);
     };
-    img.onload = () => done(false);
-    img.onerror = () => done(true);
+    // Only a real load error means the illustrated cover should fall back to
+    // the plain design. A slow-but-valid load must never be treated as one.
+    img.onerror = () => {
+      if (cancelled) return;
+      setImgLoaded(true);
+      setImgFailed(true);
+    };
     img.src = coverImage;
-    // Safety timeout — if neither event fires within 4s, reveal anyway.
-    const fallbackTimeout = window.setTimeout(() => done(true), 4000);
+    // Safety timeout — purely stops the fade-in transition from looking
+    // stuck if neither `onload` nor `onerror` ever fires. It must NOT imply
+    // failure: `onload`/`onerror` remain wired up and can still update state
+    // (including revealing the image) whenever they eventually fire, even
+    // after this timeout has already run.
+    const fallbackTimeout = window.setTimeout(() => {
+      if (cancelled) return;
+      setImgLoaded(true);
+    }, 4000);
     return () => {
       cancelled = true;
       window.clearTimeout(fallbackTimeout);
@@ -102,6 +114,8 @@ export default function BookCover({
       }}
     >
       <Box
+        data-testid="book-cover-poster"
+        data-cover-state={showImageHero ? "illustrated" : "plain"}
         sx={{
           position: "relative",
           width: { xs: 260, sm: 300, md: 340 },
@@ -154,6 +168,8 @@ export default function BookCover({
             <>
               <Box
                 aria-hidden
+                data-testid="book-cover-image"
+                data-image-loaded={imgLoaded ? "true" : "false"}
                 sx={{
                   position: "absolute",
                   inset: 0,
