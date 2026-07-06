@@ -1018,6 +1018,18 @@
     "back": "Back",
     "next": "Next"
   },
+  "feedback": {
+    "title": "How did {name} like the story?",
+    "ratingLabel": "Rate this story",
+    "ratingRequired": "Please select a rating",
+    "beforeLabel": "How was {name} feeling before the story?",
+    "afterLabel": "How is {name} feeling now?",
+    "reviewLabel": "Tell us more (optional)",
+    "reviewPlaceholder": "What did you and {name} think of the story?",
+    "submit": "Submit feedback",
+    "submitError": "Could not submit your feedback. Please try again.",
+    "skip": "Skip"
+  },
   "admin": {
     "common": {
       "loading": "Loading..."

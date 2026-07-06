@@ -59,6 +59,7 @@ import { MockPaymentProvider } from "./providers/mockPayment.provider";
 import caregiverAccountRouter from "./routes/caregiver/account.router";
 import caregiverStoriesRouter from "./routes/caregiver/stories.router";
 import caregiverVoiceRouter from "./routes/caregiver/voice.router";
+import caregiverFeedbackRouter from "./routes/caregiver/feedback.router";
 import adminPrintOrdersRouter from "./routes/admin/printOrders.router";
 
 // ---------- IMAGE PROVIDER ----------
@@ -131,6 +132,8 @@ app.use("/api/caregiver/account", caregiverAccountRouter);
 app.use("/api/caregiver/stories", caregiverStoriesRouter);
 app.use("/api/caregiver/voice", caregiverVoiceRouter);
 console.log("✅ caregiver voice routes at /api/caregiver/voice");
+app.use("/api/caregiver/feedback", caregiverFeedbackRouter);
+console.log("✅ caregiver feedback routes at /api/caregiver/feedback");
 
 // ---------- HEALTH CHECK ----------
 app.get("/", (_req: Request, res: Response) => {

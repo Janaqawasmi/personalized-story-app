@@ -1018,6 +1018,18 @@
     "back": "הקודם",
     "next": "הבא"
   },
+  "feedback": {
+    "title": "איך {name} אהב/ה את הסיפור?",
+    "ratingLabel": "דרגו את הסיפור",
+    "ratingRequired": "נא לבחור דירוג",
+    "beforeLabel": "איך {name} הרגיש/ה לפני הסיפור?",
+    "afterLabel": "איך {name} מרגיש/ה עכשיו?",
+    "reviewLabel": "ספרו לנו עוד (לא חובה)",
+    "reviewPlaceholder": "מה {name} ואתם חשבתם על הסיפור?",
+    "submit": "שליחת משוב",
+    "submitError": "לא ניתן היה לשלוח את המשוב. נסו שוב.",
+    "skip": "דילוג"
+  },
   "admin": {
     "common": {
       "loading": "טוען…"

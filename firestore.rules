@@ -149,6 +149,26 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────
+    // Story Feedback — post-reading rating + emotional-shift capture.
+    // Client writes normally go through the backend (Admin SDK, bypasses
+    // these rules) — this create rule is defense-in-depth, not the primary
+    // write path. feedbackStats on story_templates is Admin-SDK-only
+    // (aggregated by the onStoryFeedbackCreate Cloud Function) and has no
+    // client-writable rule anywhere.
+    // ────────────────────────────────────────────────────
+
+    match /storyFeedback/{feedbackId} {
+      allow read: if isAuthenticated()
+                  && resource.data.caregiverUid == request.auth.uid;
+      allow create: if isAuthenticated()
+                    && request.resource.data.caregiverUid == request.auth.uid
+                    && request.resource.data.rating is int
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5;
+      allow update, delete: if false;
+    }
+
+    // ────────────────────────────────────────────────────
     // Specialist collections — specialist/admin only
     // ────────────────────────────────────────────────────
 

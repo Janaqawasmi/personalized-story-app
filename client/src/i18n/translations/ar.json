@@ -1018,6 +1018,18 @@
     "back": "السابق",
     "next": "التالي"
   },
+  "feedback": {
+    "title": "كيف أعجبت القصة {name}؟",
+    "ratingLabel": "قيّموا القصة",
+    "ratingRequired": "الرجاء اختيار تقييم",
+    "beforeLabel": "كيف كان شعور {name} قبل القصة؟",
+    "afterLabel": "كيف يشعر {name} الآن؟",
+    "reviewLabel": "أخبرونا المزيد (اختياري)",
+    "reviewPlaceholder": "ما رأيكم أنتم و{name} في القصة؟",
+    "submit": "إرسال الملاحظات",
+    "submitError": "تعذّر إرسال ملاحظاتكم. حاولوا مرة أخرى.",
+    "skip": "تخطي"
+  },
   "admin": {
     "common": {
       "loading": "جار التحميل..."
