@@ -20,6 +20,7 @@ import {
   PsychologyOutlined,
   AutoStoriesOutlined,
   ShieldOutlined,
+  LightbulbOutlined,
   SmartToyOutlined,
   AttachMoneyOutlined,
   MonitorHeartOutlined,
@@ -100,6 +101,12 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         path: "moderation",
       },
       {
+        key: "situationSuggestions",
+        labelKey: "admin.nav.situationSuggestions",
+        icon: <LightbulbOutlined />,
+        path: "situation-suggestions",
+      },
+      {
         key: "ai",
         labelKey: "admin.nav.ai",
         icon: <SmartToyOutlined />,
@@ -151,9 +158,11 @@ export default function AdminLayout() {
   const { direction } = useLanguage();
   const t = useTranslation();
   const { currentUser } = useAuth();
-  const [pendingBadges, setPendingBadges] = useState<{ moderation?: number; psychologists?: number }>(
-    {}
-  );
+  const [pendingBadges, setPendingBadges] = useState<{
+    moderation?: number;
+    psychologists?: number;
+    situationSuggestions?: number;
+  }>({});
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -166,7 +175,7 @@ export default function AdminLayout() {
     let cancelled = false;
 
     async function loadBadges() {
-      const [mod, psych] = await Promise.all([
+      const [mod, psych, situations] = await Promise.all([
         tryCount(
           query(
             collection(db, "story_templates"),
@@ -176,9 +185,15 @@ export default function AdminLayout() {
         tryCount(
           query(collection(db, "psychologists"), where("status", "==", "pending"))
         ),
+        tryCount(
+          query(
+            collection(db, "story_templates"),
+            where("situationProposal.status", "==", "pending")
+          )
+        ),
       ]);
       if (!cancelled) {
-        setPendingBadges({ moderation: mod, psychologists: psych });
+        setPendingBadges({ moderation: mod, psychologists: psych, situationSuggestions: situations });
       }
     }
 
@@ -296,7 +311,9 @@ export default function AdminLayout() {
                     ? pendingBadges.moderation
                     : item.key === "psychologists"
                       ? pendingBadges.psychologists
-                      : undefined;
+                      : item.key === "situationSuggestions"
+                        ? pendingBadges.situationSuggestions
+                        : undefined;
                 return (
                   <ListItemButton
                     key={item.key}

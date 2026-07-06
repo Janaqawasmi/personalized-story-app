@@ -49,6 +49,7 @@ import AdminAIPage from "./pages/admin/AdminAIPage";
 import AdminRevenuePage from "./pages/admin/AdminRevenuePage";
 import AdminSystemPage from "./pages/admin/AdminSystemPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
+import AdminSituationSuggestionsPage from "./pages/admin/AdminSituationSuggestionsPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -121,6 +122,7 @@ function AppContent() {
               <Route path="psychologists" element={<AdminPsychologistsPage />} />
               <Route path="stories" element={<AdminStoriesPage />} />
               <Route path="moderation" element={<AdminModerationPage />} />
+              <Route path="situation-suggestions" element={<AdminSituationSuggestionsPage />} />
               <Route path="ai" element={<AdminAIPage />} />
               <Route path="revenue" element={<AdminRevenuePage />} />
               <Route path="system" element={<AdminSystemPage />} />

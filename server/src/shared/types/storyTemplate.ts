@@ -151,6 +151,12 @@ export interface StoryTemplate {
     status: "pending" | "approved" | "rejected";
     createdBy?: string;
     createdAt?: Timestamp;
+    /** Admin uid who approved/rejected this proposal (admin review UI). */
+    reviewedBy?: string;
+    /** When the proposal was approved/rejected. */
+    reviewedAt?: Timestamp;
+    /** Optional admin note, e.g. a reason for rejection. */
+    reviewNote?: string;
   };
   /**
    * Story target age range. Stored as the exact brief `ageRange`
