@@ -26,6 +26,9 @@ const SERIF =
 const SANS =
   "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
 
+/** Matches the desk overline row (icon + label + mb 1.25) so the right column lines up with the H1. */
+const DESK_OVERLINE_OFFSET = 3.5;
+
 // ---------------------------------------------------------------------------
 // Filtering + sorting (pure function, memoised in the component)
 // ---------------------------------------------------------------------------
@@ -244,7 +247,7 @@ export default function SpecialistStoriesPage() {
           sx={{
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
-            alignItems: "end",
+            alignItems: "start",
             gap: { xs: 2, md: 3 },
             pb: 2,
             borderBottom: `1px solid ${COLORS.border}`,
@@ -319,6 +322,29 @@ export default function SpecialistStoriesPage() {
             alignItems={{ xs: "stretch", md: "flex-end" }}
             sx={{ width: { xs: "100%", md: "auto" } }}
           >
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<AddIcon />}
+              onClick={() => navigate(`${base}/stories/new`)}
+              sx={{
+                alignSelf: { xs: "stretch", md: "flex-end" },
+                mt: { xs: 0, md: DESK_OVERLINE_OFFSET },
+                px: 2.25,
+                py: 1.25,
+                height: 42,
+                fontWeight: 600,
+                fontSize: "0.84rem",
+                fontFamily: SANS,
+                bgcolor: COLORS.primary,
+                borderRadius: "8px",
+                boxShadow: "0 8px 24px -10px rgba(97, 120, 145, 0.45)",
+                "&:hover": { bgcolor: COLORS.primaryDark },
+              }}
+            >
+              {desk.newStory}
+            </Button>
+
             <Stack
               direction="row"
               spacing={{ xs: 2.5, sm: 3 }}
@@ -352,28 +378,6 @@ export default function SpecialistStoriesPage() {
                 isArabic={isArabic}
               />
             </Stack>
-
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<AddIcon />}
-              onClick={() => navigate(`${base}/stories/new`)}
-              sx={{
-                alignSelf: { xs: "stretch", md: "flex-end" },
-                px: 2.25,
-                py: 1.25,
-                height: 42,
-                fontWeight: 600,
-                fontSize: "0.84rem",
-                fontFamily: SANS,
-                bgcolor: COLORS.primary,
-                borderRadius: "8px",
-                boxShadow: "0 8px 24px -10px rgba(97, 120, 145, 0.45)",
-                "&:hover": { bgcolor: COLORS.primaryDark },
-              }}
-            >
-              {desk.newStory}
-            </Button>
           </Stack>
         </Box>
 
