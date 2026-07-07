@@ -5,3 +5,4 @@ if (!admin.apps.length) {
 }
 
 export { autoFillPreviewSentence } from "./onStoryTemplateWrite";
+export { onStoryFeedbackCreate } from "./onStoryFeedbackCreate";

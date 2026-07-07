@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { Box, Paper, Typography } from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { Box, Paper, Typography, TextField } from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import { COLORS } from "../../theme";
@@ -15,8 +16,11 @@ interface CaregiverRow {
 
 export default function AdminUsersPage() {
   const t = useTranslation();
+  const navigate = useNavigate();
+  const { lang } = useParams<{ lang: string }>();
   const [rows, setRows] = useState<CaregiverRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -24,9 +28,11 @@ export default function AdminUsersPage() {
       (snap) => {
         const items = snap.docs.map((d) => {
           const data = d.data() as Record<string, unknown>;
+          const fullName = typeof data.fullName === "string" ? data.fullName.trim() : "";
+          const displayName = typeof data.displayName === "string" ? data.displayName.trim() : "";
           return {
             id: d.id,
-            fullName: String(data.fullName ?? "—"),
+            fullName: fullName || displayName || "—",
             email: String(data.email ?? "—"),
             purchaseCount: Number(data.purchaseCount ?? 0),
             role: String(data.role ?? "caregiver"),
@@ -41,11 +47,28 @@ export default function AdminUsersPage() {
     return unsub;
   }, []);
 
+  const visibleRows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) => r.fullName.toLowerCase().includes(q) || r.email.toLowerCase().includes(q),
+    );
+  }, [rows, search]);
+
   return (
     <Box sx={{ p: 3 }}>
-      <Typography sx={{ fontSize: 13, fontWeight: 500, color: COLORS.textPrimary, mb: 2 }}>
-        {t("admin.users.title")}
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 1.5, mb: 2 }}>
+        <Typography sx={{ fontSize: 13, fontWeight: 500, color: COLORS.textPrimary }}>
+          {t("admin.users.title")}
+        </Typography>
+        <TextField
+          size="small"
+          placeholder={t("admin.users.searchPlaceholder")}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ fontSize: 12, minWidth: 220 }}
+        />
+      </Box>
       <Paper elevation={0} sx={{ p: 2, border: `0.5px solid ${COLORS.border}`, borderRadius: "12px", bgcolor: "#fff" }}>
         {/* Horizontal scroll on mobile keeps columns readable instead of crushing them */}
         <Box sx={{ overflowX: "auto" }}>
@@ -71,12 +94,16 @@ export default function AdminUsersPage() {
             {loading && (
               <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.common.loading")}</Typography>
             )}
+            {!loading && visibleRows.length === 0 && (
+              <Typography sx={{ fontSize: 12, color: COLORS.textSecondary, mt: 2 }}>{t("admin.users.empty")}</Typography>
+            )}
             {!loading &&
-              rows.map((r, i) => {
-                const isLast = i === rows.length - 1;
+              visibleRows.map((r, i) => {
+                const isLast = i === visibleRows.length - 1;
                 return (
                   <Box
                     key={r.id}
+                    onClick={() => navigate(`/${lang}/admin/users/${r.id}`)}
                     sx={{
                       display: "grid",
                       gridTemplateColumns: "2fr 2fr 100px 100px",
@@ -85,6 +112,8 @@ export default function AdminUsersPage() {
                       py: 1,
                       borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
                       alignItems: "center",
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: `${COLORS.secondary}0A` },
                     }}
                   >
                     <Typography sx={{ fontSize: 12, color: COLORS.textPrimary }}>{r.fullName}</Typography>

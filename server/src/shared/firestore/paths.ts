@@ -4,6 +4,9 @@ export const COLLECTIONS = {
   CAREGIVERS: "caregivers",
   STORY_PREVIEWS: "storyPreviews",
   PERSONALIZED_STORIES: "personalizedStories",
+  STORY_FEEDBACK: "storyFeedback",
+  PLATFORM_STATS: "platformStats",
+  BANNERS: "banners",
 
   /** Specialist story subcollections — v2 illustration artefacts (paths: stories/{id}/...) */
   STORY_VISUAL_BIBLES: "visualBibles",
@@ -44,6 +47,8 @@ export const STORAGE_PATHS = {
     `generated-illustrations/${caregiverUid}/${storyId}/page-${pageNumber}.${ext}`,
   templateAsset: (templateId: string, filename: string) =>
     `template-assets/${templateId}/${filename}`,
+  bannerImage: (bannerId: string, filename: string) =>
+    `banner-images/${bannerId}/${filename}`,
   /**
    * Versioned specialist illustration object path (v2). Rejections never
    * overwrite prior versions — each new image gets a new monotonic `version`.

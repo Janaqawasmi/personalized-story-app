@@ -33,6 +33,7 @@ import ReaderPreviewGate from "../components/book/ReaderPreviewGate";
 import { Z_INDEX_BOOK_READER_TOP_CONTROLS } from "../constants/zIndex";
 import BookPreface from "../components/book/BookPreface";
 import VoiceOnboardingModal from "../components/voice/VoiceOnboardingModal";
+import StoryFeedbackDialog from "../components/feedback/StoryFeedbackDialog";
 import { LOCAL_STORAGE_PREFACE_SEEN_KEY } from "../components/book/bookTokens";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/LanguageContext";
@@ -189,6 +190,9 @@ export default function BookReaderPage() {
   const personalizedStoryIdParamPresent = searchParams.has("personalizedStoryId");
   const personalizedStoryIdFromQuery = searchParams.get("personalizedStoryId");
   const [isFullPurchase, setIsFullPurchase] = useState(false);
+  const [feedbackAlreadySubmitted, setFeedbackAlreadySubmitted] = useState(false);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const feedbackPromptedRef = useRef(false);
 
   const previewIdFromQuery = searchParams.get("previewId");
   const previewId = resolveActivePreviewId({
@@ -313,6 +317,12 @@ export default function BookReaderPage() {
             coverImage: loaded.coverImage,
             childName: loaded.childName,
             printAvailable: false,
+          });
+          // Post-reading feedback dialog must never reappear once submitted.
+          void getDoc(doc(db, "personalizedStories", personalizedStoryIdFromQuery)).then((snap) => {
+            if (!cancelled && snap.data()?.feedbackSubmitted === true) {
+              setFeedbackAlreadySubmitted(true);
+            }
           });
           storyLoadStartedRef.current = true;
         })
@@ -935,6 +945,18 @@ export default function BookReaderPage() {
     };
   }, [isMobileReaderActive]);
 
+  // Post-reading feedback: only for a fully purchased read (never a preview),
+  // only on reaching the last page, only once per submission ever
+  // (feedbackAlreadySubmitted, fetched from personalizedStories on load) and
+  // only once per sitting even if not yet submitted (feedbackPromptedRef).
+  useEffect(() => {
+    if (!isFullPurchase || feedbackAlreadySubmitted || feedbackPromptedRef.current) return;
+    if (!story?.pages?.length) return;
+    if (spreadIndex !== story.pages.length - 1) return;
+    feedbackPromptedRef.current = true;
+    setFeedbackDialogOpen(true);
+  }, [isFullPurchase, feedbackAlreadySubmitted, story, spreadIndex]);
+
   if (loading) {
     return (
       <Box sx={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: theme.palette.background.default }}>
@@ -1483,6 +1505,17 @@ export default function BookReaderPage() {
         }}
         isRTL={isRTL}
       />
+
+      {isFullPurchase && personalizedStoryIdFromQuery && storyId && (
+        <StoryFeedbackDialog
+          open={feedbackDialogOpen}
+          onClose={() => setFeedbackDialogOpen(false)}
+          onSubmitted={() => setFeedbackAlreadySubmitted(true)}
+          storyTemplateId={storyId}
+          personalizedStoryId={personalizedStoryIdFromQuery}
+          childName={story?.childName || ""}
+        />
+      )}
 
       <PurchaseFormatDialog
         open={formatDialogOpen}

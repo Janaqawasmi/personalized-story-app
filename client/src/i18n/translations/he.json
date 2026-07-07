@@ -208,15 +208,9 @@
     "testimonials": {
       "label": "מה ההורים אומרים",
       "title": "משפחות אמיתיות, השפעה אמיתית",
-      "t1_quote": "הבת שלי ביקשה לקרוא את הסיפור כל לילה במשך שבוע. היא הצביעה על האיורים ואמרה 'זאת אני!' — זה באמת עזר לה להרגיש פחות פחד מהחושך.",
-      "t1_name": "שרה מ.",
-      "t1_role": "אמא לבת בת 5, תל אביב",
-      "t2_quote": "כפסיכולוגית ילדים, הייתי סקפטית. אבל הסיפור היה עדין, מדויק לעקרונות CBT, והכי חשוב — הבן שלי התאהב בו. אני ממליצה לכל ההורים שלי.",
-      "t2_name": "ד\"ר דינה ר.",
-      "t2_role": "פסיכולוגית ילדים, חיפה",
-      "t3_quote": "הזמנתי את הגרסה המודפסת ליום ההולדת של הנכד. האיכות מדהימה והוא לא משחרר. לראות אותו רואה את השם שלו בכל עמוד — שווה הכל.",
-      "t3_name": "רחל ק.",
-      "t3_role": "סבתא, ירושלים"
+      "statBanner": "{avg} דירוג ממוצע · {count} משפחות",
+      "empty": "ביקורות ממשפחות אמיתיות יופיעו כאן בקרוב.",
+      "anonymous": "משפחת DAMMAH"
     },
     "cta_final": {
       "title_line1": "הסיפור של הילד שלכם",
@@ -1018,6 +1012,18 @@
     "back": "הקודם",
     "next": "הבא"
   },
+  "feedback": {
+    "title": "איך {name} אהב/ה את הסיפור?",
+    "ratingLabel": "דרגו את הסיפור",
+    "ratingRequired": "נא לבחור דירוג",
+    "beforeLabel": "איך {name} הרגיש/ה לפני הסיפור?",
+    "afterLabel": "איך {name} מרגיש/ה עכשיו?",
+    "reviewLabel": "ספרו לנו עוד (לא חובה)",
+    "reviewPlaceholder": "מה {name} ואתם חשבתם על הסיפור?",
+    "submit": "שליחת משוב",
+    "submitError": "לא ניתן היה לשלוח את המשוב. נסו שוב.",
+    "skip": "דילוג"
+  },
   "admin": {
     "common": {
       "loading": "טוען…",
@@ -1041,6 +1047,8 @@
       "moderation": "ניהול תוכן",
       "situationSuggestions": "הצעות מצב",
       "ai": "שימוש ב-AI",
+      "reviews": "ביקורות",
+      "banner": "באנר",
       "revenue": "הכנסות",
       "system": "בריאות המערכת"
     },
@@ -1077,6 +1085,14 @@
         "title": "שימוש ובריאות AI",
         "subtitle": "מעקב שגיאות, עלויות ויציבות יצירה"
       },
+      "reviews": {
+        "title": "ביקורות על סיפורים",
+        "subtitle": "דירוגים, משוב רגשי ואוצרות לדף הבית"
+      },
+      "banner": {
+        "title": "באנרים בדף הבית",
+        "subtitle": "ניהול הבאנרים המוצגים בדף הבית"
+      },
       "revenue": {
         "title": "הכנסות",
         "subtitle": "מכירות, מחירים ומדדים עסקיים"
@@ -1087,27 +1103,22 @@
       }
     },
     "overview": {
-      "kpiEyebrow": "מדדי מפתח · החודש"
+      "kpiEyebrow": "מדדי מפתח · כל הזמנים"
     },
     "kpi": {
       "personalizations": "סיפורים מותאמים",
       "caregivers": "מטפלים פעילים",
       "conversionRate": "שיעור המרה",
       "revenue": "הכנסות (₪)",
-      "deltaUpPersonalizations": "+18% לעומת חודש קודם",
-      "deltaUpCaregivers": "+11% לעומת חודש קודם",
-      "deltaDownConversion": "↓ 2.1% לעומת חודש קודם",
-      "deltaUpRevenue": "+24% לעומת חודש קודם"
+      "allTime": "כל הזמנים",
+      "realConversion": "תצוגות מקדימות ← רכישות"
     },
     "funnel": {
       "title": "משפך המרה",
-      "thisMonth": "החודש",
-      "catalogViews": "צפיות בקטלוג (משוער)",
-      "storyDetail": "צפיות בעמוד סיפור",
+      "allTime": "כל הזמנים",
       "personalizeStarted": "התחלת התאמה",
-      "previewRead": "קריאת תצוגה מקדימה",
       "purchased": "נרכש",
-      "insight": "נשירה גבוהה מתצוגה מקדימה לרכישה. שקלו הוספת ציטוט מטפל אחרי התצוגה."
+      "insight": "{pct}% מהתצוגות המקדימות הומרו לרכישה, מאז ומתמיד."
     },
     "categories": {
       "title": "קטגוריות טיפוליות מובילות"
@@ -1127,41 +1138,150 @@
       "kpiAvgWait": "זמן המתנה ממוצע",
       "kpiAvgWaitSub": "יעד: מתחת ל־48 שעות",
       "kpiApprovedMonth": "אושרו החודש",
-      "kpiApprovedSub": "+4 לעומת חודש קודם",
+      "kpiApprovedSub": "ספירה בזמן אמת",
       "pendingTitle": "סיפורים ממתינים לאישור",
       "allClear": "הכול עדכני — אין סיפורים ממתינים.",
       "approve": "אשר",
       "reject": "דחה",
-      "rejectPrompt": "סיבת הדחייה (תישלח ליוצר):",
       "spreads": "פריסות",
       "justSubmitted": "נשלח עכשיו",
       "waitingHours": "ממתין {hours} ש׳",
-      "waitingDays": "ממתין {days} ימים"
+      "waitingDays": "ממתין {days} ימים",
+      "catalogTitle": "כל הסיפורים",
+      "searchPlaceholder": "חיפוש לפי כותרת…",
+      "statusAll": "כל הסטטוסים",
+      "statusApproved": "מאושר",
+      "statusPendingReview": "ממתין לאישור",
+      "statusRejected": "נדחה",
+      "topicAll": "כל הנושאים",
+      "colTitle": "כותרת",
+      "colCreator": "יוצר",
+      "colTopic": "נושא",
+      "colAge": "גיל",
+      "colPurchases": "רכישות",
+      "colStatus": "סטטוס",
+      "colCreated": "נוצר",
+      "emptyCatalog": "אין סיפורים התואמים לסינון.",
+      "detailCreator": "יוצר",
+      "detailCreated": "נוצר",
+      "detailReviews": "ביקורות",
+      "detailNoReviews": "אין עדיין ביקורות",
+      "detailClose": "סגור",
+      "detailPages": "עמודים",
+      "detailRejectionReason": "סיבת הדחייה",
+      "rejectDialogTitle": "דחיית סיפור",
+      "rejectReasonLabel": "סיבת הדחייה (תישלח ליוצר)",
+      "rejectCancel": "ביטול",
+      "rejectSubmit": "דחה סיפור"
     },
     "psychologists": {
       "sectionEyebrow": "פסיכולוגים ויוצרי סיפורים",
-      "leaderboard": "לוח מובילים",
+      "leaderboard": "כל המומחים",
+      "searchPlaceholder": "חיפוש לפי שם או אימייל…",
       "colCreator": "יוצר",
-      "colSpecialty": "התמחות",
       "colStories": "סיפורים",
-      "colPersonalizations": "התאמות",
-      "colCompletion": "השלמה",
+      "colPurchases": "רכישות",
+      "colRating": "דירוג",
       "colStatus": "סטטוס",
       "joined": "הצטרף {date}",
       "statusActive": "פעיל",
-      "statusPending": "ממתין",
-      "statusReview": "בבדיקה"
+      "statusDisabled": "מושבת",
+      "empty": "לא נמצאו מומחים."
+    },
+    "specialistDetail": {
+      "back": "חזרה למומחים",
+      "storyCount": "סיפורים שנוצרו",
+      "totalPurchases": "סך הרכישות",
+      "avgRating": "דירוג ממוצע",
+      "stories": "סיפורים",
+      "colTitle": "כותרת",
+      "colTopic": "נושא",
+      "colAge": "טווח גילאים",
+      "colPurchases": "רכישות",
+      "colRating": "דירוג",
+      "colPublished": "פורסם",
+      "empty": "המומחה הזה עדיין לא פרסם סיפורים."
+    },
+    "banner": {
+      "title": "באנרים בדף הבית",
+      "addNew": "הוספת באנר",
+      "empty": "אין עדיין באנרים — הוסיפו אחד כדי להציג מבצע בדף הבית.",
+      "untitled": "באנר ללא כותרת",
+      "sortOrder": "סדר",
+      "editTitle": "עריכת באנר",
+      "createTitle": "באנר חדש",
+      "image": "תמונה",
+      "chooseImage": "בחירת תמונה",
+      "imageRequired": "יש להעלות תמונת באנר.",
+      "fieldTitle": "כותרת",
+      "fieldDescription": "תיאור",
+      "fieldButtonText": "טקסט הכפתור",
+      "fieldButtonLink": "קישור הכפתור (לדוגמה: /books)",
+      "fieldSortOrder": "סדר תצוגה",
+      "fieldActive": "מוצג בדף הבית",
+      "cancel": "ביטול",
+      "save": "שמירה",
+      "deleteTitle": "מחיקת באנר",
+      "deleteConfirm": "הבאנר יוסר לצמיתות מדף הבית. לא ניתן לבטל פעולה זו.",
+      "deleteConfirmButton": "מחיקה"
+    },
+    "reviews": {
+      "sectionEyebrow": "ביקורות על סיפורים",
+      "title": "כל הביקורות",
+      "allStories": "כל הסיפורים",
+      "sortDate": "החדשות ביותר",
+      "sortRating": "המדורגות ביותר",
+      "colStory": "סיפור",
+      "colRating": "דירוג",
+      "colShift": "לפני ← אחרי",
+      "colReview": "ביקורת",
+      "colDate": "תאריך",
+      "colFeature": "הצגה בדף הבית",
+      "nameAnonymous": "אנונימי",
+      "nameReal": "שם מלא",
+      "nameAnonymousPreview": "יוצג בתור \"משפחת DAMMAH\"",
+      "nameRealMissing": "אין שם רשום בחשבון",
+      "empty": "אין עדיין ביקורות."
     },
     "users": {
       "title": "מטפלים",
+      "searchPlaceholder": "חיפוש לפי שם או אימייל…",
+      "empty": "לא נמצאו משתמשים.",
       "colName": "שם",
       "colEmail": "אימייל",
       "colPurchases": "רכישות",
       "colRole": "תפקיד"
     },
+    "userDetail": {
+      "back": "חזרה למשתמשים",
+      "purchaseCount": "סך הרכישות",
+      "freePreview": "תצוגה מקדימה חינמית",
+      "used": "נוצלה",
+      "notUsed": "לא נוצלה",
+      "language": "שפה",
+      "purchases": "רכישות",
+      "colStory": "סיפור",
+      "colChild": "ילד/ה",
+      "colFormat": "פורמט",
+      "colAmount": "סכום",
+      "colStatus": "סטטוס",
+      "colDate": "תאריך",
+      "noPurchases": "אין עדיין רכישות."
+    },
     "analytics": {
-      "title": "אנליטיקה",
-      "body": "גרפים מפורטים וייצוא יתחברו לשרת האנליטיקה. השתמשו בסקירה למדדים חיים מ-Firestore."
+      "sectionEyebrow": "אנליטיקת פלטפורמה",
+      "kpiPreviews": "סך התצוגות המקדימות",
+      "kpiAllTime": "כל הזמנים",
+      "kpiConversion": "תצוגה מקדימה ← רכישה",
+      "kpiConversionSub": "שיעור המרה אמיתי",
+      "kpiRevenue30d": "הכנסות",
+      "kpiLast30Days": "30 הימים האחרונים",
+      "kpiPurchases30d": "רכישות",
+      "trendTitle": "רכישות — 30 הימים האחרונים",
+      "languageTitle": "סיפורים לפי שפה",
+      "ageTitle": "סיפורים לפי קבוצת גיל",
+      "ratingTitle": "התפלגות דירוגים",
+      "topSpecialistsTitle": "המומחים המובילים לפי רכישות"
     },
     "ai": {
       "title": "שימוש ב-AI",

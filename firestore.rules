@@ -149,6 +149,42 @@ service cloud.firestore {
     }
 
     // ────────────────────────────────────────────────────
+    // Story Feedback — post-reading rating + emotional-shift capture.
+    // Client writes normally go through the backend (Admin SDK, bypasses
+    // these rules) — this create rule is defense-in-depth, not the primary
+    // write path. feedbackStats on story_templates is Admin-SDK-only
+    // (aggregated by the onStoryFeedbackCreate Cloud Function) and has no
+    // client-writable rule anywhere.
+    // ────────────────────────────────────────────────────
+
+    match /storyFeedback/{feedbackId} {
+      allow read: if isAuthenticated()
+                  && resource.data.caregiverUid == request.auth.uid;
+      allow create: if isAuthenticated()
+                    && request.resource.data.caregiverUid == request.auth.uid
+                    && request.resource.data.rating is int
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5;
+      allow update, delete: if false;
+    }
+
+    // Platform-wide review aggregate (homepage stat banner). Written only by
+    // the onStoryFeedbackCreate Cloud Function (Admin SDK, bypasses rules)
+    // and read only via GET /api/public/review-stats (also Admin SDK) —
+    // never touched by the client SDK in either direction.
+    match /platformStats/{statsId} {
+      allow read, write: if false;
+    }
+
+    // Homepage promo banners. Public read only for active banners is served
+    // via GET /api/public/banners (Admin SDK, bypasses rules) so it can
+    // filter fields; the admin panel also goes through the Admin SDK
+    // (GET/POST/PATCH/DELETE /api/admin/banners). No client SDK access.
+    match /banners/{bannerId} {
+      allow read, write: if false;
+    }
+
+    // ────────────────────────────────────────────────────
     // Specialist collections — specialist/admin only
     // ────────────────────────────────────────────────────
 

@@ -26,6 +26,8 @@ import {
   MonitorHeartOutlined,
   NotificationsOutlined,
   MenuOutlined,
+  RateReviewOutlined,
+  CampaignOutlined,
 } from "@mui/icons-material";
 import {
   collection,
@@ -112,6 +114,18 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         icon: <SmartToyOutlined />,
         path: "ai",
       },
+      {
+        key: "reviews",
+        labelKey: "admin.nav.reviews",
+        icon: <RateReviewOutlined />,
+        path: "reviews",
+      },
+      {
+        key: "banner",
+        labelKey: "admin.nav.banner",
+        icon: <CampaignOutlined />,
+        path: "banner",
+      },
     ],
   },
   {
@@ -145,9 +159,11 @@ async function tryCount(q: Query | CollectionReference): Promise<number> {
 function initialsFromUser(displayName: string | null, email: string | null): string {
   const s = (displayName || email || "?").trim();
   const parts = s.split(/\s+/).filter(Boolean);
+
   if (parts.length >= 2) {
     return (parts[0]![0] + parts[1]![0]).toUpperCase();
   }
+
   return s.slice(0, 2).toUpperCase();
 }
 
@@ -158,18 +174,26 @@ export default function AdminLayout() {
   const { direction } = useLanguage();
   const t = useTranslation();
   const { currentUser } = useAuth();
+
   const [pendingBadges, setPendingBadges] = useState<{
     moderation?: number;
     psychologists?: number;
     situationSuggestions?: number;
   }>({});
+
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const isRTL = direction === "rtl";
 
-  const currentPage = location.pathname.split("/").pop() ?? "overview";
+  // Anchor on the segment right after "admin" rather than the last segment,
+  // so nested detail routes (e.g. /admin/psychologists/:specialistId) still
+  // resolve to the "psychologists" nav item/title instead of the id itself.
+  const pathSegments = location.pathname.split("/").filter(Boolean);
+  const adminIndex = pathSegments.indexOf("admin");
+  const currentPage =
+    (adminIndex >= 0 ? pathSegments[adminIndex + 1] : undefined) ?? "overview";
 
   useEffect(() => {
     let cancelled = false;
@@ -192,12 +216,18 @@ export default function AdminLayout() {
           )
         ),
       ]);
+
       if (!cancelled) {
-        setPendingBadges({ moderation: mod, psychologists: psych, situationSuggestions: situations });
+        setPendingBadges({
+          moderation: mod,
+          psychologists: psych,
+          situationSuggestions: situations,
+        });
       }
     }
 
     loadBadges();
+
     return () => {
       cancelled = true;
     };
@@ -213,6 +243,7 @@ export default function AdminLayout() {
     day: "numeric",
     month: "long",
   });
+
   const pageSubtitle =
     currentPage === "overview"
       ? t("admin.pages.overview.subtitle", { date: overviewDate })
@@ -227,7 +258,20 @@ export default function AdminLayout() {
     <Box
       sx={{
         display: "flex",
-        height: "100vh",
+        // Pin the entire admin shell to the viewport below the fixed site Navbar
+        // (Navbar.tsx: 56px mobile / 60px desktop) instead of sizing a normal-flow
+        // box to calc(100vh - Npx). MUI's Drawer paper is ALWAYS position:fixed
+        // internally (even variant="permanent"), so if this root box were left in
+        // normal document flow, any stray page-level scroll (mobile URL-bar
+        // collapse, sub-pixel rounding, focus scroll) would desync the fixed
+        // drawer paper from its non-fixed "docked" placeholder — the
+        // floating/jumping behavior. Making the whole shell fixed removes body
+        // scroll from the equation entirely.
+        position: "fixed",
+        top: { xs: 56, md: 60 },
+        left: 0,
+        right: 0,
+        bottom: 0,
         overflow: "hidden",
         direction: isRTL ? "rtl" : "ltr",
       }}
@@ -239,7 +283,19 @@ export default function AdminLayout() {
         onClose={() => setMobileNavOpen(false)}
         ModalProps={{ keepMounted: true }}
         sx={{
+          // Permanent MUI drawers use position:fixed on the paper unless the root
+          // claims horizontal space in the flex row — without this, main content
+          // renders underneath the sidebar.
+          width: isDesktop ? SIDEBAR_WIDTH : 0,
+          flexShrink: 0,
           "& .MuiDrawer-paper": {
+            // Explicit top/height so the fixed paper matches this root box's
+            // fixed region exactly, instead of MUI's default top:0/height:100%
+            // (which only *looked* right because the navbar's z-index masks the
+            // overlap — see comment on the root Box above).
+            position: "fixed",
+            top: { xs: 56, md: 60 },
+            height: { xs: "calc(100vh - 56px)", md: "calc(100vh - 60px)" },
             width: SIDEBAR_WIDTH,
             boxSizing: "border-box",
             bgcolor: "#F7F4F1",
@@ -251,7 +307,13 @@ export default function AdminLayout() {
           },
         }}
       >
-        <Box sx={{ p: "20px", pb: "16px", borderBottom: `0.5px solid ${COLORS.border}` }}>
+        <Box
+          sx={{
+            p: "20px",
+            pb: "16px",
+            borderBottom: `0.5px solid ${COLORS.border}`,
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Box
               sx={{
@@ -269,6 +331,7 @@ export default function AdminLayout() {
             >
               د
             </Box>
+
             <Box>
               <Typography
                 sx={{
@@ -280,6 +343,7 @@ export default function AdminLayout() {
               >
                 DAMMAH
               </Typography>
+
               <Typography sx={{ fontSize: 11, color: COLORS.textSecondary }}>
                 {t("admin.layout.panelSubtitle")}
               </Typography>
@@ -304,8 +368,10 @@ export default function AdminLayout() {
               >
                 {t(section.titleKey)}
               </Typography>
+
               {section.items.map((item) => {
                 const isActive = currentPage === item.key;
+
                 const badge =
                   item.key === "moderation"
                     ? pendingBadges.moderation
@@ -314,6 +380,7 @@ export default function AdminLayout() {
                       : item.key === "situationSuggestions"
                         ? pendingBadges.situationSuggestions
                         : undefined;
+
                 return (
                   <ListItemButton
                     key={item.key}
@@ -325,11 +392,14 @@ export default function AdminLayout() {
                       borderRadius: "8px",
                       mb: "2px",
                       bgcolor: isActive ? `${COLORS.secondary}15` : "transparent",
-                      borderInlineStart:
-                        isActive ? `2px solid ${COLORS.secondary}` : "2px solid transparent",
+                      borderInlineStart: isActive
+                        ? `2px solid ${COLORS.secondary}`
+                        : "2px solid transparent",
                       color: isActive ? COLORS.secondary : COLORS.textSecondary,
                       "&:hover": {
-                        bgcolor: isActive ? `${COLORS.secondary}15` : `${COLORS.border}50`,
+                        bgcolor: isActive
+                          ? `${COLORS.secondary}15`
+                          : `${COLORS.border}50`,
                       },
                       transition: "all 0.15s",
                     }}
@@ -343,6 +413,7 @@ export default function AdminLayout() {
                     >
                       {item.icon}
                     </ListItemIcon>
+
                     <ListItemText
                       primary={t(item.labelKey)}
                       primaryTypographyProps={{
@@ -351,6 +422,7 @@ export default function AdminLayout() {
                         color: "inherit",
                       }}
                     />
+
                     {badge !== undefined && badge > 0 && (
                       <Box
                         sx={{
@@ -384,9 +456,17 @@ export default function AdminLayout() {
             gap: 1.5,
           }}
         >
-          <Avatar sx={{ width: 30, height: 30, bgcolor: COLORS.secondary, fontSize: 12 }}>
+          <Avatar
+            sx={{
+              width: 30,
+              height: 30,
+              bgcolor: COLORS.secondary,
+              fontSize: 12,
+            }}
+          >
             {adminInitials}
           </Avatar>
+
           <Box sx={{ flex: 1, overflow: "hidden" }}>
             <Typography
               sx={{
@@ -400,6 +480,7 @@ export default function AdminLayout() {
             >
               {currentUser?.displayName || t("admin.layout.siteAdmin")}
             </Typography>
+
             <Typography sx={{ fontSize: 10, color: COLORS.textSecondary }}>
               {currentUser?.email ?? "admin"}
             </Typography>
@@ -407,7 +488,16 @@ export default function AdminLayout() {
         </Box>
       </Drawer>
 
-      <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
+      <Box
+        component="main"
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          minWidth: 0,
+        }}
+      >
         <Box
           sx={{
             px: { xs: 2, md: 3 },
@@ -429,6 +519,7 @@ export default function AdminLayout() {
             >
               <MenuOutlined />
             </IconButton>
+
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
@@ -442,6 +533,7 @@ export default function AdminLayout() {
               >
                 {t(`admin.pages.${currentPage}.title`, {})}
               </Typography>
+
               <Typography
                 sx={{
                   fontSize: 12,
@@ -456,11 +548,20 @@ export default function AdminLayout() {
               </Typography>
             </Box>
           </Box>
+
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Badge badgeContent={3} color="error" sx={{ cursor: "pointer" }}>
               <NotificationsOutlined sx={{ fontSize: 22, color: COLORS.textSecondary }} />
             </Badge>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: COLORS.secondary, fontSize: 12 }}>
+
+            <Avatar
+              sx={{
+                width: 32,
+                height: 32,
+                bgcolor: COLORS.secondary,
+                fontSize: 12,
+              }}
+            >
               {adminInitials}
             </Avatar>
           </Box>

@@ -208,15 +208,9 @@
     "testimonials": {
       "label": "What parents say",
       "title": "Real families, real impact",
-      "t1_quote": "My daughter asked to read her story every night for a week. She kept pointing at the illustrations saying 'that's me!' — it genuinely helped her feel less afraid of the dark.",
-      "t1_name": "Sarah M.",
-      "t1_role": "Mom of a 5-year-old, Tel Aviv",
-      "t2_quote": "As a child psychologist, I was skeptical. But the story was gentle, accurate to CBT principles, and most importantly — my son loved it. I recommend it to all my parents now.",
-      "t2_name": "Dr. Dina R.",
-      "t2_role": "Child Psychologist, Haifa",
-      "t3_quote": "I ordered the printed version for my grandson's birthday. The quality is beautiful and he hasn't put it down. Watching him see his name on every page — priceless.",
-      "t3_name": "Rachel K.",
-      "t3_role": "Grandmother, Jerusalem"
+      "statBanner": "{avg} avg · {count} families",
+      "empty": "Reviews from real families will appear here soon.",
+      "anonymous": "A DAMMAH family"
     },
     "cta_final": {
       "title_line1": "Your child's story",
@@ -1018,6 +1012,18 @@
     "back": "Back",
     "next": "Next"
   },
+  "feedback": {
+    "title": "How did {name} like the story?",
+    "ratingLabel": "Rate this story",
+    "ratingRequired": "Please select a rating",
+    "beforeLabel": "How was {name} feeling before the story?",
+    "afterLabel": "How is {name} feeling now?",
+    "reviewLabel": "Tell us more (optional)",
+    "reviewPlaceholder": "What did you and {name} think of the story?",
+    "submit": "Submit feedback",
+    "submitError": "Could not submit your feedback. Please try again.",
+    "skip": "Skip"
+  },
   "admin": {
     "common": {
       "loading": "Loading...",
@@ -1041,6 +1047,8 @@
       "moderation": "Moderation",
       "situationSuggestions": "Situation Suggestions",
       "ai": "AI Usage",
+      "reviews": "Reviews",
+      "banner": "Banner",
       "revenue": "Revenue",
       "system": "System Health"
     },
@@ -1077,6 +1085,14 @@
         "title": "AI usage & health",
         "subtitle": "Generation health, errors and cost tracking"
       },
+      "reviews": {
+        "title": "Story reviews",
+        "subtitle": "Ratings, emotional-shift feedback and homepage curation"
+      },
+      "banner": {
+        "title": "Homepage banners",
+        "subtitle": "Manage the promo banners shown on the homepage"
+      },
       "revenue": {
         "title": "Revenue",
         "subtitle": "Sales, pricing tiers and business metrics"
@@ -1087,27 +1103,22 @@
       }
     },
     "overview": {
-      "kpiEyebrow": "Key metrics · this month"
+      "kpiEyebrow": "Key metrics · all time"
     },
     "kpi": {
       "personalizations": "Stories personalized",
       "caregivers": "Active caregivers",
       "conversionRate": "Conversion rate",
       "revenue": "Revenue (ILS)",
-      "deltaUpPersonalizations": "+18% vs last month",
-      "deltaUpCaregivers": "+11% vs last month",
-      "deltaDownConversion": "↓ 2.1% vs last month",
-      "deltaUpRevenue": "+24% vs last month"
+      "allTime": "All time",
+      "realConversion": "Previews → purchases"
     },
     "funnel": {
       "title": "Conversion funnel",
-      "thisMonth": "this month",
-      "catalogViews": "Catalog views (est.)",
-      "storyDetail": "Story detail views",
+      "allTime": "all time",
       "personalizeStarted": "Personalize started",
-      "previewRead": "Preview read",
       "purchased": "Purchased",
-      "insight": "Preview → Purchase drop-off is high. Consider adding a post-preview therapist quote nudge."
+      "insight": "{pct}% of previews have converted to a purchase, all time."
     },
     "categories": {
       "title": "Top therapeutic categories"
@@ -1127,41 +1138,150 @@
       "kpiAvgWait": "Avg. wait time",
       "kpiAvgWaitSub": "Target: under 48h",
       "kpiApprovedMonth": "Approved this month",
-      "kpiApprovedSub": "+4 vs last month",
+      "kpiApprovedSub": "Real-time count",
       "pendingTitle": "Stories awaiting approval",
       "allClear": "All caught up — no pending stories.",
       "approve": "Approve",
       "reject": "Reject",
-      "rejectPrompt": "Rejection reason (will be sent to creator):",
       "spreads": "spreads",
       "justSubmitted": "Just submitted",
       "waitingHours": "Waiting {hours}h",
-      "waitingDays": "Waiting {days}d"
+      "waitingDays": "Waiting {days}d",
+      "catalogTitle": "All stories",
+      "searchPlaceholder": "Search by title…",
+      "statusAll": "All statuses",
+      "statusApproved": "Approved",
+      "statusPendingReview": "Pending review",
+      "statusRejected": "Rejected",
+      "topicAll": "All topics",
+      "colTitle": "Title",
+      "colCreator": "Creator",
+      "colTopic": "Topic",
+      "colAge": "Age",
+      "colPurchases": "Purchases",
+      "colStatus": "Status",
+      "colCreated": "Created",
+      "emptyCatalog": "No stories match your filters.",
+      "detailCreator": "Creator",
+      "detailCreated": "Created",
+      "detailReviews": "Reviews",
+      "detailNoReviews": "No reviews yet",
+      "detailClose": "Close",
+      "detailPages": "Pages",
+      "detailRejectionReason": "Rejection reason",
+      "rejectDialogTitle": "Reject story",
+      "rejectReasonLabel": "Rejection reason (sent to the creator)",
+      "rejectCancel": "Cancel",
+      "rejectSubmit": "Reject story"
     },
     "psychologists": {
       "sectionEyebrow": "Psychologists & story creators",
-      "leaderboard": "Creator leaderboard",
+      "leaderboard": "All specialists",
+      "searchPlaceholder": "Search by name or email…",
       "colCreator": "Creator",
-      "colSpecialty": "Specialty",
       "colStories": "Stories",
-      "colPersonalizations": "Personalizations",
-      "colCompletion": "Completion",
+      "colPurchases": "Purchases",
+      "colRating": "Rating",
       "colStatus": "Status",
       "joined": "Joined {date}",
       "statusActive": "Active",
-      "statusPending": "Pending",
-      "statusReview": "Review"
+      "statusDisabled": "Disabled",
+      "empty": "No specialists found."
+    },
+    "specialistDetail": {
+      "back": "Back to specialists",
+      "storyCount": "Stories created",
+      "totalPurchases": "Total purchases",
+      "avgRating": "Average rating",
+      "stories": "Stories",
+      "colTitle": "Title",
+      "colTopic": "Topic",
+      "colAge": "Age group",
+      "colPurchases": "Purchases",
+      "colRating": "Rating",
+      "colPublished": "Published",
+      "empty": "This specialist hasn't published any stories yet."
+    },
+    "banner": {
+      "title": "Homepage banners",
+      "addNew": "Add banner",
+      "empty": "No banners yet — add one to show a promo on the homepage.",
+      "untitled": "Untitled banner",
+      "sortOrder": "Order",
+      "editTitle": "Edit banner",
+      "createTitle": "New banner",
+      "image": "Image",
+      "chooseImage": "Choose image",
+      "imageRequired": "A banner image is required.",
+      "fieldTitle": "Title",
+      "fieldDescription": "Description",
+      "fieldButtonText": "Button text",
+      "fieldButtonLink": "Button link (e.g. /books)",
+      "fieldSortOrder": "Display order",
+      "fieldActive": "Visible on homepage",
+      "cancel": "Cancel",
+      "save": "Save",
+      "deleteTitle": "Delete banner",
+      "deleteConfirm": "This banner will be permanently removed from the homepage. This can't be undone.",
+      "deleteConfirmButton": "Delete"
+    },
+    "reviews": {
+      "sectionEyebrow": "Story reviews",
+      "title": "All reviews",
+      "allStories": "All stories",
+      "sortDate": "Newest first",
+      "sortRating": "Highest rated",
+      "colStory": "Story",
+      "colRating": "Rating",
+      "colShift": "Before → After",
+      "colReview": "Review",
+      "colDate": "Date",
+      "colFeature": "Feature on homepage",
+      "nameAnonymous": "Anonymous",
+      "nameReal": "Real name",
+      "nameAnonymousPreview": "Shows as \"DAMMAH family\"",
+      "nameRealMissing": "No account name on file",
+      "empty": "No reviews yet."
     },
     "users": {
       "title": "Caregivers",
+      "searchPlaceholder": "Search by name or email…",
+      "empty": "No users found.",
       "colName": "Name",
       "colEmail": "Email",
       "colPurchases": "Purchases",
       "colRole": "Role"
     },
+    "userDetail": {
+      "back": "Back to users",
+      "purchaseCount": "Total purchases",
+      "freePreview": "Free preview",
+      "used": "Used",
+      "notUsed": "Not used",
+      "language": "Language",
+      "purchases": "Purchases",
+      "colStory": "Story",
+      "colChild": "Child",
+      "colFormat": "Format",
+      "colAmount": "Amount",
+      "colStatus": "Status",
+      "colDate": "Date",
+      "noPurchases": "No purchases yet."
+    },
     "analytics": {
-      "title": "Analytics",
-      "body": "Detailed charts and exports will connect to your analytics backend. Use the Overview funnel for live Firestore-based metrics."
+      "sectionEyebrow": "Platform analytics",
+      "kpiPreviews": "Total previews",
+      "kpiAllTime": "All time",
+      "kpiConversion": "Preview → purchase",
+      "kpiConversionSub": "Real conversion rate",
+      "kpiRevenue30d": "Revenue",
+      "kpiLast30Days": "Last 30 days",
+      "kpiPurchases30d": "Purchases",
+      "trendTitle": "Purchases — last 30 days",
+      "languageTitle": "Stories by language",
+      "ageTitle": "Stories by age group",
+      "ratingTitle": "Rating distribution",
+      "topSpecialistsTitle": "Top specialists by purchases"
     },
     "ai": {
       "title": "AI usage",

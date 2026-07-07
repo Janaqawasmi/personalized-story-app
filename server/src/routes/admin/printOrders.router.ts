@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { admin, db } from "../../config/firebase";
 import { requireAuth, requireRole } from "../../middleware/auth.middleware";
 import { COLLECTIONS } from "../../shared/firestore/paths";
+import { resolveCaregiverDisplayName } from "../../shared/utils/caregiverDisplayName";
 import { PrintOrderStatus } from "../../shared/types/commerce";
 import { Purchase } from "../../shared/types/purchase";
 
@@ -73,7 +74,7 @@ router.get(
             caregiverUid,
             {
               email: (data?.email as string | undefined) ?? null,
-              displayName: (data?.displayName as string | undefined) ?? null,
+              displayName: resolveCaregiverDisplayName(data),
             },
           ] as const;
         }),
