@@ -51,6 +51,8 @@ import AdminRevenuePage from "./pages/admin/AdminRevenuePage";
 import AdminSystemPage from "./pages/admin/AdminSystemPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
 import AdminSituationSuggestionsPage from "./pages/admin/AdminSituationSuggestionsPage";
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
+import AdminBannerPage from "./pages/admin/AdminBannerPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
