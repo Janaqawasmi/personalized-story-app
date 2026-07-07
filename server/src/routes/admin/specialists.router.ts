@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { admin, db } from "../../config/firebase";
 import { requireAuth, requireRole } from "../../middleware/auth.middleware";
 import { COLLECTIONS } from "../../shared/firestore/paths";
+import { AuditTrail } from "../../services/auditTrail.service";
 
 const router = Router();
 
@@ -246,6 +247,57 @@ router.get(
       res.status(500).json({
         success: false,
         error: { code: "SPECIALIST_DETAIL_FAILED", message: "Failed to load specialist" },
+      });
+    }
+  },
+);
+
+/**
+ * PATCH /api/admin/specialists/:specialistId/disabled
+ * Disables/enables a specialist's Firebase Auth account. Only valid for real
+ * accounts (isRealAccount: true) — synthetic/legacy ids like
+ * "system_specialist" aren't real Auth users and can't be disabled. Does NOT
+ * touch role/claims — see the equivalent users.router.ts endpoint for why.
+ */
+router.patch(
+  "/:specialistId/disabled",
+  requireAuth,
+  requireRole("admin"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { specialistId } = req.params;
+      const { disabled } = req.body as { disabled?: boolean };
+      if (!specialistId || typeof disabled !== "boolean") {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_BODY", message: "specialistId and boolean disabled are required." },
+        });
+        return;
+      }
+
+      const profile = await resolveSpecialistProfile(specialistId);
+      if (!profile.isRealAccount) {
+        res.status(400).json({
+          success: false,
+          error: { code: "NOT_REAL_ACCOUNT", message: "This specialist has no real Firebase Auth account to disable." },
+        });
+        return;
+      }
+
+      await admin.auth().updateUser(specialistId, { disabled });
+      await AuditTrail.log({
+        action: disabled ? "specialist.disabled" : "specialist.enabled",
+        actor: AuditTrail.actorFromRequest(req.user!),
+        resourceType: "specialist",
+        resourceId: specialistId,
+      });
+
+      res.status(200).json({ success: true, data: { id: specialistId, disabled } });
+    } catch (error) {
+      console.error("[admin/specialists] disable error:", error);
+      res.status(500).json({
+        success: false,
+        error: { code: "SPECIALIST_DISABLE_FAILED", message: "Failed to update specialist account status" },
       });
     }
   },

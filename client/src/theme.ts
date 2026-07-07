@@ -49,7 +49,58 @@ export const COLORS = {
   warningSoft: " #f5ecd7",
   error: "#a14a4a",
   errorSoft: "#f0e4e4",
+
+  info: "#185FA5",
+  infoSoft: "#E6F1FB",
 };
+
+/**
+ * Single source of truth for admin-panel status pills (purchase status,
+ * account status, story status, alert severity, etc). Pages previously
+ * duplicated their own hardcoded hex maps for this — route all of them
+ * through here instead so retheming/adding a status happens in one place.
+ */
+export const ADMIN_STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
+  active: { bg: COLORS.successSoft, fg: COLORS.success },
+  approved: { bg: COLORS.successSoft, fg: COLORS.success },
+  paid: { bg: COLORS.successSoft, fg: COLORS.success },
+  completed: { bg: COLORS.successSoft, fg: COLORS.success },
+  published: { bg: COLORS.successSoft, fg: COLORS.success },
+
+  pending: { bg: COLORS.warningSoft, fg: COLORS.warning },
+  awaiting: { bg: COLORS.warningSoft, fg: COLORS.warning },
+
+  disabled: { bg: COLORS.errorSoft, fg: COLORS.error },
+  rejected: { bg: COLORS.errorSoft, fg: COLORS.error },
+  failed: { bg: COLORS.errorSoft, fg: COLORS.error },
+
+  refunded: { bg: COLORS.infoSoft, fg: COLORS.info },
+};
+
+/**
+ * Categorical palette for admin charts/bar lists (topic breakdowns, per-day
+ * bars, etc). Centralized so every chart uses the same 7 colors instead of
+ * each component re-declaring its own ad-hoc array.
+ */
+export const ADMIN_CHART_COLORS: string[] = [
+  "#824D5C",
+  "#0F6E56",
+  "#185FA5",
+  "#BA7517",
+  "#534AB7",
+  "#993556",
+  "#3B6D11",
+];
+
+/** Severity palette for the Overview alert feed (distinct shape from ADMIN_STATUS_COLORS — needs a border + dot + two text tones). */
+export const ADMIN_SEVERITY_COLORS = {
+  danger: { bg: "#FCEBEB", border: "#F7C1C1", dot: "#E24B4A", text: "#791F1F", timestamp: "#A32D2D" },
+  warn: { bg: "#FAEEDA", border: "#FAC775", dot: "#BA7517", text: "#633806", timestamp: "#854F0B" },
+  info: { bg: "#E6F1FB", border: "#B5D4F4", dot: "#185FA5", text: "#0C447C", timestamp: "#185FA5" },
+};
+
+/** Shared badge red — sidebar pending-count badges, alert count badges. */
+export const ADMIN_BADGE_COLOR = "#E53935";
 
 export function createAppTheme(direction: Direction = "rtl"): Theme {
   return createTheme({

@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Grid, Paper, Typography } from "@mui/material";
-import { collection, getCountFromServer, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebase";
-import { COLORS } from "../../theme";
+import { COLORS, ADMIN_CHART_COLORS } from "../../theme";
 import { useTranslation } from "../../i18n/useTranslation";
+import { usePreviewFunnelCounts } from "../../hooks/useAdminCounts";
 import AdminKpiCard from "./components/AdminKpiCard";
+import AdminDailyTrendChart from "./components/AdminDailyTrendChart";
 import { getPurchasesTimeseries, type PurchaseTimeseries } from "../../api/adminAnalytics";
 import { listAdminFeedback, type AdminFeedbackItem } from "../../api/adminFeedback";
 import { listAdminSpecialists, type AdminSpecialistListItem } from "../../api/adminSpecialists";
-
-const BAR_COLORS = ["#824D5C", "#0F6E56", "#185FA5", "#BA7517", "#534AB7", "#993556", "#3B6D11"];
 
 function BarList({ items }: { items: { label: string; count: number }[] }) {
   const max = items[0]?.count ?? 1;
@@ -17,7 +17,7 @@ function BarList({ items }: { items: { label: string; count: number }[] }) {
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
       {items.map((item, i) => (
         <Box key={item.label} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: BAR_COLORS[i % BAR_COLORS.length], flexShrink: 0 }} />
+          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: ADMIN_CHART_COLORS[i % ADMIN_CHART_COLORS.length], flexShrink: 0 }} />
           <Typography sx={{ fontSize: 12, color: COLORS.textPrimary, flex: 1 }}>{item.label}</Typography>
           <Box sx={{ width: 90, bgcolor: COLORS.background, borderRadius: "2px", height: 6 }}>
             <Box
@@ -25,7 +25,7 @@ function BarList({ items }: { items: { label: string; count: number }[] }) {
                 width: `${max > 0 ? Math.round((item.count / max) * 100) : 0}%`,
                 height: "100%",
                 borderRadius: "2px",
-                bgcolor: BAR_COLORS[i % BAR_COLORS.length],
+                bgcolor: ADMIN_CHART_COLORS[i % ADMIN_CHART_COLORS.length],
               }}
             />
           </Box>
@@ -41,54 +41,30 @@ function BarList({ items }: { items: { label: string; count: number }[] }) {
   );
 }
 
-function DailyTrendChart({ series }: { series: PurchaseTimeseries["series"] }) {
-  const max = Math.max(1, ...series.map((d) => d.count));
-  return (
-    <Box sx={{ display: "flex", alignItems: "flex-end", gap: "3px", height: 120, overflowX: "auto" }}>
-      {series.map((day) => (
-        <Box
-          key={day.date}
-          title={`${day.date}: ${day.count} purchase${day.count === 1 ? "" : "s"} (₪${(day.revenueCents / 100).toFixed(0)})`}
-          sx={{
-            flex: "1 0 6px",
-            minWidth: 6,
-            height: `${Math.max(2, (day.count / max) * 100)}%`,
-            bgcolor: day.count > 0 ? COLORS.secondary : COLORS.border,
-            borderRadius: "2px 2px 0 0",
-          }}
-        />
-      ))}
-    </Box>
-  );
-}
-
 export default function AdminAnalyticsPage() {
   const t = useTranslation();
 
-  const [loading, setLoading] = useState(true);
-  const [totalPreviews, setTotalPreviews] = useState(0);
-  const [totalPurchasedPreviews, setTotalPurchasedPreviews] = useState(0);
+  const [dataLoading, setLoading] = useState(true);
   const [languageCounts, setLanguageCounts] = useState<{ label: string; count: number }[]>([]);
   const [ageCounts, setAgeCounts] = useState<{ label: string; count: number }[]>([]);
   const [timeseries, setTimeseries] = useState<PurchaseTimeseries | null>(null);
   const [feedback, setFeedback] = useState<AdminFeedbackItem[]>([]);
   const [specialists, setSpecialists] = useState<AdminSpecialistListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { totalPreviews, purchasedPreviews: totalPurchasedPreviews, loading: funnelLoading } =
+    usePreviewFunnelCounts();
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
       try {
-        const [previewsCount, purchasedCount, templatesSnap, series, feedbackRows, specialistRows] =
-          await Promise.all([
-            getCountFromServer(collection(db, "storyPreviews")),
-            getCountFromServer(query(collection(db, "storyPreviews"), where("status", "==", "purchased"))),
-            getDocs(collection(db, "story_templates")),
-            getPurchasesTimeseries(30),
-            listAdminFeedback(),
-            listAdminSpecialists(),
-          ]);
+        const [templatesSnap, series, feedbackRows, specialistRows] = await Promise.all([
+          getDocs(collection(db, "story_templates")),
+          getPurchasesTimeseries(30),
+          listAdminFeedback(),
+          listAdminSpecialists(),
+        ]);
 
         if (cancelled) return;
 
@@ -103,8 +79,6 @@ export default function AdminAnalyticsPage() {
           ageGroupCounts[age] = (ageGroupCounts[age] ?? 0) + 1;
         });
 
-        setTotalPreviews(previewsCount.data().count);
-        setTotalPurchasedPreviews(purchasedCount.data().count);
         setLanguageCounts(
           Object.entries(langCounts)
             .sort((a, b) => b[1] - a[1])
@@ -133,6 +107,7 @@ export default function AdminAnalyticsPage() {
     };
   }, []);
 
+  const loading = dataLoading || funnelLoading;
   const conversionRate = totalPreviews > 0 ? (totalPurchasedPreviews / totalPreviews) * 100 : 0;
 
   const ratingHistogram = useMemo(() => {
@@ -221,7 +196,7 @@ export default function AdminAnalyticsPage() {
                 <Typography sx={{ fontSize: 13, fontWeight: 500, color: COLORS.textPrimary, mb: 2 }}>
                   {t("admin.analytics.trendTitle")}
                 </Typography>
-                {timeseries && <DailyTrendChart series={timeseries.series} />}
+                {timeseries && <AdminDailyTrendChart series={timeseries.series} />}
               </Paper>
             </Grid>
           </Grid>

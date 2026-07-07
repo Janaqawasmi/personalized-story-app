@@ -52,20 +52,31 @@ router.get(
       let totalRevenueCents = 0;
       let totalCount = 0;
       let paidCount = 0;
+      let refundedCount = 0;
+      let refundedCents = 0;
       // All-time totals, computed from the same fetch (no extra query cost)
       // so KPIs that want a true all-time figure (e.g. Overview's Revenue
       // card) don't have to re-fetch the whole collectionGroup themselves.
       let allTimeRevenueCents = 0;
       let allTimePaidPurchases = 0;
+      let allTimeRefundedCents = 0;
+      let allTimeRefundedCount = 0;
 
       for (const doc of snap.docs) {
         const data = doc.data() as Purchase;
         const createdAt = toDate(data.createdAt);
-        const isPaid = data.status !== "pending" && data.status !== "failed";
+        // "refunded" is excluded from revenue/paid counts — it was previously
+        // lumped in with "paid" (anything not pending/failed), which silently
+        // inflated revenue by counting money that was given back.
+        const isRefunded = data.status === "refunded";
+        const isPaid = !isRefunded && data.status !== "pending" && data.status !== "failed";
 
         if (isPaid) {
           allTimePaidPurchases += 1;
           allTimeRevenueCents += data.amountCents ?? 0;
+        } else if (isRefunded) {
+          allTimeRefundedCount += 1;
+          allTimeRefundedCents += data.amountCents ?? 0;
         }
 
         if (!createdAt || createdAt < cutoff) continue;
@@ -74,6 +85,9 @@ router.get(
         if (isPaid) {
           paidCount += 1;
           totalRevenueCents += data.amountCents ?? 0;
+        } else if (isRefunded) {
+          refundedCount += 1;
+          refundedCents += data.amountCents ?? 0;
         }
 
         const key = dayKey(createdAt);
@@ -103,8 +117,12 @@ router.get(
           totalRevenueCents,
           totalPaidPurchases: paidCount,
           totalPurchaseAttempts: totalCount,
+          totalRefundedCents: refundedCents,
+          totalRefundedPurchases: refundedCount,
           allTimeRevenueCents,
           allTimePaidPurchases,
+          allTimeRefundedCents,
+          allTimeRefundedPurchases: allTimeRefundedCount,
         },
       });
     } catch (error) {

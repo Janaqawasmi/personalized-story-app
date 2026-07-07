@@ -1035,6 +1035,11 @@
       "siteAdmin": "Site Admin",
       "openMenu": "Open menu"
     },
+    "pagination": {
+      "prev": "Prev",
+      "next": "Next",
+      "pageOf": "Page {page} of {total}"
+    },
     "nav": {
       "sectionOverview": "Overview",
       "sectionPeople": "People",
@@ -1045,13 +1050,13 @@
       "users": "Users",
       "psychologists": "Psychologists",
       "stories": "Stories",
-      "moderation": "Moderation",
       "situationSuggestions": "Situation Suggestions",
       "ai": "AI Usage",
       "reviews": "Reviews",
       "banner": "Banner",
       "revenue": "Revenue",
-      "system": "System Health"
+      "printOrders": "Print Orders",
+      "auditLog": "Audit Log"
     },
     "pages": {
       "overview": {
@@ -1072,11 +1077,7 @@
       },
       "stories": {
         "title": "Story catalog",
-        "subtitle": "Review and approve story templates"
-      },
-      "moderation": {
-        "title": "Content moderation",
-        "subtitle": "Flagged content requires your attention"
+        "subtitle": "Browse published story templates"
       },
       "situation-suggestions": {
         "title": "Situation suggestions",
@@ -1096,11 +1097,15 @@
       },
       "revenue": {
         "title": "Revenue",
-        "subtitle": "Sales, pricing tiers and business metrics"
+        "subtitle": "Purchases, refunds and revenue over time"
       },
-      "system": {
-        "title": "System health",
-        "subtitle": "Infrastructure status and Firebase quotas"
+      "print-orders": {
+        "title": "Print orders",
+        "subtitle": "Monitor paid print purchases and update fulfillment status"
+      },
+      "audit-log": {
+        "title": "Audit log",
+        "subtitle": "Every governed action across the platform, newest first"
       }
     },
     "overview": {
@@ -1122,7 +1127,8 @@
       "insight": "{pct}% of previews have converted to a purchase, all time."
     },
     "categories": {
-      "title": "Top therapeutic categories"
+      "title": "Top therapeutic categories",
+      "empty": "No category data yet."
     },
     "alerts": {
       "title": "Active alerts",
@@ -1134,26 +1140,8 @@
     },
     "stories": {
       "sectionEyebrow": "Story catalog management",
-      "kpiPending": "Pending review",
-      "kpiPendingSub": "Needs your attention",
-      "kpiAvgWait": "Avg. wait time",
-      "kpiAvgWaitSub": "Target: under 48h",
-      "kpiApprovedMonth": "Approved this month",
-      "kpiApprovedSub": "Real-time count",
-      "pendingTitle": "Stories awaiting approval",
-      "allClear": "All caught up — no pending stories.",
-      "approve": "Approve",
-      "reject": "Reject",
-      "spreads": "spreads",
-      "justSubmitted": "Just submitted",
-      "waitingHours": "Waiting {hours}h",
-      "waitingDays": "Waiting {days}d",
       "catalogTitle": "All stories",
       "searchPlaceholder": "Search by title…",
-      "statusAll": "All statuses",
-      "statusApproved": "Approved",
-      "statusPendingReview": "Pending review",
-      "statusRejected": "Rejected",
       "topicAll": "All topics",
       "colTitle": "Title",
       "colCreator": "Creator",
@@ -1168,12 +1156,7 @@
       "detailReviews": "Reviews",
       "detailNoReviews": "No reviews yet",
       "detailClose": "Close",
-      "detailPages": "Pages",
-      "detailRejectionReason": "Rejection reason",
-      "rejectDialogTitle": "Reject story",
-      "rejectReasonLabel": "Rejection reason (sent to the creator)",
-      "rejectCancel": "Cancel",
-      "rejectSubmit": "Reject story"
+      "detailPages": "Pages"
     },
     "psychologists": {
       "sectionEyebrow": "Psychologists & story creators",
@@ -1187,7 +1170,8 @@
       "joined": "Joined {date}",
       "statusActive": "Active",
       "statusDisabled": "Disabled",
-      "empty": "No specialists found."
+      "empty": "No specialists found.",
+      "systemAccountHint": "Legacy/system-authored content — no real account to open"
     },
     "specialistDetail": {
       "back": "Back to specialists",
@@ -1201,7 +1185,16 @@
       "colPurchases": "Purchases",
       "colRating": "Rating",
       "colPublished": "Published",
-      "empty": "This specialist hasn't published any stories yet."
+      "colStatus": "Status",
+      "empty": "This specialist hasn't published any stories yet.",
+      "disableAccount": "Disable account",
+      "enableAccount": "Enable account",
+      "disableConfirmTitle": "Disable this specialist's account?",
+      "disableConfirmBody": "They won't be able to sign in or publish stories until re-enabled.",
+      "enableConfirmTitle": "Enable this specialist's account?",
+      "enableConfirmBody": "They will regain the ability to sign in and publish stories.",
+      "confirmCancel": "Cancel",
+      "confirmSubmit": "Confirm"
     },
     "banner": {
       "title": "Homepage banners",
@@ -1245,13 +1238,16 @@
       "empty": "No reviews yet."
     },
     "users": {
-      "title": "Caregivers",
-      "searchPlaceholder": "Search by name or email…",
+      "sectionEyebrow": "Caregiver accounts",
+      "listTitle": "Caregivers",
+      "searchPlaceholder": "Search by email…",
       "empty": "No users found.",
-      "colName": "Name",
-      "colEmail": "Email",
+      "colUser": "User",
       "colPurchases": "Purchases",
-      "colRole": "Role"
+      "colRole": "Role",
+      "colStatus": "Status",
+      "statusActive": "Active",
+      "statusDisabled": "Disabled"
     },
     "userDetail": {
       "back": "Back to users",
@@ -1267,7 +1263,17 @@
       "colAmount": "Amount",
       "colStatus": "Status",
       "colDate": "Date",
-      "noPurchases": "No purchases yet."
+      "noPurchases": "No purchases yet.",
+      "statusActive": "Active",
+      "statusDisabled": "Disabled",
+      "disableAccount": "Disable account",
+      "enableAccount": "Enable account",
+      "disableConfirmTitle": "Disable this account?",
+      "disableConfirmBody": "This caregiver won't be able to sign in until re-enabled.",
+      "enableConfirmTitle": "Enable this account?",
+      "enableConfirmBody": "This caregiver will regain the ability to sign in.",
+      "confirmCancel": "Cancel",
+      "confirmSubmit": "Confirm"
     },
     "analytics": {
       "sectionEyebrow": "Platform analytics",
@@ -1285,20 +1291,62 @@
       "topSpecialistsTitle": "Top specialists by purchases"
     },
     "ai": {
-      "title": "AI usage",
-      "body": "Monitor model latency, failures, and estimated cost from server logs and future telemetry endpoints."
+      "sectionEyebrow": "Agent 1 generation telemetry",
+      "totalGenerations": "Total generations",
+      "avgLatency": "Avg. latency",
+      "avgLlmCalls": "Avg. LLM calls / story",
+      "failureRate": "Failure rate",
+      "exampleBankTitle": "Few-shot example bank usage",
+      "reliabilityTitle": "Reliability",
+      "avgReruns": "Avg. reruns per story",
+      "stuckGenerating": "Stuck in generating"
     },
     "revenue": {
-      "title": "Revenue",
-      "body": "Connect payment provider webhooks and purchase subcollections for full revenue reporting."
+      "sectionEyebrow": "Revenue",
+      "rangeDays": "Last {days} days",
+      "kpiRevenue": "Revenue",
+      "kpiRangeSub": "Last {days} days",
+      "kpiPaidPurchases": "Paid purchases",
+      "kpiRefunded": "Refunded",
+      "kpiRefundedSub": "{count} refund(s)",
+      "kpiAllTime": "All-time revenue",
+      "trendTitle": "Daily revenue"
     },
-    "system": {
-      "title": "System health",
-      "body": "Firebase console, quotas, and uptime checks can be linked here."
+    "printOrders": {
+      "title": "Print orders",
+      "subtitle": "Monitor paid print purchases and update fulfillment status.",
+      "empty": "No paid print orders yet.",
+      "untitledStory": "Untitled story",
+      "colPurchase": "Purchase",
+      "colBuyer": "Buyer",
+      "colTemplate": "Template",
+      "colPreview": "Preview",
+      "colPersonalized": "Personalized story",
+      "none": "none",
+      "colType": "Type",
+      "typePersonalized": "Personalized",
+      "typeTemplate": "Original template",
+      "colChild": "Child",
+      "colPrice": "Price",
+      "colPayment": "Payment",
+      "colPurchased": "Purchased",
+      "colContact": "Contact",
+      "colAddress": "Address",
+      "colNotes": "Notes",
+      "viewStory": "View story",
+      "storyContent": "Story content",
+      "dialogSource": "Source",
+      "dialogPage": "Page"
     },
-    "moderation": {
-      "title": "Moderation",
-      "body": "Review pending story templates under Stories. Flagged user content workflows can be added here."
+    "auditLog": {
+      "sectionEyebrow": "Platform audit trail",
+      "title": "Recent activity",
+      "actionAll": "All actions",
+      "colTime": "Time",
+      "colAction": "Action",
+      "colActor": "Actor",
+      "colResource": "Resource",
+      "empty": "No audit entries yet."
     },
     "situationSuggestions": {
       "sectionEyebrow": "Situation suggestions",

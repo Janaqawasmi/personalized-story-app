@@ -1,32 +1,13 @@
 import { useEffect, useState } from "react";
-import {
-  collection,
-  getCountFromServer,
-  query,
-  where,
-  orderBy,
-  limit,
-  getDocs,
-  Timestamp,
-} from "firebase/firestore";
+import { collection, query, where, orderBy, limit, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "../firebase";
 import { getPurchasesTimeseries } from "../api/adminAnalytics";
-
-async function tryCount(q: ReturnType<typeof query> | ReturnType<typeof collection>): Promise<number> {
-  try {
-    const snap = await getCountFromServer(q);
-    return snap.data().count;
-  } catch {
-    return 0;
-  }
-}
+import { tryCount, usePreviewFunnelCounts } from "./useAdminCounts";
 
 export interface AdminStats {
   totalPersonalizations: number;
   totalCaregivers: number;
   totalPurchases: number;
-  totalTemplates: number;
-  pendingTemplates: number;
   allTimeRevenueCents: number;
   activeAlerts: Alert[];
   recentActivity: ActivityItem[];
@@ -44,7 +25,7 @@ export interface Alert {
 
 export interface ActivityItem {
   id: string;
-  type: "purchase" | "personalization" | "template_submitted" | "error" | "voice";
+  type: "purchase" | "personalization";
   message: string;
   timestamp: Date;
 }
@@ -58,25 +39,19 @@ function toDate(value: unknown): Date {
 }
 
 /**
- * Real recent activity, built from actual Firestore documents (most recent
- * previews + most recently submitted templates) rather than reading
- * `admin_activity_log` — nothing in the codebase ever writes to that
- * collection, so it was always empty.
+ * Real recent activity, built from the most recent storyPreviews documents
+ * rather than reading `admin_activity_log` — nothing in the codebase ever
+ * writes to that collection, so it was always empty. (This previously also
+ * merged in "pending review" story_templates, but nothing ever writes that
+ * status either — see AdminStoriesPage's removed pending-review queue.)
  */
 async function loadRecentActivity(): Promise<ActivityItem[]> {
   try {
-    const [previewsSnap, templatesSnap] = await Promise.all([
-      getDocs(query(collection(db, "storyPreviews"), orderBy("createdAt", "desc"), limit(8))),
-      getDocs(
-        query(
-          collection(db, "story_templates"),
-          where("status", "==", "pending_review"),
-          limit(8),
-        ),
-      ),
-    ]);
+    const previewsSnap = await getDocs(
+      query(collection(db, "storyPreviews"), orderBy("createdAt", "desc"), limit(10)),
+    );
 
-    const previewItems: ActivityItem[] = previewsSnap.docs.map((docSnap) => {
+    return previewsSnap.docs.map((docSnap) => {
       const data = docSnap.data();
       const childName = typeof data.childFirstName === "string" ? data.childFirstName : "";
       const title = typeof data.templateTitle === "string" ? data.templateTitle : "";
@@ -90,67 +65,34 @@ async function loadRecentActivity(): Promise<ActivityItem[]> {
         timestamp: toDate(data.createdAt),
       };
     });
-
-    const templateItems: ActivityItem[] = templatesSnap.docs.map((docSnap) => {
-      const data = docSnap.data();
-      return {
-        id: docSnap.id,
-        type: "template_submitted",
-        message: `${data.title ?? "Untitled story"} — submitted for review`,
-        timestamp: toDate(data.submittedAt ?? data.createdAt),
-      };
-    });
-
-    return [...previewItems, ...templateItems]
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      .slice(0, 10);
   } catch {
     return [];
   }
 }
 
 /**
- * Real operational alerts computed from actual counts (pending review
- * backlog, failed generations) instead of reading `admin_alerts` — nothing
- * in the codebase ever writes to that collection either.
+ * Real operational alerts computed from actual counts (failed generations)
+ * instead of reading `admin_alerts` — nothing in the codebase ever writes to
+ * that collection either. (Previously also alerted on a "pending review
+ * backlog" of story_templates, but nothing ever sets that status — removed
+ * along with AdminStoriesPage's dead pending-review queue.)
  */
 async function loadActiveAlerts(): Promise<Alert[]> {
   try {
-    const [pendingCount, failedCount] = await Promise.all([
-      tryCount(query(collection(db, "story_templates"), where("status", "==", "pending_review"))),
-      tryCount(query(collection(db, "storyPreviews"), where("generationStatus", "==", "failed"))),
-    ]);
+    const failedCount = await tryCount(
+      query(collection(db, "storyPreviews"), where("generationStatus", "==", "failed")),
+    );
 
     const alerts: Alert[] = [];
-    const now = new Date();
-
     if (failedCount > 0) {
       alerts.push({
         id: "failed-generations",
         type: "danger",
         message: `${failedCount} personalization${failedCount === 1 ? "" : "s"} failed to generate`,
-        timestamp: now,
+        timestamp: new Date(),
         source: "storyPreviews",
       });
     }
-    if (pendingCount > 5) {
-      alerts.push({
-        id: "pending-backlog",
-        type: "warn",
-        message: `${pendingCount} stories waiting for review`,
-        timestamp: now,
-        source: "story_templates",
-      });
-    } else if (pendingCount > 0) {
-      alerts.push({
-        id: "pending-backlog",
-        type: "info",
-        message: `${pendingCount} stor${pendingCount === 1 ? "y" : "ies"} waiting for review`,
-        timestamp: now,
-        source: "story_templates",
-      });
-    }
-
     return alerts;
   } catch {
     return [];
@@ -158,47 +100,22 @@ async function loadActiveAlerts(): Promise<Alert[]> {
 }
 
 export function useAdminStats(): AdminStats {
-  const [state, setState] = useState<AdminStats>({
-    totalPersonalizations: 0,
+  const [state, setState] = useState<Omit<AdminStats, "totalPersonalizations" | "totalPurchases" | "loading"> & { loading: boolean }>({
     totalCaregivers: 0,
-    totalPurchases: 0,
-    totalTemplates: 0,
-    pendingTemplates: 0,
     allTimeRevenueCents: 0,
     activeAlerts: [],
     recentActivity: [],
     loading: true,
     error: null,
   });
+  const funnel = usePreviewFunnelCounts();
 
   useEffect(() => {
     let cancelled = false;
 
     async function fetchStats() {
       try {
-        const [
-          totalPersonalizations,
-          totalCaregivers,
-          totalPurchases,
-          totalTemplates,
-          pendingTemplates,
-        ] = await Promise.all([
-          tryCount(collection(db, "storyPreviews")),
-          tryCount(collection(db, "caregivers")),
-          tryCount(
-            query(collection(db, "storyPreviews"), where("status", "==", "purchased"))
-          ),
-          tryCount(
-            query(collection(db, "story_templates"), where("status", "==", "approved"))
-          ),
-          tryCount(
-            query(
-              collection(db, "story_templates"),
-              where("status", "==", "pending_review")
-            )
-          ),
-        ]);
-
+        const totalCaregivers = await tryCount(collection(db, "caregivers"));
         if (cancelled) return;
 
         const [activeAlerts, recentActivity, revenueSummary] = await Promise.all([
@@ -210,11 +127,7 @@ export function useAdminStats(): AdminStats {
         if (cancelled) return;
 
         setState({
-          totalPersonalizations,
           totalCaregivers,
-          totalPurchases,
-          totalTemplates,
-          pendingTemplates,
           allTimeRevenueCents: revenueSummary?.allTimeRevenueCents ?? 0,
           activeAlerts,
           recentActivity,
@@ -238,5 +151,10 @@ export function useAdminStats(): AdminStats {
     };
   }, []);
 
-  return state;
+  return {
+    ...state,
+    totalPersonalizations: funnel.totalPreviews,
+    totalPurchases: funnel.purchasedPreviews,
+    loading: state.loading || funnel.loading,
+  };
 }

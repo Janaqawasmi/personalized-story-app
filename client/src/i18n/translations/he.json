@@ -1035,6 +1035,11 @@
       "siteAdmin": "מנהל אתר",
       "openMenu": "פתיחת תפריט"
     },
+    "pagination": {
+      "prev": "הקודם",
+      "next": "הבא",
+      "pageOf": "עמוד {page} מתוך {total}"
+    },
     "nav": {
       "sectionOverview": "סקירה",
       "sectionPeople": "אנשים",
@@ -1045,13 +1050,13 @@
       "users": "משתמשים",
       "psychologists": "פסיכולוגים",
       "stories": "סיפורים",
-      "moderation": "ניהול תוכן",
       "situationSuggestions": "הצעות מצב",
       "ai": "שימוש ב-AI",
       "reviews": "ביקורות",
       "banner": "באנר",
       "revenue": "הכנסות",
-      "system": "בריאות המערכת"
+      "printOrders": "הזמנות הדפסה",
+      "auditLog": "יומן ביקורת"
     },
     "pages": {
       "overview": {
@@ -1072,11 +1077,7 @@
       },
       "stories": {
         "title": "קטלוג סיפורים",
-        "subtitle": "אישור ודחיית תבניות סיפור"
-      },
-      "moderation": {
-        "title": "ניהול תוכן",
-        "subtitle": "תוכן שדווח דורש תשומת לב"
+        "subtitle": "עיון בתבניות הסיפורים שפורסמו"
       },
       "situation-suggestions": {
         "title": "הצעות למצב חדש",
@@ -1096,11 +1097,15 @@
       },
       "revenue": {
         "title": "הכנסות",
-        "subtitle": "מכירות, מחירים ומדדים עסקיים"
+        "subtitle": "רכישות, זיכויים והכנסות לאורך זמן"
       },
-      "system": {
-        "title": "בריאות המערכת",
-        "subtitle": "תשתית ומכסות Firebase"
+      "print-orders": {
+        "title": "הזמנות הדפסה",
+        "subtitle": "מעקב אחרי רכישות הדפסה בתשלום ועדכון סטטוס הכנה"
+      },
+      "audit-log": {
+        "title": "יומן ביקורת",
+        "subtitle": "כל פעולה מבוקרת בפלטפורמה, מהחדשה לישנה"
       }
     },
     "overview": {
@@ -1122,7 +1127,8 @@
       "insight": "{pct}% מהתצוגות המקדימות הומרו לרכישה, מאז ומתמיד."
     },
     "categories": {
-      "title": "קטגוריות טיפוליות מובילות"
+      "title": "קטגוריות טיפוליות מובילות",
+      "empty": "אין עדיין נתוני קטגוריות."
     },
     "alerts": {
       "title": "התראות פעילות",
@@ -1134,26 +1140,8 @@
     },
     "stories": {
       "sectionEyebrow": "ניהול קטלוג סיפורים",
-      "kpiPending": "ממתינים לאישור",
-      "kpiPendingSub": "דורשים טיפול",
-      "kpiAvgWait": "זמן המתנה ממוצע",
-      "kpiAvgWaitSub": "יעד: מתחת ל־48 שעות",
-      "kpiApprovedMonth": "אושרו החודש",
-      "kpiApprovedSub": "ספירה בזמן אמת",
-      "pendingTitle": "סיפורים ממתינים לאישור",
-      "allClear": "הכול עדכני — אין סיפורים ממתינים.",
-      "approve": "אשר",
-      "reject": "דחה",
-      "spreads": "פריסות",
-      "justSubmitted": "נשלח עכשיו",
-      "waitingHours": "ממתין {hours} ש׳",
-      "waitingDays": "ממתין {days} ימים",
       "catalogTitle": "כל הסיפורים",
       "searchPlaceholder": "חיפוש לפי כותרת…",
-      "statusAll": "כל הסטטוסים",
-      "statusApproved": "מאושר",
-      "statusPendingReview": "ממתין לאישור",
-      "statusRejected": "נדחה",
       "topicAll": "כל הנושאים",
       "colTitle": "כותרת",
       "colCreator": "יוצר",
@@ -1168,12 +1156,7 @@
       "detailReviews": "ביקורות",
       "detailNoReviews": "אין עדיין ביקורות",
       "detailClose": "סגור",
-      "detailPages": "עמודים",
-      "detailRejectionReason": "סיבת הדחייה",
-      "rejectDialogTitle": "דחיית סיפור",
-      "rejectReasonLabel": "סיבת הדחייה (תישלח ליוצר)",
-      "rejectCancel": "ביטול",
-      "rejectSubmit": "דחה סיפור"
+      "detailPages": "עמודים"
     },
     "psychologists": {
       "sectionEyebrow": "פסיכולוגים ויוצרי סיפורים",
@@ -1187,7 +1170,8 @@
       "joined": "הצטרף {date}",
       "statusActive": "פעיל",
       "statusDisabled": "מושבת",
-      "empty": "לא נמצאו מומחים."
+      "empty": "לא נמצאו מומחים.",
+      "systemAccountHint": "תוכן ישן/מערכתי — אין חשבון אמיתי לפתיחה"
     },
     "specialistDetail": {
       "back": "חזרה למומחים",
@@ -1201,7 +1185,16 @@
       "colPurchases": "רכישות",
       "colRating": "דירוג",
       "colPublished": "פורסם",
-      "empty": "המומחה הזה עדיין לא פרסם סיפורים."
+      "colStatus": "סטטוס",
+      "empty": "המומחה הזה עדיין לא פרסם סיפורים.",
+      "disableAccount": "השבתת חשבון",
+      "enableAccount": "הפעלת חשבון",
+      "disableConfirmTitle": "להשבית את חשבון המומחה הזה?",
+      "disableConfirmBody": "המומחה לא יוכל להתחבר או לפרסם סיפורים עד להפעלה מחדש.",
+      "enableConfirmTitle": "להפעיל את חשבון המומחה הזה?",
+      "enableConfirmBody": "המומחה יוכל שוב להתחבר ולפרסם סיפורים.",
+      "confirmCancel": "ביטול",
+      "confirmSubmit": "אישור"
     },
     "banner": {
       "title": "באנרים בדף הבית",
@@ -1245,13 +1238,16 @@
       "empty": "אין עדיין ביקורות."
     },
     "users": {
-      "title": "מטפלים",
-      "searchPlaceholder": "חיפוש לפי שם או אימייל…",
+      "sectionEyebrow": "חשבונות מטפלים",
+      "listTitle": "מטפלים",
+      "searchPlaceholder": "חיפוש לפי אימייל…",
       "empty": "לא נמצאו משתמשים.",
-      "colName": "שם",
-      "colEmail": "אימייל",
+      "colUser": "משתמש",
       "colPurchases": "רכישות",
-      "colRole": "תפקיד"
+      "colRole": "תפקיד",
+      "colStatus": "סטטוס",
+      "statusActive": "פעיל",
+      "statusDisabled": "מושבת"
     },
     "userDetail": {
       "back": "חזרה למשתמשים",
@@ -1267,7 +1263,17 @@
       "colAmount": "סכום",
       "colStatus": "סטטוס",
       "colDate": "תאריך",
-      "noPurchases": "אין עדיין רכישות."
+      "noPurchases": "אין עדיין רכישות.",
+      "statusActive": "פעיל",
+      "statusDisabled": "מושבת",
+      "disableAccount": "השבתת חשבון",
+      "enableAccount": "הפעלת חשבון",
+      "disableConfirmTitle": "להשבית את החשבון הזה?",
+      "disableConfirmBody": "המטפל/ת לא יוכלו להתחבר עד להפעלה מחדש.",
+      "enableConfirmTitle": "להפעיל את החשבון הזה?",
+      "enableConfirmBody": "המטפל/ת יוכלו שוב להתחבר.",
+      "confirmCancel": "ביטול",
+      "confirmSubmit": "אישור"
     },
     "analytics": {
       "sectionEyebrow": "אנליטיקת פלטפורמה",
@@ -1285,20 +1291,62 @@
       "topSpecialistsTitle": "המומחים המובילים לפי רכישות"
     },
     "ai": {
-      "title": "שימוש ב-AI",
-      "body": "מעקב אחרי זמני תגובה, כשלים ועלות משוערת דרך לוגים וטלמטריה עתידית."
+      "sectionEyebrow": "טלמטריית יצירה של Agent 1",
+      "totalGenerations": "סך היצירות",
+      "avgLatency": "זמן תגובה ממוצע",
+      "avgLlmCalls": "ממוצע קריאות LLM לסיפור",
+      "failureRate": "שיעור כשלים",
+      "exampleBankTitle": "שימוש במאגר הדוגמאות",
+      "reliabilityTitle": "אמינות",
+      "avgReruns": "ממוצע הרצות חוזרות לסיפור",
+      "stuckGenerating": "תקוע ביצירה"
     },
     "revenue": {
-      "title": "הכנסות",
-      "body": "חברו webhook של ספק תשלומים ואוספי רכישות לדוחות מלאים."
+      "sectionEyebrow": "הכנסות",
+      "rangeDays": "{days} הימים האחרונים",
+      "kpiRevenue": "הכנסות",
+      "kpiRangeSub": "{days} הימים האחרונים",
+      "kpiPaidPurchases": "רכישות ששולמו",
+      "kpiRefunded": "זוכה",
+      "kpiRefundedSub": "{count} זיכוי/ים",
+      "kpiAllTime": "הכנסות מכל הזמנים",
+      "trendTitle": "הכנסות יומיות"
     },
-    "system": {
-      "title": "בריאות המערכת",
-      "body": "אפשר לקשר לקונסולת Firebase, מכסות וזמינות."
+    "printOrders": {
+      "title": "הזמנות הדפסה",
+      "subtitle": "מעקב אחרי רכישות הדפסה בתשלום ועדכון סטטוס הכנה.",
+      "empty": "אין עדיין הזמנות הדפסה בתשלום.",
+      "untitledStory": "סיפור ללא כותרת",
+      "colPurchase": "רכישה",
+      "colBuyer": "קונה",
+      "colTemplate": "תבנית",
+      "colPreview": "תצוגה מקדימה",
+      "colPersonalized": "סיפור מותאם אישית",
+      "none": "אין",
+      "colType": "סוג",
+      "typePersonalized": "מותאם אישית",
+      "typeTemplate": "תבנית מקורית",
+      "colChild": "ילד/ה",
+      "colPrice": "מחיר",
+      "colPayment": "תשלום",
+      "colPurchased": "נרכש",
+      "colContact": "איש קשר",
+      "colAddress": "כתובת",
+      "colNotes": "הערות",
+      "viewStory": "צפייה בסיפור",
+      "storyContent": "תוכן הסיפור",
+      "dialogSource": "מקור",
+      "dialogPage": "עמוד"
     },
-    "moderation": {
-      "title": "ניהול תוכן",
-      "body": "אשרו תבניות סיפור תחת ״סיפורים״. כאן אפשר להרחיב לתוכן משתמשים שדווח."
+    "auditLog": {
+      "sectionEyebrow": "יומן ביקורת של הפלטפורמה",
+      "title": "פעילות אחרונה",
+      "actionAll": "כל הפעולות",
+      "colTime": "זמן",
+      "colAction": "פעולה",
+      "colActor": "בוצע על ידי",
+      "colResource": "משאב",
+      "empty": "אין עדיין רשומות ביקורת."
     },
     "situationSuggestions": {
       "sectionEyebrow": "הצעות למצב חדש",

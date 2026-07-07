@@ -1,8 +1,11 @@
 import { Router, Request, Response } from "express";
-import { db } from "../../config/firebase";
+import type { Query } from "firebase-admin/firestore";
+import { admin, db } from "../../config/firebase";
 import { requireAuth, requireRole } from "../../middleware/auth.middleware";
 import { COLLECTIONS } from "../../shared/firestore/paths";
 import { resolveCaregiverDisplayName } from "../../shared/utils/caregiverDisplayName";
+import { fetchCursorPage } from "../../shared/utils/pagination";
+import { AuditTrail } from "../../services/auditTrail.service";
 import type { Purchase } from "../../shared/types/purchase";
 
 const router = Router();
@@ -19,6 +22,112 @@ function toIsoString(value: unknown): string | null {
   if (typeof value === "string" && value.trim()) return value;
   return null;
 }
+
+/**
+ * GET /api/admin/users
+ *
+ * Paginated caregiver directory, replacing AdminUsersPage's previous raw
+ * client-side Firestore listener over the entire `caregivers` collection.
+ * Also resolves each user's REAL role from Firebase Auth custom claims —
+ * the Firestore doc's own `role` field is always "caregiver" (set once at
+ * registration, see registerCaregiver.router.ts), so it can't be trusted to
+ * reflect an admin/specialist promotion done later via the custom-claims
+ * script.
+ *
+ * Search matches by email prefix (Firestore has no substring/full-text
+ * search) and, when active, switches ordering from createdAt to email since
+ * a range filter must share its orderBy field.
+ */
+router.get("/", requireAuth, requireRole("admin"), async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 25, 100);
+    const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search.trim().toLowerCase() : "";
+
+    const baseQuery: Query = search
+      ? db
+          .collection(COLLECTIONS.CAREGIVERS)
+          .orderBy("email")
+          .where("email", ">=", search)
+          .where("email", "<", `${search}`)
+      : db.collection(COLLECTIONS.CAREGIVERS).orderBy("createdAt", "desc");
+
+    const page = await fetchCursorPage(baseQuery, limit, cursor, (doc) => ({
+      uid: doc.id,
+      data: doc.data(),
+    }));
+
+    const uids = page.items.map((item) => item.uid);
+    const authUsers = uids.length > 0 ? await admin.auth().getUsers(uids.map((uid) => ({ uid }))) : { users: [] };
+    const authByUid = new Map(authUsers.users.map((u) => [u.uid, u]));
+
+    const items = page.items.map(({ uid, data }) => {
+      const authUser = authByUid.get(uid);
+      return {
+        uid,
+        email: (data.email as string | undefined) ?? null,
+        displayName: resolveCaregiverDisplayName(data),
+        role: (authUser?.customClaims?.role as string | undefined) ?? "caregiver",
+        disabled: authUser?.disabled ?? false,
+        purchaseCount: (data.purchaseCount as number | undefined) ?? 0,
+        createdAt: toIsoString(data.createdAt),
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { items, nextCursor: page.nextCursor ?? null, hasMore: page.hasMore },
+    });
+  } catch (error) {
+    console.error("[admin/users] list error:", error);
+    res.status(500).json({
+      success: false,
+      error: { code: "USERS_LIST_FAILED", message: "Failed to load users" },
+    });
+  }
+});
+
+/**
+ * PATCH /api/admin/users/:uid/disabled
+ * Disables/enables a caregiver's Firebase Auth account. Deliberately does
+ * NOT allow changing role/claims here — granting admin/specialist access
+ * stays on the `npm run set-user-role` CLI script; this endpoint only ever
+ * flips the Auth `disabled` flag.
+ */
+router.patch(
+  "/:uid/disabled",
+  requireAuth,
+  requireRole("admin"),
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { uid } = req.params;
+      const { disabled } = req.body as { disabled?: boolean };
+      if (!uid || typeof disabled !== "boolean") {
+        res.status(400).json({
+          success: false,
+          error: { code: "INVALID_BODY", message: "uid and boolean disabled are required." },
+        });
+        return;
+      }
+
+      await admin.auth().updateUser(uid, { disabled });
+      await AuditTrail.log({
+        action: disabled ? "user.disabled" : "user.enabled",
+        actor: AuditTrail.actorFromRequest(req.user!),
+        resourceType: "user",
+        resourceId: uid,
+      });
+
+      res.status(200).json({ success: true, data: { uid, disabled } });
+    } catch (error) {
+      console.error("[admin/users] disable error:", error);
+      res.status(500).json({
+        success: false,
+        error: { code: "USER_DISABLE_FAILED", message: "Failed to update user account status" },
+      });
+    }
+  },
+);
 
 /**
  * GET /api/admin/users/:uid
@@ -79,6 +188,11 @@ router.get(
         })
         .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
 
+      const authUser = await admin
+        .auth()
+        .getUser(uid)
+        .catch(() => null);
+
       res.status(200).json({
         success: true,
         data: {
@@ -87,6 +201,8 @@ router.get(
             email: (caregiverData?.email as string | undefined) ?? null,
             displayName: resolveCaregiverDisplayName(caregiverData),
             language: (caregiverData?.language as string | undefined) ?? null,
+            role: (authUser?.customClaims?.role as string | undefined) ?? "caregiver",
+            disabled: authUser?.disabled ?? false,
             purchaseCount: (caregiverData?.purchaseCount as number | undefined) ?? 0,
             freePreviewUsed: caregiverData?.freePreviewUsed === true,
             createdAt: toIsoString(caregiverData?.createdAt),

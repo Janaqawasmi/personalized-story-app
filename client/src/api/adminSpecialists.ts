@@ -9,6 +9,8 @@ export interface AdminSpecialistListItem {
   avgRating: number | null;
   status: "active" | "disabled";
   joinedAt: string | null;
+  /** false for synthetic/legacy ids (e.g. "system_specialist") with no real Firebase Auth account — not clickable/disable-able. */
+  isRealAccount: boolean;
 }
 
 export interface AdminSpecialistStory {
@@ -32,6 +34,7 @@ export interface AdminSpecialistDetail {
     email: string | null;
     status: "active" | "disabled";
     joinedAt: string | null;
+    isRealAccount: boolean;
   };
   stats: {
     storyCount: number;
@@ -71,4 +74,17 @@ export async function getAdminSpecialist(specialistId: string): Promise<AdminSpe
     headers,
   });
   return handleAdminResponse<AdminSpecialistDetail>(res);
+}
+
+export async function setAdminSpecialistDisabled(
+  specialistId: string,
+  disabled: boolean,
+): Promise<{ id: string; disabled: boolean }> {
+  const headers = await getAuthHeaders();
+  const res = await fetch(`${API_BASE}/api/admin/specialists/${encodeURIComponent(specialistId)}/disabled`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ disabled }),
+  });
+  return handleAdminResponse<{ id: string; disabled: boolean }>(res);
 }

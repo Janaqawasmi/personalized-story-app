@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Paper, Typography, Avatar, TextField } from "@mui/material";
 import { useNavigate, useParams } from "react-router-dom";
-import { COLORS } from "../../theme";
+import { COLORS, ADMIN_STATUS_COLORS } from "../../theme";
 import { useTranslation } from "../../i18n/useTranslation";
 import { listAdminSpecialists, type AdminSpecialistListItem } from "../../api/adminSpecialists";
 
-const STATUS_STYLES = {
-  active: { bg: "#EAF3DE", color: "#3B6D11", labelKey: "admin.psychologists.statusActive" as const },
-  disabled: { bg: "#F4E2E2", color: "#A32D2D", labelKey: "admin.psychologists.statusDisabled" as const },
+const STATUS_LABEL_KEYS = {
+  active: "admin.psychologists.statusActive" as const,
+  disabled: "admin.psychologists.statusDisabled" as const,
 };
 
 export default function AdminPsychologistsPage() {
@@ -54,7 +54,13 @@ export default function AdminPsychologistsPage() {
       .toUpperCase();
 
   const getRatingColor = (rating: number | null) =>
-    rating == null ? COLORS.textSecondary : rating >= 4 ? "#3B6D11" : rating >= 3 ? "#BA7517" : "#A32D2D";
+    rating == null
+      ? COLORS.textSecondary
+      : rating >= 4
+        ? ADMIN_STATUS_COLORS.approved.fg
+        : rating >= 3
+          ? ADMIN_STATUS_COLORS.pending.fg
+          : ADMIN_STATUS_COLORS.failed.fg;
 
   return (
     <Box sx={{ p: 3 }}>
@@ -126,12 +132,14 @@ export default function AdminPsychologistsPage() {
             )}
 
             {visibleSpecialists.map((p, i) => {
-              const status = STATUS_STYLES[p.status] ?? STATUS_STYLES.active;
+              const status = ADMIN_STATUS_COLORS[p.status] ?? ADMIN_STATUS_COLORS.active;
+              const labelKey = STATUS_LABEL_KEYS[p.status] ?? STATUS_LABEL_KEYS.active;
               const isLast = i === visibleSpecialists.length - 1;
               return (
                 <Box
                   key={p.id}
-                  onClick={() => navigate(`/${lang}/admin/psychologists/${p.id}`)}
+                  onClick={() => p.isRealAccount && navigate(`/${lang}/admin/psychologists/${p.id}`)}
+                  title={p.isRealAccount ? undefined : t("admin.psychologists.systemAccountHint")}
                   sx={{
                     display: "grid",
                     gridTemplateColumns: "2.5fr 100px 120px 100px 100px",
@@ -140,8 +148,9 @@ export default function AdminPsychologistsPage() {
                     py: 1,
                     borderBottom: isLast ? "none" : `0.5px solid ${COLORS.border}`,
                     alignItems: "center",
-                    cursor: "pointer",
-                    "&:hover": { bgcolor: `${COLORS.secondary}0A` },
+                    cursor: p.isRealAccount ? "pointer" : "default",
+                    opacity: p.isRealAccount ? 1 : 0.6,
+                    "&:hover": { bgcolor: p.isRealAccount ? `${COLORS.secondary}0A` : "transparent" },
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
@@ -167,7 +176,7 @@ export default function AdminPsychologistsPage() {
                   <Box
                     sx={{
                       bgcolor: status.bg,
-                      color: status.color,
+                      color: status.fg,
                       fontSize: 10,
                       px: "8px",
                       py: "2px",
@@ -176,7 +185,7 @@ export default function AdminPsychologistsPage() {
                       width: "fit-content",
                     }}
                   >
-                    {t(status.labelKey)}
+                    {t(labelKey)}
                   </Box>
                 </Box>
               );

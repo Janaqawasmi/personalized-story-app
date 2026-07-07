@@ -8,7 +8,6 @@ import {
   ListItemIcon,
   ListItemText,
   Typography,
-  Badge,
   Avatar,
   useMediaQuery,
   useTheme,
@@ -19,29 +18,22 @@ import {
   PeopleOutlined,
   PsychologyOutlined,
   AutoStoriesOutlined,
-  ShieldOutlined,
   LightbulbOutlined,
   SmartToyOutlined,
   AttachMoneyOutlined,
-  MonitorHeartOutlined,
-  NotificationsOutlined,
+  LocalShippingOutlined,
+  HistoryOutlined,
   MenuOutlined,
   RateReviewOutlined,
   CampaignOutlined,
 } from "@mui/icons-material";
-import {
-  collection,
-  getCountFromServer,
-  query,
-  where,
-  type Query,
-  type CollectionReference,
-} from "firebase/firestore";
-import { COLORS } from "../../../theme";
+import { collection, query, where } from "firebase/firestore";
+import { COLORS, ADMIN_BADGE_COLOR } from "../../../theme";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { useLanguage } from "../../../i18n/context/useLanguage";
 import { useAuth } from "../../../contexts/AuthContext";
 import { db } from "../../../firebase";
+import { tryCount } from "../../../hooks/useAdminCounts";
 
 const SIDEBAR_WIDTH = 228;
 
@@ -97,12 +89,6 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         path: "stories",
       },
       {
-        key: "moderation",
-        labelKey: "admin.nav.moderation",
-        icon: <ShieldOutlined />,
-        path: "moderation",
-      },
-      {
         key: "situationSuggestions",
         labelKey: "admin.nav.situationSuggestions",
         icon: <LightbulbOutlined />,
@@ -138,23 +124,20 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         path: "revenue",
       },
       {
-        key: "system",
-        labelKey: "admin.nav.system",
-        icon: <MonitorHeartOutlined />,
-        path: "system",
+        key: "printOrders",
+        labelKey: "admin.nav.printOrders",
+        icon: <LocalShippingOutlined />,
+        path: "print-orders",
+      },
+      {
+        key: "auditLog",
+        labelKey: "admin.nav.auditLog",
+        icon: <HistoryOutlined />,
+        path: "audit-log",
       },
     ],
   },
 ];
-
-async function tryCount(q: Query | CollectionReference): Promise<number> {
-  try {
-    const snap = await getCountFromServer(q);
-    return snap.data().count;
-  } catch {
-    return 0;
-  }
-}
 
 function initialsFromUser(displayName: string | null, email: string | null): string {
   const s = (displayName || email || "?").trim();
@@ -176,7 +159,6 @@ export default function AdminLayout() {
   const { currentUser } = useAuth();
 
   const [pendingBadges, setPendingBadges] = useState<{
-    moderation?: number;
     psychologists?: number;
     situationSuggestions?: number;
   }>({});
@@ -199,13 +181,7 @@ export default function AdminLayout() {
     let cancelled = false;
 
     async function loadBadges() {
-      const [mod, psych, situations] = await Promise.all([
-        tryCount(
-          query(
-            collection(db, "story_templates"),
-            where("status", "==", "pending_review")
-          )
-        ),
+      const [psych, situations] = await Promise.all([
         tryCount(
           query(collection(db, "psychologists"), where("status", "==", "pending"))
         ),
@@ -219,7 +195,6 @@ export default function AdminLayout() {
 
       if (!cancelled) {
         setPendingBadges({
-          moderation: mod,
           psychologists: psych,
           situationSuggestions: situations,
         });
@@ -373,13 +348,11 @@ export default function AdminLayout() {
                 const isActive = currentPage === item.key;
 
                 const badge =
-                  item.key === "moderation"
-                    ? pendingBadges.moderation
-                    : item.key === "psychologists"
-                      ? pendingBadges.psychologists
-                      : item.key === "situationSuggestions"
-                        ? pendingBadges.situationSuggestions
-                        : undefined;
+                  item.key === "psychologists"
+                    ? pendingBadges.psychologists
+                    : item.key === "situationSuggestions"
+                      ? pendingBadges.situationSuggestions
+                      : undefined;
 
                 return (
                   <ListItemButton
@@ -426,7 +399,7 @@ export default function AdminLayout() {
                     {badge !== undefined && badge > 0 && (
                       <Box
                         sx={{
-                          bgcolor: "#E53935",
+                          bgcolor: ADMIN_BADGE_COLOR,
                           color: "#fff",
                           fontSize: 10,
                           fontWeight: 600,
@@ -550,10 +523,6 @@ export default function AdminLayout() {
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
-            <Badge badgeContent={3} color="error" sx={{ cursor: "pointer" }}>
-              <NotificationsOutlined sx={{ fontSize: 22, color: COLORS.textSecondary }} />
-            </Badge>
-
             <Avatar
               sx={{
                 width: 32,
