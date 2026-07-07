@@ -1,4 +1,5 @@
 import { Box, Button, Chip, LinearProgress, Stack, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import type { StoryStatus } from "../../../types/story";
 import { useSpecialistDeskUi } from "../../../i18n/specialistDeskUi";
 import { COLORS } from "../../../theme";
@@ -9,13 +10,17 @@ interface Props {
   totalCount: number;
   /** Live status from useIllustrationWorkspaceState — see WorkspacePreview's `liveStatus` prop. */
   liveStatus: StoryStatus;
-  /** Preview/publish CTAs — only rendered once the story is `illustration_ready`,
-   *  so this card is the single ready-to-publish action point (no duplicate
-   *  card lower on the page). */
+  /** Preview/publish/reopen CTAs — only rendered once the story is
+   *  `illustration_ready` or `published`, so this card is the single
+   *  status/action point (no duplicate card lower on the page). */
   canPreview?: boolean;
   showPublish?: boolean;
   onPreviewClick?: () => void;
   onPublishClick?: () => void;
+  /** Public catalog link, shown once published. */
+  publicCatalogUrl?: string | null;
+  /** "Reopen for edits" link back to the story tab, shown once published. */
+  reopenHref?: string | null;
 }
 
 /**
@@ -33,11 +38,14 @@ export default function IllustrationProgressHeader({
   showPublish = false,
   onPreviewClick,
   onPublishClick,
+  publicCatalogUrl = null,
+  reopenHref = null,
 }: Props) {
   const desk = useSpecialistDeskUi();
   const pct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
   const allApproved = totalCount > 0 && approvedCount === totalCount;
   const isReady = liveStatus === "illustration_ready";
+  const isPublished = liveStatus === "published";
 
   const statusLabel =
     liveStatus === "published"
@@ -107,12 +115,12 @@ export default function IllustrationProgressHeader({
         }}
       />
 
-      {isReady ? (
+      {isReady || isPublished ? (
         <Stack spacing={1.25} sx={{ mt: 1.5 }}>
           <Typography sx={{ fontFamily: FONTS.sans, fontSize: 13, color: DRAFT_B.inkSoft }}>
-            {desk.illProgressReadyHelper}
+            {isReady ? desk.illProgressReadyHelper : desk.illGalPublishedSub}
           </Typography>
-          <Stack direction="row" spacing={1.25} flexWrap="wrap">
+          <Stack direction="row" spacing={1.25} flexWrap="wrap" alignItems="center">
             {onPreviewClick ? (
               <Button
                 variant="outlined"
@@ -124,7 +132,7 @@ export default function IllustrationProgressHeader({
                 {desk.illGalPreview}
               </Button>
             ) : null}
-            {showPublish && onPublishClick ? (
+            {isReady && showPublish && onPublishClick ? (
               <Button
                 variant="contained"
                 size="small"
@@ -133,6 +141,28 @@ export default function IllustrationProgressHeader({
                 sx={{ textTransform: "none", fontWeight: 600 }}
               >
                 {desk.illGalPublish}
+              </Button>
+            ) : null}
+            {isPublished && publicCatalogUrl ? (
+              <Button
+                variant="text"
+                size="small"
+                component={RouterLink}
+                to={publicCatalogUrl}
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                {desk.illViewOnPublicSite}
+              </Button>
+            ) : null}
+            {isPublished && reopenHref ? (
+              <Button
+                variant="text"
+                size="small"
+                component={RouterLink}
+                to={reopenHref}
+                sx={{ textTransform: "none", fontWeight: 600, color: DRAFT_B.inkSoft }}
+              >
+                {desk.illGalReopen}
               </Button>
             ) : null}
           </Stack>

@@ -16,8 +16,9 @@ interface Props {
   pages: PageCardViewModel[];
 }
 
-/** Thumbnail grid of the approved illustrations — shared by the ready-to-publish
- *  state (rendered standalone) and the published GalleryPanel hero. */
+/** Thumbnail grid of the approved illustrations, rendered directly below the
+ *  single status/action card for both the "illustration_ready" and
+ *  "published" states. */
 export default function ApprovedIllustrationsGrid({ pages }: Props) {
   const approvedPages = pages.filter((p) => p.subStatus === "approved");
   const tiles = approvedPages.length > 0 ? approvedPages : pages;

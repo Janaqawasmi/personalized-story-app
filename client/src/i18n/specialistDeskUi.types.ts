@@ -4,7 +4,6 @@ import type { Story, StoryStatus } from "../types/story";
 export interface SpecialistDeskUi {
   /** e.g. “Saved 5 minutes ago” — word order differs by language. */
   formatSavedAt(relativePhrase: string): string;
-  formatCountSummary(allStories: Story[]): string;
   formatTableFooter(
     filteredLen: number,
     allStories: Story[],
@@ -14,7 +13,6 @@ export interface SpecialistDeskUi {
   deskOverline: string;
   deskTitlePrefix: string;
   deskTitleEmphasis: string;
-  deskSummaryFallback: string;
 
   statNeedsAction: string;
   statInProgress: string;
@@ -82,7 +80,6 @@ export interface SpecialistDeskUi {
   sortLabelPrefix: string;
   clearSearchAria: string;
 
-  colNumber: string;
   colStory: string;
   colProgress: string;
   colTopicAge: string;
@@ -302,6 +299,7 @@ export interface SpecialistDeskUi {
   illProgressStatusReady: string;
   illProgressStatusPublished: string;
   illProgressReadyHelper: string;
+  illViewOnPublicSite: string;
 
   unsavedDialogTitle: string;
   unsavedDialogBody: string;

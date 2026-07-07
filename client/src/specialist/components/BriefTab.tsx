@@ -10,13 +10,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom";
 import CloseIcon from "@mui/icons-material/Close";
 import Alert from "@mui/material/Alert";
-import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Link from "@mui/material/Link";
 import Paper from "@mui/material/Paper";
@@ -71,10 +66,6 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
   const navigate = useNavigate();
   const { lang } = useParams<{ lang?: string }>();
   const base = `/${lang ?? "he"}/specialist`;
-
-  // ---- "View as JSON" dialog ----
-  const [jsonDialogOpen, setJsonDialogOpen] = useState(false);
-  const [copyHint, setCopyHint] = useState<string | null>(null);
 
   // ---- generation failure: switch to editable ----
   const [generationFailed, setGenerationFailed] = useState(false);
@@ -193,19 +184,6 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
       console.error("Failed to create revision:", err);
     }
   }, [story, base, navigate]);
-
-  // ---- "Copy JSON" ----
-  const handleCopyJson = useCallback(async () => {
-    const text = JSON.stringify(story.brief, null, 2);
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopyHint("Copied!");
-      setTimeout(() => setCopyHint(null), 2400);
-    } catch {
-      setCopyHint("Could not copy — select the text below.");
-      setTimeout(() => setCopyHint(null), 3200);
-    }
-  }, [story.brief]);
 
   // ── Case 1: generating ────────────────────────────────────────────────────
 
@@ -335,78 +313,11 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
         .
       </Alert>
 
-      {/* View as JSON */}
-      <Stack direction="row" alignItems="center" spacing={1}>
-        <Link
-          component="button"
-          variant="body2"
-          onClick={() => setJsonDialogOpen(true)}
-          sx={{ fontWeight: 600 }}
-        >
-          View as JSON
-        </Link>
-      </Stack>
-
       <SubmittedBriefReadView
         brief={story.brief}
         emptyLabel={sp.reviewFieldEmpty}
         specialistUi={sp}
       />
-
-      {/* JSON dialog */}
-      <Dialog
-        open={jsonDialogOpen}
-        onClose={() => setJsonDialogOpen(false)}
-        fullWidth
-        maxWidth="md"
-        aria-labelledby="brief-json-dialog-title"
-      >
-        <DialogTitle id="brief-json-dialog-title" sx={{ fontWeight: 800 }}>
-          Brief JSON
-        </DialogTitle>
-        <DialogContent dividers>
-          {copyHint && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-              {copyHint}
-            </Typography>
-          )}
-          <Box
-            component="pre"
-            sx={{
-              p: 2,
-              borderRadius: 1.5,
-              bgcolor: "rgba(97, 120, 145, 0.06)",
-              border: "1px solid rgba(208, 200, 192, 0.55)",
-              overflow: "auto",
-              maxHeight: 480,
-              fontSize: "0.75rem",
-              lineHeight: 1.55,
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
-              fontFamily:
-                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-              m: 0,
-            }}
-          >
-            {JSON.stringify(story.brief, null, 2)}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button
-            variant="outlined"
-            onClick={() => void handleCopyJson()}
-            sx={{ textTransform: "none", fontWeight: 700 }}
-          >
-            Copy
-          </Button>
-          <Button
-            onClick={() => setJsonDialogOpen(false)}
-            sx={{ textTransform: "none" }}
-          >
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 }

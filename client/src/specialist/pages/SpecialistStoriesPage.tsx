@@ -19,7 +19,7 @@ import { COLORS } from "../../theme";
 import StoriesFilterBar from "../components/StoriesFilterBar";
 import StoriesTable from "../components/StoriesTable";
 import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
-import { ACTION_BUCKET_STATUSES, countByBucket } from "../utils/actionBucket";
+import { countByBucket } from "../utils/actionBucket";
 
 const SERIF =
   "'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif";
@@ -87,7 +87,6 @@ export default function SpecialistStoriesPage() {
   const [serverWarning, setServerWarning] = useState<string | null>(null);
 
   const [activeStatuses, setActiveStatuses] = useState<StoryStatus[]>([]);
-  const [hasAppliedDefaultFilter, setHasAppliedDefaultFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"lastOpenedAt" | "createdAt" | "title">(
     "lastOpenedAt"
@@ -123,18 +122,6 @@ export default function SpecialistStoriesPage() {
     return unsub;
   }, []);
 
-  // Default the view to "Needs action" so the specialist lands on what's
-  // urgent rather than an undifferentiated "All" list — but only once, right
-  // after the first load, so it never overrides a filter the specialist
-  // picked themselves.
-  useEffect(() => {
-    if (hasAppliedDefaultFilter || loading) return;
-    setHasAppliedDefaultFilter(true);
-    if (countByBucket(allStories.map((s) => s.status), "needs_action") > 0) {
-      setActiveStatuses(ACTION_BUCKET_STATUSES.needs_action);
-    }
-  }, [hasAppliedDefaultFilter, loading, allStories]);
-
   const filteredStories = useMemo(
     () => applyFilters(allStories, activeStatuses, searchQuery, sortBy, sortDir),
     [allStories, activeStatuses, searchQuery, sortBy, sortDir]
@@ -169,11 +156,6 @@ export default function SpecialistStoriesPage() {
     setActiveStatuses([]);
     setSearchQuery("");
   }, []);
-
-  const countSummary = useMemo(
-    () => desk.formatCountSummary(allStories),
-    [desk, allStories],
-  );
 
   const liveStories = useMemo(
     () => allStories.filter((s) => s.status !== "archived"),
@@ -330,25 +312,6 @@ export default function SpecialistStoriesPage() {
                 {desk.deskTitleEmphasis}
               </Box>
             </Typography>
-
-            {!loading && !error && (
-              <Typography
-                sx={{
-                  fontFamily: SERIF,
-                  fontStyle: isArabic ? "normal" : "italic",
-                  fontSize: 17,
-                  color: COLORS.textSecondary,
-                  mt: 1,
-                  maxWidth: 560,
-                  lineHeight: 1.65,
-                  letterSpacing: isArabic ? "normal" : undefined,
-                  wordSpacing: isArabic ? "normal" : undefined,
-                }}
-                lang={isArabic ? "ar" : undefined}
-              >
-                {countSummary || desk.deskSummaryFallback}
-              </Typography>
-            )}
           </Box>
 
           <Stack

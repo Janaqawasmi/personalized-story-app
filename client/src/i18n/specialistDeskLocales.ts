@@ -1,25 +1,6 @@
 import type { Story, StoryStatus } from "../types/story";
 import type { SpecialistDeskUi } from "./specialistDeskUi.types";
 
-function buildCountSummaryEn(allStories: Story[]): string {
-  const nonArchived = allStories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-  const parts: string[] = [
-    `${total} ${total === 1 ? "manuscript" : "manuscripts"} in care`,
-  ];
-  const segments: [StoryStatus, string][] = [
-    ["in_review", "in review"],
-    ["awaiting_review", "awaiting review"],
-    ["generating", "generating"],
-    ["needs_revision", "needs revision"],
-  ];
-  for (const [status, label] of segments) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count} ${label}`);
-  }
-  return parts.join(" · ");
-}
-
 function buildTableFooterEn(
   filteredLen: number,
   allStories: Story[],
@@ -36,25 +17,6 @@ function buildTableFooterEn(
   return `Showing ${showing} of ${liveTotal} active manuscript${liveTotal === 1 ? "" : "s"}`;
 }
 
-function buildCountSummaryHe(allStories: Story[]): string {
-  const nonArchived = allStories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-  const parts: string[] = [
-    `${total} ${total === 1 ? "כתב יד" : "כתבי יד"} בטיפול`,
-  ];
-  const segments: [StoryStatus, string][] = [
-    ["in_review", "בבדיקה"],
-    ["awaiting_review", "ממתין לביקורת"],
-    ["generating", "נוצר"],
-    ["needs_revision", "דורש תיקון"],
-  ];
-  for (const [status, label] of segments) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count} ${label}`);
-  }
-  return parts.join(" · ");
-}
-
 function buildTableFooterHe(
   filteredLen: number,
   allStories: Story[],
@@ -69,31 +31,6 @@ function buildTableFooterHe(
   }
   const liveTotal = allStories.filter((s) => s.status !== "archived").length;
   return `מציגים ${showing} מתוך ${liveTotal} כתבי יד פעילים`;
-}
-
-/** Narrow no-break space — avoids bidi gaps between Western digits and Arabic. */
-const NNBS = "\u202f";
-
-function buildCountSummaryAr(allStories: Story[]): string {
-  const nonArchived = allStories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-  const parts: string[] = [
-    `${total}${NNBS}${
-      total === 1 ? "مخطوطة" : "مخطوطات"
-    } قيد العناية`,
-  ];
-  const segments: [StoryStatus, string][] = [
-    ["in_review", "قيد المراجعة"],
-    ["awaiting_review", "في انتظار المراجعة"],
-    ["generating", "قيد التوليد"],
-    ["needs_revision", "بحاجة إلى مراجعة"],
-  ];
-  for (const [status, label] of segments) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count}${NNBS}${label}`);
-  }
-  /** Arabic comma — reads cleaner than a middle dot in RTL. */
-  return parts.join(`${NNBS}\u060c${NNBS}`);
 }
 
 function buildTableFooterAr(
@@ -227,13 +164,11 @@ const STATUS_AR: SpecialistDeskUi["statusLabels"] = {
 
 export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   formatSavedAt: (relativePhrase) => `Saved ${relativePhrase}`,
-  formatCountSummary: buildCountSummaryEn,
   formatTableFooter: buildTableFooterEn,
 
   deskOverline: "Specialist desk",
   deskTitlePrefix: "My",
   deskTitleEmphasis: "stories",
-  deskSummaryFallback: "Your manuscripts in care.",
 
   statNeedsAction: "Needs action",
   statInProgress: "In progress",
@@ -302,7 +237,6 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   sortLabelPrefix: "Sort · ",
   clearSearchAria: "Clear search",
 
-  colNumber: "№",
   colStory: "Story",
   colProgress: "Progress",
   colTopicAge: "Topic & age",
@@ -532,6 +466,7 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   illProgressStatusReady: "Ready to publish",
   illProgressStatusPublished: "Published",
   illProgressReadyHelper: "The book is ready for final preview before publishing.",
+  illViewOnPublicSite: "View on public site",
 
   unsavedDialogTitle: "Unsaved changes",
   unsavedDialogBody:
@@ -584,13 +519,11 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
 
 export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   ...SPECIALIST_DESK_EN,
-  formatCountSummary: buildCountSummaryHe,
   formatTableFooter: buildTableFooterHe,
 
   deskOverline: "שולחן העבודה של המומחה",
   deskTitlePrefix: "",
   deskTitleEmphasis: "הסיפורים שלי",
-  deskSummaryFallback: "הכתבי יד שלכם בטיפול.",
 
   statNeedsAction: "דורש פעולה",
   statInProgress: "בתהליך",
@@ -658,7 +591,6 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   sortLabelPrefix: "מיון · ",
   clearSearchAria: "ניקוי חיפוש",
 
-  colNumber: "№",
   colStory: "סיפור",
   colProgress: "התקדמות",
   colTopicAge: "נושא וגיל",
@@ -884,6 +816,7 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   illProgressStatusReady: "מוכן לפרסום",
   illProgressStatusPublished: "פורסם",
   illProgressReadyHelper: "הספר מוכן לתצוגה מקדימה אחרונה לפני הפרסום.",
+  illViewOnPublicSite: "צפייה באתר הציבורי",
 
   unsavedDialogTitle: "שינויים שלא נשמרו",
   unsavedDialogBody:
@@ -936,13 +869,11 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
 export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   ...SPECIALIST_DESK_EN,
   formatSavedAt: (relativePhrase) => `حُفظ ${relativePhrase}`,
-  formatCountSummary: buildCountSummaryAr,
   formatTableFooter: buildTableFooterAr,
 
   deskOverline: "سطح مكتب الاختصاصي",
   deskTitlePrefix: "",
   deskTitleEmphasis: "قصصي",
-  deskSummaryFallback: "مخطوطاتكم قيد العناية.",
 
   statNeedsAction: "بحاجة لإجراء",
   statInProgress: "قيد التنفيذ",
@@ -1011,7 +942,6 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   sortLabelPrefix: "فرز · ",
   clearSearchAria: "مسح البحث",
 
-  colNumber: "رقم",
   colStory: "القصة",
   colProgress: "التقدّم",
   colTopicAge: "الموضوع والعمر",
@@ -1238,6 +1168,7 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   illProgressStatusReady: "جاهز للنشر",
   illProgressStatusPublished: "منشور",
   illProgressReadyHelper: "الكتاب جاهز للمعاينة الأخيرة قبل النشر.",
+  illViewOnPublicSite: "عرض في الموقع العام",
 
   unsavedDialogTitle: "تغييرات غير محفوظة",
   unsavedDialogBody:

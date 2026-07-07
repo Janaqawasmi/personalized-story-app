@@ -506,6 +506,7 @@ describe("IllustrationsTabV2", () => {
     status: "illustration_workspace" | "illustration_ready" | "published";
     allApproved: boolean;
     readOnly: boolean;
+    publishedTemplateId?: string | null;
   }) {
     const basePage = {
       text: "Hi.",
@@ -524,7 +525,7 @@ describe("IllustrationsTabV2", () => {
     return {
       kind: "ready" as const,
       status: overrides.status,
-      publishedTemplateId: null,
+      publishedTemplateId: overrides.publishedTemplateId ?? null,
       visualBibleVersion: 1,
       visualBible: null,
       visualBibleVersionsDesc: [],
@@ -648,26 +649,6 @@ describe("IllustrationsTabV2", () => {
     // The approved illustration grid still renders directly below.
     expect(screen.getByText("p.1")).toBeTruthy();
     expect(screen.getByText("p.2")).toBeTruthy();
-
-    // Debug table link stays hidden for a normal (non-admin, non-dev-flag) specialist.
-    expect(screen.queryByText(/open illustration debug table/i)).not.toBeInTheDocument();
-  });
-
-  it("shows the illustration debug table link when the dev-panels gate allows it", () => {
-    mockDevGate.mockReturnValueOnce({ ready: true, allowed: true });
-    mockUseVm.mockReturnValue(
-      twoPageVm({
-        subStatuses: ["approved", "approved"],
-        status: "illustration_ready",
-        allApproved: true,
-        readOnly: true,
-      }),
-    );
-    renderTab(approvedStory());
-
-    expect(
-      screen.getByRole("link", { name: /open illustration debug table/i }),
-    ).toBeTruthy();
   });
 
   it("keeps the publish flow working from the ready-to-publish status card", async () => {
@@ -687,5 +668,48 @@ describe("IllustrationsTabV2", () => {
     );
 
     expect(await screen.findByText(SPECIALIST_DESK_EN.illPubFormTitle)).toBeTruthy();
+  });
+
+  // ---------------------------------------------------------------------
+  // The published state had the same duplication problem as ready-to-publish:
+  // a separate "Published to the public library. View on public site." banner
+  // plus a full "The story is published" gallery hero repeated the same
+  // message. Both are now folded into the single status card.
+  // ---------------------------------------------------------------------
+
+  it("shows a single published message with Preview/public-site/reopen actions, and still renders the approved grid", () => {
+    mockUseVm.mockReturnValue(
+      twoPageVm({
+        subStatuses: ["approved", "approved"],
+        status: "published",
+        allApproved: true,
+        readOnly: true,
+        publishedTemplateId: "tmpl-1",
+      }),
+    );
+    renderTab(approvedStory());
+
+    // Only the top status card's published message is present.
+    expect(screen.getByText(SPECIALIST_DESK_EN.illProgressStatusPublished)).toBeTruthy();
+    expect(screen.getByText(SPECIALIST_DESK_EN.illGalPublishedSub)).toBeTruthy();
+    expect(screen.queryByText(SPECIALIST_DESK_EN.illGalPublished)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Published to the public library\./i),
+    ).not.toBeInTheDocument();
+
+    // Preview / view-on-public-site / reopen actions are available from the card.
+    expect(
+      screen.getByRole("button", { name: SPECIALIST_DESK_EN.illGalPreview }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: SPECIALIST_DESK_EN.illViewOnPublicSite }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: SPECIALIST_DESK_EN.illGalReopen }),
+    ).toBeTruthy();
+
+    // The approved illustration grid still renders directly below.
+    expect(screen.getByText("p.1")).toBeTruthy();
+    expect(screen.getByText("p.2")).toBeTruthy();
   });
 });

@@ -1,18 +1,15 @@
 import { useState } from "react";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
 import type { IllustrationJob, VisualBibleArtefact } from "../../../types/illustration";
 import type { Story, StoryStatus } from "../../../types/story";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
 import type { BookReaderModel } from "../../../components/book/BookReaderModel";
-import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
 import ApprovalPreviewDialog from "./ApprovalPreviewDialog";
 import IllustrationProgressHeader from "./IllustrationProgressHeader";
 import PublishDialog from "./PublishDialog";
 import ApprovedIllustrationsGrid from "./panels/ApprovedIllustrationsGrid";
-import GalleryPanel from "./panels/GalleryPanel";
 import WorkspacePanel from "./WorkspacePanel";
 
 interface Props {
@@ -63,8 +60,6 @@ export default function WorkspacePreview({
   onMarkReady,
 }: Props) {
   const { lang } = useParams<{ lang: string }>();
-  const devGate = useIllustrationDevPanelsGate();
-  const showDebugLink = devGate.ready && devGate.allowed;
   const [previewOpen, setPreviewOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -80,20 +75,20 @@ export default function WorkspacePreview({
   const showMarkReady =
     liveStatus === "illustration_workspace" && allApproved && !readOnly;
   const showPublish = liveStatus === "illustration_ready";
-  const showPublishedBanner = liveStatus === "published";
+  const isPublished = liveStatus === "published";
   const publicCatalogUrl =
     lang && livePublishedTemplateId
       ? `/${lang}/stories/${encodeURIComponent(livePublishedTemplateId)}`
       : null;
+  const reopenHref = lang ? `/${lang}/specialist/stories/${storyId}/story` : null;
 
-  const panelReadOnly = readOnly || showPublishedBanner;
+  const panelReadOnly = readOnly || isPublished;
 
-  // "illustration_ready" is handled entirely by IllustrationProgressHeader
-  // (single ready-to-publish card) + the approved grid below — the gallery
-  // hero card is reserved for the distinct "published" state so the two
-  // don't repeat the same readiness message.
-  const showGalleryHero = liveStatus === "published";
-  const showApprovedGrid = liveStatus === "illustration_ready";
+  // Both "illustration_ready" and "published" are handled entirely by
+  // IllustrationProgressHeader (single status/action card) + the approved
+  // grid directly below — no separate banner or hero card repeats the same
+  // readiness/published message.
+  const showApprovedGrid = liveStatus === "illustration_ready" || isPublished;
 
   const approvedPageCount = pages.filter((p) => p.subStatus === "approved").length;
 
@@ -107,42 +102,11 @@ export default function WorkspacePreview({
         showPublish={showPublish}
         onPreviewClick={() => setPreviewOpen(true)}
         onPublishClick={() => setPublishOpen(true)}
+        publicCatalogUrl={publicCatalogUrl}
+        reopenHref={reopenHref}
       />
 
-      {showPublishedBanner ? (
-        <Typography variant="body2" color="text.secondary">
-          Published to the public library.
-          {publicCatalogUrl ? (
-            <>
-              {" "}
-              <RouterLink to={publicCatalogUrl}>View on public site</RouterLink>
-            </>
-          ) : null}
-        </Typography>
-      ) : null}
-
-      {showDebugLink && lang ? (
-        <Typography variant="body2">
-          <RouterLink to={`/${lang}/specialist/stories/${storyId}/illustration/debug`}>
-            Open illustration debug table
-          </RouterLink>
-        </Typography>
-      ) : null}
-
       {showApprovedGrid ? <ApprovedIllustrationsGrid pages={pages} /> : null}
-
-      {showGalleryHero && lang ? (
-        <GalleryPanel
-          published={liveStatus === "published"}
-          storyTitle={story.title?.trim() ?? ""}
-          storyId={storyId}
-          lang={lang}
-          pages={pages}
-          canPreview={canPreview}
-          onPreviewClick={() => setPreviewOpen(true)}
-          onPublishClick={() => setPublishOpen(true)}
-        />
-      ) : null}
 
       <WorkspacePanel
         storyId={storyId}

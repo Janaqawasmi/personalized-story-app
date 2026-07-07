@@ -42,7 +42,6 @@ function renderRow(story: Story) {
         <table>
           <tbody>
             <StoryRow
-              rowIndex={0}
               story={story}
               onArchive={jest.fn()}
               onRestore={jest.fn()}
@@ -102,5 +101,24 @@ describe("StoryRow — action column", () => {
     // Only the button's own click handler should have called navigate once —
     // not once from the button and once from the row's onClick bubbling up.
     expect(mockNavigate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("StoryRow — overflow fix", () => {
+  test("no longer renders a row-number column (freed width for Action)", () => {
+    renderRow(makeStory("draft_brief"));
+    // The old roman-numeral index cell ("i.", "ii.", …) and the "№" header
+    // text are both gone now that the column has been removed.
+    expect(screen.queryByText("i.")).not.toBeInTheDocument();
+    expect(screen.queryByText("№")).not.toBeInTheDocument();
+  });
+
+  test("a very long title still renders as a single truncatable node, not a layout break", () => {
+    const longTitle =
+      "A Very Long Story Title That Would Otherwise Force The Table Wider Than Its Container And Cause Horizontal Overflow";
+    renderRow(makeStory("draft_brief", { title: longTitle }));
+    const link = screen.getByRole("link", { name: longTitle });
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveStyle({ whiteSpace: "nowrap", textOverflow: "ellipsis" });
   });
 });
