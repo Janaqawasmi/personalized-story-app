@@ -1,5 +1,5 @@
 import { Outlet, useParams, Navigate } from "react-router-dom";
-import { useLanguage, type Language } from "../../i18n/context/LanguageContext";
+import { DEFAULT_LANGUAGE, useLanguage, type Language } from "../../i18n/context/LanguageContext";
 import { useEffect } from "react";
 
 const VALID_LANGUAGES: Language[] = ["he", "en", "ar"];
@@ -15,9 +15,9 @@ export default function LanguageLayout() {
     }
   }, [lang, setLanguage]);
 
-  // Redirect invalid language codes to /he
+  // Redirect invalid language codes to the default locale
   if (!lang || !VALID_LANGUAGES.includes(lang as Language)) {
-    return <Navigate to="/he" replace />;
+    return <Navigate to={`/${DEFAULT_LANGUAGE}`} replace />;
   }
 
   return <Outlet />;

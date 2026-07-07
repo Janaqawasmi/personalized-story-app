@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { DEFAULT_LANGUAGE } from "./i18n/context/LanguageContext";
 import { useLanguage } from "./i18n/context/useLanguage";
 import { useTranslation } from "./i18n/useTranslation";
 import { useReader } from "./contexts/ReaderContext";
@@ -22,6 +23,7 @@ import NewStoryRedirect from "./specialist/pages/NewStoryRedirect";
 import StoryWorkspacePage from "./specialist/pages/StoryWorkspacePage";
 import IllustrationDebugPage from "./specialist/pages/IllustrationDebugPage";
 import RequireAuth from "./components/RequireAuth";
+import RequireRole from "./components/RequireRole";
 import { AuthProvider } from "./contexts/AuthContext";
 
 import LoginPage from "./pages/LoginPage";
@@ -137,8 +139,8 @@ function AppContent() {
             </Route>
           </Route>
 
-          {/* ───────────── SPECIALIST ───────────── */}
-          <Route path="specialist" element={<RequireAuth />}>
+          {/* ───────────── SPECIALIST (custom claim role specialist or admin) ───────────── */}
+          <Route path="specialist" element={<RequireRole allowedRoles={["specialist", "admin"]} />}>
             <Route element={<SpecialistLayout />}>
               <Route index element={<Navigate to="stories" replace />} />
               <Route path="stories" element={<SpecialistStoriesPage />} />
@@ -149,7 +151,7 @@ function AppContent() {
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/he" replace />} />
+          <Route path="*" element={<Navigate to={`/${DEFAULT_LANGUAGE}`} replace />} />
         </Routes>
       </Box>
 
@@ -165,8 +167,8 @@ export default function App() {
       <ScrollToTop />
       <AuthProvider>
         <Routes>
-          {/* Root redirect to /he */}
-          <Route path="/" element={<Navigate to="/he" replace />} />
+          {/* Root redirect to default language */}
+          <Route path="/" element={<Navigate to={`/${DEFAULT_LANGUAGE}`} replace />} />
 
           {/*
             Checkout redirect targets are unprefixed by design: the backend

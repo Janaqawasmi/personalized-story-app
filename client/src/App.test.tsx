@@ -1,12 +1,12 @@
 import React from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import App from "./App";
-import { LanguageProvider } from "./i18n/context/LanguageContext";
+import { DEFAULT_LANGUAGE, LanguageProvider } from "./i18n/context/LanguageContext";
 import { ReaderProvider } from "./contexts/ReaderContext";
 
 function renderApp() {
   return render(
-    <LanguageProvider initialLanguage="he">
+    <LanguageProvider initialLanguage={DEFAULT_LANGUAGE}>
       <ReaderProvider>
         <App />
       </ReaderProvider>

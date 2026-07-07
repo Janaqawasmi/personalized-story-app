@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
@@ -38,7 +39,7 @@ type ArtefactRow = {
 type SortKey = "page" | "kind" | "version" | "createdAt";
 
 export default function IllustrationDebugPage() {
-  const { lang = "he", storyId = "" } = useParams<{ lang: string; storyId: string }>();
+  const { lang = DEFAULT_LANGUAGE, storyId = "" } = useParams<{ lang: string; storyId: string }>();
   const { ready: gateReady, allowed } = useIllustrationDevPanelsGate();
   const [vbs, setVbs] = useState<VisualBibleArtefact[]>([]);
   const [sps, setSps] = useState<ScenePlanArtefact[]>([]);

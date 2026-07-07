@@ -14,6 +14,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import { dateLocaleForLang } from "../../i18n/specialistRelativeTime";
 import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
@@ -41,7 +42,7 @@ export default function StoryCard({ story, onArchive, onRestore }: StoryCardProp
   const briefUi = useStoryBriefUi();
   const dateLocale = dateLocaleForLang(language);
 
-  const vm = buildStoryRowViewModel(story, desk, briefUi, dateLocale, lang ?? "he");
+  const vm = buildStoryRowViewModel(story, desk, briefUi, dateLocale, lang ?? DEFAULT_LANGUAGE);
 
   function handleCardClick() {
     navigate(vm.storyPath);

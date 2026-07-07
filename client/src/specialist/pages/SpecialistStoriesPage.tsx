@@ -11,6 +11,7 @@ import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import EastIcon from "@mui/icons-material/East";
 
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
 import { draftStore, hybridStore } from "../storage";
@@ -82,7 +83,7 @@ export default function SpecialistStoriesPage() {
   const isArabic = language === "ar";
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
-  const base = `/${lang ?? "he"}/specialist`;
+  const base = `/${lang ?? DEFAULT_LANGUAGE}/specialist`;
 
   const [allStories, setAllStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);

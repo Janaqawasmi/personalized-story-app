@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AppBar,
   Box,
@@ -43,6 +43,26 @@ export default function SpecialistNavbar() {
 
   const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) {
+      setIsAdmin(false);
+      return;
+    }
+    let cancelled = false;
+    currentUser
+      .getIdTokenResult()
+      .then((tokenResult) => {
+        if (!cancelled) setIsAdmin(tokenResult.claims.role === "admin");
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser]);
 
   const prefix = lang || language;
   const base = `/${prefix}`;
@@ -265,14 +285,16 @@ export default function SpecialistNavbar() {
                   >
                     {ui.navVisitSite}
                   </MenuItem>
-                  <MenuItem
-                    onClick={() => {
-                      navigate(`${base}/admin/overview`);
-                      handleUserMenuClose();
-                    }}
-                  >
-                    {t("navbar.userMenu.adminPanel")}
-                  </MenuItem>
+                  {isAdmin && (
+                    <MenuItem
+                      onClick={() => {
+                        navigate(`${base}/admin/overview`);
+                        handleUserMenuClose();
+                      }}
+                    >
+                      {t("navbar.userMenu.adminPanel")}
+                    </MenuItem>
+                  )}
                   <MenuItem onClick={handleLogout}>{t("navbar.userMenu.logout")}</MenuItem>
                 </Menu>
               </>

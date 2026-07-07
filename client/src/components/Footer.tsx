@@ -24,6 +24,7 @@ import dammahLogo from "../assets/brand/dammah-logo.png";
 import { COLORS } from "../theme";
 import { useTranslation } from "../i18n/useTranslation";
 import { useLanguage } from "../i18n/context/useLanguage";
+import { DEFAULT_LANGUAGE } from "../i18n/context/LanguageContext";
 import { useLangNavigate } from "../i18n/navigation";
 
 const FOOTER_BG = "#DDD4CC";
@@ -147,7 +148,7 @@ export default function Footer() {
               e.preventDefault();
               if (link.path.includes("#")) {
                 const [pathPart, hashPart] = link.path.split("#");
-                const lang = window.location.pathname.split("/")[1] || "he";
+                const lang = window.location.pathname.split("/")[1] || DEFAULT_LANGUAGE;
                 window.location.assign(`/${lang}${pathPart}#${hashPart}`);
               } else {
                 navigate(link.path);

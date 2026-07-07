@@ -3,6 +3,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 export type Language = "he" | "en" | "ar";
 export type Direction = "rtl" | "ltr";
 
+/** Default site UI language when URL and localStorage provide none. */
+export const DEFAULT_LANGUAGE: Language = "en";
+
 interface LanguageContextType {
   language: Language;
   direction: Direction;
@@ -27,13 +30,13 @@ function isValidLanguage(lang: string): lang is Language {
 }
 
 function getInitialLanguage(): Language {
-  // Priority: localStorage → default to "he"
+  // Priority: localStorage → DEFAULT_LANGUAGE
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored && isValidLanguage(stored)) return stored;
 
   const legacyStored = localStorage.getItem(LEGACY_STORAGE_KEY);
   if (legacyStored && isValidLanguage(legacyStored)) return legacyStored;
-  return "he";
+  return DEFAULT_LANGUAGE;
 }
 
 interface LanguageProviderProps {
