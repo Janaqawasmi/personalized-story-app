@@ -16,7 +16,7 @@ import {
   readLatestVisualBible,
 } from "@/illustration/shared/artefact-store";
 import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@/models/story.model";
-import { coerceStoryLanguage, type AgeRange } from "@/models/storyBrief.model";
+import { coerceStoryLanguage, type AgeRange, type StoryLanguage } from "@/models/storyBrief.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { generateTextVariants } from "@/services/textVariants.service";
 import { checkReferenceItem } from "@/services/referenceData.service";
@@ -81,8 +81,10 @@ function estimateJsonBytes(value: unknown): number {
 export interface PublishStoryBody {
   shortDescriptionHe?: string;
   shortDescriptionAr?: string;
+  shortDescriptionEn?: string;
   displayTopicHe?: string;
   displayTopicAr?: string;
+  displayTopicEn?: string;
   /** Existing `referenceData/situations` id, chosen in the Publish dialog. */
   situationId?: string;
   /** Specialist's request for a new situation, when no existing one fits. */
@@ -251,9 +253,23 @@ export async function publishStory(params: {
   ];
 
   const creative = brief.clinicalFoundation.creativeVision?.trim() ?? "";
+  // `creativeVision` (and the rest of the brief's free text) is authored in
+  // whatever language the specialist used the dashboard in — `briefLanguage`
+  // — which is independent of `outputLanguage` (the generated story's
+  // language). Only the field matching that language may fall back to it;
+  // the other two must stay blank rather than publish text mislabeled as a
+  // translation. Defaults to "he" (not the generic StoryLanguage "en"
+  // default) because stories predating the `briefLanguage` field were
+  // authored under the platform's Hebrew-default UI.
+  const briefTextLanguage: StoryLanguage =
+    brief.briefLanguage === "he" || brief.briefLanguage === "ar" || brief.briefLanguage === "en"
+      ? brief.briefLanguage
+      : "he";
+  const fallbackText = creative || story.title;
   const shortDescription = {
-    he: body.shortDescriptionHe?.trim() || creative || story.title,
-    ar: body.shortDescriptionAr?.trim() || creative || story.title,
+    he: body.shortDescriptionHe?.trim() || (briefTextLanguage === "he" ? fallbackText : ""),
+    ar: body.shortDescriptionAr?.trim() || (briefTextLanguage === "ar" ? fallbackText : ""),
+    en: body.shortDescriptionEn?.trim() || (briefTextLanguage === "en" ? fallbackText : ""),
   };
 
   // ── Situation (structured taxonomy id, or a pending request for a new one) ─
@@ -303,6 +319,7 @@ export async function publishStory(params: {
     // never persist the raw taxonomy id (e.g. `fear_anxiety`) as display text.
     he: body.displayTopicHe?.trim() || "",
     ar: body.displayTopicAr?.trim() || "",
+    en: body.displayTopicEn?.trim() || "",
   };
 
   const slugBase = slugifyTitle(story.title);
@@ -366,7 +383,7 @@ export async function publishStory(params: {
     //   canUseVisualPersonalization =
     //     personalizationEnabled && visualPersonalizationEnabled && visualPersonalizationReady
     personalizationEnabled: isPersonalizable,
-    textPersonalizationReady: false,  // Phase 3: specialist reviews gendered variants
+    textPersonalizationReady: false,  // flipped true automatically once generateTextVariants() completes (see below)
     visualPersonalizationReady,
     // Intent only — do not combine with visualPersonalizationReady here.
     visualPersonalizationEnabled: isPersonalizable,
@@ -461,12 +478,13 @@ export async function publishStory(params: {
     // Pages[].textTemplate currently holds raw manuscript text (Agent 1's
     // author-facing [CHILD_NAME]/[HIS/HER/THEIR] placeholders, not the
     // {{CHILD_NAME}} format the caregiver flow requires). Kick off variant
-    // generation immediately so the template lands in the specialist's
-    // pending-review queue automatically instead of depending on someone
-    // remembering to click "Generate variants" — a story that is never
-    // revisited would otherwise stay silently un-personalizable forever.
-    // Best-effort: generation failure must not fail the publish itself: the
-    // specialist can always retry from the Text Variants Review page.
+    // generation immediately — it validates and merges the variants into
+    // pages[].textTemplate and flips textPersonalizationReady itself, with
+    // no specialist review/approval step in between. The manuscript text
+    // this is derived from was already approved before publish.
+    // Best-effort: generation failure must not fail the publish itself.
+    // On failure textVariantStatus resets to "none" so a retry (calling
+    // generateTextVariants again) is always safe.
     try {
       await generateTextVariants(templateId);
     } catch (err) {

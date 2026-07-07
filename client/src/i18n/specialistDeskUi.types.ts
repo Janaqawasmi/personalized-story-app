@@ -4,7 +4,6 @@ import type { Story, StoryStatus } from "../types/story";
 export interface SpecialistDeskUi {
   /** e.g. “Saved 5 minutes ago” — word order differs by language. */
   formatSavedAt(relativePhrase: string): string;
-  formatCountSummary(allStories: Story[]): string;
   formatTableFooter(
     filteredLen: number,
     allStories: Story[],
@@ -14,11 +13,11 @@ export interface SpecialistDeskUi {
   deskOverline: string;
   deskTitlePrefix: string;
   deskTitleEmphasis: string;
-  deskSummaryFallback: string;
 
-  statInCare: string;
-  statAwaitsYou: string;
-  statApproved: string;
+  statNeedsAction: string;
+  statInProgress: string;
+  statReadyToPublish: string;
+  statPublished: string;
 
   newStory: string;
   retry: string;
@@ -37,15 +36,16 @@ export interface SpecialistDeskUi {
   reviewQueueBodyLine: (title: string) => string;
   untitledStory: string;
   skimQueue: string;
-  openNamedStory: (firstWord: string) => string;
-  /** When title is empty, label for the “open” CTA (e.g. “story”). */
-  openStoryShort: string;
+  /** Static CTA label — replaces the old dynamic “Open {firstWordOfTitle}” button, which
+   *  produced confusing labels like “Open I” for short/awkward titles. */
+  bannerOpenWorkspace: string;
 
   revisionOverline: string;
   revisionTitleOne: string;
   revisionTitleMany: (count: number) => string;
   revisionBodyLine: (title: string) => string;
-  showQueue: string;
+  bannerViewProgress: string;
+  bannerDismiss: string;
 
   viewArchivedLink: (count: number) => string;
 
@@ -63,6 +63,14 @@ export interface SpecialistDeskUi {
   chipIllustrationReady: string;
   chipArchived: string;
 
+  /** Primary filter nav — the default, always-visible way to slice the table. */
+  filterNeedsAction: string;
+  filterInProgress: string;
+  filterReadyToPublish: string;
+  filterPublished: string;
+  moreFiltersShow: string;
+  moreFiltersHide: string;
+
   sortLastActivity: string;
   sortNewestFirst: string;
   sortOldestFirst: string;
@@ -72,12 +80,24 @@ export interface SpecialistDeskUi {
   sortLabelPrefix: string;
   clearSearchAria: string;
 
-  colNumber: string;
-  colManuscript: string;
-  colStage: string;
-  colPopulationAge: string;
+  colStory: string;
+  colProgress: string;
+  colTopicAge: string;
   colStatus: string;
-  colLastEvent: string;
+  colLastUpdate: string;
+  colAction: string;
+  /** e.g. “Step 2 of 6 · Generating”. */
+  formatStepProgress: (step: number, total: number, label: string) => string;
+
+  rowActionContinueBrief: string;
+  rowActionViewProgress: string;
+  rowActionStartReview: string;
+  rowActionContinueReview: string;
+  rowActionStartIllustrations: string;
+  rowActionContinueIllustrations: string;
+  rowActionReviewIllustrations: string;
+  rowActionViewPublicPage: string;
+  rowActionViewDetails: string;
 
   emptyFirstTimeTitle: string;
   emptyFirstTimeBody: string;
@@ -158,10 +178,6 @@ export interface SpecialistDeskUi {
   illDrawingPage: (pageIndex: number) => string;
   illUnderThirty: string;
   illNewVersionLabel: string;
-  illPubApprovedTitle: string;
-  illPubProgressTitle: string;
-  illPubApprovedSub: string;
-  illPubProgressSub: (approved: number, total: number) => string;
   illPubReady: string;
   illPubMore: (remaining: number) => string;
   illGalAllApproved: string;
@@ -230,6 +246,33 @@ export interface SpecialistDeskUi {
   illWorkspaceMarkReadyBody: (pageCount: number) => string;
   illWorkspacePreviewAsBook: string;
   illWorkspacePublishLibrary: string;
+
+  /** Publish-to-library form (final metadata step before a story goes public). */
+  illPubFormLanguageNames: Record<"he" | "ar" | "en", string>;
+  illPubFormTitle: string;
+  illPubFormSubtitle: string;
+  illPubFormChecklistDescriptionLabel: string;
+  illPubFormStatusComplete: string;
+  illPubFormStatusMissing: string;
+  illPubFormStatusRequired: string;
+  illPubFormDescriptionFieldLabel: string;
+  illPubFormDescriptionHelper: string;
+  illPubFormSituationLabel: string;
+  illPubFormSituationHelper: string;
+  illPubFormSituationFieldLabel: string;
+  illPubFormSituationMissing: string;
+  illPubFormSituationOtherOption: string;
+  illPubFormSituationOtherHint: string;
+  illPubFormOtherBadge: string;
+  illPubFormOtherBody: string;
+  illPubFormOtherLabelField: (lang: string) => string;
+  illPubFormOtherReason: string;
+  illPubFormOtherMissingLabel: string;
+  illPubFormFooterReady: string;
+  illPubFormFooterMissing: (missingLabel: string) => string;
+  illPubFormPublishButton: string;
+  illPubFormPublishing: string;
+
   illCtaHeadline: string;
   illCtaBody: (pageCount: number) => string;
   illCtaButton: string;
@@ -249,6 +292,14 @@ export interface SpecialistDeskUi {
   illRegenAllPlans: string;
   illGenerateAllImages: string;
   illPageNumber: (pageIndex: number) => string;
+
+  /** Top-level illustration workspace progress indicator (above the page-card list). */
+  illProgressApprovedCount: (approved: number, total: number) => string;
+  illProgressStatusWorkspace: string;
+  illProgressStatusReady: string;
+  illProgressStatusPublished: string;
+  illProgressReadyHelper: string;
+  illViewOnPublicSite: string;
 
   unsavedDialogTitle: string;
   unsavedDialogBody: string;
@@ -277,6 +328,13 @@ export interface SpecialistDeskUi {
   headerArchiveConfirm: string;
   headerCopiedSnackbar: string;
   agesChipPrefix: string;
+
+  /** Persistent text-variant (personalization) generation status chip in the workspace header. */
+  textVariantNotPersonalizable: string;
+  textVariantNotStarted: string;
+  textVariantGenerating: string;
+  textVariantReady: string;
+  textVariantRetry: string;
 
   footCareTitle: string;
   footCareBody: string;

@@ -271,8 +271,10 @@ export async function markIllustrationReadyToPublish(storyId: string): Promise<v
 export interface PublishStoryRequestBody {
   shortDescriptionHe?: string;
   shortDescriptionAr?: string;
+  shortDescriptionEn?: string;
   displayTopicHe?: string;
   displayTopicAr?: string;
+  displayTopicEn?: string;
   situationId?: string;
   situationProposal?: {
     labelHe?: string;

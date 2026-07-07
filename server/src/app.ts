@@ -63,6 +63,7 @@ import caregiverStoriesRouter from "./routes/caregiver/stories.router";
 import caregiverVoiceRouter from "./routes/caregiver/voice.router";
 import caregiverFeedbackRouter from "./routes/caregiver/feedback.router";
 import adminPrintOrdersRouter from "./routes/admin/printOrders.router";
+import adminSituationSuggestionsRouter from "./routes/admin/situationSuggestions.router";
 import adminFeedbackRouter from "./routes/admin/feedback.router";
 import adminSpecialistsRouter from "./routes/admin/specialists.router";
 import adminUsersRouter from "./routes/admin/users.router";
@@ -130,6 +131,7 @@ app.use("/api/ideas", ideasRouter);
 // Protected routes (auth enforced at router level)
 app.use("/api/admin/damma-story-briefs", dammaStoryBriefRouter);
 app.use("/api/admin/print-orders", adminPrintOrdersRouter);
+app.use("/api/admin/situation-suggestions", adminSituationSuggestionsRouter);
 app.use("/api/admin/feedback", adminFeedbackRouter);
 app.use("/api/admin/specialists", adminSpecialistsRouter);
 app.use("/api/admin/users", adminUsersRouter);

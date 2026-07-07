@@ -1,25 +1,6 @@
 import type { Story, StoryStatus } from "../types/story";
 import type { SpecialistDeskUi } from "./specialistDeskUi.types";
 
-function buildCountSummaryEn(allStories: Story[]): string {
-  const nonArchived = allStories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-  const parts: string[] = [
-    `${total} ${total === 1 ? "manuscript" : "manuscripts"} in care`,
-  ];
-  const segments: [StoryStatus, string][] = [
-    ["in_review", "in review"],
-    ["awaiting_review", "awaiting review"],
-    ["generating", "generating"],
-    ["needs_revision", "needs revision"],
-  ];
-  for (const [status, label] of segments) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count} ${label}`);
-  }
-  return parts.join(" · ");
-}
-
 function buildTableFooterEn(
   filteredLen: number,
   allStories: Story[],
@@ -36,25 +17,6 @@ function buildTableFooterEn(
   return `Showing ${showing} of ${liveTotal} active manuscript${liveTotal === 1 ? "" : "s"}`;
 }
 
-function buildCountSummaryHe(allStories: Story[]): string {
-  const nonArchived = allStories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-  const parts: string[] = [
-    `${total} ${total === 1 ? "כתב יד" : "כתבי יד"} בטיפול`,
-  ];
-  const segments: [StoryStatus, string][] = [
-    ["in_review", "בבדיקה"],
-    ["awaiting_review", "ממתין לביקורת"],
-    ["generating", "נוצר"],
-    ["needs_revision", "דורש תיקון"],
-  ];
-  for (const [status, label] of segments) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count} ${label}`);
-  }
-  return parts.join(" · ");
-}
-
 function buildTableFooterHe(
   filteredLen: number,
   allStories: Story[],
@@ -69,31 +31,6 @@ function buildTableFooterHe(
   }
   const liveTotal = allStories.filter((s) => s.status !== "archived").length;
   return `מציגים ${showing} מתוך ${liveTotal} כתבי יד פעילים`;
-}
-
-/** Narrow no-break space — avoids bidi gaps between Western digits and Arabic. */
-const NNBS = "\u202f";
-
-function buildCountSummaryAr(allStories: Story[]): string {
-  const nonArchived = allStories.filter((s) => s.status !== "archived");
-  const total = nonArchived.length;
-  const parts: string[] = [
-    `${total}${NNBS}${
-      total === 1 ? "مخطوطة" : "مخطوطات"
-    } قيد العناية`,
-  ];
-  const segments: [StoryStatus, string][] = [
-    ["in_review", "قيد المراجعة"],
-    ["awaiting_review", "في انتظار المراجعة"],
-    ["generating", "قيد التوليد"],
-    ["needs_revision", "بحاجة إلى مراجعة"],
-  ];
-  for (const [status, label] of segments) {
-    const count = nonArchived.filter((s) => s.status === status).length;
-    if (count > 0) parts.push(`${count}${NNBS}${label}`);
-  }
-  /** Arabic comma — reads cleaner than a middle dot in RTL. */
-  return parts.join(`${NNBS}\u060c${NNBS}`);
 }
 
 function buildTableFooterAr(
@@ -168,7 +105,7 @@ const PIPELINE_HINTS_AR = {
 const STATUS_EN: SpecialistDeskUi["statusLabels"] = {
   draft_brief: "Brief in progress",
   generating: "Generating",
-  awaiting_review: "Awaiting review",
+  awaiting_review: "Waiting for review",
   in_review: "In review",
   needs_revision: "Needs revision",
   approved: "Approved",
@@ -227,17 +164,16 @@ const STATUS_AR: SpecialistDeskUi["statusLabels"] = {
 
 export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   formatSavedAt: (relativePhrase) => `Saved ${relativePhrase}`,
-  formatCountSummary: buildCountSummaryEn,
   formatTableFooter: buildTableFooterEn,
 
   deskOverline: "Specialist desk",
   deskTitlePrefix: "My",
   deskTitleEmphasis: "stories",
-  deskSummaryFallback: "Your manuscripts in care.",
 
-  statInCare: "In care",
-  statAwaitsYou: "Awaits you",
-  statApproved: "Approved",
+  statNeedsAction: "Needs action",
+  statInProgress: "In progress",
+  statReadyToPublish: "Ready to publish",
+  statPublished: "Published",
 
   newStory: "New story",
   retry: "Retry",
@@ -258,15 +194,15 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
     `“${title}” — open the story workspace to complete your read and checklist.`,
   untitledStory: "Untitled story",
   skimQueue: "Skim queue",
-  openNamedStory: (w) => `Open ${w}`,
-  openStoryShort: "story",
+  bannerOpenWorkspace: "Open workspace",
 
   revisionOverline: "Regeneration in progress",
   revisionTitleOne: "One story is updating from your feedback",
   revisionTitleMany: (count) => `${count} stories are updating from your feedback`,
   revisionBodyLine: (title) =>
-    `“${title}” — check back shortly, or open the workspace to watch progress.`,
-  showQueue: "Show queue",
+    `“${title}” is being updated from your feedback. Check back shortly, or open the workspace to watch progress.`,
+  bannerViewProgress: "View progress",
+  bannerDismiss: "Dismiss",
 
   viewArchivedLink: (count) =>
     `View ${count} archived stor${count === 1 ? "y" : "ies"} →`,
@@ -285,21 +221,39 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   chipIllustrationReady: "Illustration ready",
   chipArchived: "Archived",
 
+  filterNeedsAction: "Needs action",
+  filterInProgress: "In progress",
+  filterReadyToPublish: "Ready to publish",
+  filterPublished: "Published",
+  moreFiltersShow: "More filters",
+  moreFiltersHide: "Fewer filters",
+
   sortLastActivity: "Last activity",
   sortNewestFirst: "Newest first",
   sortOldestFirst: "Oldest first",
   sortTitleAZ: "Title (A–Z)",
   filterAriaLabel: "Filter and sort stories",
-  searchPlaceholder: "Search titles, tags, population…",
+  searchPlaceholder: "Search by title, topic, age",
   sortLabelPrefix: "Sort · ",
   clearSearchAria: "Clear search",
 
-  colNumber: "№",
-  colManuscript: "Manuscript",
-  colStage: "Stage",
-  colPopulationAge: "Population & age",
+  colStory: "Story",
+  colProgress: "Progress",
+  colTopicAge: "Topic & age",
   colStatus: "Status",
-  colLastEvent: "Last event",
+  colLastUpdate: "Last update",
+  colAction: "Action",
+  formatStepProgress: (step, total, label) => `Step ${step} of ${total} · ${label}`,
+
+  rowActionContinueBrief: "Continue brief",
+  rowActionViewProgress: "View progress",
+  rowActionStartReview: "Start review",
+  rowActionContinueReview: "Continue review",
+  rowActionStartIllustrations: "Start illustrations",
+  rowActionContinueIllustrations: "Continue illustrations",
+  rowActionReviewIllustrations: "Review illustrations",
+  rowActionViewPublicPage: "View public page",
+  rowActionViewDetails: "View details",
 
   emptyFirstTimeTitle: "Start your first manuscript",
   emptyFirstTimeBody:
@@ -382,10 +336,6 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   illDrawingPage: (n) => `Drawing page ${n}…`,
   illUnderThirty: "Usually under 30 seconds",
   illNewVersionLabel: "Generating a new version",
-  illPubApprovedTitle: "All pages approved",
-  illPubProgressTitle: "Approval progress",
-  illPubApprovedSub: "Ready to mark the story as ready to publish.",
-  illPubProgressSub: (a, t) => `${a} of ${t} pages approved.`,
   illPubReady: "Mark as ready to publish",
   illPubMore: (n) => `Approve ${n} more page${n === 1 ? "" : "s"}`,
   illGalAllApproved: "All illustrations approved",
@@ -459,6 +409,34 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
     `All ${n} pages are approved. Mark this story ready to publish?`,
   illWorkspacePreviewAsBook: "Preview as published book",
   illWorkspacePublishLibrary: "Publish to library",
+
+  illPubFormLanguageNames: { he: "Hebrew", ar: "Arabic", en: "English" },
+  illPubFormTitle: "Publish story to public library",
+  illPubFormSubtitle: "Review how this story will appear to parents before publishing.",
+  illPubFormChecklistDescriptionLabel: "Public description",
+  illPubFormStatusComplete: "Complete",
+  illPubFormStatusMissing: "Missing",
+  illPubFormStatusRequired: "Required",
+  illPubFormDescriptionFieldLabel: "Short description",
+  illPubFormDescriptionHelper:
+    "Recommended: 1–2 sentences shown on the public story card and story page.",
+  illPubFormSituationLabel: "Catalog situation",
+  illPubFormSituationHelper: "Parents use this to find the story in the public library.",
+  illPubFormSituationFieldLabel: "Situation",
+  illPubFormSituationMissing: "Select a situation before publishing.",
+  illPubFormSituationOtherOption: "Other — request new situation",
+  illPubFormSituationOtherHint: "Choose Other only if this story does not fit an existing situation.",
+  illPubFormOtherBadge: "New situation request",
+  illPubFormOtherBody:
+    "No existing situation fits. Publishing will submit this as a pending request for admin review — it will not appear as the story's situation, and won't be selectable by other stories, until an admin approves it. Enter at least one label below.",
+  illPubFormOtherLabelField: (lang) => `Label (${lang})`,
+  illPubFormOtherReason: "Reason (optional)",
+  illPubFormOtherMissingLabel: "Enter at least one language label to submit this request.",
+  illPubFormFooterReady: "Ready to publish",
+  illPubFormFooterMissing: (missingLabel) => `Missing: ${missingLabel}`,
+  illPubFormPublishButton: "Publish",
+  illPubFormPublishing: "Publishing…",
+
   illCtaHeadline: "The story is approved",
   illCtaBody: (n) =>
     `Open the illustration workspace to build a Visual Bible for the story and a scene plan for each of the ${n} pages. Edit anything by hand or regenerate as needed.`,
@@ -481,6 +459,14 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   illRegenAllPlans: "Regenerate all plans",
   illGenerateAllImages: "Generate all images",
   illPageNumber: (n) => `Page ${n} · scene plan`,
+
+  illProgressApprovedCount: (approved, total) =>
+    `${approved} of ${total} illustration${total === 1 ? "" : "s"} approved`,
+  illProgressStatusWorkspace: "In progress",
+  illProgressStatusReady: "Ready to publish",
+  illProgressStatusPublished: "Published",
+  illProgressReadyHelper: "The book is ready for final preview before publishing.",
+  illViewOnPublicSite: "View on public site",
 
   unsavedDialogTitle: "Unsaved changes",
   unsavedDialogBody:
@@ -513,6 +499,12 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
   headerCopiedSnackbar: "Copied!",
   agesChipPrefix: "Ages",
 
+  textVariantNotPersonalizable: "Not personalizable",
+  textVariantNotStarted: "Personalization not started",
+  textVariantGenerating: "Generating variants…",
+  textVariantReady: "Personalization ready",
+  textVariantRetry: "Generate",
+
   footCareTitle: "A note on care",
   footCareBody:
     "Every manuscript here passes through your hands before any child reads it. The AI drafts. You judge. Take the time the work deserves.",
@@ -527,17 +519,16 @@ export const SPECIALIST_DESK_EN: SpecialistDeskUi = {
 
 export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   ...SPECIALIST_DESK_EN,
-  formatCountSummary: buildCountSummaryHe,
   formatTableFooter: buildTableFooterHe,
 
   deskOverline: "שולחן העבודה של המומחה",
   deskTitlePrefix: "",
   deskTitleEmphasis: "הסיפורים שלי",
-  deskSummaryFallback: "הכתבי יד שלכם בטיפול.",
 
-  statInCare: "בטיפול",
-  statAwaitsYou: "ממתין אליכם",
-  statApproved: "אושר",
+  statNeedsAction: "דורש פעולה",
+  statInProgress: "בתהליך",
+  statReadyToPublish: "מוכן לפרסום",
+  statPublished: "פורסם",
 
   newStory: "סיפור חדש",
   retry: "נסו שוב",
@@ -557,15 +548,15 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
     `„${title}" — פתחו את סביבת העבודה כדי להשלים את הקריאה והצ׳ק־ליסט.`,
   untitledStory: "סיפור ללא כותרת",
   skimQueue: "סקירת התור",
-  openNamedStory: (w) => `פתחו: ${w}`,
-  openStoryShort: "סיפור",
+  bannerOpenWorkspace: "פתיחת סביבת העבודה",
 
   revisionOverline: "עדכון בתהליך",
   revisionTitleOne: "סיפור אחד מתעדכן מהמשוב שלכם",
   revisionTitleMany: (count) => `${count} סיפורים מתעדכנים מהמשוב שלכם`,
   revisionBodyLine: (title) =>
-    `„${title}" — בדקו שוב בעוד רגע, או פתחו את סביבת העבודה כדי לעקוב.`,
-  showQueue: "הצגת התור",
+    `„${title}" מתעדכן מהמשוב שלכם. בדקו שוב בעוד רגע, או פתחו את סביבת העבודה כדי לעקוב.`,
+  bannerViewProgress: "צפייה בהתקדמות",
+  bannerDismiss: "התעלמות",
 
   viewArchivedLink: (count) =>
     `צפייה ב-${count} כתבי יד בארכיון →`,
@@ -584,21 +575,39 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   chipIllustrationReady: "איורים מוכנים",
   chipArchived: "בארכיון",
 
+  filterNeedsAction: "דורש פעולה",
+  filterInProgress: "בתהליך",
+  filterReadyToPublish: "מוכן לפרסום",
+  filterPublished: "פורסם",
+  moreFiltersShow: "עוד מסננים",
+  moreFiltersHide: "פחות מסננים",
+
   sortLastActivity: "פעילות אחרונה",
   sortNewestFirst: "החדשים ראשון",
   sortOldestFirst: "הישנים ראשון",
   sortTitleAZ: "כותרת (א–ת)",
   filterAriaLabel: "סינון ומיון סיפורים",
-  searchPlaceholder: "חיפוש כותרות, תגיות, אוכלוסייה…",
+  searchPlaceholder: "חיפוש לפי כותרת, נושא, גיל",
   sortLabelPrefix: "מיון · ",
   clearSearchAria: "ניקוי חיפוש",
 
-  colNumber: "№",
-  colManuscript: "כתב יד",
-  colStage: "שלב",
-  colPopulationAge: "אוכלוסייה וגיל",
+  colStory: "סיפור",
+  colProgress: "התקדמות",
+  colTopicAge: "נושא וגיל",
   colStatus: "סטטוס",
-  colLastEvent: "אירוע אחרון",
+  colLastUpdate: "עדכון אחרון",
+  colAction: "פעולה",
+  formatStepProgress: (step, total, label) => `שלב ${step} מתוך ${total} · ${label}`,
+
+  rowActionContinueBrief: "המשך במוגז",
+  rowActionViewProgress: "צפייה בהתקדמות",
+  rowActionStartReview: "התחלת ביקורת",
+  rowActionContinueReview: "המשך ביקורת",
+  rowActionStartIllustrations: "התחלת איורים",
+  rowActionContinueIllustrations: "המשך באיורים",
+  rowActionReviewIllustrations: "בדיקת איורים",
+  rowActionViewPublicPage: "צפייה בעמוד הציבורי",
+  rowActionViewDetails: "צפייה בפרטים",
 
   emptyFirstTimeTitle: "התחילו את כתב היד הראשון",
   emptyFirstTimeBody:
@@ -679,10 +688,6 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   illDrawingPage: (n) => `מצייר עמ׳ ${n}…`,
   illUnderThirty: "בדרך כלל פחות מ-30 שניות",
   illNewVersionLabel: "מחולל גרסה חדשה",
-  illPubApprovedTitle: "כל העמודים אושרו",
-  illPubProgressTitle: "התקדמות אישור",
-  illPubApprovedSub: "אפשר לסמן את הסיפור כמוכן לפרסום.",
-  illPubProgressSub: (a, t) => `${a} מתוך ${t} עמודים אושרו.`,
   illPubReady: "סמן כמוכן לפרסום",
   illPubMore: (n) => `אישור ${n} עמודים נוספים`,
   illGalAllApproved: "כל האיורים אושרו",
@@ -756,6 +761,33 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
     `כל ${n} העמודים אושרו. לסמן את הסיפור כמוכן לפרסום?`,
   illWorkspacePreviewAsBook: "תצוגה מקדימה כספר מפורסם",
   illWorkspacePublishLibrary: "פרסום לספרייה",
+
+  illPubFormLanguageNames: { he: "עברית", ar: "ערבית", en: "אנגלית" },
+  illPubFormTitle: "פרסום הסיפור לספרייה הציבורית",
+  illPubFormSubtitle: "בדקו איך הסיפור ייראה להורים לפני הפרסום.",
+  illPubFormChecklistDescriptionLabel: "תיאור פומבי",
+  illPubFormStatusComplete: "הושלם",
+  illPubFormStatusMissing: "חסר",
+  illPubFormStatusRequired: "נדרש",
+  illPubFormDescriptionFieldLabel: "תיאור קצר",
+  illPubFormDescriptionHelper: "מומלץ: 1–2 משפטים שיופיעו בכרטיס הסיפור הפומבי ובעמוד הסיפור.",
+  illPubFormSituationLabel: "מצב בקטלוג",
+  illPubFormSituationHelper: "הורים משתמשים בשדה הזה כדי למצוא את הסיפור בספרייה הציבורית.",
+  illPubFormSituationFieldLabel: "מצב",
+  illPubFormSituationMissing: "בחרו מצב לפני הפרסום.",
+  illPubFormSituationOtherOption: "אחר — בקשת מצב חדש",
+  illPubFormSituationOtherHint: "בחרו \"אחר\" רק אם הסיפור לא מתאים לאף מצב קיים.",
+  illPubFormOtherBadge: "בקשת מצב חדש",
+  illPubFormOtherBody:
+    "אין מצב קיים שמתאים. הפרסום יוגש כבקשה הממתינה לבדיקת מנהל — הסיפור לא יסומן במצב הזה, ולא יהיה זמין לבחירה בסיפורים אחרים, עד לאישור מנהל. הזינו לפחות תווית אחת למטה.",
+  illPubFormOtherLabelField: (lang) => `תווית (${lang})`,
+  illPubFormOtherReason: "סיבה (אופציונלי)",
+  illPubFormOtherMissingLabel: "הזינו לפחות תווית אחת בשפה כלשהי כדי לשלוח את הבקשה.",
+  illPubFormFooterReady: "מוכן לפרסום",
+  illPubFormFooterMissing: (missingLabel) => `חסר: ${missingLabel}`,
+  illPubFormPublishButton: "פרסום",
+  illPubFormPublishing: "מפרסם…",
+
   illCtaHeadline: "הסיפור אושר",
   illCtaBody: (n) =>
     `פתחו את מרחב האיור כדי לבנות Visual Bible לסיפור וליצור תכנון סצנה לכל אחד מ-${n} העמודים. תוכלו לערוך הכל ידנית או להפיק מחדש לפי הצורך.`,
@@ -778,6 +810,13 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   illRegenAllPlans: "הפק את כל התכנונים מחדש",
   illGenerateAllImages: "ייצר את כל האיורים",
   illPageNumber: (n) => `עמוד ${n} · תכנון סצנה`,
+
+  illProgressApprovedCount: (approved, total) => `${approved} מתוך ${total} איורים אושרו`,
+  illProgressStatusWorkspace: "בתהליך",
+  illProgressStatusReady: "מוכן לפרסום",
+  illProgressStatusPublished: "פורסם",
+  illProgressReadyHelper: "הספר מוכן לתצוגה מקדימה אחרונה לפני הפרסום.",
+  illViewOnPublicSite: "צפייה באתר הציבורי",
 
   unsavedDialogTitle: "שינויים שלא נשמרו",
   unsavedDialogBody:
@@ -809,6 +848,12 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
   headerCopiedSnackbar: "הועתק!",
   agesChipPrefix: "גילאים",
 
+  textVariantNotPersonalizable: "לא ניתן להתאמה אישית",
+  textVariantNotStarted: "התאמה אישית טרם החלה",
+  textVariantGenerating: "מייצר גרסאות…",
+  textVariantReady: "התאמה אישית מוכנה",
+  textVariantRetry: "ייצור",
+
   footCareTitle: "הערה על אחריות",
   footCareBody:
     "כל כתב יד עובר דרככם לפני שילד קורא אותו. הבינה המלאכותית מטיוטת. אתם שופטים. קחו את הזמן שהעבודה דורשת.",
@@ -824,17 +869,16 @@ export const SPECIALIST_DESK_HE: SpecialistDeskUi = {
 export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   ...SPECIALIST_DESK_EN,
   formatSavedAt: (relativePhrase) => `حُفظ ${relativePhrase}`,
-  formatCountSummary: buildCountSummaryAr,
   formatTableFooter: buildTableFooterAr,
 
   deskOverline: "سطح مكتب الاختصاصي",
   deskTitlePrefix: "",
   deskTitleEmphasis: "قصصي",
-  deskSummaryFallback: "مخطوطاتكم قيد العناية.",
 
-  statInCare: "قيد العناية",
-  statAwaitsYou: "بانتظاركم",
-  statApproved: "معتمد",
+  statNeedsAction: "بحاجة لإجراء",
+  statInProgress: "قيد التنفيذ",
+  statReadyToPublish: "جاهزة للنشر",
+  statPublished: "منشورة",
 
   newStory: "قصة جديدة",
   retry: "إعادة المحاولة",
@@ -855,15 +899,15 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
     `«${title}» — افتحوا مساحة عمل القصة لإكمال القراءة وقائمة التحقق.`,
   untitledStory: "قصة بلا عنوان",
   skimQueue: "تصفح القائمة",
-  openNamedStory: (w) => `فتح ${w}`,
-  openStoryShort: "قصة",
+  bannerOpenWorkspace: "فتح مساحة العمل",
 
   revisionOverline: "إعادة توليد قيد التنفيذ",
   revisionTitleOne: "قصة واحدة تُحدَّث من ملاحظاتكم",
   revisionTitleMany: (count) => `${count} قصص تُحدَّث من ملاحظاتكم`,
   revisionBodyLine: (title) =>
-    `«${title}» — تحققوا قريبًا، أو افتحوا مساحة العمل لمتابعة التقدّم.`,
-  showQueue: "عرض القائمة",
+    `«${title}» قيد التحديث بناءً على ملاحظاتكم. تحققوا قريبًا، أو افتحوا مساحة العمل لمتابعة التقدّم.`,
+  bannerViewProgress: "عرض التقدّم",
+  bannerDismiss: "تجاهل",
 
   viewArchivedLink: (count) =>
     `عرض ${count} ${count === 1 ? "قصة مؤرشفة" : "قصص مؤرشفة"} ←`,
@@ -882,21 +926,39 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   chipIllustrationReady: "التوضيحات جاهزة",
   chipArchived: "مؤرشفة",
 
+  filterNeedsAction: "بحاجة لإجراء",
+  filterInProgress: "قيد التنفيذ",
+  filterReadyToPublish: "جاهزة للنشر",
+  filterPublished: "منشورة",
+  moreFiltersShow: "مزيد من المرشحات",
+  moreFiltersHide: "مرشحات أقل",
+
   sortLastActivity: "آخر نشاط",
   sortNewestFirst: "الأحدث أولًا",
   sortOldestFirst: "الأقدم أولًا",
   sortTitleAZ: "العنوان (أ–ي)",
   filterAriaLabel: "تصفية وفرز القصص",
-  searchPlaceholder: "بحث في العناوين والوسوم والفئة العمرية…",
+  searchPlaceholder: "بحث بالعنوان أو الموضوع أو العمر",
   sortLabelPrefix: "فرز · ",
   clearSearchAria: "مسح البحث",
 
-  colNumber: "رقم",
-  colManuscript: "المخطوطة",
-  colStage: "المرحلة",
-  colPopulationAge: "الفئة والعمر",
+  colStory: "القصة",
+  colProgress: "التقدّم",
+  colTopicAge: "الموضوع والعمر",
   colStatus: "الحالة",
-  colLastEvent: "آخر حدث",
+  colLastUpdate: "آخر تحديث",
+  colAction: "إجراء",
+  formatStepProgress: (step, total, label) => `الخطوة ${step} من ${total} · ${label}`,
+
+  rowActionContinueBrief: "متابعة الموجز",
+  rowActionViewProgress: "عرض التقدّم",
+  rowActionStartReview: "بدء المراجعة",
+  rowActionContinueReview: "متابعة المراجعة",
+  rowActionStartIllustrations: "بدء التوضيح",
+  rowActionContinueIllustrations: "متابعة التوضيح",
+  rowActionReviewIllustrations: "مراجعة التوضيحات",
+  rowActionViewPublicPage: "عرض الصفحة العامة",
+  rowActionViewDetails: "عرض التفاصيل",
 
   emptyFirstTimeTitle: "ابدأوا أول مخطوطة",
   emptyFirstTimeBody:
@@ -978,10 +1040,6 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   illDrawingPage: (n) => `يرسم الصفحة ${n}…`,
   illUnderThirty: "عادة أقل من 30 ثانية",
   illNewVersionLabel: "يولّد نسخة جديدة",
-  illPubApprovedTitle: "جميع الصفحات معتمدة",
-  illPubProgressTitle: "تقدّم الاعتماد",
-  illPubApprovedSub: "يمكن تعليم القصة كجاهزة للنشر.",
-  illPubProgressSub: (a, t) => `${a} من ${t} صفحة معتمدة.`,
   illPubReady: "علّم كجاهز للنشر",
   illPubMore: (n) => `اعتمدوا ${n} صفحة إضافية`,
   illGalAllApproved: "جميع التوضيحات معتمدة",
@@ -1055,6 +1113,33 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
     `اعتُمدت كل الصفحات الـ${n}. تعليم القصة كجاهزة للنشر؟`,
   illWorkspacePreviewAsBook: "معاينة ككتاب منشور",
   illWorkspacePublishLibrary: "النشر إلى المكتبة",
+
+  illPubFormLanguageNames: { he: "العبرية", ar: "العربية", en: "الإنجليزية" },
+  illPubFormTitle: "نشر القصة إلى المكتبة العامة",
+  illPubFormSubtitle: "راجعوا كيف ستظهر القصة للأهل قبل النشر.",
+  illPubFormChecklistDescriptionLabel: "الوصف العام",
+  illPubFormStatusComplete: "مكتمل",
+  illPubFormStatusMissing: "ناقص",
+  illPubFormStatusRequired: "مطلوب",
+  illPubFormDescriptionFieldLabel: "وصف قصير",
+  illPubFormDescriptionHelper: "موصى به: جملة أو جملتان تظهران في بطاقة القصة العامة وصفحة القصة.",
+  illPubFormSituationLabel: "حالة الكتالوج",
+  illPubFormSituationHelper: "يستخدم الأهل هذا الحقل للعثور على القصة في المكتبة العامة.",
+  illPubFormSituationFieldLabel: "الحالة",
+  illPubFormSituationMissing: "اختاروا حالة قبل النشر.",
+  illPubFormSituationOtherOption: "أخرى — طلب حالة جديدة",
+  illPubFormSituationOtherHint: "اختاروا \"أخرى\" فقط إذا لم تُناسب القصة أي حالة موجودة.",
+  illPubFormOtherBadge: "طلب حالة جديدة",
+  illPubFormOtherBody:
+    "لا توجد حالة مناسبة. سيُقدَّم النشر كطلب معلّق بانتظار مراجعة المشرف — لن تظهر القصة بهذه الحالة، ولن تكون قابلة للاختيار لقصص أخرى، حتى تتم الموافقة من قِبل مشرف. أدخلوا تسمية واحدة على الأقل أدناه.",
+  illPubFormOtherLabelField: (lang) => `تسمية (${lang})`,
+  illPubFormOtherReason: "السبب (اختياري)",
+  illPubFormOtherMissingLabel: "أدخلوا تسمية واحدة على الأقل بأي لغة لإرسال الطلب.",
+  illPubFormFooterReady: "جاهزة للنشر",
+  illPubFormFooterMissing: (missingLabel) => `ناقص: ${missingLabel}`,
+  illPubFormPublishButton: "نشر",
+  illPubFormPublishing: "جارٍ النشر…",
+
   illCtaHeadline: "القصة معتمدة",
   illCtaBody: (n) =>
     `افتحوا مساحة التوضيح لبناء Visual Bible للقصة وخطة مشهد لكل من الصفحات الـ${n}. عدّلوا يدويًا أو أعيدوا التوليد بحسب الحاجة.`,
@@ -1077,6 +1162,13 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   illRegenAllPlans: "أعد توليد جميع الخطط",
   illGenerateAllImages: "ولّد جميع التوضيحات",
   illPageNumber: (n) => `الصفحة ${n} · خطة المشهد`,
+
+  illProgressApprovedCount: (approved, total) => `تمت الموافقة على ${approved} من ${total} توضيحات`,
+  illProgressStatusWorkspace: "قيد التنفيذ",
+  illProgressStatusReady: "جاهز للنشر",
+  illProgressStatusPublished: "منشور",
+  illProgressReadyHelper: "الكتاب جاهز للمعاينة الأخيرة قبل النشر.",
+  illViewOnPublicSite: "عرض في الموقع العام",
 
   unsavedDialogTitle: "تغييرات غير محفوظة",
   unsavedDialogBody:
@@ -1107,6 +1199,12 @@ export const SPECIALIST_DESK_AR: SpecialistDeskUi = {
   headerArchiveConfirm: "أرشفة",
   headerCopiedSnackbar: "تم النسخ!",
   agesChipPrefix: "أعمار",
+
+  textVariantNotPersonalizable: "غير قابلة للتخصيص",
+  textVariantNotStarted: "التخصيص لم يبدأ بعد",
+  textVariantGenerating: "جارٍ توليد النسخ…",
+  textVariantReady: "التخصيص جاهز",
+  textVariantRetry: "توليد",
 
   footCareTitle: "ملاحظة على العناية",
   footCareBody:

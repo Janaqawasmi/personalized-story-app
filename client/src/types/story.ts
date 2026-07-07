@@ -168,6 +168,11 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
+  /**
+   * `Agent1Result.generationId` of the version that was approved. Audit trail
+   * only; optional so fixtures/state predating this field remain valid.
+   */
+  approvedGenerationId?: string | null;
 }
 
 // ============================================================================

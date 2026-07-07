@@ -1026,7 +1026,8 @@
   },
   "admin": {
     "common": {
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "cancel": "Cancel"
     },
     "layout": {
       "panelSubtitle": "Admin Panel",
@@ -1044,6 +1045,7 @@
       "psychologists": "Psychologists",
       "stories": "Stories",
       "moderation": "Moderation",
+      "situationSuggestions": "Situation Suggestions",
       "ai": "AI Usage",
       "reviews": "Reviews",
       "banner": "Banner",
@@ -1074,6 +1076,10 @@
       "moderation": {
         "title": "Content moderation",
         "subtitle": "Flagged content requires your attention"
+      },
+      "situation-suggestions": {
+        "title": "Situation suggestions",
+        "subtitle": "Pending requests for new catalog situations"
       },
       "ai": {
         "title": "AI usage & health",
@@ -1292,6 +1298,40 @@
     "moderation": {
       "title": "Moderation",
       "body": "Review pending story templates under Stories. Flagged user content workflows can be added here."
+    },
+    "situationSuggestions": {
+      "sectionEyebrow": "Situation suggestions",
+      "helperText": "Specialists can request a new situation when publishing a story if none of the existing ones fit. Review each request below, then approve it to add the situation to the catalog taxonomy, or reject it.",
+      "colStory": "Story",
+      "colLabels": "Suggested labels",
+      "colSuggestedBy": "Suggested by",
+      "colSuggestedAt": "Suggested on",
+      "colActions": "Actions",
+      "labelHe": "Hebrew",
+      "labelAr": "Arabic",
+      "labelEn": "English",
+      "reasonPrefix": "Reason",
+      "viewStory": "View story",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveDialogTitle": "Approve situation suggestion",
+      "approveDialogBody": "This creates a new situation in the catalog taxonomy with the labels below and links it to \"{title}\". You can adjust the situation ID before approving — it cannot be changed later.",
+      "situationIdLabel": "Situation ID",
+      "situationIdHelper": "Lowercase letters, numbers, and underscores only. Must be unique.",
+      "rejectDialogTitle": "Reject situation suggestion",
+      "rejectDialogBody": "This marks the suggestion as rejected. The story \"{title}\" keeps its published status and is not affected.",
+      "rejectNoteLabel": "Note (optional)",
+      "confirmApprove": "Approve",
+      "confirmReject": "Reject",
+      "approveSuccess": "Situation approved and added to the catalog.",
+      "rejectSuccess": "Suggestion rejected.",
+      "actionError": "Something went wrong. Please try again.",
+      "emptyTitle": "No pending suggestions",
+      "emptyBody": "When a specialist requests a new situation while publishing, it will appear here for review.",
+      "errorTitle": "Couldn't load suggestions",
+      "errorBody": "Something went wrong while loading pending situation suggestions.",
+      "retry": "Retry",
+      "untitledStory": "Untitled story"
     }
   }
 }

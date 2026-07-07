@@ -15,9 +15,9 @@ export interface StoryTemplateListItem {
   id: string;
   title: string;
   slug: string;
-  shortDescription: { ar?: string; he?: string };
+  shortDescription: { ar?: string; he?: string; en?: string };
   coverImageUrl: string;
-  displayTopic: { ar?: string; he?: string };
+  displayTopic: { ar?: string; he?: string; en?: string };
   primaryTopic: string;
   ageGroup: string;
   generationConfig: {

@@ -17,6 +17,8 @@ import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
 import StoryRow from "./StoryRow";
+import StoryCard from "./StoryCard";
+import { TABLE_COLUMN_WIDTHS } from "./tableColumns";
 
 function EmptyFirstTime() {
   const navigate = useNavigate();
@@ -152,14 +154,14 @@ export default function StoriesTable({
   onViewArchived,
 }: StoriesTableProps) {
   const desk = useSpecialistDeskUi();
-  const columnHeaders: { label: string; width: string | number }[] = [
-    { label: desk.colNumber, width: 44 },
-    { label: desk.colManuscript, width: "auto" },
-    { label: desk.colStage, width: 148 },
-    { label: desk.colPopulationAge, width: 200 },
-    { label: desk.colStatus, width: 152 },
-    { label: desk.colLastEvent, width: 188 },
-    { label: "", width: 48 },
+  const columnHeaders: { label: string; width: string }[] = [
+    { label: desk.colStory, width: TABLE_COLUMN_WIDTHS.story },
+    { label: desk.colProgress, width: TABLE_COLUMN_WIDTHS.progress },
+    { label: desk.colTopicAge, width: TABLE_COLUMN_WIDTHS.topicAge },
+    { label: desk.colStatus, width: TABLE_COLUMN_WIDTHS.status },
+    { label: desk.colLastUpdate, width: TABLE_COLUMN_WIDTHS.lastUpdate },
+    { label: desk.colAction, width: TABLE_COLUMN_WIDTHS.action },
+    { label: "", width: TABLE_COLUMN_WIDTHS.menu },
   ];
 
   if (loading) {
@@ -181,7 +183,7 @@ export default function StoriesTable({
   return (
     <Box
       sx={{
-        mt: 2.25,
+        mt: 1.75,
         borderRadius: "12px",
         border: `1px solid ${COLORS.border}`,
         overflow: "hidden",
@@ -189,14 +191,18 @@ export default function StoriesTable({
           "0 1px 2px rgba(60,50,40,0.04), 0 12px 36px -22px rgba(60,50,40,0.16)",
       }}
     >
+      {/* Table — md and up. Column widths are percentages + tableLayout:
+          "fixed", so the table always fits its container and never forces
+          horizontal scroll; overflowing text truncates with an ellipsis
+          instead. */}
       <TableContainer
         sx={{
+          display: { xs: "none", md: "block" },
           bgcolor: "#fffdf9",
-          overflowX: "auto",
           borderRadius: 0,
         }}
       >
-        <Table size="small" sx={{ minWidth: 920 }}>
+        <Table size="small" sx={{ width: "100%", tableLayout: "fixed" }}>
           <TableHead>
             <TableRow
               sx={{
@@ -210,15 +216,17 @@ export default function StoriesTable({
                   width={col.width}
                   sx={{
                     py: 1.5,
-                    px: col.label === desk.colNumber ? 1.5 : 2,
+                    px: 1.25,
                     fontWeight: 700,
                     fontSize: "0.6875rem",
                     color: COLORS.textMuted,
-                    letterSpacing: "0.12em",
+                    letterSpacing: "0.1em",
                     textTransform: "uppercase",
                     fontFamily:
                       "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
                     whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
                   {col.label}
@@ -227,10 +235,9 @@ export default function StoriesTable({
             </TableRow>
           </TableHead>
           <TableBody>
-            {stories.map((story, index) => (
+            {stories.map((story) => (
               <StoryRow
                 key={story.id}
-                rowIndex={index}
                 story={story}
                 onArchive={onArchive}
                 onRestore={onRestore}
@@ -239,6 +246,27 @@ export default function StoriesTable({
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Card list — below md. A 7-column table has no room to breathe on a
+          tablet/phone width, so stories stack as cards instead. */}
+      <Box
+        sx={{
+          display: { xs: "flex", md: "none" },
+          flexDirection: "column",
+          gap: 1,
+          p: 1.25,
+          bgcolor: "#fffdf9",
+        }}
+      >
+        {stories.map((story) => (
+          <StoryCard
+            key={story.id}
+            story={story}
+            onArchive={onArchive}
+            onRestore={onRestore}
+          />
+        ))}
+      </Box>
 
       <Box
         sx={{

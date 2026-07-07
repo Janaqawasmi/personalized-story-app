@@ -206,6 +206,8 @@ export default function IllustrationsTabV2({ story }: Props) {
           <WorkspacePreview
             story={story}
             storyId={story.id}
+            liveStatus={vm.status}
+            livePublishedTemplateId={vm.publishedTemplateId}
             visualBibleVersion={vm.visualBibleVersion}
             visualBible={vm.visualBible}
             visualBibleVersionsDesc={vm.visualBibleVersionsDesc}

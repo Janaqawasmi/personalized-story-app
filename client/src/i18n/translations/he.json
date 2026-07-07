@@ -1026,7 +1026,8 @@
   },
   "admin": {
     "common": {
-      "loading": "טוען…"
+      "loading": "טוען…",
+      "cancel": "ביטול"
     },
     "layout": {
       "panelSubtitle": "פאנל ניהול",
@@ -1044,6 +1045,7 @@
       "psychologists": "פסיכולוגים",
       "stories": "סיפורים",
       "moderation": "ניהול תוכן",
+      "situationSuggestions": "הצעות מצב",
       "ai": "שימוש ב-AI",
       "reviews": "ביקורות",
       "banner": "באנר",
@@ -1074,6 +1076,10 @@
       "moderation": {
         "title": "ניהול תוכן",
         "subtitle": "תוכן שדווח דורש תשומת לב"
+      },
+      "situation-suggestions": {
+        "title": "הצעות למצב חדש",
+        "subtitle": "בקשות ממתינות למצבים חדשים בקטלוג"
       },
       "ai": {
         "title": "שימוש ובריאות AI",
@@ -1292,6 +1298,40 @@
     "moderation": {
       "title": "ניהול תוכן",
       "body": "אשרו תבניות סיפור תחת ״סיפורים״. כאן אפשר להרחיב לתוכן משתמשים שדווח."
+    },
+    "situationSuggestions": {
+      "sectionEyebrow": "הצעות למצב חדש",
+      "helperText": "מטפלים יכולים לבקש מצב (situation) חדש בזמן פרסום סיפור אם אף אחד מהמצבים הקיימים לא מתאים. סקרו כל בקשה למטה, ואז אשרו אותה כדי להוסיף את המצב לרשימת הקטגוריות, או דחו אותה.",
+      "colStory": "סיפור",
+      "colLabels": "תוויות מוצעות",
+      "colSuggestedBy": "הוצע על ידי",
+      "colSuggestedAt": "תאריך ההצעה",
+      "colActions": "פעולות",
+      "labelHe": "עברית",
+      "labelAr": "ערבית",
+      "labelEn": "אנגלית",
+      "reasonPrefix": "סיבה",
+      "viewStory": "צפייה בסיפור",
+      "approve": "אשר",
+      "reject": "דחה",
+      "approveDialogTitle": "אישור הצעה למצב חדש",
+      "approveDialogBody": "פעולה זו יוצרת מצב חדש ברשימת הקטגוריות עם התוויות שלמטה, ומקשרת אותו לסיפור \"{title}\". ניתן לערוך את מזהה המצב לפני האישור — לא ניתן לשנות אותו לאחר מכן.",
+      "situationIdLabel": "מזהה מצב (Situation ID)",
+      "situationIdHelper": "אותיות קטנות, מספרים וקווים תחתונים בלבד. חייב להיות ייחודי.",
+      "rejectDialogTitle": "דחיית הצעה למצב חדש",
+      "rejectDialogBody": "פעולה זו מסמנת את ההצעה כנדחתה. הסיפור \"{title}\" נשאר מפורסם ואינו מושפע.",
+      "rejectNoteLabel": "הערה (אופציונלי)",
+      "confirmApprove": "אשר",
+      "confirmReject": "דחה",
+      "approveSuccess": "המצב אושר ונוסף לרשימת הקטגוריות.",
+      "rejectSuccess": "ההצעה נדחתה.",
+      "actionError": "משהו השתבש. נסו שוב.",
+      "emptyTitle": "אין הצעות ממתינות",
+      "emptyBody": "כאשר מטפל יבקש מצב חדש בעת פרסום סיפור, הבקשה תופיע כאן לסקירה.",
+      "errorTitle": "טעינת ההצעות נכשלה",
+      "errorBody": "משהו השתבש בטעינת ההצעות הממתינות לאישור.",
+      "retry": "נסה שוב",
+      "untitledStory": "סיפור ללא כותרת"
     }
   }
 }

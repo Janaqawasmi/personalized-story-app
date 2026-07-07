@@ -1,22 +1,26 @@
 import { useState } from "react";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Stack from "@mui/material/Stack";
-import Typography from "@mui/material/Typography";
 import Snackbar from "@mui/material/Snackbar";
-import Button from "@mui/material/Button";
 import type { IllustrationJob, VisualBibleArtefact } from "../../../types/illustration";
-import type { Story } from "../../../types/story";
+import type { Story, StoryStatus } from "../../../types/story";
 import type { PageCardViewModel } from "../../hooks/useIllustrationWorkspaceState";
 import type { BookReaderModel } from "../../../components/book/BookReaderModel";
-import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEnabled";
 import ApprovalPreviewDialog from "./ApprovalPreviewDialog";
+import IllustrationProgressHeader from "./IllustrationProgressHeader";
 import PublishDialog from "./PublishDialog";
-import GalleryPanel from "./panels/GalleryPanel";
+import ApprovedIllustrationsGrid from "./panels/ApprovedIllustrationsGrid";
 import WorkspacePanel from "./WorkspacePanel";
 
 interface Props {
   story: Story;
   storyId: string;
+  /** Live status from the Firestore-subscribed hook — use for all CTA/banner
+   *  visibility instead of `story.status`, which is a one-shot REST snapshot
+   *  that never refreshes after illustration/publish mutations. */
+  liveStatus: StoryStatus;
+  /** Live `publishedTemplateId`, paired with `liveStatus`. */
+  livePublishedTemplateId: string | null;
   visualBibleVersion: number;
   visualBible: VisualBibleArtefact | null;
   visualBibleVersionsDesc: VisualBibleArtefact[];
@@ -37,6 +41,8 @@ interface Props {
 export default function WorkspacePreview({
   story,
   storyId,
+  liveStatus,
+  livePublishedTemplateId,
   visualBibleVersion,
   visualBible,
   visualBibleVersionsDesc,
@@ -54,75 +60,53 @@ export default function WorkspacePreview({
   onMarkReady,
 }: Props) {
   const { lang } = useParams<{ lang: string }>();
-  const devGate = useIllustrationDevPanelsGate();
-  const showDebugLink = devGate.ready && devGate.allowed;
   const [previewOpen, setPreviewOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [publishedTemplateId, setPublishedTemplateId] = useState<string | null>(null);
 
   const canPreview = !!previewModel;
   const previewVariant =
-    allApproved || story.status === "published" || story.status === "illustration_ready"
+    allApproved || liveStatus === "published" || liveStatus === "illustration_ready"
       ? ("final" as const)
       : previewModel && previewModel.pages.some((p) => p.imageUrl)
         ? ("work_in_progress" as const)
         : ("manuscript_only" as const);
 
   const showMarkReady =
-    story.status === "illustration_workspace" && allApproved && !readOnly;
-  const showPublish = story.status === "illustration_ready";
-  const showPublishedBanner = story.status === "published";
+    liveStatus === "illustration_workspace" && allApproved && !readOnly;
+  const showPublish = liveStatus === "illustration_ready";
+  const isPublished = liveStatus === "published";
   const publicCatalogUrl =
-    lang && story.publishedTemplateId
-      ? `/${lang}/stories/${encodeURIComponent(story.publishedTemplateId)}`
+    lang && livePublishedTemplateId
+      ? `/${lang}/stories/${encodeURIComponent(livePublishedTemplateId)}`
       : null;
+  const reopenHref = lang ? `/${lang}/specialist/stories/${storyId}/story` : null;
 
-  const panelReadOnly = readOnly || showPublishedBanner;
+  const panelReadOnly = readOnly || isPublished;
 
-  const showGalleryHero =
-    story.status === "illustration_ready" || story.status === "published";
+  // Both "illustration_ready" and "published" are handled entirely by
+  // IllustrationProgressHeader (single status/action card) + the approved
+  // grid directly below — no separate banner or hero card repeats the same
+  // readiness/published message.
+  const showApprovedGrid = liveStatus === "illustration_ready" || isPublished;
+
+  const approvedPageCount = pages.filter((p) => p.subStatus === "approved").length;
 
   return (
     <Stack spacing={3}>
-      {readOnly && story.status === "illustration_ready" ? (
-        <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
-          This story is marked ready to publish. Illustrations are locked.
-        </Typography>
-      ) : null}
+      <IllustrationProgressHeader
+        approvedCount={approvedPageCount}
+        totalCount={pages.length}
+        liveStatus={liveStatus}
+        canPreview={canPreview}
+        showPublish={showPublish}
+        onPreviewClick={() => setPreviewOpen(true)}
+        onPublishClick={() => setPublishOpen(true)}
+        publicCatalogUrl={publicCatalogUrl}
+        reopenHref={reopenHref}
+      />
 
-      {showPublishedBanner ? (
-        <Typography variant="body2" color="text.secondary">
-          Published to the public library.
-          {publicCatalogUrl ? (
-            <>
-              {" "}
-              <RouterLink to={publicCatalogUrl}>View on public site</RouterLink>
-            </>
-          ) : null}
-        </Typography>
-      ) : null}
-
-      {showDebugLink && lang ? (
-        <Typography variant="body2">
-          <RouterLink to={`/${lang}/specialist/stories/${storyId}/illustration/debug`}>
-            Open illustration debug table
-          </RouterLink>
-        </Typography>
-      ) : null}
-
-      {showGalleryHero && lang ? (
-        <GalleryPanel
-          published={story.status === "published"}
-          storyTitle={story.title?.trim() ?? ""}
-          storyId={storyId}
-          lang={lang}
-          pages={pages}
-          canPreview={canPreview}
-          onPreviewClick={() => setPreviewOpen(true)}
-          onPublishClick={() => setPublishOpen(true)}
-        />
-      ) : null}
+      {showApprovedGrid ? <ApprovedIllustrationsGrid pages={pages} /> : null}
 
       <WorkspacePanel
         storyId={storyId}
@@ -166,8 +150,7 @@ export default function WorkspacePreview({
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
         story={story}
-        onPublished={(templateId) => {
-          setPublishedTemplateId(templateId);
+        onPublished={() => {
           setToast("Story published to catalog.");
         }}
       />
@@ -177,20 +160,6 @@ export default function WorkspacePreview({
         autoHideDuration={8000}
         onClose={() => setToast(null)}
         message={toast ?? ""}
-        action={
-          publishedTemplateId && lang ? (
-            <Button
-              component={RouterLink}
-              to={`/${lang}/specialist/templates/${publishedTemplateId}/text-variants`}
-              size="small"
-              color="inherit"
-              sx={{ textTransform: "none", fontWeight: 700 }}
-              onClick={() => setToast(null)}
-            >
-              Set up text personalization →
-            </Button>
-          ) : undefined
-        }
       />
     </Stack>
   );

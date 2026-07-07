@@ -20,6 +20,7 @@ import {
   PsychologyOutlined,
   AutoStoriesOutlined,
   ShieldOutlined,
+  LightbulbOutlined,
   SmartToyOutlined,
   AttachMoneyOutlined,
   MonitorHeartOutlined,
@@ -102,6 +103,12 @@ const NAV_SECTIONS: { titleKey: string; items: NavItem[] }[] = [
         path: "moderation",
       },
       {
+        key: "situationSuggestions",
+        labelKey: "admin.nav.situationSuggestions",
+        icon: <LightbulbOutlined />,
+        path: "situation-suggestions",
+      },
+      {
         key: "ai",
         labelKey: "admin.nav.ai",
         icon: <SmartToyOutlined />,
@@ -152,9 +159,11 @@ async function tryCount(q: Query | CollectionReference): Promise<number> {
 function initialsFromUser(displayName: string | null, email: string | null): string {
   const s = (displayName || email || "?").trim();
   const parts = s.split(/\s+/).filter(Boolean);
+
   if (parts.length >= 2) {
     return (parts[0]![0] + parts[1]![0]).toUpperCase();
   }
+
   return s.slice(0, 2).toUpperCase();
 }
 
@@ -165,7 +174,13 @@ export default function AdminLayout() {
   const { direction } = useLanguage();
   const t = useTranslation();
   const { currentUser } = useAuth();
-  const [pendingBadges, setPendingBadges] = useState<{ moderation?: number }>({});
+
+  const [pendingBadges, setPendingBadges] = useState<{
+    moderation?: number;
+    psychologists?: number;
+    situationSuggestions?: number;
+  }>({});
+
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -177,24 +192,42 @@ export default function AdminLayout() {
   // resolve to the "psychologists" nav item/title instead of the id itself.
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const adminIndex = pathSegments.indexOf("admin");
-  const currentPage = (adminIndex >= 0 ? pathSegments[adminIndex + 1] : undefined) ?? "overview";
+  const currentPage =
+    (adminIndex >= 0 ? pathSegments[adminIndex + 1] : undefined) ?? "overview";
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadBadges() {
-      const mod = await tryCount(
-        query(
-          collection(db, "story_templates"),
-          where("status", "==", "pending_review")
-        )
-      );
+      const [mod, psych, situations] = await Promise.all([
+        tryCount(
+          query(
+            collection(db, "story_templates"),
+            where("status", "==", "pending_review")
+          )
+        ),
+        tryCount(
+          query(collection(db, "psychologists"), where("status", "==", "pending"))
+        ),
+        tryCount(
+          query(
+            collection(db, "story_templates"),
+            where("situationProposal.status", "==", "pending")
+          )
+        ),
+      ]);
+
       if (!cancelled) {
-        setPendingBadges({ moderation: mod });
+        setPendingBadges({
+          moderation: mod,
+          psychologists: psych,
+          situationSuggestions: situations,
+        });
       }
     }
 
     loadBadges();
+
     return () => {
       cancelled = true;
     };
@@ -210,6 +243,7 @@ export default function AdminLayout() {
     day: "numeric",
     month: "long",
   });
+
   const pageSubtitle =
     currentPage === "overview"
       ? t("admin.pages.overview.subtitle", { date: overviewDate })
@@ -273,7 +307,13 @@ export default function AdminLayout() {
           },
         }}
       >
-        <Box sx={{ p: "20px", pb: "16px", borderBottom: `0.5px solid ${COLORS.border}` }}>
+        <Box
+          sx={{
+            p: "20px",
+            pb: "16px",
+            borderBottom: `0.5px solid ${COLORS.border}`,
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Box
               sx={{
@@ -291,6 +331,7 @@ export default function AdminLayout() {
             >
               د
             </Box>
+
             <Box>
               <Typography
                 sx={{
@@ -302,6 +343,7 @@ export default function AdminLayout() {
               >
                 DAMMAH
               </Typography>
+
               <Typography sx={{ fontSize: 11, color: COLORS.textSecondary }}>
                 {t("admin.layout.panelSubtitle")}
               </Typography>
@@ -326,9 +368,19 @@ export default function AdminLayout() {
               >
                 {t(section.titleKey)}
               </Typography>
+
               {section.items.map((item) => {
                 const isActive = currentPage === item.key;
-                const badge = item.key === "moderation" ? pendingBadges.moderation : undefined;
+
+                const badge =
+                  item.key === "moderation"
+                    ? pendingBadges.moderation
+                    : item.key === "psychologists"
+                      ? pendingBadges.psychologists
+                      : item.key === "situationSuggestions"
+                        ? pendingBadges.situationSuggestions
+                        : undefined;
+
                 return (
                   <ListItemButton
                     key={item.key}
@@ -340,11 +392,14 @@ export default function AdminLayout() {
                       borderRadius: "8px",
                       mb: "2px",
                       bgcolor: isActive ? `${COLORS.secondary}15` : "transparent",
-                      borderInlineStart:
-                        isActive ? `2px solid ${COLORS.secondary}` : "2px solid transparent",
+                      borderInlineStart: isActive
+                        ? `2px solid ${COLORS.secondary}`
+                        : "2px solid transparent",
                       color: isActive ? COLORS.secondary : COLORS.textSecondary,
                       "&:hover": {
-                        bgcolor: isActive ? `${COLORS.secondary}15` : `${COLORS.border}50`,
+                        bgcolor: isActive
+                          ? `${COLORS.secondary}15`
+                          : `${COLORS.border}50`,
                       },
                       transition: "all 0.15s",
                     }}
@@ -358,6 +413,7 @@ export default function AdminLayout() {
                     >
                       {item.icon}
                     </ListItemIcon>
+
                     <ListItemText
                       primary={t(item.labelKey)}
                       primaryTypographyProps={{
@@ -366,6 +422,7 @@ export default function AdminLayout() {
                         color: "inherit",
                       }}
                     />
+
                     {badge !== undefined && badge > 0 && (
                       <Box
                         sx={{
@@ -399,9 +456,17 @@ export default function AdminLayout() {
             gap: 1.5,
           }}
         >
-          <Avatar sx={{ width: 30, height: 30, bgcolor: COLORS.secondary, fontSize: 12 }}>
+          <Avatar
+            sx={{
+              width: 30,
+              height: 30,
+              bgcolor: COLORS.secondary,
+              fontSize: 12,
+            }}
+          >
             {adminInitials}
           </Avatar>
+
           <Box sx={{ flex: 1, overflow: "hidden" }}>
             <Typography
               sx={{
@@ -415,6 +480,7 @@ export default function AdminLayout() {
             >
               {currentUser?.displayName || t("admin.layout.siteAdmin")}
             </Typography>
+
             <Typography sx={{ fontSize: 10, color: COLORS.textSecondary }}>
               {currentUser?.email ?? "admin"}
             </Typography>
@@ -424,7 +490,13 @@ export default function AdminLayout() {
 
       <Box
         component="main"
-        sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          minWidth: 0,
+        }}
       >
         <Box
           sx={{
@@ -447,6 +519,7 @@ export default function AdminLayout() {
             >
               <MenuOutlined />
             </IconButton>
+
             <Box sx={{ minWidth: 0 }}>
               <Typography
                 sx={{
@@ -460,6 +533,7 @@ export default function AdminLayout() {
               >
                 {t(`admin.pages.${currentPage}.title`, {})}
               </Typography>
+
               <Typography
                 sx={{
                   fontSize: 12,
@@ -474,11 +548,20 @@ export default function AdminLayout() {
               </Typography>
             </Box>
           </Box>
+
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexShrink: 0 }}>
             <Badge badgeContent={3} color="error" sx={{ cursor: "pointer" }}>
               <NotificationsOutlined sx={{ fontSize: 22, color: COLORS.textSecondary }} />
             </Badge>
-            <Avatar sx={{ width: 32, height: 32, bgcolor: COLORS.secondary, fontSize: 12 }}>
+
+            <Avatar
+              sx={{
+                width: 32,
+                height: 32,
+                bgcolor: COLORS.secondary,
+                fontSize: 12,
+              }}
+            >
               {adminInitials}
             </Avatar>
           </Box>

@@ -20,7 +20,6 @@ import SpecialistLayout from "./components/specialist/SpecialistLayout";
 import SpecialistStoriesPage from "./specialist/pages/SpecialistStoriesPage";
 import NewStoryRedirect from "./specialist/pages/NewStoryRedirect";
 import StoryWorkspacePage from "./specialist/pages/StoryWorkspacePage";
-import TextVariantsReviewPage from "./specialist/pages/TextVariantsReviewPage";
 import IllustrationDebugPage from "./specialist/pages/IllustrationDebugPage";
 import RequireAuth from "./components/RequireAuth";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -51,8 +50,7 @@ import AdminAIPage from "./pages/admin/AdminAIPage";
 import AdminRevenuePage from "./pages/admin/AdminRevenuePage";
 import AdminSystemPage from "./pages/admin/AdminSystemPage";
 import AdminModerationPage from "./pages/admin/AdminModerationPage";
-import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
-import AdminBannerPage from "./pages/admin/AdminBannerPage";
+import AdminSituationSuggestionsPage from "./pages/admin/AdminSituationSuggestionsPage";
 
 import { MegaSelection } from "./components/MegaMenu/types";
 
@@ -128,6 +126,7 @@ function AppContent() {
               <Route path="psychologists/:specialistId" element={<AdminSpecialistDetailPage />} />
               <Route path="stories" element={<AdminStoriesPage />} />
               <Route path="moderation" element={<AdminModerationPage />} />
+              <Route path="situation-suggestions" element={<AdminSituationSuggestionsPage />} />
               <Route path="ai" element={<AdminAIPage />} />
               <Route path="reviews" element={<AdminReviewsPage />} />
               <Route path="banner" element={<AdminBannerPage />} />
@@ -145,7 +144,6 @@ function AppContent() {
               <Route path="stories/:storyId/illustration/debug" element={<IllustrationDebugPage />} />
               <Route path="stories/:storyId" element={<StoryWorkspacePage />} />
               <Route path="stories/:storyId/:tab" element={<StoryWorkspacePage />} />
-              <Route path="templates/:templateId/text-variants" element={<TextVariantsReviewPage />} />
             </Route>
           </Route>
 

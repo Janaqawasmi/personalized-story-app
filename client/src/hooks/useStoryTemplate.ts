@@ -21,9 +21,9 @@ export interface StoryTemplateDetail {
   };
   currency?: string;
   slug: string;
-  shortDescription: { ar?: string; he?: string };
+  shortDescription: { ar?: string; he?: string; en?: string };
   coverImageUrl: string;
-  displayTopic: { ar?: string; he?: string };
+  displayTopic: { ar?: string; he?: string; en?: string };
   primaryTopic: string;
   specificSituation: string;
   situationId?: string;

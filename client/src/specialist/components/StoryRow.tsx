@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -11,235 +12,50 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
 import { useLanguage } from "../../i18n/context/useLanguage";
-import {
-  dateLocaleForLang,
-  formatListEventTimeMs,
-} from "../../i18n/specialistRelativeTime";
+import { dateLocaleForLang } from "../../i18n/specialistRelativeTime";
 import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
-import type { SpecialistDeskUi } from "../../i18n/specialistDeskUi.types";
-import type { StoryType } from "../../types/storyBrief";
-import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
+import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
-import {
-  getPipelineListLabelTranslated,
-  getStoryPipelineUiState,
-  normalizeStoryStatusForDisplay,
-} from "../utils/storyPipeline";
-import { STATUS_CHIP_COLORS } from "./statusColors";
+import { buildStoryRowViewModel } from "../utils/storyRowViewModel";
+import PipelineDots from "./PipelineDots";
+import { TABLE_COLUMN_WIDTHS } from "./tableColumns";
 
 const SERIF =
   "'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif";
 
-function editEventVerb(event: EditHistoryEvent, desk: SpecialistDeskUi): string {
-  switch (event.kind) {
-    case "draft_created":
-      return desk.editEventCreated;
-    case "draft_edited":
-      return desk.editEventStoryEdited;
-    case "status_changed":
-      return desk.editEventUpdated;
-    case "brief_submitted":
-      return desk.editEventSubmitted;
-    case "agent1_generated":
-      return event.succeeded
-        ? desk.editEventDraftGenerated
-        : desk.editEventGenerationFailed;
-    case "regeneration_requested":
-      return desk.editEventRegenerationRequested;
-    case "archived":
-      return desk.editEventArchived;
-    case "restored":
-      return desk.editEventRestored;
-    case "visual_bible_generated":
-      return "Visual Bible generated";
-    case "visual_bible_edited":
-      return "Visual Bible edited";
-    case "visual_bible_regenerated":
-      return "Visual Bible regenerated";
-    case "scene_plan_generated":
-      return "Scene plan generated";
-    case "image_generated":
-      return "Image generated";
-    case "image_approved":
-      return "Image approved";
-    case "image_rejected":
-      return "Image rejected";
-    case "illustration_workspace_opened":
-      return "Illustration workspace opened";
-    case "illustration_ready_marked":
-      return "Illustration ready marked";
-    case "published":
-      return "Published to library";
-    case "job_cancelled":
-      return "Illustration job cancelled";
-    default: {
-      const _u: never = event;
-      void _u;
-      return desk.editEventUpdated;
-    }
-  }
-}
-
-function lastEventLines(
-  story: Story,
-  desk: SpecialistDeskUi,
-  dateLocale: string,
-): { what: string; when: string } {
-  const hist = story.editHistory;
-  const last =
-    hist && hist.length > 0 ? hist[hist.length - 1] : undefined;
-  if (!last) {
-    return {
-      what: desk.editEventCreated,
-      when: formatListEventTimeMs(story.createdAt, desk, dateLocale),
-    };
-  }
-  return {
-    what: editEventVerb(last.event, desk),
-    when: formatListEventTimeMs(last.at, desk, dateLocale),
-  };
-}
-
-function toRomanLower(n: number): string {
-  const map: [number, string][] = [
-    [1000, "m"],
-    [900, "cm"],
-    [500, "d"],
-    [400, "cd"],
-    [100, "c"],
-    [90, "xc"],
-    [50, "l"],
-    [40, "xl"],
-    [10, "x"],
-    [9, "ix"],
-    [5, "v"],
-    [4, "iv"],
-    [1, "i"],
-  ];
-  let out = "";
-  let x = n;
-  for (const [v, s] of map) {
-    while (x >= v) {
-      out += s;
-      x -= v;
-    }
-  }
-  return out;
-}
-
-function PipelineDots({
-  status,
-  dotCount,
-}: {
-  status: StoryStatus;
-  dotCount: number;
-}) {
-  const n = dotCount;
-  const ui = getStoryPipelineUiState(status);
-
-  if (ui.kind === "archived") {
-    return (
-      <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-        {Array.from({ length: n }).map((_, i) => (
-          <Box
-            key={i}
-            sx={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              bgcolor: COLORS.border,
-              flexShrink: 0,
-            }}
-          />
-        ))}
-      </Box>
-    );
-  }
-
-  const cur = ui.emphasisStepIndex;
-  const isPublished = status === "published";
-
-  return (
-    <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-      {Array.from({ length: n }).map((_, i) => {
-        let bg = COLORS.border;
-        let shadow: string | undefined;
-        if (isPublished) {
-          bg = COLORS.success;
-        } else if (i < cur) {
-          bg = COLORS.primary;
-        } else if (i === cur) {
-          bg =
-            status === "awaiting_review" ? COLORS.warning : COLORS.primary;
-          shadow =
-            status === "awaiting_review"
-              ? "0 0 0 3px rgba(176,132,51,0.18)"
-              : "0 0 0 3px rgba(97,120,145,0.2)";
-        }
-        return (
-          <Box
-            key={i}
-            sx={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              bgcolor: bg,
-              boxShadow: shadow,
-              flexShrink: 0,
-            }}
-          />
-        );
-      })}
-    </Box>
-  );
-}
-
 export interface StoryRowProps {
-  rowIndex: number;
   story: Story;
   onArchive: (storyId: string) => void;
   onRestore: (storyId: string) => void;
 }
 
-export default function StoryRow({
-  rowIndex,
-  story,
-  onArchive,
-  onRestore,
-}: StoryRowProps) {
+export default function StoryRow({ story, onArchive, onRestore }: StoryRowProps) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
   const { language } = useLanguage();
   const desk = useSpecialistDeskUi();
   const briefUi = useStoryBriefUi();
-  const storyPath = `/${lang ?? "he"}/specialist/stories/${story.id}`;
   const dateLocale = dateLocaleForLang(language);
 
-  const isArchived = story.status === "archived";
-  const isAttention = story.status === "awaiting_review";
-  const displayTitle =
-    story.title.trim() === "" ? null : story.title;
+  const vm = buildStoryRowViewModel(story, desk, briefUi, dateLocale, lang ?? "he");
 
-  const statusForUi = normalizeStoryStatusForDisplay(story.status);
-  const col = STATUS_CHIP_COLORS[statusForUi];
-  const pipelineLabel = getPipelineListLabelTranslated(story.status, desk);
-  const evt = lastEventLines(story, desk, dateLocale);
-  const statusLabels = desk.statusLabels;
-  const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
-  const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
-
-  const briefRev =
-    story.parentStoryId || /revision/i.test(story.title ?? "")
-      ? desk.revisionBadge
-      : null;
+  function handleActionClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (vm.actionExternal) {
+      window.open(vm.actionHref, "_blank", "noopener,noreferrer");
+    } else {
+      navigate(vm.actionHref);
+    }
+  }
 
   function handleRowClick() {
-    navigate(storyPath);
+    navigate(vm.storyPath);
   }
 
   function handleMenuOpen(e: React.MouseEvent<HTMLButtonElement>) {
@@ -265,7 +81,7 @@ export default function StoryRow({
     onRestore(story.id);
   }
 
-  const rowBg = isAttention
+  const rowBg = vm.isAttention
     ? "linear-gradient(90deg, rgba(245,236,215,0.55), rgba(245,236,215,0) 58%)"
     : "transparent";
 
@@ -275,10 +91,10 @@ export default function StoryRow({
       onClick={handleRowClick}
       sx={{
         cursor: "pointer",
-        opacity: isArchived ? 0.6 : 1,
+        opacity: vm.isArchived ? 0.6 : 1,
         transition: "background-color 0.15s ease, opacity 0.15s ease",
         position: "relative",
-        background: isAttention ? rowBg : undefined,
+        background: vm.isAttention ? rowBg : undefined,
         "&:last-child td": { borderBottom: 0 },
         "&:hover": {
           bgcolor: `${COLORS.cream} !important`,
@@ -288,7 +104,7 @@ export default function StoryRow({
         },
       }}
     >
-      {isAttention && (
+      {vm.isAttention && (
         <Box
           sx={{
             position: "absolute",
@@ -307,56 +123,38 @@ export default function StoryRow({
         sx={{
           py: 2,
           px: 1.5,
+          width: TABLE_COLUMN_WIDTHS.story,
           verticalAlign: "middle",
           borderBottom: `1px solid ${COLORS.borderSoft}`,
+          overflow: "hidden",
         }}
       >
-        <Typography
-          sx={{
-            fontFamily: SERIF,
-            fontStyle: "italic",
-            fontWeight: 500,
-            color: COLORS.textMuted,
-            fontSize: "0.875rem",
-          }}
-        >
-          {toRomanLower(rowIndex + 1)}.
-        </Typography>
-      </TableCell>
-
-      <TableCell
-        sx={{
-          py: 2,
-          maxWidth: 280,
-          verticalAlign: "middle",
-          borderBottom: `1px solid ${COLORS.borderSoft}`,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.25, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, minWidth: 0 }}>
           <Link
             component={RouterLink}
-            to={storyPath}
+            to={vm.storyPath}
             className="story-row-title-link"
             underline="none"
             onClick={(e) => e.stopPropagation()}
             sx={{
               fontFamily: SERIF,
               fontWeight: 600,
-              fontSize: "1.125rem",
+              fontSize: "1.0625rem",
               lineHeight: 1.25,
-              color: displayTitle ? COLORS.textPrimary : COLORS.textMuted,
-              fontStyle: displayTitle ? "normal" : "italic",
+              color: vm.displayTitle ? COLORS.textPrimary : COLORS.textMuted,
+              fontStyle: vm.displayTitle ? "normal" : "italic",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-              maxWidth: 260,
+              minWidth: 0,
+              flexShrink: 1,
               display: "block",
               transition: "color 0.12s ease",
             }}
           >
-            {displayTitle ?? desk.untitledStory}
+            {vm.displayTitle ?? desk.untitledStory}
           </Link>
-          {briefRev && (
+          {vm.briefRevBadge && (
             <Typography
               component="span"
               sx={{
@@ -373,7 +171,7 @@ export default function StoryRow({
                 fontWeight: 600,
               }}
             >
-              {briefRev}
+              {vm.briefRevBadge}
             </Typography>
           )}
         </Box>
@@ -382,24 +180,28 @@ export default function StoryRow({
       <TableCell
         sx={{
           py: 2,
+          px: 1.25,
+          width: TABLE_COLUMN_WIDTHS.progress,
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           verticalAlign: "middle",
+          overflow: "hidden",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-          <PipelineDots
-            status={story.status}
-            dotCount={desk.pipelineSteps.length}
-          />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+          <PipelineDots status={story.status} dotCount={desk.pipelineSteps.length} />
           <Typography
             sx={{
-              fontSize: "0.8125rem",
+              fontSize: "0.75rem",
               fontWeight: 600,
               color: COLORS.textPrimary,
               lineHeight: 1.3,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
           >
-            {pipelineLabel}
+            {vm.progressText}
           </Typography>
         </Box>
       </TableCell>
@@ -407,50 +209,50 @@ export default function StoryRow({
       <TableCell
         sx={{
           py: 2,
+          px: 1.25,
+          width: TABLE_COLUMN_WIDTHS.topicAge,
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           verticalAlign: "middle",
+          overflow: "hidden",
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 0.75,
-          }}
-        >
-          {story.storyType ? (
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.5 }}>
+          {vm.topicLabel ? (
             <Chip
-              label={
-                storyTypeLabels[story.storyType as StoryType] ??
-                story.storyType
-              }
+              label={vm.topicLabel}
               size="small"
               variant="outlined"
               sx={{
-                fontSize: "0.72rem",
+                fontSize: "0.68rem",
                 borderColor: COLORS.border,
                 color: COLORS.textSecondary,
-                height: 24,
+                height: 22,
                 borderRadius: "999px",
+                maxWidth: "100%",
+                "& .MuiChip-label": {
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  px: 0.9,
+                },
               }}
             />
           ) : null}
-          {story.ageRange ? (
+          {vm.ageLabel ? (
             <Chip
-              label={ageRangeLabels[story.ageRange]}
+              label={vm.ageLabel}
               size="small"
               variant="outlined"
               sx={{
-                fontSize: "0.72rem",
+                fontSize: "0.68rem",
                 borderColor: COLORS.border,
                 color: COLORS.textMuted,
-                height: 24,
+                height: 22,
                 borderRadius: "999px",
+                "& .MuiChip-label": { px: 0.9 },
               }}
             />
           ) : null}
-          {!story.storyType && !story.ageRange && (
+          {!vm.topicLabel && !vm.ageLabel && (
             <Typography variant="body2" color="text.secondary">
               —
             </Typography>
@@ -461,52 +263,52 @@ export default function StoryRow({
       <TableCell
         sx={{
           py: 2,
+          px: 1.25,
+          width: TABLE_COLUMN_WIDTHS.status,
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           verticalAlign: "middle",
+          overflow: "hidden",
         }}
       >
         <Chip
           label={
-            story.status === "generating" ? (
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            vm.isGenerating ? (
+              <span style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0 }}>
                 <CircularProgress
                   size={10}
                   thickness={5}
-                  sx={{ color: col.filledText }}
+                  sx={{ color: vm.statusColor.filledText, flexShrink: 0 }}
                 />
-                {statusLabels[statusForUi]}
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {vm.statusLabel}
+                </span>
               </span>
             ) : (
-              <Box
-                component="span"
-                sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    bgcolor: col.dot ?? col.filledText,
-                    flexShrink: 0,
-                  }}
-                />
-                {statusLabels[statusForUi]}
-              </Box>
+              vm.statusLabel
             )
           }
           size="small"
           sx={{
-            fontSize: "0.75rem",
-            height: 26,
+            fontSize: "0.72rem",
+            height: 25,
+            maxWidth: "100%",
             borderRadius: "999px",
-            bgcolor: col.filledBg,
-            color: col.filledText,
+            bgcolor: vm.statusColor.filledBg,
+            color: vm.statusColor.filledText,
             border: "none",
             fontWeight: 600,
             "& .MuiChip-label": {
-              color: col.filledText,
-              px: story.status === "generating" ? 0.75 : 1,
+              color: vm.statusColor.filledText,
+              px: vm.isGenerating ? 0.75 : 1,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             },
           }}
         />
@@ -515,19 +317,24 @@ export default function StoryRow({
       <TableCell
         sx={{
           py: 2,
-          maxWidth: 200,
+          px: 1.25,
+          width: TABLE_COLUMN_WIDTHS.lastUpdate,
           borderBottom: `1px solid ${COLORS.borderSoft}`,
           verticalAlign: "middle",
+          overflow: "hidden",
         }}
       >
         <Typography
           sx={{
-            fontSize: "0.8125rem",
+            fontSize: "0.78rem",
             color: COLORS.textSecondary,
             lineHeight: 1.35,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          {evt.what}
+          {vm.lastEventWhat}
         </Typography>
         <Typography
           sx={{
@@ -536,16 +343,58 @@ export default function StoryRow({
             color: COLORS.textMuted,
             mt: 0.25,
             fontWeight: 500,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
           }}
         >
-          {evt.when}
+          {vm.lastEventWhen}
         </Typography>
       </TableCell>
 
       <TableCell
         sx={{
           py: 2,
-          width: 48,
+          px: 1.25,
+          width: TABLE_COLUMN_WIDTHS.action,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          verticalAlign: "middle",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={handleActionClick}
+          endIcon={vm.actionExternal ? <OpenInNewIcon sx={{ fontSize: 13 }} /> : undefined}
+          sx={{
+            borderColor: COLORS.border,
+            color: COLORS.primary,
+            fontWeight: 600,
+            fontSize: "0.71rem",
+            textTransform: "none",
+            borderRadius: "8px",
+            height: 29,
+            px: 1,
+            width: "100%",
+            minWidth: 0,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            "& .MuiButton-endIcon": { flexShrink: 0 },
+            "&:hover": { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}0f` },
+          }}
+        >
+          <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {vm.actionLabel}
+          </Box>
+        </Button>
+      </TableCell>
+
+      <TableCell
+        sx={{
+          py: 2,
+          width: TABLE_COLUMN_WIDTHS.menu,
           verticalAlign: "middle",
           borderBottom: `1px solid ${COLORS.borderSoft}`,
         }}
@@ -578,18 +427,16 @@ export default function StoryRow({
             },
           }}
         >
-          {!isArchived && (
+          {!vm.isArchived && (
             <MenuItem
               onClick={handleArchive}
               sx={{ fontSize: "0.875rem", color: COLORS.textSecondary }}
             >
-              <ArchiveOutlinedIcon
-                sx={{ fontSize: 18, mr: 1, opacity: 0.75 }}
-              />
+              <ArchiveOutlinedIcon sx={{ fontSize: 18, mr: 1, opacity: 0.75 }} />
               {desk.rowMenuArchive}
             </MenuItem>
           )}
-          {isArchived && (
+          {vm.isArchived && (
             <MenuItem onClick={handleRestore} sx={{ fontSize: "0.875rem" }}>
               {desk.rowMenuRestore}
             </MenuItem>

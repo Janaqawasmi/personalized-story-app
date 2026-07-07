@@ -34,6 +34,7 @@ import { normalizeStoryStatusForDisplay } from "../utils/storyPipeline";
 import { DRAFT_B, FONTS } from "./draftB/tokens";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 import StoryBookPreviewButton from "./StoryBookPreviewButton";
+import TextVariantStatusIndicator from "./TextVariantStatusIndicator";
 
 /** Vertical rhythm tuned to Direction B editorial header mock */
 const HEADER_PAD_TOP = "10px";
@@ -366,8 +367,8 @@ export default function WorkspaceHeader({
         </Stack>
       </Stack>
 
-      {/* Row 3: Story type · age range chips */}
-      <Stack direction="row" alignItems="center" spacing={0.75}>
+      {/* Row 3: Story type · age range chips · text-variant status (when published) */}
+      <Stack direction="row" alignItems="center" spacing={0.75} flexWrap="wrap" useFlexGap rowGap={0.75}>
         {story.storyType && (
           <Chip
             label={
@@ -422,6 +423,18 @@ export default function WorkspaceHeader({
             —
           </Typography>
         )}
+        {story.publishedTemplateId ? (
+          <Box
+            sx={{
+              width: "1px",
+              height: 16,
+              bgcolor: DRAFT_B.border,
+              mx: 0.5,
+              display: { xs: "none", sm: "block" },
+            }}
+          />
+        ) : null}
+        <TextVariantStatusIndicator templateId={story.publishedTemplateId} />
       </Stack>
 
       {/* Archive confirmation dialog */}

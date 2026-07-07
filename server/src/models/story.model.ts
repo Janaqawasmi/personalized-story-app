@@ -156,6 +156,13 @@ export interface Story {
   lastOpenedAt: number;
   submittedAt: number | null;
   approvedAt: number | null;
+  /**
+   * `Agent1Result.generationId` of the version that was approved — i.e. the
+   * version backing `currentDraft`/`pages` at the moment of the `approved`
+   * transition. Audit trail only; optional so existing Firestore docs and
+   * fixtures predating this field remain valid.
+   */
+  approvedGenerationId?: string | null;
 
   // v2 illustration workspace (spec §10.6 / §10.7)
   /** Per-page illustration state; null until workspace opens. */
@@ -235,6 +242,40 @@ export function fillIllustrationV2DocDefaults(story: Story): void {
 }
 
 // ============================================================================
+// TITLE HELPERS
+// ============================================================================
+
+/** The placeholder title a Story is created with before Agent 1 has produced one. */
+export const DEFAULT_STORY_TITLE = "Untitled story";
+
+/**
+ * True when `title` is empty/missing or one of the known placeholder defaults
+ * ("Untitled story", "Untitled") — i.e. a specialist has not yet replaced it
+ * with a real title, manually or otherwise.
+ */
+export function isPlaceholderStoryTitle(title: string | null | undefined): boolean {
+  const normalized = (title ?? "").trim().toLowerCase();
+  return normalized === "" || normalized === "untitled story" || normalized === "untitled";
+}
+
+/**
+ * Resolves the top-level `Story.title` to persist once an Agent 1 generation
+ * (initial or rerun) completes. A specialist's manually-set title is always
+ * preserved; the freshly generated title is only adopted while the current
+ * title is still a placeholder default.
+ */
+export function resolveStoryTitleAfterGeneration(
+  currentTitle: string | null | undefined,
+  generatedTitle: string | null | undefined,
+): string {
+  if (!isPlaceholderStoryTitle(currentTitle)) {
+    return (currentTitle as string).trim();
+  }
+  const trimmedGenerated = (generatedTitle ?? "").trim();
+  return trimmedGenerated !== "" ? trimmedGenerated : DEFAULT_STORY_TITLE;
+}
+
+// ============================================================================
 // FACTORY FUNCTION
 // ============================================================================
 
@@ -255,7 +296,7 @@ export function createStoryForGeneration(params: {
     ownerUid: params.ownerUid,
     parentStoryId: params.parentStoryId ?? null,
 
-    title: params.title ?? "Untitled story",
+    title: params.title ?? DEFAULT_STORY_TITLE,
     storyType: params.brief.storyType,
     ageRange: params.brief.ageAndScope?.ageRange ?? null,
     tags: [],
@@ -282,6 +323,7 @@ export function createStoryForGeneration(params: {
     lastOpenedAt: now,
     submittedAt: now,
     approvedAt: null,
+    approvedGenerationId: null,
 
     illustrationPages: null,
     currentVisualBibleVersion: null,
