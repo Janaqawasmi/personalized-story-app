@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import ShieldIcon from "@mui/icons-material/Shield";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LanguageIcon from "@mui/icons-material/Language";
@@ -13,6 +14,8 @@ import { featureStagger, featureItemLtr, featureItemRtl } from "../animations/va
 interface FeaturesGridProps {
   isRTL: boolean;
   reducedMotion: boolean;
+  /** Not every story supports personalization — swap the AI-name/photo tile for a fixed-story one when it doesn't. */
+  personalizationEnabled: boolean;
 }
 
 /** Soft but visible anchors — same hues, higher presence than pastel */
@@ -28,19 +31,21 @@ const SOFT_ICON = {
  * that don't need to compete with the title/purchase panel for attention
  * (AI personalization, psychologist design, preview-first, languages).
  */
-export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps) {
+export default function FeaturesGrid({ isRTL, reducedMotion, personalizationEnabled }: FeaturesGridProps) {
   const t = useTranslation();
   const itemVariant = reducedMotion ? undefined : isRTL ? featureItemRtl : featureItemLtr;
   const staggerVariant = reducedMotion ? undefined : featureStagger;
 
   const items = useMemo(
     () => [
-      { key: "ai", iconColor: SOFT_ICON.ai, Icon: PlayArrowIcon, tKey: "features.aiNamePhoto" as const },
+      personalizationEnabled
+        ? { key: "ai", iconColor: SOFT_ICON.ai, Icon: PlayArrowIcon, tKey: "features.aiNamePhoto" as const }
+        : { key: "fixed", iconColor: SOFT_ICON.ai, Icon: AutoStoriesOutlinedIcon, tKey: "features.completeStory" as const },
       { key: "psych", iconColor: SOFT_ICON.psych, Icon: ShieldIcon, tKey: "features.psychDesigned" as const },
       { key: "preview", iconColor: SOFT_ICON.preview, Icon: VisibilityIcon, tKey: "features.previewFirst" as const },
       { key: "lang", iconColor: SOFT_ICON.lang, Icon: LanguageIcon, tKey: "features.bilingualAvail" as const },
     ],
-    [],
+    [personalizationEnabled],
   );
 
   const iconSlot = (Icon: typeof PlayArrowIcon, iconColor: string) => (

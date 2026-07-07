@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import EditNoteIcon from "@mui/icons-material/EditNote";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
+import ShoppingBagOutlinedIcon from "@mui/icons-material/ShoppingBagOutlined";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
 import { colorWithAlpha, SDRadii } from "../StoryDetail.styles";
@@ -10,17 +11,25 @@ import { fadeUpVariant } from "../animations/variants";
 
 interface HowItWorksProps {
   reducedMotion: boolean;
+  /** Not every story supports personalization — the steps must match what this story can actually do (see CtaRow). */
+  personalizationEnabled: boolean;
 }
 
-const STEPS = [
+const PERSONALIZABLE_STEPS = [
   { key: "preview", Icon: VisibilityIcon, titleKey: "howItWorks.step1Title" as const, descKey: "howItWorks.step1Desc" as const },
   { key: "personalize", Icon: EditNoteIcon, titleKey: "howItWorks.step2Title" as const, descKey: "howItWorks.step2Desc" as const },
   { key: "result", Icon: AutoAwesomeIcon, titleKey: "howItWorks.step3Title" as const, descKey: "howItWorks.step3Desc" as const },
 ];
 
-/** Compact 3-step explainer bridging the hero and the "See inside" preview. */
-export default function HowItWorks({ reducedMotion }: HowItWorksProps) {
+const FIXED_STEPS = [
+  { key: "preview", Icon: VisibilityIcon, titleKey: "howItWorks.step1Title" as const, descKey: "howItWorks.step1Desc" as const },
+  { key: "buy", Icon: ShoppingBagOutlinedIcon, titleKey: "howItWorks.fixedStep2Title" as const, descKey: "howItWorks.fixedStep2Desc" as const },
+];
+
+/** Compact step-by-step explainer bridging the hero and the "See inside" preview. */
+export default function HowItWorks({ reducedMotion, personalizationEnabled }: HowItWorksProps) {
   const t = useTranslation();
+  const steps = personalizationEnabled ? PERSONALIZABLE_STEPS : FIXED_STEPS;
 
   const inner = (
     <Box sx={{ mb: 5 }}>
@@ -30,11 +39,11 @@ export default function HowItWorks({ reducedMotion }: HowItWorksProps) {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", md: `repeat(${steps.length}, 1fr)` },
           gap: "16px",
         }}
       >
-        {STEPS.map(({ key, Icon, titleKey, descKey }, i) => (
+        {steps.map(({ key, Icon, titleKey, descKey }, i) => (
           <Box
             key={key}
             sx={{

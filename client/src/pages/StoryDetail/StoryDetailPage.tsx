@@ -226,9 +226,12 @@ export default function StoryDetailPage() {
           )}
         </Box>
 
-        <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} />
+        <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} personalizationEnabled={storyVm.personalizationEnabled} />
 
-        <HowItWorks reducedMotion={reducedMotion} />
+        <HowItWorks
+          reducedMotion={reducedMotion}
+          personalizationEnabled={storyVm.personalizationEnabled}
+        />
 
         {!reducedMotion ? (
           <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
@@ -237,8 +240,12 @@ export default function StoryDetailPage() {
                 spreads={storyVm.previewSpreads}
                 language={language}
                 onPersonalize={handlePersonalize}
+                onBuy={handleBuy}
                 templatePages={storyVm.templatePages}
                 storyLanguage={storyVm.storyLanguage}
+                personalizationEnabled={storyVm.personalizationEnabled}
+                canStartPersonalization={storyVm.canStartPersonalization}
+                comingSoon={storyVm.status === "coming_soon"}
               />
             </Box>
           </motion.div>
@@ -248,8 +255,12 @@ export default function StoryDetailPage() {
               spreads={storyVm.previewSpreads}
               language={language}
               onPersonalize={handlePersonalize}
+              onBuy={handleBuy}
               templatePages={storyVm.templatePages}
               storyLanguage={storyVm.storyLanguage}
+              personalizationEnabled={storyVm.personalizationEnabled}
+              canStartPersonalization={storyVm.canStartPersonalization}
+              comingSoon={storyVm.status === "coming_soon"}
             />
           </Box>
         )}
