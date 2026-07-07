@@ -99,7 +99,7 @@ export default function CtaRow({
   // name/gender/photo) and takes the user straight to checkout.
   if (!personalizationEnabled && !comingSoon) {
     return (
-      <Box sx={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+      <Box sx={{ display: "flex", gap: "10px", alignItems: "flex-start", pt: 2, borderTop: `1px solid ${COLORS.border}` }}>
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px" }}>
           <Button
             variant="contained"
@@ -146,7 +146,7 @@ export default function CtaRow({
   // Intended to be personalizable but not all readiness gates are open yet.
   if (personalizationEnabled && !canStartPersonalization && !comingSoon) {
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: "6px", pt: 2, borderTop: `1px solid ${COLORS.border}` }}>
         <Box sx={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <Chip
             icon={<AccessTimeOutlinedIcon sx={{ fontSize: 15 }} />}
@@ -186,7 +186,7 @@ export default function CtaRow({
           },
         }}
       />
-      <Box sx={{ display: "flex", gap: "10px", alignItems: "stretch" }}>
+      <Box sx={{ display: "flex", gap: "10px", alignItems: "stretch", pt: 2, borderTop: `1px solid ${COLORS.border}` }}>
         <Button
           variant="contained"
           disableElevation

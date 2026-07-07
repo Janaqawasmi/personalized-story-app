@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Box, Typography } from "@mui/material";
 import { motion } from "framer-motion";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
 import ShieldIcon from "@mui/icons-material/Shield";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import LanguageIcon from "@mui/icons-material/Language";
@@ -13,6 +14,8 @@ import { featureStagger, featureItemLtr, featureItemRtl } from "../animations/va
 interface FeaturesGridProps {
   isRTL: boolean;
   reducedMotion: boolean;
+  /** Not every story supports personalization — swap the AI-name/photo tile for a fixed-story one when it doesn't. */
+  personalizationEnabled: boolean;
 }
 
 /** Soft but visible anchors — same hues, higher presence than pastel */
@@ -23,19 +26,26 @@ const SOFT_ICON = {
   lang: colorWithAlpha(COLORS.secondary, 0.6),
 } as const;
 
-export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps) {
+/**
+ * Secondary trust row — full-width, below the hero. Holds the trust signals
+ * that don't need to compete with the title/purchase panel for attention
+ * (AI personalization, psychologist design, preview-first, languages).
+ */
+export default function FeaturesGrid({ isRTL, reducedMotion, personalizationEnabled }: FeaturesGridProps) {
   const t = useTranslation();
   const itemVariant = reducedMotion ? undefined : isRTL ? featureItemRtl : featureItemLtr;
   const staggerVariant = reducedMotion ? undefined : featureStagger;
 
   const items = useMemo(
     () => [
-      { key: "ai", iconColor: SOFT_ICON.ai, Icon: PlayArrowIcon, tKey: "features.aiNamePhoto" as const },
+      personalizationEnabled
+        ? { key: "ai", iconColor: SOFT_ICON.ai, Icon: PlayArrowIcon, tKey: "features.aiNamePhoto" as const }
+        : { key: "fixed", iconColor: SOFT_ICON.ai, Icon: AutoStoriesOutlinedIcon, tKey: "features.completeStory" as const },
       { key: "psych", iconColor: SOFT_ICON.psych, Icon: ShieldIcon, tKey: "features.psychDesigned" as const },
       { key: "preview", iconColor: SOFT_ICON.preview, Icon: VisibilityIcon, tKey: "features.previewFirst" as const },
       { key: "lang", iconColor: SOFT_ICON.lang, Icon: LanguageIcon, tKey: "features.bilingualAvail" as const },
     ],
-    [],
+    [personalizationEnabled],
   );
 
   const iconSlot = (Icon: typeof PlayArrowIcon, iconColor: string) => (
@@ -53,16 +63,15 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
     </Box>
   );
 
-  const grid = (
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        columnGap: "16px",
-        rowGap: "6px",
-        mb: 2.5,
-      }}
-    >
+  const gridSx = {
+    display: "grid",
+    gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+    columnGap: "16px",
+    rowGap: { xs: "16px", md: "8px" },
+  } as const;
+
+  const row = (
+    <Box sx={gridSx}>
       {items.map(({ key, iconColor, Icon, tKey }) => (
         <Box key={key} sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
           {iconSlot(Icon, iconColor)}
@@ -82,21 +91,11 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
     </Box>
   );
 
-  if (reducedMotion || !itemVariant) {
-    return grid;
-  }
-
-  return (
-    <motion.div variants={staggerVariant} initial="hidden" animate="visible" style={{ width: "100%" }}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          columnGap: "16px",
-          rowGap: "6px",
-          mb: 2.5,
-        }}
-      >
+  const content = reducedMotion || !itemVariant ? (
+    row
+  ) : (
+    <motion.div variants={staggerVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} style={{ width: "100%" }}>
+      <Box sx={gridSx}>
         {items.map(({ key, iconColor, Icon, tKey }) => (
           <motion.div key={key} variants={itemVariant}>
             <Box sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
@@ -117,5 +116,18 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
         ))}
       </Box>
     </motion.div>
+  );
+
+  return (
+    <Box
+      sx={{
+        borderTop: `1px solid ${COLORS.border}`,
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 3,
+        mb: 5,
+      }}
+    >
+      {content}
+    </Box>
   );
 }

@@ -47,7 +47,9 @@ export default function StickyMobileCta({
         zIndex: Z_INDEX_STICKY_MOBILE_CTA,
         background: COLORS.surface,
         borderTop: `1px solid ${COLORS.border}`,
+        boxShadow: "0 -8px 24px rgba(0,0,0,0.08)",
         padding: "12px 20px",
+        paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
         transform: visible ? "translateY(0)" : "translateY(100%)",
         transition: "transform 0.3s ease",
       }}

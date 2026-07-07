@@ -953,6 +953,7 @@
   },
   "features": {
     "aiNamePhoto": "AI-personalized name & photo",
+    "completeStory": "Complete story, ready to read",
     "psychDesigned": "Psychologist-designed protocol",
     "previewFirst": "Preview before you buy",
     "bilingualAvail": "Available in Hebrew & English & Arabic"
@@ -974,10 +975,13 @@
     "freePreview": "Free preview",
     "illustrationPreview": "Illustration preview",
     "pageRange": "Page {start}–{end}",
-    "childNameHint": "This text will feature your child's name",
+    "childNameHint": "In the personalized version, \"Adam\" becomes your child's name.",
     "bridgeTitle": "Ready to make it about your child?",
     "bridgeSub": "Step 2 — Add their name, gender, and photo",
-    "spreadNav": "Spread"
+    "bridgeTitleFixed": "Ready to read the whole story?",
+    "bridgeSubFixed": "Get instant access to the complete story — digital & print.",
+    "spreadNav": "Spread",
+    "spreadLabel": "Spread {n}"
   },
   "faq": {
     "title": "Common questions",
@@ -1006,6 +1010,17 @@
   },
   "sticky": {
     "subline": "Digital · one-time"
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "step1Title": "Preview the story",
+    "step1Desc": "Read two free pages — no account needed.",
+    "step2Title": "Personalize it",
+    "step2Desc": "Add your child's name, gender, and photo.",
+    "step3Title": "Get your personalized story",
+    "step3Desc": "Preview the result before you pay a thing.",
+    "fixedStep2Title": "Get the complete story",
+    "fixedStep2Desc": "Buy once, read anytime — digital & print."
   },
   "waitingScreen": {
     "playPuzzle": "🧩 Play a puzzle",

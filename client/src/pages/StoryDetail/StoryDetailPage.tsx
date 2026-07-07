@@ -11,6 +11,8 @@ import { useRelatedStories } from "./hooks/useRelatedStories";
 import type { StoryDetailVM } from "./types/story";
 import HeroCover from "./components/HeroCover";
 import HeroInfo from "./components/HeroInfo";
+import FeaturesGrid from "./components/FeaturesGrid";
+import HowItWorks from "./components/HowItWorks";
 import PreviewGallery from "./components/PreviewGallery";
 import FaqSection from "./components/FaqSection";
 import RelatedStories from "./components/RelatedStories";
@@ -194,7 +196,6 @@ export default function StoryDetailPage() {
         buying={buying}
         buyError={buyError}
         language={language}
-        isRTL={isRTL}
         reducedMotion={reducedMotion}
         favoriteLoading={favoriteLoading}
       />
@@ -212,7 +213,7 @@ export default function StoryDetailPage() {
           language === "he" ? "'Assistant', 'Nunito', sans-serif" : "'Nunito', 'Segoe UI', sans-serif",
       }}
     >
-      <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 }, pb: { xs: 12, md: 10 } }}>
+      <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 }, pb: { xs: "calc(96px + env(safe-area-inset-bottom, 0px))", md: 10 } }}>
         <BackNav onBack={() => navigate("/books")} isRTL={isRTL} label={t("storyDetail.backToCatalog")} />
 
         <Box ref={heroRef}>
@@ -225,6 +226,8 @@ export default function StoryDetailPage() {
           )}
         </Box>
 
+        <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} personalizationEnabled={storyVm.personalizationEnabled} />
+
         {!reducedMotion ? (
           <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
             <Box id="story-preview-section" ref={previewRef}>
@@ -232,8 +235,12 @@ export default function StoryDetailPage() {
                 spreads={storyVm.previewSpreads}
                 language={language}
                 onPersonalize={handlePersonalize}
+                onBuy={handleBuy}
                 templatePages={storyVm.templatePages}
                 storyLanguage={storyVm.storyLanguage}
+                personalizationEnabled={storyVm.personalizationEnabled}
+                canStartPersonalization={storyVm.canStartPersonalization}
+                comingSoon={storyVm.status === "coming_soon"}
               />
             </Box>
           </motion.div>
@@ -243,11 +250,20 @@ export default function StoryDetailPage() {
               spreads={storyVm.previewSpreads}
               language={language}
               onPersonalize={handlePersonalize}
+              onBuy={handleBuy}
               templatePages={storyVm.templatePages}
               storyLanguage={storyVm.storyLanguage}
+              personalizationEnabled={storyVm.personalizationEnabled}
+              canStartPersonalization={storyVm.canStartPersonalization}
+              comingSoon={storyVm.status === "coming_soon"}
             />
           </Box>
         )}
+
+        <HowItWorks
+          reducedMotion={reducedMotion}
+          personalizationEnabled={storyVm.personalizationEnabled}
+        />
 
         <FaqSection items={faqRows} reducedMotion={reducedMotion} />
 

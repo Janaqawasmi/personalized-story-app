@@ -4,6 +4,7 @@ import { alpha } from "@mui/material/styles";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoStoriesOutlinedIcon from "@mui/icons-material/AutoStoriesOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
 import type { PreviewSpreadVM, StoryTemplatePageVM } from "../types/story";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
@@ -36,10 +37,33 @@ interface PreviewGalleryProps {
   /** Real child data, if the caller ever has it (not used by the story-detail teaser today — falls back to DEFAULT_PREVIEW_IDENTITY). */
   childName?: string;
   childGender?: StoryGender;
+  /**
+   * Not every story supports personalization — some are fixed/"as-is" stories
+   * (see CtaRow's "State B"/"State C"). The bridge block and the child-name
+   * hint below the sample text must reflect that, or they promise a flow
+   * this particular story can't actually run.
+   */
+  personalizationEnabled: boolean;
+  canStartPersonalization: boolean;
+  comingSoon: boolean;
+  /** Only used when the story is fixed (personalizationEnabled === false). */
+  onBuy?: () => void;
 }
 
 const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function PreviewGallery(
-  { spreads, language, onPersonalize, templatePages, storyLanguage, childName, childGender },
+  {
+    spreads,
+    language,
+    onPersonalize,
+    templatePages,
+    storyLanguage,
+    childName,
+    childGender,
+    personalizationEnabled,
+    canStartPersonalization,
+    comingSoon,
+    onBuy,
+  },
   ref,
 ) {
   const t = useTranslation();
@@ -216,30 +240,33 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
             component="div"
             sx={{
               fontFamily: storyFont,
-              fontSize: "18px",
-              fontStyle: language === "he" ? "normal" : "italic",
-              lineHeight: 1.7,
+              fontSize: { xs: "16px", md: "18px" },
+              fontStyle: "normal",
+              lineHeight: 1.85,
               color: COLORS.textPrimary,
               flex: 1,
+              maxWidth: "34ch",
               whiteSpace: "pre-wrap",
             }}
           >
             {spread.body ? renderSpreadText(spread.body) : t("storyDetail.previewComingSoon")}
           </Typography>
         </Box>
-        <Box
-          sx={{
-            paddingTop: 2,
-            borderTop: `1px solid ${COLORS.border}`,
-            marginTop: 2,
-            display: "flex",
-            gap: 1,
-            alignItems: "center",
-          }}
-        >
-          <AutoAwesomeIcon sx={{ fontSize: 14, color: COLORS.primary }} />
-          <Typography sx={{ fontSize: "12px", fontWeight: 600, color: COLORS.primary }}>{t("preview.childNameHint")}</Typography>
-        </Box>
+        {personalizationEnabled && canStartPersonalization ? (
+          <Box
+            sx={{
+              paddingTop: 2,
+              borderTop: `1px solid ${COLORS.border}`,
+              marginTop: 2,
+              display: "flex",
+              gap: 1,
+              alignItems: "center",
+            }}
+          >
+            <AutoAwesomeIcon sx={{ fontSize: 14, color: COLORS.primary }} />
+            <Typography sx={{ fontSize: "12px", fontWeight: 600, color: COLORS.primary }}>{t("preview.childNameHint")}</Typography>
+          </Box>
+        ) : null}
       </Box>
     </Box>
   );
@@ -276,7 +303,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
           <Typography sx={{ fontSize: "20px", fontWeight: 700, color: COLORS.textPrimary }}>{t("preview.seeInside")}</Typography>
           <Typography sx={{ fontSize: "14px", color: COLORS.textSecondary, mt: 0.5 }}>{t("preview.genericVersionNote")}</Typography>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1, flexShrink: 0 }}>
           <Box
             sx={{
               background: COLORS.primary,
@@ -285,38 +312,42 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
               fontWeight: 700,
               padding: "5px 14px",
               borderRadius: "20px",
+              alignSelf: { xs: "flex-start", sm: "flex-end" },
             }}
           >
             {t("preview.freePreview")}
           </Box>
-          <Box sx={{ display: "flex", gap: "8px" }}>
-            {resolvedSpreads.map((_, i) => (
-              <Button
-                key={i}
-                aria-label={`${t("preview.spreadNav")} ${i + 1}`}
-                onClick={() => setActiveSpread(i)}
-                sx={{
-                  minWidth: 36,
-                  width: 36,
-                  height: 36,
-                  padding: 0,
-                  borderRadius: SDRadii.spreadNav,
-                  border: `1.5px solid ${COLORS.border}`,
-                  background: COLORS.surface,
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: activeSpread === i ? COLORS.primary : COLORS.textPrimary,
-                  borderColor: activeSpread === i ? COLORS.primary : COLORS.border,
-                  bgcolor: activeSpread === i ? theme.palette.primary.light : COLORS.surface,
-                  "&:hover": {
-                    borderColor: activeSpread === i ? COLORS.primary : COLORS.border,
-                    bgcolor: activeSpread === i ? theme.palette.primary.light : alpha(COLORS.textPrimary, 0.04),
-                  },
-                }}
-              >
-                {i + 1}
-              </Button>
-            ))}
+          <Box sx={{ display: "flex", gap: "8px", flexWrap: "wrap" }} role="tablist" aria-label={t("preview.seeInside")}>
+            {resolvedSpreads.map((_, i) => {
+              const selected = activeSpread === i;
+              return (
+                <Button
+                  key={i}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setActiveSpread(i)}
+                  sx={{
+                    minWidth: 0,
+                    height: 38,
+                    px: "16px",
+                    borderRadius: SDRadii.spreadNav,
+                    border: `1.5px solid ${selected ? COLORS.primary : COLORS.border}`,
+                    background: selected ? COLORS.primary : COLORS.surface,
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    textTransform: "none",
+                    color: selected ? COLORS.surface : COLORS.textPrimary,
+                    boxShadow: selected ? `0 4px 12px ${alpha(COLORS.primary, 0.3)}` : "none",
+                    "&:hover": {
+                      borderColor: COLORS.primary,
+                      background: selected ? theme.palette.primary.dark : alpha(COLORS.primary, 0.06),
+                    },
+                  }}
+                >
+                  {t("preview.spreadLabel", { n: i + 1 })}
+                </Button>
+              );
+            })}
           </Box>
         </Box>
       </Box>
@@ -348,6 +379,60 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
         )}
       </Box>
 
+      <PreviewBridge
+        personalizationEnabled={personalizationEnabled}
+        canStartPersonalization={canStartPersonalization}
+        comingSoon={comingSoon}
+        onPersonalize={onPersonalize}
+        onBuy={onBuy}
+      />
+    </Box>
+  );
+});
+
+/**
+ * Bridge CTA below the preview card — its copy and action must match which
+ * of CtaRow's three purchase states this story is actually in, otherwise it
+ * promises a personalization flow that story can't run (see CtaRow.tsx).
+ */
+function PreviewBridge({
+  personalizationEnabled,
+  canStartPersonalization,
+  comingSoon,
+  onPersonalize,
+  onBuy,
+}: {
+  personalizationEnabled: boolean;
+  canStartPersonalization: boolean;
+  comingSoon: boolean;
+  onPersonalize: () => void;
+  onBuy?: () => void;
+}) {
+  const t = useTranslation();
+  const theme = useTheme();
+
+  const buttonSx = {
+    background: COLORS.secondary,
+    color: COLORS.surface,
+    fontSize: "14px",
+    fontWeight: 700,
+    borderRadius: "12px",
+    padding: "11px 22px",
+    textTransform: "none" as const,
+    display: "flex",
+    alignItems: "center",
+    gap: 1,
+    "&:hover": {
+      transform: "translateY(-1px)",
+      background: theme.palette.secondary.dark,
+      boxShadow: SDShadows.ctaHover,
+    },
+  };
+
+  // Story isn't designed for personalization at all — the bridge should
+  // invite the reader to get the complete (fixed) story, not "personalize" it.
+  if (!personalizationEnabled && !comingSoon) {
+    return (
       <Box
         sx={{
           mt: 2,
@@ -364,36 +449,70 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
       >
         <Box>
           <Typography sx={{ fontSize: "14px", fontWeight: 700, color: COLORS.textPrimary, mb: 0.4 }}>
-            {t("preview.bridgeTitle")}
+            {t("preview.bridgeTitleFixed")}
           </Typography>
-          <Typography sx={{ fontSize: "13px", color: COLORS.textSecondary }}>{t("preview.bridgeSub")}</Typography>
+          <Typography sx={{ fontSize: "13px", color: COLORS.textSecondary }}>{t("preview.bridgeSubFixed")}</Typography>
         </Box>
-        <Button
-          onClick={onPersonalize}
-          sx={{
-            background: COLORS.secondary,
-            color: COLORS.surface,
-            fontSize: "14px",
-            fontWeight: 700,
-            borderRadius: "12px",
-            padding: "11px 22px",
-            textTransform: "none",
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            "&:hover": {
-              transform: "translateY(-1px)",
-              background: theme.palette.secondary.dark,
-              boxShadow: SDShadows.ctaHover,
-            },
-          }}
-        >
-          <AutoAwesomeIcon sx={{ fontSize: 14 }} />
-          {t("storyDetail.personalize")}
+        <Button onClick={onBuy} sx={buttonSx}>
+          <AutoStoriesOutlinedIcon sx={{ fontSize: 14 }} />
+          {t("storyDetail.buyThisStory")}
         </Button>
       </Box>
+    );
+  }
+
+  // Meant to be personalizable, but the wizard isn't ready yet — no button
+  // that silently does nothing; be upfront that it's coming soon instead.
+  if (personalizationEnabled && !canStartPersonalization && !comingSoon) {
+    return (
+      <Box
+        sx={{
+          mt: 2,
+          background: COLORS.background,
+          border: `1.5px solid ${COLORS.border}`,
+          borderRadius: SDRadii.bridgeCta,
+          padding: "18px 22px",
+          display: "flex",
+          alignItems: "center",
+          gap: 1.5,
+          flexWrap: "wrap",
+        }}
+      >
+        <AccessTimeOutlinedIcon sx={{ fontSize: 18, color: COLORS.primary }} />
+        <Typography sx={{ fontSize: "13px", fontWeight: 600, color: COLORS.textPrimary }}>
+          {t("storyDetail.personalizationComingSoon")}
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        mt: 2,
+        background: COLORS.surface,
+        border: `1.5px solid ${COLORS.border}`,
+        borderRadius: SDRadii.bridgeCta,
+        padding: "18px 22px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 2,
+        flexWrap: "wrap",
+      }}
+    >
+      <Box>
+        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: COLORS.textPrimary, mb: 0.4 }}>
+          {t("preview.bridgeTitle")}
+        </Typography>
+        <Typography sx={{ fontSize: "13px", color: COLORS.textSecondary }}>{t("preview.bridgeSub")}</Typography>
+      </Box>
+      <Button onClick={onPersonalize} sx={buttonSx}>
+        <AutoAwesomeIcon sx={{ fontSize: 14 }} />
+        {t("storyDetail.personalize")}
+      </Button>
     </Box>
   );
-});
+}
 
 export default PreviewGallery;
