@@ -11,7 +11,8 @@
 //   await AuditTrail.log({ ... });
 
 import { admin, firestore } from "../config/firebase";
-import type { Firestore } from "firebase-admin/firestore";
+import type { Firestore, Query } from "firebase-admin/firestore";
+import { fetchCursorPage, type CursorPage } from "../shared/utils/pagination";
 
 // ============================================================================
 // Type Definitions
@@ -33,7 +34,12 @@ export type AuditAction =
   | "generation.requested"
   | "generation.started"
   | "generation.completed"
-  | "generation.failed";
+  | "generation.failed"
+  // Admin account actions
+  | "user.disabled"
+  | "user.enabled"
+  | "specialist.disabled"
+  | "specialist.enabled";
 
 /**
  * A single audit trail entry. Immutable once written.
@@ -51,7 +57,7 @@ export interface AuditEntry {
   };
 
   /** The primary resource this action relates to */
-  resourceType: "storyBrief" | "storyDraft";
+  resourceType: "storyBrief" | "storyDraft" | "user" | "specialist";
   resourceId: string;
 
   /** Optional secondary resource ID for cross-linking */
@@ -230,6 +236,38 @@ async function getByBriefId(
   return result;
 }
 
+/**
+ * Lists audit entries across all resources, newest first, optionally
+ * filtered by action or actor. Backs the admin Audit Log page — every other
+ * query on this service is scoped to a single resource/brief.
+ *
+ * @param cursor - doc path returned as `nextCursor` from a previous page
+ */
+async function listAll(
+  options: { limit?: number; cursor?: string; action?: AuditAction; actorUid?: string },
+  fs?: Firestore,
+): Promise<CursorPage<AuditEntry & { id: string }>> {
+  const db = fs ?? firestore;
+  const limit = options.limit ?? 50;
+
+  // Note: combining `action` + `actorUid` together with the orderBy requires a
+  // composite Firestore index (two equality filters + orderBy on a third
+  // field); either filter alone does not. Filtering by only one at a time is
+  // the expected admin usage today.
+  let baseQuery: Query = db.collection(COLLECTION_NAME).orderBy("timestamp", "desc");
+  if (options.action) {
+    baseQuery = baseQuery.where("action", "==", options.action);
+  }
+  if (options.actorUid) {
+    baseQuery = baseQuery.where("actor.uid", "==", options.actorUid);
+  }
+
+  return fetchCursorPage(baseQuery, limit, options.cursor, (doc) => ({
+    id: doc.id,
+    ...(doc.data() as AuditEntry),
+  }));
+}
+
 // ============================================================================
 // Helper: Build actor from Express request
 // ============================================================================
@@ -262,6 +300,7 @@ export const AuditTrail = {
   log,
   getByResource,
   getByBriefId,
+  listAll,
   actorFromRequest,
   // Export pagination result type for TypeScript
   getByBriefIdPaginated: getByBriefId,

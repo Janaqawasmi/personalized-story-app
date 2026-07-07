@@ -2,26 +2,17 @@ import { useEffect, useState } from "react";
 import { Box, Paper, Typography } from "@mui/material";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../../firebase";
-import { COLORS } from "../../../theme";
+import { COLORS, ADMIN_CHART_COLORS } from "../../../theme";
 import { useTranslation } from "../../../i18n/useTranslation";
-import { useLanguage } from "../../../i18n/context/useLanguage";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  fear: "#534AB7",
-  anxiety: "#0F6E56",
-  confidence: "#824D5C",
-  grief: "#BA7517",
-  anger: "#185FA5",
-  social: "#993556",
-  family: "#3B6D11",
-};
 
 export default function AdminCategoryList() {
   const t = useTranslation();
-  const { language } = useLanguage();
   const [categories, setCategories] = useState<{ label: string; count: number; color: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Nothing here is language-dependent (topic strings are raw Firestore
+  // field values, not translated) — this previously re-ran on every language
+  // toggle, refetching the entire storyPreviews collection for no reason.
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -37,10 +28,10 @@ export default function AdminCategoryList() {
         const sorted = Object.entries(counts)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 7)
-          .map(([topic, count]) => ({
+          .map(([topic, count], i) => ({
             label: topic.charAt(0).toUpperCase() + topic.slice(1).replace(/_/g, " "),
             count,
-            color: CATEGORY_COLORS[topic.toLowerCase()] ?? "#888",
+            color: ADMIN_CHART_COLORS[i % ADMIN_CHART_COLORS.length],
           }));
 
         if (!cancelled) {
@@ -55,7 +46,7 @@ export default function AdminCategoryList() {
     return () => {
       cancelled = true;
     };
-  }, [language]);
+  }, []);
 
   const max = categories[0]?.count ?? 1;
 
@@ -76,6 +67,10 @@ export default function AdminCategoryList() {
       {loading ? (
         <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>
           {t("admin.common.loading")}
+        </Typography>
+      ) : categories.length === 0 ? (
+        <Typography sx={{ fontSize: 12, color: COLORS.textSecondary }}>
+          {t("admin.categories.empty")}
         </Typography>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

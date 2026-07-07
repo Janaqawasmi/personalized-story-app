@@ -15,7 +15,7 @@ import {
   Tab,
 } from "@mui/material";
 import { AddOutlined, EditOutlined, DeleteOutlined, CloseOutlined } from "@mui/icons-material";
-import { COLORS } from "../../theme";
+import { COLORS, ADMIN_STATUS_COLORS } from "../../theme";
 import { useTranslation } from "../../i18n/useTranslation";
 import {
   listAdminBanners,
@@ -227,7 +227,7 @@ export default function AdminBannerPage() {
                 <EditOutlined fontSize="small" />
               </IconButton>
               <IconButton size="small" onClick={() => setDeleteTargetId(banner.id)}>
-                <DeleteOutlined fontSize="small" sx={{ color: "#A32D2D" }} />
+                <DeleteOutlined fontSize="small" sx={{ color: ADMIN_STATUS_COLORS.failed.fg }} />
               </IconButton>
             </Box>
           </Paper>

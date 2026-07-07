@@ -1050,6 +1050,11 @@
       "siteAdmin": "مدير الموقع",
       "openMenu": "فتح القائمة"
     },
+    "pagination": {
+      "prev": "السابق",
+      "next": "التالي",
+      "pageOf": "صفحة {page} من {total}"
+    },
     "nav": {
       "sectionOverview": "نظرة عامة",
       "sectionPeople": "الناس",
@@ -1060,13 +1065,13 @@
       "users": "المستخدمين",
       "psychologists": "علماء النفس",
       "stories": "قصص",
-      "moderation": "الاعتدال",
       "situationSuggestions": "اقتراحات المواقف",
       "ai": "استخدام الذكاء الاصطناعي",
       "reviews": "التقييمات",
       "banner": "البانر",
       "revenue": "الإيرادات",
-      "system": "صحة النظام"
+      "printOrders": "طلبات الطباعة",
+      "auditLog": "سجل التدقيق"
     },
     "pages": {
       "overview": {
@@ -1087,11 +1092,7 @@
       },
       "stories": {
         "title": "كتالوج القصة",
-        "subtitle": "مراجعة قوالب القصة والموافقة عليها"
-      },
-      "moderation": {
-        "title": "الاعتدال في المحتوى",
-        "subtitle": "يتطلب المحتوى الذي تم الإبلاغ عنه انتباهك"
+        "subtitle": "تصفح قوالب القصص المنشورة"
       },
       "situation-suggestions": {
         "title": "اقتراحات المواقف",
@@ -1111,11 +1112,15 @@
       },
       "revenue": {
         "title": "الإيرادات",
-        "subtitle": "المبيعات ومستويات التسعير ومقاييس الأعمال"
+        "subtitle": "المشتريات والاستردادات والإيرادات عبر الزمن"
       },
-      "system": {
-        "title": "صحة النظام",
-        "subtitle": "حالة البنية التحتية وحصص Firebase"
+      "print-orders": {
+        "title": "طلبات الطباعة",
+        "subtitle": "مراقبة طلبات الطباعة المدفوعة وتحديث حالة التجهيز"
+      },
+      "audit-log": {
+        "title": "سجل التدقيق",
+        "subtitle": "كل إجراء خاضع للرقابة في المنصة، من الأحدث إلى الأقدم"
       }
     },
     "overview": {
@@ -1137,7 +1142,8 @@
       "insight": "{pct}% من المعاينات تحولت إلى عملية شراء، منذ البداية."
     },
     "categories": {
-      "title": "أعلى الفئات العلاجية"
+      "title": "أعلى الفئات العلاجية",
+      "empty": "لا توجد بيانات فئات بعد."
     },
     "alerts": {
       "title": "التنبيهات النشطة",
@@ -1149,26 +1155,8 @@
     },
     "stories": {
       "sectionEyebrow": "إدارة كتالوج القصة",
-      "kpiPending": "في انتظار المراجعة",
-      "kpiPendingSub": "يحتاج الى اهتمامكم",
-      "kpiAvgWait": "متوسط وقت الانتظار",
-      "kpiAvgWaitSub": "الهدف: أقل من 48 ساعة",
-      "kpiApprovedMonth": "تمت الموافقة عليه هذا الشهر",
-      "kpiApprovedSub": "عدد فوري",
-      "pendingTitle": "قصص في انتظار الموافقة",
-      "allClear": "تم اكتشاف كل شيء - لا توجد قصص معلقة.",
-      "approve": "موافقة",
-      "reject": "رفض",
-      "spreads": "ينتشر",
-      "justSubmitted": "قدمت للتو",
-      "waitingHours": "في انتظار {hours}h",
-      "waitingDays": "في انتظار {days}د",
       "catalogTitle": "جميع القصص",
       "searchPlaceholder": "البحث بالعنوان…",
-      "statusAll": "كل الحالات",
-      "statusApproved": "معتمدة",
-      "statusPendingReview": "في انتظار المراجعة",
-      "statusRejected": "مرفوضة",
       "topicAll": "كل المواضيع",
       "colTitle": "العنوان",
       "colCreator": "المُنشئ",
@@ -1183,12 +1171,7 @@
       "detailReviews": "التقييمات",
       "detailNoReviews": "لا توجد تقييمات بعد",
       "detailClose": "إغلاق",
-      "detailPages": "الصفحات",
-      "detailRejectionReason": "سبب الرفض",
-      "rejectDialogTitle": "رفض القصة",
-      "rejectReasonLabel": "سبب الرفض (سيُرسل إلى المُنشئ)",
-      "rejectCancel": "إلغاء",
-      "rejectSubmit": "رفض القصة"
+      "detailPages": "الصفحات"
     },
     "psychologists": {
       "sectionEyebrow": "علماء النفس ومبدعو القصص",
@@ -1202,7 +1185,8 @@
       "joined": "انضم {date}",
       "statusActive": "نشط",
       "statusDisabled": "معطل",
-      "empty": "لم يتم العثور على أخصائيين."
+      "empty": "لم يتم العثور على أخصائيين.",
+      "systemAccountHint": "محتوى قديم/تابع للنظام — لا يوجد حساب حقيقي لفتحه"
     },
     "specialistDetail": {
       "back": "العودة إلى الأخصائيين",
@@ -1216,7 +1200,16 @@
       "colPurchases": "المشتريات",
       "colRating": "التقييم",
       "colPublished": "تاريخ النشر",
-      "empty": "لم ينشر هذا الأخصائي أي قصص بعد."
+      "colStatus": "الحالة",
+      "empty": "لم ينشر هذا الأخصائي أي قصص بعد.",
+      "disableAccount": "تعطيل الحساب",
+      "enableAccount": "تفعيل الحساب",
+      "disableConfirmTitle": "هل تريد تعطيل حساب هذا الأخصائي؟",
+      "disableConfirmBody": "لن يتمكن من تسجيل الدخول أو نشر القصص حتى يتم تفعيله مجددًا.",
+      "enableConfirmTitle": "هل تريد تفعيل حساب هذا الأخصائي؟",
+      "enableConfirmBody": "سيتمكن من تسجيل الدخول ونشر القصص مجددًا.",
+      "confirmCancel": "إلغاء",
+      "confirmSubmit": "تأكيد"
     },
     "banner": {
       "title": "بانرات الصفحة الرئيسية",
@@ -1260,13 +1253,16 @@
       "empty": "لا توجد تقييمات بعد."
     },
     "users": {
-      "title": "مقدمي الرعاية",
-      "searchPlaceholder": "البحث بالاسم أو البريد الإلكتروني…",
+      "sectionEyebrow": "حسابات مقدمي الرعاية",
+      "listTitle": "مقدمو الرعاية",
+      "searchPlaceholder": "البحث بالبريد الإلكتروني…",
       "empty": "لم يتم العثور على مستخدمين.",
-      "colName": "الاسم",
-      "colEmail": "البريد الإلكتروني",
+      "colUser": "المستخدم",
       "colPurchases": "المشتريات",
-      "colRole": "الدور"
+      "colRole": "الدور",
+      "colStatus": "الحالة",
+      "statusActive": "نشط",
+      "statusDisabled": "معطل"
     },
     "userDetail": {
       "back": "العودة إلى المستخدمين",
@@ -1282,7 +1278,17 @@
       "colAmount": "المبلغ",
       "colStatus": "الحالة",
       "colDate": "التاريخ",
-      "noPurchases": "لا توجد مشتريات بعد."
+      "noPurchases": "لا توجد مشتريات بعد.",
+      "statusActive": "نشط",
+      "statusDisabled": "معطل",
+      "disableAccount": "تعطيل الحساب",
+      "enableAccount": "تفعيل الحساب",
+      "disableConfirmTitle": "هل تريد تعطيل هذا الحساب؟",
+      "disableConfirmBody": "لن يتمكن مقدم الرعاية من تسجيل الدخول حتى يتم تفعيله مجددًا.",
+      "enableConfirmTitle": "هل تريد تفعيل هذا الحساب؟",
+      "enableConfirmBody": "سيتمكن مقدم الرعاية من تسجيل الدخول مجددًا.",
+      "confirmCancel": "إلغاء",
+      "confirmSubmit": "تأكيد"
     },
     "analytics": {
       "sectionEyebrow": "تحليلات المنصة",
@@ -1300,20 +1306,62 @@
       "topSpecialistsTitle": "أفضل الأخصائيين حسب المشتريات"
     },
     "ai": {
-      "title": "استخدام الذكاء الاصطناعي",
-      "body": "مراقبة زمن وصول النموذج وحالات الفشل والتكلفة المقدرة من سجلات الخادم ونقاط نهاية القياس عن بعد المستقبلية."
+      "sectionEyebrow": "بيانات قياس عن بعد لتوليد Agent 1",
+      "totalGenerations": "إجمالي عمليات التوليد",
+      "avgLatency": "متوسط زمن الاستجابة",
+      "avgLlmCalls": "متوسط استدعاءات LLM لكل قصة",
+      "failureRate": "معدل الفشل",
+      "exampleBankTitle": "استخدام بنك الأمثلة",
+      "reliabilityTitle": "الموثوقية",
+      "avgReruns": "متوسط إعادة المحاولة لكل قصة",
+      "stuckGenerating": "عالق في التوليد"
     },
     "revenue": {
-      "title": "الإيرادات",
-      "body": "قم بتوصيل خطافات الويب الخاصة بموفر الدفع وشراء المجموعات الفرعية لإعداد تقارير كاملة عن الإيرادات."
+      "sectionEyebrow": "الإيرادات",
+      "rangeDays": "آخر {days} يومًا",
+      "kpiRevenue": "الإيرادات",
+      "kpiRangeSub": "آخر {days} يومًا",
+      "kpiPaidPurchases": "المشتريات المدفوعة",
+      "kpiRefunded": "المسترد",
+      "kpiRefundedSub": "{count} استرداد",
+      "kpiAllTime": "الإيرادات منذ البداية",
+      "trendTitle": "الإيرادات اليومية"
     },
-    "system": {
-      "title": "صحة النظام",
-      "body": "يمكن ربط وحدة تحكم Firebase والحصص وفحوصات وقت التشغيل هنا."
+    "printOrders": {
+      "title": "طلبات الطباعة",
+      "subtitle": "مراقبة طلبات الطباعة المدفوعة وتحديث حالة التجهيز.",
+      "empty": "لا توجد طلبات طباعة مدفوعة بعد.",
+      "untitledStory": "قصة بدون عنوان",
+      "colPurchase": "عملية الشراء",
+      "colBuyer": "المشتري",
+      "colTemplate": "القالب",
+      "colPreview": "المعاينة",
+      "colPersonalized": "قصة مخصصة",
+      "none": "لا يوجد",
+      "colType": "النوع",
+      "typePersonalized": "مخصصة",
+      "typeTemplate": "القالب الأصلي",
+      "colChild": "الطفل",
+      "colPrice": "السعر",
+      "colPayment": "الدفع",
+      "colPurchased": "تاريخ الشراء",
+      "colContact": "جهة الاتصال",
+      "colAddress": "العنوان",
+      "colNotes": "ملاحظات",
+      "viewStory": "عرض القصة",
+      "storyContent": "محتوى القصة",
+      "dialogSource": "المصدر",
+      "dialogPage": "صفحة"
     },
-    "moderation": {
-      "title": "الاعتدال",
-      "body": "قم بمراجعة قوالب القصة المعلقة ضمن القصص. يمكن إضافة سير عمل محتوى المستخدم الذي تم وضع علامة عليه هنا."
+    "auditLog": {
+      "sectionEyebrow": "سجل تدقيق المنصة",
+      "title": "النشاط الأخير",
+      "actionAll": "كل الإجراءات",
+      "colTime": "الوقت",
+      "colAction": "الإجراء",
+      "colActor": "المُنفِّذ",
+      "colResource": "المورد",
+      "empty": "لا توجد إدخالات تدقيق بعد."
     },
     "situationSuggestions": {
       "sectionEyebrow": "اقتراحات المواقف",

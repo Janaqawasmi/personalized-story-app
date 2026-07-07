@@ -3,12 +3,9 @@ import { COLORS } from "../../../theme";
 import type { ActivityItem } from "../../../hooks/useAdminStats";
 import { useTranslation } from "../../../i18n/useTranslation";
 
-const ICON_MAP: Record<string, { icon: string; bg: string }> = {
+const ICON_MAP: Record<ActivityItem["type"], { icon: string; bg: string }> = {
   purchase: { icon: "💳", bg: "#FBEAF0" },
   personalization: { icon: "📖", bg: "#EAF3DE" },
-  template_submitted: { icon: "👩‍⚕️", bg: "#E6F1FB" },
-  error: { icon: "⚠️", bg: "#FCEBEB" },
-  voice: { icon: "🎙️", bg: "#FAEEDA" },
 };
 
 interface Props {

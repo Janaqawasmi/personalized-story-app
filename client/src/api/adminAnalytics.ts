@@ -11,8 +11,12 @@ export interface PurchaseTimeseries {
   totalRevenueCents: number;
   totalPaidPurchases: number;
   totalPurchaseAttempts: number;
+  totalRefundedCents: number;
+  totalRefundedPurchases: number;
   allTimeRevenueCents: number;
   allTimePaidPurchases: number;
+  allTimeRefundedCents: number;
+  allTimeRefundedPurchases: number;
 }
 
 async function handleAdminResponse<T>(res: Response): Promise<T> {

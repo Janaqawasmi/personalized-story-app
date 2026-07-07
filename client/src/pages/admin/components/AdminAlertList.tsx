@@ -1,31 +1,7 @@
 import { Box, Paper, Typography } from "@mui/material";
-import { COLORS } from "../../../theme";
+import { COLORS, ADMIN_SEVERITY_COLORS, ADMIN_BADGE_COLOR } from "../../../theme";
 import type { Alert } from "../../../hooks/useAdminStats";
 import { useTranslation } from "../../../i18n/useTranslation";
-
-const ALERT_STYLES = {
-  danger: {
-    bg: "#FCEBEB",
-    border: "#F7C1C1",
-    dotColor: "#E24B4A",
-    textColor: "#791F1F",
-    tsColor: "#A32D2D",
-  },
-  warn: {
-    bg: "#FAEEDA",
-    border: "#FAC775",
-    dotColor: "#BA7517",
-    textColor: "#633806",
-    tsColor: "#854F0B",
-  },
-  info: {
-    bg: "#E6F1FB",
-    border: "#B5D4F4",
-    dotColor: "#185FA5",
-    textColor: "#0C447C",
-    tsColor: "#185FA5",
-  },
-};
 
 interface Props {
   alerts: Alert[];
@@ -53,7 +29,7 @@ export default function AdminAlertList({ alerts }: Props) {
         {badgeCount > 0 && (
           <Box
             sx={{
-              bgcolor: "#E53935",
+              bgcolor: ADMIN_BADGE_COLOR,
               color: "#fff",
               fontSize: 10,
               fontWeight: 600,
@@ -75,7 +51,7 @@ export default function AdminAlertList({ alerts }: Props) {
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {alerts.map((alert) => {
-            const s = ALERT_STYLES[alert.type];
+            const s = ADMIN_SEVERITY_COLORS[alert.type];
             return (
               <Box
                 key={alert.id}
@@ -93,16 +69,16 @@ export default function AdminAlertList({ alerts }: Props) {
                     width: 7,
                     height: 7,
                     borderRadius: "50%",
-                    bgcolor: s.dotColor,
+                    bgcolor: s.dot,
                     mt: "3px",
                     flexShrink: 0,
                   }}
                 />
                 <Box>
-                  <Typography sx={{ fontSize: 12, color: s.textColor, lineHeight: 1.4 }}>
+                  <Typography sx={{ fontSize: 12, color: s.text, lineHeight: 1.4 }}>
                     {alert.message}
                   </Typography>
-                  <Typography sx={{ fontSize: 11, color: s.tsColor, mt: 0.25 }}>
+                  <Typography sx={{ fontSize: 11, color: s.timestamp, mt: 0.25 }}>
                     {alert.timestamp.toLocaleDateString()} · {alert.source}
                   </Typography>
                 </Box>
