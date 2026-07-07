@@ -20,6 +20,7 @@ import LanguageOutlinedIcon from "@mui/icons-material/LanguageOutlined";
 import BookOutlined from "@mui/icons-material/BookOutlined";
 import FavoriteBorderOutlined from "@mui/icons-material/FavoriteBorderOutlined";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
+import AutoStoriesOutlined from "@mui/icons-material/AutoStoriesOutlined";
 import LogoutOutlined from "@mui/icons-material/LogoutOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -55,7 +56,9 @@ export default function Navbar({
   const { currentUser, logout, loading: authLoading } = useAuth();
   const { quota } = usePreviewQuota();
   const previewBadgeCount = quota?.hasUsedPreview ? 1 : 0;
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
+  const isAdmin = role === "admin";
+  const canAccessSpecialist = role === "admin" || role === "specialist";
   const [megaOpen, setMegaOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [langMenuAnchor, setLangMenuAnchor] = useState<null | HTMLElement>(null);
@@ -110,17 +113,19 @@ export default function Navbar({
 
   useEffect(() => {
     if (!currentUser) {
-      setIsAdmin(false);
+      setRole(null);
       return;
     }
     let cancelled = false;
     currentUser
       .getIdTokenResult()
       .then((tokenResult) => {
-        if (!cancelled) setIsAdmin(tokenResult.claims.role === "admin");
+        if (cancelled) return;
+        const claimRole = tokenResult.claims.role;
+        setRole(typeof claimRole === "string" ? claimRole : null);
       })
       .catch(() => {
-        if (!cancelled) setIsAdmin(false);
+        if (!cancelled) setRole(null);
       });
     return () => {
       cancelled = true;
@@ -361,6 +366,18 @@ export default function Navbar({
                   <Divider sx={{ my: 0.5 }} />
 
                   {/* ── Account actions ── */}
+                  {canAccessSpecialist && (
+                    <MenuItem
+                      onClick={() => {
+                        navigateDirect(`/${language}/specialist/stories`);
+                        handleUserMenuClose();
+                      }}
+                      sx={{ gap: 1.5, py: 1 }}
+                    >
+                      <AutoStoriesOutlined sx={{ fontSize: 18, color: "#9a8a92" }} />
+                      <Typography sx={{ fontSize: 14 }}>{t("navbar.userMenu.specialistDashboard")}</Typography>
+                    </MenuItem>
+                  )}
                   {isAdmin && (
                     <MenuItem
                       onClick={() => {

@@ -22,6 +22,7 @@ import NewStoryRedirect from "./specialist/pages/NewStoryRedirect";
 import StoryWorkspacePage from "./specialist/pages/StoryWorkspacePage";
 import IllustrationDebugPage from "./specialist/pages/IllustrationDebugPage";
 import RequireAuth from "./components/RequireAuth";
+import RequireRole from "./components/RequireRole";
 import { AuthProvider } from "./contexts/AuthContext";
 
 import LoginPage from "./pages/LoginPage";
@@ -137,8 +138,8 @@ function AppContent() {
             </Route>
           </Route>
 
-          {/* ───────────── SPECIALIST ───────────── */}
-          <Route path="specialist" element={<RequireAuth />}>
+          {/* ───────────── SPECIALIST (custom claim role specialist or admin) ───────────── */}
+          <Route path="specialist" element={<RequireRole allowedRoles={["specialist", "admin"]} />}>
             <Route element={<SpecialistLayout />}>
               <Route index element={<Navigate to="stories" replace />} />
               <Route path="stories" element={<SpecialistStoriesPage />} />

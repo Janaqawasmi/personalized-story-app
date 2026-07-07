@@ -7,6 +7,7 @@ import { signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStat
 import { auth } from "../firebase";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { isPathAllowedForRole, isSafeInternalPath } from "../utils/roleAccess";
 
 type RedirectFromState =
   | string
@@ -21,16 +22,50 @@ type LoginLocationState = {
   mode?: "login" | "signup";
 } | null;
 
-function resolveRedirectTarget(
+/**
+ * Resolves the raw post-login destination from (in priority order) the
+ * `location.state.from` set by route guards, then a `returnTo` query param,
+ * then the public-home fallback. Only safe internal paths are honored; any
+ * external / malformed target falls back to home.
+ */
+function resolveRawTarget(
   from: RedirectFromState | undefined,
+  returnTo: string | null,
   fallback: string
 ): string {
-  if (!from) return fallback;
-  if (typeof from === "string") return from;
-  const pathname = from.pathname || fallback;
-  const search = from.search || "";
-  const hash = from.hash || "";
-  return `${pathname}${search}${hash}`;
+  if (from) {
+    if (typeof from === "string") {
+      return isSafeInternalPath(from) ? from : fallback;
+    }
+    const pathname = from.pathname;
+    if (isSafeInternalPath(pathname)) {
+      return `${pathname}${from.search || ""}${from.hash || ""}`;
+    }
+    return fallback;
+  }
+  if (isSafeInternalPath(returnTo)) return returnTo;
+  return fallback;
+}
+
+/**
+ * Reads the signed-in user's role from custom claims and returns a destination
+ * the user is actually allowed to open. If the intended target is a
+ * specialist/admin area the user cannot access, it falls back to public home.
+ */
+async function resolveAuthorizedRedirect(
+  rawTarget: string,
+  fallback: string
+): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) return rawTarget;
+  try {
+    const tokenResult = await user.getIdTokenResult(true);
+    const role = typeof tokenResult.claims.role === "string" ? tokenResult.claims.role : undefined;
+    return isPathAllowedForRole(rawTarget, role) ? rawTarget : fallback;
+  } catch {
+    // If we cannot read the role, never assume elevated access.
+    return isPathAllowedForRole(rawTarget, undefined) ? rawTarget : fallback;
+  }
 }
 
 export default function LoginPage() {
@@ -44,6 +79,8 @@ export default function LoginPage() {
   const locationState = location.state as LoginLocationState;
   const from = locationState?.from;
   const mode = locationState?.mode;
+  const returnTo = new URLSearchParams(location.search).get("returnTo");
+  const homePath = lang ? `/${lang}` : "/he";
   
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -79,18 +116,16 @@ export default function LoginPage() {
       setLoading(true);
       setError(null);
 
-      const fallbackPath = lang ? `/${lang}/specialist/stories` : "/he/specialist/stories";
-      const redirectTo = resolveRedirectTarget(from, fallbackPath);
-      console.log("[LoginPage] login redirect target resolved:", { from, redirectTo });
-
       if (isSignUp) {
         // Firebase signup with profile displayName update handled by AuthContext.
         await signup(email, password);
-        console.log("[LoginPage] signup success; redirecting to:", redirectTo);
       } else {
         await login(email, password);
-        console.log("[LoginPage] login success; redirecting to:", redirectTo);
       }
+
+      const rawTarget = resolveRawTarget(from, returnTo, homePath);
+      const redirectTo = await resolveAuthorizedRedirect(rawTarget, homePath);
+      console.log("[LoginPage] login redirect target resolved:", { from, returnTo, rawTarget, redirectTo });
 
       setEmailDialogOpen(false);
       setShowPasswordReset(false);
@@ -165,9 +200,8 @@ export default function LoginPage() {
       setError(null);
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      const fallbackPath = lang ? `/${lang}/specialist/stories` : "/he/specialist/stories";
-      const redirectTo = resolveRedirectTarget(from, fallbackPath);
-      console.log("[LoginPage] google redirect target resolved:", { from, redirectTo });
+      const rawTarget = resolveRawTarget(from, returnTo, homePath);
+      console.log("[LoginPage] google redirect target resolved (raw):", { from, returnTo, rawTarget });
       
       // Wait for auth state to be ready before navigating
       // This ensures the token is available for API calls
@@ -192,7 +226,9 @@ export default function LoginPage() {
             console.log("User created:", user.uid);
             console.log("Caregiver doc created");
 
-            // Auth state is ready, now navigate
+            // Auth state is ready — resolve the destination against the role
+            // (ensureCaregiverDoc refreshed claims) and navigate.
+            const redirectTo = await resolveAuthorizedRedirect(rawTarget, homePath);
             console.log("[LoginPage] google login success; redirecting to:", redirectTo);
             navigate(redirectTo, { replace: true });
             resolve();
