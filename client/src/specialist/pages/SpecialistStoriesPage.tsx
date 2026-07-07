@@ -249,7 +249,7 @@ export default function SpecialistStoriesPage() {
             gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
             alignItems: "start",
             gap: { xs: 2, md: 3 },
-            pb: 2,
+            pb: 1.5,
             borderBottom: `1px solid ${COLORS.border}`,
           }}
         >
@@ -318,33 +318,13 @@ export default function SpecialistStoriesPage() {
           </Box>
 
           <Stack
-            spacing={1.75}
+            spacing={1.25}
             alignItems={{ xs: "stretch", md: "flex-end" }}
-            sx={{ width: { xs: "100%", md: "auto" } }}
+            sx={{
+              width: { xs: "100%", md: "auto" },
+              pt: { xs: 0, md: DESK_OVERLINE_OFFSET },
+            }}
           >
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<AddIcon />}
-              onClick={() => navigate(`${base}/stories/new`)}
-              sx={{
-                alignSelf: { xs: "stretch", md: "flex-end" },
-                mt: { xs: 0, md: DESK_OVERLINE_OFFSET },
-                px: 2.25,
-                py: 1.25,
-                height: 42,
-                fontWeight: 600,
-                fontSize: "0.84rem",
-                fontFamily: SANS,
-                bgcolor: COLORS.primary,
-                borderRadius: "8px",
-                boxShadow: "0 8px 24px -10px rgba(97, 120, 145, 0.45)",
-                "&:hover": { bgcolor: COLORS.primaryDark },
-              }}
-            >
-              {desk.newStory}
-            </Button>
-
             <Stack
               direction="row"
               spacing={{ xs: 2.5, sm: 3 }}
@@ -378,6 +358,28 @@ export default function SpecialistStoriesPage() {
                 isArabic={isArabic}
               />
             </Stack>
+
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<AddIcon />}
+              onClick={() => navigate(`${base}/stories/new`)}
+              sx={{
+                alignSelf: { xs: "stretch", md: "flex-end" },
+                px: 2.25,
+                py: 1.25,
+                height: 42,
+                fontWeight: 600,
+                fontSize: "0.84rem",
+                fontFamily: SANS,
+                bgcolor: COLORS.primary,
+                borderRadius: "8px",
+                boxShadow: "0 8px 24px -10px rgba(97, 120, 145, 0.45)",
+                "&:hover": { bgcolor: COLORS.primaryDark },
+              }}
+            >
+              {desk.newStory}
+            </Button>
           </Stack>
         </Box>
 
@@ -476,7 +478,7 @@ export default function SpecialistStoriesPage() {
 
         {/* Filter bar */}
         {!error && (
-          <Box sx={{ mt: 2 }}>
+          <Box sx={{ mt: 1.5 }}>
             <StoriesFilterBar
               allStories={allStories}
               activeStatuses={activeStatuses}
