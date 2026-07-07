@@ -152,9 +152,12 @@ describe("publishStory", () => {
       });
 
       const template = getCapturedTemplate();
+      // Brief has no explicit `briefLanguage`, so it defaults to Hebrew — only
+      // `he` may fall back to the brief's creative vision; `ar` must stay
+      // blank rather than being mislabeled as an Arabic translation.
       expect(template?.["shortDescription"]).toEqual({
         he: HEBREW_CREATIVE_VISION,
-        ar: HEBREW_CREATIVE_VISION,
+        ar: "",
         en: "A brave fox learns to face the dark.",
       });
       expect(template?.["displayTopic"]).toEqual({
@@ -164,7 +167,7 @@ describe("publishStory", () => {
       });
     });
 
-    test("leaves English short description and display topic blank instead of falling back to Hebrew brief text", async () => {
+    test("leaves Arabic and English short description blank instead of falling back to Hebrew brief text", async () => {
       const { getCapturedTemplate } = setUpReadyStory();
 
       await publishStory({
@@ -176,10 +179,73 @@ describe("publishStory", () => {
       const template = getCapturedTemplate();
       const shortDescription = template?.["shortDescription"] as { he: string; ar: string; en: string };
       expect(shortDescription.he).toBe(HEBREW_CREATIVE_VISION);
-      expect(shortDescription.ar).toBe(HEBREW_CREATIVE_VISION);
+      expect(shortDescription.ar).toBe("");
       expect(shortDescription.en).toBe("");
       const displayTopic = template?.["displayTopic"] as { he: string; ar: string; en: string };
       expect(displayTopic.en).toBe("");
+    });
+
+    test("falls back to the brief's creative vision only for the story's actual briefLanguage (Arabic)", async () => {
+      const { getCapturedTemplate } = setUpReadyStory();
+      const ARABIC_CREATIVE_VISION = "ثعلب شجاع يتعلم مواجهة الظلام";
+      (firestore.collection as jest.Mock).mockImplementation((name: string) => {
+        if (name === "stories") {
+          return {
+            doc: () => ({
+              get: jest.fn().mockResolvedValue({
+                exists: true,
+                data: () => ({
+                  ownerUid: "u1",
+                  status: "illustration_ready",
+                  title: "The Brave Fox",
+                  brief: {
+                    storyType: "fear_anxiety",
+                    briefLanguage: "ar",
+                    outputLanguage: "ar",
+                    ageAndScope: { ageRange: "5-7", storyLength: "short", peakIntensity: "moderate" },
+                    clinicalFoundation: { trigger: "x", creativeVision: ARABIC_CREATIVE_VISION },
+                    therapeuticArchitecture: {
+                      primaryApproach: "normalization",
+                      shameDimension: "not_significant",
+                    },
+                    storyWorld: { personalization: false },
+                  },
+                  agent1Versions: [],
+                  illustrationPages: [
+                    {
+                      pageNumber: 1,
+                      text: "Page one text.",
+                      currentScenePlanVersion: null,
+                      currentImageVersion: 1,
+                      status: "approved",
+                      pendingJobId: null,
+                      lastError: null,
+                    },
+                  ],
+                }),
+              }),
+            }),
+          };
+        }
+        return {
+          doc: () => ({ id: "tmpl1" }),
+          where: () => ({ limit: () => ({ get: async () => ({ empty: true }) }) }),
+        };
+      });
+      const batchMock = {
+        set: jest.fn(),
+        update: jest.fn(),
+        commit: jest.fn().mockResolvedValue(undefined),
+      };
+      (firestore.batch as jest.Mock).mockReturnValue(batchMock);
+
+      await publishStory({ storyId: "s1", uid: "u1", body: { situationId: "sit1" } });
+
+      const captured = batchMock.set.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
+      const shortDescription = captured?.["shortDescription"] as { he: string; ar: string; en: string };
+      expect(shortDescription.ar).toBe(ARABIC_CREATIVE_VISION);
+      expect(shortDescription.he).toBe("");
+      expect(shortDescription.en).toBe("");
     });
   });
 });

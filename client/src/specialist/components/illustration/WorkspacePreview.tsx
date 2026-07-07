@@ -11,6 +11,7 @@ import { useIllustrationDevPanelsGate } from "../../hooks/useIsAdminOrDevPanelEn
 import ApprovalPreviewDialog from "./ApprovalPreviewDialog";
 import IllustrationProgressHeader from "./IllustrationProgressHeader";
 import PublishDialog from "./PublishDialog";
+import ApprovedIllustrationsGrid from "./panels/ApprovedIllustrationsGrid";
 import GalleryPanel from "./panels/GalleryPanel";
 import WorkspacePanel from "./WorkspacePanel";
 
@@ -87,8 +88,12 @@ export default function WorkspacePreview({
 
   const panelReadOnly = readOnly || showPublishedBanner;
 
-  const showGalleryHero =
-    liveStatus === "illustration_ready" || liveStatus === "published";
+  // "illustration_ready" is handled entirely by IllustrationProgressHeader
+  // (single ready-to-publish card) + the approved grid below — the gallery
+  // hero card is reserved for the distinct "published" state so the two
+  // don't repeat the same readiness message.
+  const showGalleryHero = liveStatus === "published";
+  const showApprovedGrid = liveStatus === "illustration_ready";
 
   const approvedPageCount = pages.filter((p) => p.subStatus === "approved").length;
 
@@ -98,13 +103,11 @@ export default function WorkspacePreview({
         approvedCount={approvedPageCount}
         totalCount={pages.length}
         liveStatus={liveStatus}
+        canPreview={canPreview}
+        showPublish={showPublish}
+        onPreviewClick={() => setPreviewOpen(true)}
+        onPublishClick={() => setPublishOpen(true)}
       />
-
-      {readOnly && liveStatus === "illustration_ready" ? (
-        <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
-          This story is marked ready to publish. Illustrations are locked.
-        </Typography>
-      ) : null}
 
       {showPublishedBanner ? (
         <Typography variant="body2" color="text.secondary">
@@ -125,6 +128,8 @@ export default function WorkspacePreview({
           </RouterLink>
         </Typography>
       ) : null}
+
+      {showApprovedGrid ? <ApprovedIllustrationsGrid pages={pages} /> : null}
 
       {showGalleryHero && lang ? (
         <GalleryPanel

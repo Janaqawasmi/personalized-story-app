@@ -1,4 +1,4 @@
-import { Box, Chip, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import type { StoryStatus } from "../../../types/story";
 import { useSpecialistDeskUi } from "../../../i18n/specialistDeskUi";
 import { COLORS } from "../../../theme";
@@ -9,6 +9,13 @@ interface Props {
   totalCount: number;
   /** Live status from useIllustrationWorkspaceState — see WorkspacePreview's `liveStatus` prop. */
   liveStatus: StoryStatus;
+  /** Preview/publish CTAs — only rendered once the story is `illustration_ready`,
+   *  so this card is the single ready-to-publish action point (no duplicate
+   *  card lower on the page). */
+  canPreview?: boolean;
+  showPublish?: boolean;
+  onPreviewClick?: () => void;
+  onPublishClick?: () => void;
 }
 
 /**
@@ -18,10 +25,19 @@ interface Props {
  * useIllustrationWorkspaceState already drives (`pages`/`liveStatus`); it
  * does not gate, auto-advance, or change the approve/mark-ready/publish flow.
  */
-export default function IllustrationProgressHeader({ approvedCount, totalCount, liveStatus }: Props) {
+export default function IllustrationProgressHeader({
+  approvedCount,
+  totalCount,
+  liveStatus,
+  canPreview = false,
+  showPublish = false,
+  onPreviewClick,
+  onPublishClick,
+}: Props) {
   const desk = useSpecialistDeskUi();
   const pct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
   const allApproved = totalCount > 0 && approvedCount === totalCount;
+  const isReady = liveStatus === "illustration_ready";
 
   const statusLabel =
     liveStatus === "published"
@@ -90,6 +106,38 @@ export default function IllustrationProgressHeader({ approvedCount, totalCount, 
           },
         }}
       />
+
+      {isReady ? (
+        <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+          <Typography sx={{ fontFamily: FONTS.sans, fontSize: 13, color: DRAFT_B.inkSoft }}>
+            {desk.illProgressReadyHelper}
+          </Typography>
+          <Stack direction="row" spacing={1.25} flexWrap="wrap">
+            {onPreviewClick ? (
+              <Button
+                variant="outlined"
+                size="small"
+                disabled={!canPreview}
+                onClick={onPreviewClick}
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                {desk.illGalPreview}
+              </Button>
+            ) : null}
+            {showPublish && onPublishClick ? (
+              <Button
+                variant="contained"
+                size="small"
+                color="success"
+                onClick={onPublishClick}
+                sx={{ textTransform: "none", fontWeight: 600 }}
+              >
+                {desk.illGalPublish}
+              </Button>
+            ) : null}
+          </Stack>
+        </Stack>
+      ) : null}
     </Box>
   );
 }

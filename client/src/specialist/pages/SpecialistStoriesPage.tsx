@@ -19,17 +19,12 @@ import { COLORS } from "../../theme";
 import StoriesFilterBar from "../components/StoriesFilterBar";
 import StoriesTable from "../components/StoriesTable";
 import { storyMatchesSearchQuery } from "../utils/storySearchMatch";
+import { ACTION_BUCKET_STATUSES, countByBucket } from "../utils/actionBucket";
 
 const SERIF =
   "'Lora', 'Iowan Old Style', Georgia, 'Times New Roman', serif";
 const SANS =
   "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
-
-function firstWord(title: string | undefined): string {
-  if (!title) return "";
-  const w = title.trim().split(/\s+/)[0] ?? "";
-  return w.length > 14 ? `${w.slice(0, 14)}…` : w;
-}
 
 // ---------------------------------------------------------------------------
 // Filtering + sorting (pure function, memoised in the component)
@@ -92,6 +87,7 @@ export default function SpecialistStoriesPage() {
   const [serverWarning, setServerWarning] = useState<string | null>(null);
 
   const [activeStatuses, setActiveStatuses] = useState<StoryStatus[]>([]);
+  const [hasAppliedDefaultFilter, setHasAppliedDefaultFilter] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"lastOpenedAt" | "createdAt" | "title">(
     "lastOpenedAt"
@@ -99,6 +95,11 @@ export default function SpecialistStoriesPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const [snackbar, setSnackbar] = useState<string | null>(null);
+  /** Story id for which the regeneration banner was dismissed; resets once a
+   *  different story enters `needs_revision`. */
+  const [revisionBannerDismissedFor, setRevisionBannerDismissedFor] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     draftStore
@@ -121,6 +122,18 @@ export default function SpecialistStoriesPage() {
     });
     return unsub;
   }, []);
+
+  // Default the view to "Needs action" so the specialist lands on what's
+  // urgent rather than an undifferentiated "All" list — but only once, right
+  // after the first load, so it never overrides a filter the specialist
+  // picked themselves.
+  useEffect(() => {
+    if (hasAppliedDefaultFilter || loading) return;
+    setHasAppliedDefaultFilter(true);
+    if (countByBucket(allStories.map((s) => s.status), "needs_action") > 0) {
+      setActiveStatuses(ACTION_BUCKET_STATUSES.needs_action);
+    }
+  }, [hasAppliedDefaultFilter, loading, allStories]);
 
   const filteredStories = useMemo(
     () => applyFilters(allStories, activeStatuses, searchQuery, sortBy, sortDir),
@@ -177,11 +190,24 @@ export default function SpecialistStoriesPage() {
     [allStories]
   );
 
-  const approvedCount = useMemo(() => {
-    return allStories.filter(
-      (s) => s.status === "approved" || s.status === "published"
-    ).length;
-  }, [allStories]);
+  const statusList = useMemo(() => allStories.map((s) => s.status), [allStories]);
+
+  const needsActionCount = useMemo(
+    () => countByBucket(statusList, "needs_action"),
+    [statusList],
+  );
+  const inProgressCount = useMemo(
+    () => countByBucket(statusList, "in_progress"),
+    [statusList],
+  );
+  const readyToPublishCount = useMemo(
+    () => countByBucket(statusList, "ready_to_publish"),
+    [statusList],
+  );
+  const publishedCount = useMemo(
+    () => countByBucket(statusList, "published"),
+    [statusList],
+  );
 
   const archivedCount = useMemo(
     () => allStories.filter((s) => s.status === "archived").length,
@@ -227,8 +253,8 @@ export default function SpecialistStoriesPage() {
           maxWidth: 1240,
           mx: "auto",
           px: { xs: 2, sm: 3, md: 5 },
-          pt: { xs: 3, md: 4.5 },
-          pb: 10,
+          pt: { xs: 2.25, md: 3 },
+          pb: 7,
         }}
       >
         {/* Masthead */}
@@ -237,8 +263,8 @@ export default function SpecialistStoriesPage() {
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
             alignItems: "end",
-            gap: { xs: 3, md: 4 },
-            pb: 2.75,
+            gap: { xs: 2, md: 3 },
+            pb: 2,
             borderBottom: `1px solid ${COLORS.border}`,
           }}
         >
@@ -254,7 +280,7 @@ export default function SpecialistStoriesPage() {
                 display: "flex",
                 alignItems: "center",
                 gap: 1.25,
-                mb: 1.75,
+                mb: 1.25,
                 fontFamily: SANS,
               }}
             >
@@ -312,7 +338,7 @@ export default function SpecialistStoriesPage() {
                   fontStyle: isArabic ? "normal" : "italic",
                   fontSize: 17,
                   color: COLORS.textSecondary,
-                  mt: 1.5,
+                  mt: 1,
                   maxWidth: 560,
                   lineHeight: 1.65,
                   letterSpacing: isArabic ? "normal" : undefined,
@@ -332,30 +358,34 @@ export default function SpecialistStoriesPage() {
           >
             <Stack
               direction="row"
-              spacing={{ xs: 3, sm: 3.5 }}
+              spacing={{ xs: 2.5, sm: 3 }}
               alignItems="baseline"
               justifyContent={{ xs: "space-between", md: "flex-end" }}
             >
               <StatBlock
-                value={liveStories.length}
-                label={desk.statInCare}
+                value={needsActionCount}
+                label={desk.statNeedsAction}
+                serif={SERIF}
+                accent={needsActionCount > 0 ? COLORS.warning : undefined}
+                isArabic={isArabic}
+              />
+              <StatBlock
+                value={inProgressCount}
+                label={desk.statInProgress}
                 serif={SERIF}
                 isArabic={isArabic}
               />
               <StatBlock
-                value={awaitingReviewCount}
-                label={desk.statAwaitsYou}
+                value={readyToPublishCount}
+                label={desk.statReadyToPublish}
                 serif={SERIF}
-                accent={
-                  awaitingReviewCount > 0 ? COLORS.warning : undefined
-                }
+                accent={readyToPublishCount > 0 ? COLORS.success : undefined}
                 isArabic={isArabic}
               />
               <StatBlock
-                value={approvedCount}
-                label={desk.statApproved}
+                value={publishedCount}
+                label={desk.statPublished}
                 serif={SERIF}
-                accent={approvedCount > 0 ? COLORS.success : undefined}
                 isArabic={isArabic}
               />
             </Stack>
@@ -461,22 +491,25 @@ export default function SpecialistStoriesPage() {
           />
         )}
 
-        {/* Needs revision callout */}
-        {!error && needsRevisionCount > 0 && firstNeedsRevision && (
-          <RevisionQueueCard
-            desk={desk}
-            serif={SERIF}
-            sans={SANS}
-            count={needsRevisionCount}
-            story={firstNeedsRevision}
-            onSkim={() => setActiveStatuses(["needs_revision"])}
-            onOpen={() => navigate(`${base}/stories/${firstNeedsRevision.id}`)}
-          />
-        )}
+        {/* Regeneration-in-progress callout */}
+        {!error &&
+          needsRevisionCount > 0 &&
+          firstNeedsRevision &&
+          revisionBannerDismissedFor !== firstNeedsRevision.id && (
+            <RevisionQueueCard
+              desk={desk}
+              serif={SERIF}
+              sans={SANS}
+              count={needsRevisionCount}
+              story={firstNeedsRevision}
+              onOpen={() => navigate(`${base}/stories/${firstNeedsRevision.id}`)}
+              onDismiss={() => setRevisionBannerDismissedFor(firstNeedsRevision.id)}
+            />
+          )}
 
         {/* Filter bar */}
         {!error && (
-          <Box sx={{ mt: 3 }}>
+          <Box sx={{ mt: 2 }}>
             <StoriesFilterBar
               allStories={allStories}
               activeStatuses={activeStatuses}
@@ -586,7 +619,7 @@ function ReviewQueueCard(props: {
     <Box
       onClick={onSkim}
       sx={{
-        mt: 3,
+        mt: 2,
         display: "grid",
         gridTemplateColumns: { xs: "1fr", md: "1fr auto" },
         gap: 3,
@@ -716,9 +749,7 @@ function ReviewQueueCard(props: {
             "&:hover": { bgcolor: COLORS.primaryDark },
           }}
         >
-          {desk.openNamedStory(
-            firstWord(story.title) || desk.openStoryShort,
-          )}
+          {desk.bannerOpenWorkspace}
         </Button>
       </Stack>
     </Box>
@@ -731,14 +762,13 @@ function RevisionQueueCard(props: {
   sans: string;
   count: number;
   story: Story;
-  onSkim: () => void;
   onOpen: () => void;
+  onDismiss: () => void;
 }) {
-  const { desk, serif, sans, count, story, onSkim, onOpen } = props;
+  const { desk, serif, sans, count, story, onOpen, onDismiss } = props;
 
   return (
     <Box
-      onClick={onSkim}
       sx={{
         mt: 2,
         display: "grid",
@@ -754,7 +784,6 @@ function RevisionQueueCard(props: {
           "0 1px 2px rgba(60,50,40,0.04), 0 8px 24px -16px rgba(60,50,40,0.14)",
         position: "relative",
         overflow: "hidden",
-        cursor: "pointer",
       }}
     >
       <Box
@@ -826,14 +855,10 @@ function RevisionQueueCard(props: {
         justifyContent={{ xs: "flex-start", md: "flex-end" }}
       >
         <Button
-          variant="outlined"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSkim();
-          }}
+          variant="text"
+          onClick={onDismiss}
           sx={{
-            borderColor: COLORS.border,
-            color: COLORS.secondary,
+            color: COLORS.textMuted,
             fontWeight: 600,
             fontSize: "0.8125rem",
             textTransform: "none",
@@ -842,14 +867,11 @@ function RevisionQueueCard(props: {
             fontFamily: sans,
           }}
         >
-          {desk.showQueue}
+          {desk.bannerDismiss}
         </Button>
         <Button
           variant="contained"
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen();
-          }}
+          onClick={onOpen}
           endIcon={<EastIcon sx={{ fontSize: 16 }} />}
           sx={{
             bgcolor: COLORS.secondary,
@@ -863,9 +885,7 @@ function RevisionQueueCard(props: {
             "&:hover": { bgcolor: "#6a3d4a" },
           }}
         >
-          {desk.openNamedStory(
-            firstWord(story.title) || desk.openStoryShort,
-          )}
+          {desk.bannerViewProgress}
         </Button>
       </Stack>
     </Box>
@@ -882,11 +902,11 @@ function Footband(props: {
   return (
     <Box
       sx={{
-        mt: 4.5,
+        mt: 3.5,
         display: "grid",
         gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-        gap: { xs: 3, md: 4.5 },
-        pt: 3.5,
+        gap: { xs: 2.5, md: 3.5 },
+        pt: 2.5,
         borderTop: `1px solid ${COLORS.border}`,
       }}
     >

@@ -16,7 +16,7 @@ import {
   readLatestVisualBible,
 } from "@/illustration/shared/artefact-store";
 import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@/models/story.model";
-import { coerceStoryLanguage, type AgeRange } from "@/models/storyBrief.model";
+import { coerceStoryLanguage, type AgeRange, type StoryLanguage } from "@/models/storyBrief.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { generateTextVariants } from "@/services/textVariants.service";
 import { checkReferenceItem } from "@/services/referenceData.service";
@@ -253,13 +253,23 @@ export async function publishStory(params: {
   ];
 
   const creative = brief.clinicalFoundation.creativeVision?.trim() ?? "";
+  // `creativeVision` (and the rest of the brief's free text) is authored in
+  // whatever language the specialist used the dashboard in — `briefLanguage`
+  // — which is independent of `outputLanguage` (the generated story's
+  // language). Only the field matching that language may fall back to it;
+  // the other two must stay blank rather than publish text mislabeled as a
+  // translation. Defaults to "he" (not the generic StoryLanguage "en"
+  // default) because stories predating the `briefLanguage` field were
+  // authored under the platform's Hebrew-default UI.
+  const briefTextLanguage: StoryLanguage =
+    brief.briefLanguage === "he" || brief.briefLanguage === "ar" || brief.briefLanguage === "en"
+      ? brief.briefLanguage
+      : "he";
+  const fallbackText = creative || story.title;
   const shortDescription = {
-    he: body.shortDescriptionHe?.trim() || creative || story.title,
-    ar: body.shortDescriptionAr?.trim() || creative || story.title,
-    // No English fallback to `creative`/`story.title` — that text is
-    // Hebrew-authored clinical prose, not a translation. Leave blank rather
-    // than publish wrong-language text; the specialist enters it explicitly.
-    en: body.shortDescriptionEn?.trim() || "",
+    he: body.shortDescriptionHe?.trim() || (briefTextLanguage === "he" ? fallbackText : ""),
+    ar: body.shortDescriptionAr?.trim() || (briefTextLanguage === "ar" ? fallbackText : ""),
+    en: body.shortDescriptionEn?.trim() || (briefTextLanguage === "en" ? fallbackText : ""),
   };
 
   // ── Situation (structured taxonomy id, or a pending request for a new one) ─

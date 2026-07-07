@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
@@ -11,6 +12,7 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Link as RouterLink, useNavigate, useParams } from "react-router-dom";
 
 import { useLanguage } from "../../i18n/context/useLanguage";
@@ -26,9 +28,11 @@ import type { EditHistoryEvent, Story, StoryStatus } from "../../types/story";
 import { COLORS } from "../../theme";
 import {
   getPipelineListLabelTranslated,
+  getPipelineListStepIndex,
   getStoryPipelineUiState,
   normalizeStoryStatusForDisplay,
 } from "../utils/storyPipeline";
+import { getRowActionLabel, getRowActionTarget } from "../utils/rowAction";
 import { STATUS_CHIP_COLORS } from "./statusColors";
 
 const SERIF =
@@ -228,10 +232,34 @@ export default function StoryRow({
   const statusForUi = normalizeStoryStatusForDisplay(story.status);
   const col = STATUS_CHIP_COLORS[statusForUi];
   const pipelineLabel = getPipelineListLabelTranslated(story.status, desk);
+  const pipelineStepIndex = getPipelineListStepIndex(story.status);
+  const progressText =
+    pipelineStepIndex === null
+      ? pipelineLabel
+      : desk.formatStepProgress(
+          pipelineStepIndex + 1,
+          desk.pipelineSteps.length,
+          pipelineLabel,
+        );
   const evt = lastEventLines(story, desk, dateLocale);
   const statusLabels = desk.statusLabels;
   const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
   const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
+
+  const actionLabel = getRowActionLabel(statusForUi, desk);
+  const actionTarget = getRowActionTarget(
+    { id: story.id, status: statusForUi, publishedTemplateId: story.publishedTemplateId },
+    lang ?? "he",
+  );
+
+  function handleActionClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (actionTarget.external) {
+      window.open(actionTarget.href, "_blank", "noopener,noreferrer");
+    } else {
+      navigate(actionTarget.href);
+    }
+  }
 
   const briefRev =
     story.parentStoryId || /revision/i.test(story.title ?? "")
@@ -393,13 +421,14 @@ export default function StoryRow({
           />
           <Typography
             sx={{
-              fontSize: "0.8125rem",
+              fontSize: "0.78rem",
               fontWeight: 600,
               color: COLORS.textPrimary,
               lineHeight: 1.3,
+              whiteSpace: "nowrap",
             }}
           >
-            {pipelineLabel}
+            {progressText}
           </Typography>
         </Box>
       </TableCell>
@@ -540,6 +569,40 @@ export default function StoryRow({
         >
           {evt.when}
         </Typography>
+      </TableCell>
+
+      <TableCell
+        sx={{
+          py: 2,
+          borderBottom: `1px solid ${COLORS.borderSoft}`,
+          verticalAlign: "middle",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={handleActionClick}
+          endIcon={
+            actionTarget.external ? (
+              <OpenInNewIcon sx={{ fontSize: 14 }} />
+            ) : undefined
+          }
+          sx={{
+            borderColor: COLORS.border,
+            color: COLORS.primary,
+            fontWeight: 600,
+            fontSize: "0.75rem",
+            textTransform: "none",
+            borderRadius: "8px",
+            height: 30,
+            px: 1.25,
+            whiteSpace: "nowrap",
+            "&:hover": { borderColor: COLORS.primary, bgcolor: `${COLORS.primary}0f` },
+          }}
+        >
+          {actionLabel}
+        </Button>
       </TableCell>
 
       <TableCell

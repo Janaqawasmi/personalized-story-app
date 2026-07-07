@@ -154,12 +154,13 @@ export default function StoriesTable({
   const desk = useSpecialistDeskUi();
   const columnHeaders: { label: string; width: string | number }[] = [
     { label: desk.colNumber, width: 44 },
-    { label: desk.colManuscript, width: "auto" },
-    { label: desk.colStage, width: 148 },
-    { label: desk.colPopulationAge, width: 200 },
-    { label: desk.colStatus, width: 152 },
-    { label: desk.colLastEvent, width: 188 },
-    { label: "", width: 48 },
+    { label: desk.colStory, width: "auto" },
+    { label: desk.colProgress, width: 190 },
+    { label: desk.colTopicAge, width: 180 },
+    { label: desk.colStatus, width: 148 },
+    { label: desk.colLastUpdate, width: 160 },
+    { label: desk.colAction, width: 168 },
+    { label: "", width: 40 },
   ];
 
   if (loading) {
@@ -181,7 +182,7 @@ export default function StoriesTable({
   return (
     <Box
       sx={{
-        mt: 2.25,
+        mt: 1.75,
         borderRadius: "12px",
         border: `1px solid ${COLORS.border}`,
         overflow: "hidden",
@@ -196,7 +197,7 @@ export default function StoriesTable({
           borderRadius: 0,
         }}
       >
-        <Table size="small" sx={{ minWidth: 920 }}>
+        <Table size="small" sx={{ minWidth: 1070 }}>
           <TableHead>
             <TableRow
               sx={{

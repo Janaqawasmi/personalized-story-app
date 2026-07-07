@@ -3,6 +3,8 @@ import userEvent from "@testing-library/user-event";
 import PublishDialog from "../PublishDialog";
 import { publishStoryToLibrary } from "../../../../api/illustrationApi";
 import { fetchSituationsByTopic } from "../../../../api/referenceData";
+import { LanguageProvider } from "../../../../i18n/context/LanguageContext";
+import type { Language } from "../../../../i18n/context/LanguageContext";
 import type { Story } from "../../../../types/story";
 
 jest.mock("../../../../api/illustrationApi", () => ({
@@ -15,15 +17,15 @@ jest.mock("../../../../api/referenceData", () => ({
 const mockPublish = publishStoryToLibrary as jest.MockedFunction<typeof publishStoryToLibrary>;
 const mockFetchSituations = fetchSituationsByTopic as jest.MockedFunction<typeof fetchSituationsByTopic>;
 
-const CREATIVE_VISION = "A brave fox learns that the dark isn't so scary after all.";
-
 function makeStory(): Story {
   return {
     id: "story-1",
     title: "The Brave Fox",
     storyType: "fear_anxiety",
     brief: {
-      section2: { creativeVision: CREATIVE_VISION },
+      briefLanguage: "he",
+      section1: { ageRange: "5-7" },
+      section2: { creativeVision: "A brave fox learns that the dark isn't so scary after all." },
     },
   } as unknown as Story;
 }
@@ -31,6 +33,16 @@ function makeStory(): Story {
 const SITUATIONS = [
   { id: "fear_of_dark", label_he: "פחד מהחושך", label_ar: "الخوف من الظلام", label_en: "Fear of the dark" },
 ];
+
+function renderDialog(
+  { dashboardLanguage = "en" as Language, story = makeStory(), onPublished = jest.fn(), onClose = jest.fn() } = {},
+) {
+  render(
+    <LanguageProvider initialLanguage={dashboardLanguage}>
+      <PublishDialog open story={story} onClose={onClose} onPublished={onPublished} />
+    </LanguageProvider>,
+  );
+}
 
 async function openOtherSituation() {
   await userEvent.click(screen.getByLabelText("Situation"));
@@ -41,7 +53,7 @@ async function openOtherSituation() {
 async function selectExistingSituation() {
   await userEvent.click(screen.getByLabelText("Situation"));
   const listbox = await screen.findByRole("listbox");
-  await userEvent.click(within(listbox).getByText("פחד מהחושך"));
+  await userEvent.click(within(listbox).getByText("Fear of the dark"));
 }
 
 beforeEach(() => {
@@ -49,71 +61,154 @@ beforeEach(() => {
   mockFetchSituations.mockResolvedValue(SITUATIONS as never);
 });
 
-describe("PublishDialog — language tabs", () => {
-  test("shows Hebrew, Arabic, and English as distinct tabs, defaulting to Hebrew", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
-
-    expect(await screen.findByRole("tab", { name: /Hebrew/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /Arabic/ })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /English/ })).toBeInTheDocument();
-
-    // Hebrew short description is pre-filled from the brief's creative vision.
-    expect(screen.getByLabelText("Short description")).toHaveValue(CREATIVE_VISION);
-  });
-
-  test("switching to the English tab shows its own (initially empty) fields", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
-    await screen.findByRole("tab", { name: /Hebrew/ });
-
-    await userEvent.click(screen.getByRole("tab", { name: /English/ }));
-
-    expect(screen.getByRole("tab", { name: /English/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByLabelText("Short description")).toHaveValue("");
-  });
-
-  test("typing in a language's field updates only that language's value", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
-    await userEvent.click(await screen.findByRole("tab", { name: /English/ }));
-
-    await userEvent.type(screen.getByLabelText("Short description"), "A brave fox story.");
-
-    await userEvent.click(screen.getByRole("tab", { name: /Hebrew/ }));
-    expect(screen.getByLabelText("Short description")).toHaveValue(CREATIVE_VISION);
+describe("PublishDialog — header", () => {
+  test("shows the clearer publish header and subtitle", async () => {
+    renderDialog();
+    expect(await screen.findByText("Publish story to public library")).toBeInTheDocument();
+    expect(screen.getByText("Review how this story will appear to parents before publishing.")).toBeInTheDocument();
   });
 });
 
-describe("PublishDialog — public preview", () => {
-  test("shows the fallback creative-vision text as the Hebrew preview description by default", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
-    expect(await screen.findByText("How this will appear publicly")).toBeInTheDocument();
-    const preview = screen.getByTestId("publish-public-preview");
-    expect(within(preview).getByText(CREATIVE_VISION)).toBeInTheDocument();
+describe("PublishDialog — no decorative extras", () => {
+  test("does not show an auto-filled badge, a character counter, or a public preview card", async () => {
+    renderDialog();
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+
+    expect(screen.queryByText(/Auto-filled/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/characters/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("publish-public-preview")).not.toBeInTheDocument();
+    expect(screen.queryByText(/appears on story cards/i)).not.toBeInTheDocument();
   });
 
-  test("shows a clear empty state for English (no fallback) until the specialist fills it in", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
-    await userEvent.click(await screen.findByRole("tab", { name: /English/ }));
+  test("does not render a topic override / display topic field anywhere", async () => {
+    renderDialog();
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
 
-    const preview = screen.getByTestId("publish-public-preview");
-    expect(
-      within(preview).getByText("(No description will be shown for this language yet.)"),
-    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Display topic")).not.toBeInTheDocument();
+    expect(screen.queryByText(/topic override/i)).not.toBeInTheDocument();
+  });
+});
 
-    await userEvent.type(screen.getByLabelText("Short description"), "A brave fox story.");
-    expect(within(preview).getByText("A brave fox story.")).toBeInTheDocument();
+describe("PublishDialog — description language tabs, no auto-fill", () => {
+  test("shows Hebrew, Arabic, and English as equal tabs, all starting blank", async () => {
+    renderDialog();
+
+    expect(await screen.findByRole("tab", { name: "Hebrew" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Arabic" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "English" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Short description")).toHaveValue("");
+  });
+
+  test("defaults to the tab matching the current dashboard language", async () => {
+    renderDialog({ dashboardLanguage: "ar" });
+
+    // Tab labels are localized too — with an Arabic dashboard, the Arabic-language
+    // tab is labeled "العربية" (Arabic), not the English word "Arabic".
+    expect(await screen.findByRole("tab", { name: "العربية" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("switching tabs never pre-fills text from the brief's creative vision", async () => {
+    renderDialog();
+    await screen.findByRole("tab", { name: "Hebrew" });
+
+    for (const lang of ["Hebrew", "Arabic", "English"]) {
+      await userEvent.click(screen.getByRole("tab", { name: lang }));
+      expect(screen.getByLabelText("Short description")).toHaveValue("");
+    }
+  });
+
+  test("typing in one language's tab does not leak into another language's tab", async () => {
+    renderDialog();
+    // Default dashboard language is English, so English is the initially active tab —
+    // switch to Hebrew explicitly before typing.
+    await userEvent.click(await screen.findByRole("tab", { name: "Hebrew" }));
+
+    await userEvent.type(screen.getByLabelText("Short description"), "טקסט בעברית");
+    await userEvent.click(screen.getByRole("tab", { name: "English" }));
+    expect(screen.getByLabelText("Short description")).toHaveValue("");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Hebrew" }));
+    expect(screen.getByLabelText("Short description")).toHaveValue("טקסט בעברית");
+  });
+});
+
+describe("PublishDialog — situation dropdown respects the active dashboard language", () => {
+  test("shows English situation labels when the dashboard language is English", async () => {
+    renderDialog({ dashboardLanguage: "en" });
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+
+    await userEvent.click(screen.getByLabelText("Situation"));
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText("Fear of the dark")).toBeInTheDocument();
+    expect(within(listbox).queryByText("פחד מהחושך")).not.toBeInTheDocument();
+  });
+
+  test("shows Hebrew situation labels when the dashboard language is Hebrew", async () => {
+    renderDialog({ dashboardLanguage: "he" });
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+
+    // The "Situation" field label is itself localized ("מצב" in Hebrew).
+    await userEvent.click(screen.getByLabelText("מצב"));
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText("פחד מהחושך")).toBeInTheDocument();
+  });
+
+  test("shows Arabic situation labels when the dashboard language is Arabic", async () => {
+    renderDialog({ dashboardLanguage: "ar" });
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+
+    // The "Situation" field label is itself localized ("الحالة" in Arabic).
+    await userEvent.click(screen.getByLabelText("الحالة"));
+    const listbox = await screen.findByRole("listbox");
+    expect(within(listbox).getByText("الخوف من الظلام")).toBeInTheDocument();
+  });
+});
+
+describe("PublishDialog — publishing checklist", () => {
+  test("description row is Missing until any language tab has text, Situation is Required until chosen", async () => {
+    renderDialog();
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+
+    expect(within(screen.getByTestId("publish-checklist-row-0")).getByText("Missing")).toBeInTheDocument();
+    expect(within(screen.getByTestId("publish-checklist-row-1")).getByText("Required")).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Short description"), "Some text");
+    expect(within(screen.getByTestId("publish-checklist-row-0")).getByText("Complete")).toBeInTheDocument();
+
+    await selectExistingSituation();
+    expect(within(screen.getByTestId("publish-checklist-row-1")).getByText("Complete")).toBeInTheDocument();
+  });
+});
+
+describe("PublishDialog — disabled Publish button explanation", () => {
+  test("footer explains what's missing when Situation is not chosen, and Publish is disabled", async () => {
+    renderDialog();
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+
+    expect(screen.getByTestId("publish-footer-status")).toHaveTextContent("Missing: Catalog situation");
+    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
+  });
+
+  test("footer shows 'Ready to publish' and Publish is enabled once Situation is chosen", async () => {
+    renderDialog();
+    await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
+    await selectExistingSituation();
+
+    expect(screen.getByTestId("publish-footer-status")).toHaveTextContent("Ready to publish");
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
   });
 });
 
 describe("PublishDialog — situation suggestion flow", () => {
   test("does not show the admin-review explanation until 'Other' is selected", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
+    renderDialog();
     await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
 
     expect(screen.queryByText(/pending request for/)).not.toBeInTheDocument();
   });
 
   test("shows the admin-review explanation and He/Ar/En label fields once 'Other' is selected", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
+    renderDialog();
     await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
 
     await openOtherSituation();
@@ -126,39 +221,34 @@ describe("PublishDialog — situation suggestion flow", () => {
   });
 
   test("disables Publish until at least one proposal label is entered for 'Other'", async () => {
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
+    renderDialog();
     await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
     await openOtherSituation();
 
-    expect(screen.getByRole("button", { name: /Publish/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeDisabled();
 
     await userEvent.type(screen.getByLabelText("Label (English)"), "Fear of the dark");
-    expect(screen.getByRole("button", { name: /Publish/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
   });
 });
 
 describe("PublishDialog — publish payload", () => {
-  test("sends the expected payload for an existing situation, unchanged from before", async () => {
+  test("sends only the languages the specialist actually typed (no auto-fill, no displayTopic keys)", async () => {
     mockPublish.mockResolvedValue({ templateId: "tmpl-1" });
     const onPublished = jest.fn();
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={onPublished} />);
+    renderDialog({ onPublished });
     await waitFor(() => expect(mockFetchSituations).toHaveBeenCalledWith("fear_anxiety"));
 
-    await selectExistingSituation();
-    await userEvent.click(await screen.findByRole("tab", { name: /English/ }));
     await userEvent.type(screen.getByLabelText("Short description"), "A brave fox story.");
-    await userEvent.type(screen.getByLabelText("Display topic"), "Fear of the dark");
+    await selectExistingSituation();
 
-    await userEvent.click(screen.getByRole("button", { name: /Publish/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Publish" }));
 
     await waitFor(() => expect(mockPublish).toHaveBeenCalledTimes(1));
     expect(mockPublish).toHaveBeenCalledWith("story-1", {
-      shortDescriptionHe: CREATIVE_VISION,
-      shortDescriptionAr: CREATIVE_VISION,
+      shortDescriptionHe: undefined,
+      shortDescriptionAr: undefined,
       shortDescriptionEn: "A brave fox story.",
-      displayTopicHe: undefined,
-      displayTopicAr: undefined,
-      displayTopicEn: "Fear of the dark",
       situationId: "fear_of_dark",
     });
     expect(onPublished).toHaveBeenCalledWith("tmpl-1");
@@ -166,14 +256,14 @@ describe("PublishDialog — publish payload", () => {
 
   test("sends a situationProposal instead of situationId when 'Other' is used", async () => {
     mockPublish.mockResolvedValue({ templateId: "tmpl-2" });
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
+    renderDialog();
     await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
 
     await openOtherSituation();
     await userEvent.type(screen.getByLabelText("Label (Hebrew)"), "פחד מברווזים");
     await userEvent.type(screen.getByLabelText("Reason (optional)"), "Very specific fear.");
 
-    await userEvent.click(screen.getByRole("button", { name: /Publish/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Publish" }));
 
     await waitFor(() => expect(mockPublish).toHaveBeenCalledTimes(1));
     const [, body] = mockPublish.mock.calls[0]!;
@@ -188,13 +278,13 @@ describe("PublishDialog — publish payload", () => {
 
   test("shows an inline error and re-enables Publish when the API call fails", async () => {
     mockPublish.mockRejectedValue(new Error("Server exploded"));
-    render(<PublishDialog open story={makeStory()} onClose={jest.fn()} onPublished={jest.fn()} />);
+    renderDialog();
     await waitFor(() => expect(mockFetchSituations).toHaveBeenCalled());
     await selectExistingSituation();
 
-    await userEvent.click(screen.getByRole("button", { name: /Publish/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Publish" }));
 
     expect(await screen.findByText("Server exploded")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Publish/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
   });
 });

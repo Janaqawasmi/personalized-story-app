@@ -3,6 +3,7 @@
  * status chips. Aligned with Direction B workspace STATUS_META / BRAND tokens.
  */
 import type { StoryStatus } from "../../types/story";
+import type { ActionBucket } from "../utils/actionBucket";
 import { COLORS } from "../../theme";
 
 export interface StatusColor {
@@ -92,4 +93,14 @@ export const STATUS_CHIP_COLORS: Record<StoryStatus | "all", StatusColor> = {
     outlinedText: "#6c655e",
     dot: "#8a8178",
   },
+};
+
+/** Colors for the primary "what needs attention" filter nav — one shade per bucket. */
+export const ACTION_BUCKET_COLORS: Record<ActionBucket | "all", StatusColor> = {
+  all: STATUS_CHIP_COLORS.all,
+  needs_action: STATUS_CHIP_COLORS.awaiting_review,
+  in_progress: STATUS_CHIP_COLORS.in_review,
+  ready_to_publish: STATUS_CHIP_COLORS.illustration_ready,
+  published: STATUS_CHIP_COLORS.published,
+  archived: STATUS_CHIP_COLORS.archived,
 };
