@@ -7,6 +7,7 @@ import { signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail, onAuthStat
 import { auth } from "../firebase";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { DEFAULT_LANGUAGE } from "../i18n/context/LanguageContext";
 import { isPathAllowedForRole, isSafeInternalPath } from "../utils/roleAccess";
 
 type RedirectFromState =
@@ -80,7 +81,7 @@ export default function LoginPage() {
   const from = locationState?.from;
   const mode = locationState?.mode;
   const returnTo = new URLSearchParams(location.search).get("returnTo");
-  const homePath = lang ? `/${lang}` : "/he";
+  const homePath = lang ? `/${lang}` : `/${DEFAULT_LANGUAGE}`;
   
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
@@ -125,7 +126,9 @@ export default function LoginPage() {
 
       const rawTarget = resolveRawTarget(from, returnTo, homePath);
       const redirectTo = await resolveAuthorizedRedirect(rawTarget, homePath);
-      console.log("[LoginPage] login redirect target resolved:", { from, returnTo, rawTarget, redirectTo });
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LoginPage] login redirect target resolved:", { from, returnTo, rawTarget, redirectTo });
+      }
 
       setEmailDialogOpen(false);
       setShowPasswordReset(false);
@@ -201,7 +204,9 @@ export default function LoginPage() {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
       const rawTarget = resolveRawTarget(from, returnTo, homePath);
-      console.log("[LoginPage] google redirect target resolved (raw):", { from, returnTo, rawTarget });
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[LoginPage] google redirect target resolved (raw):", { from, returnTo, rawTarget });
+      }
       
       // Wait for auth state to be ready before navigating
       // This ensures the token is available for API calls
@@ -229,7 +234,9 @@ export default function LoginPage() {
             // Auth state is ready — resolve the destination against the role
             // (ensureCaregiverDoc refreshed claims) and navigate.
             const redirectTo = await resolveAuthorizedRedirect(rawTarget, homePath);
-            console.log("[LoginPage] google login success; redirecting to:", redirectTo);
+            if (process.env.NODE_ENV !== "production") {
+              console.log("[LoginPage] google login success; redirecting to:", redirectTo);
+            }
             navigate(redirectTo, { replace: true });
             resolve();
           } else {

@@ -13,6 +13,7 @@ import Typography from "@mui/material/Typography";
 import AddIcon from "@mui/icons-material/Add";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import type { Story } from "../../types/story";
 import { COLORS } from "../../theme";
@@ -24,7 +25,7 @@ function EmptyFirstTime() {
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
   const desk = useSpecialistDeskUi();
-  const base = `/${lang ?? "he"}/specialist`;
+  const base = `/${lang ?? DEFAULT_LANGUAGE}/specialist`;
 
   return (
     <Box

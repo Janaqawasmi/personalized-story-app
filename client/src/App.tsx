@@ -1,6 +1,7 @@
 import { Box } from "@mui/material";
 import { useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { DEFAULT_LANGUAGE } from "./i18n/context/LanguageContext";
 import { useLanguage } from "./i18n/context/useLanguage";
 import { useTranslation } from "./i18n/useTranslation";
 import { useReader } from "./contexts/ReaderContext";
@@ -150,7 +151,7 @@ function AppContent() {
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/he" replace />} />
+          <Route path="*" element={<Navigate to={`/${DEFAULT_LANGUAGE}`} replace />} />
         </Routes>
       </Box>
 
@@ -166,8 +167,8 @@ export default function App() {
       <ScrollToTop />
       <AuthProvider>
         <Routes>
-          {/* Root redirect to /he */}
-          <Route path="/" element={<Navigate to="/he" replace />} />
+          {/* Root redirect to default language */}
+          <Route path="/" element={<Navigate to={`/${DEFAULT_LANGUAGE}`} replace />} />
 
           {/*
             Checkout redirect targets are unprefixed by design: the backend

@@ -22,6 +22,8 @@ import type { StoryType } from "../../../types/storyBrief";
 import { AGE_RANGE_LABELS, COPING_TOOL_LABELS } from "../../../types/storyBrief";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { DEFAULT_LANGUAGE } from "../../../i18n/context/LanguageContext";
+
 import { draftStore } from "../../storage";
 import ApproveBar from "./ApproveBar";
 import EvidenceRail from "./EvidenceRail";
@@ -121,7 +123,7 @@ export default function DraftTabB({
 
   const navigate = useNavigate();
   const { lang } = useParams<{ lang?: string }>();
-  const base = `/${lang ?? "he"}/specialist`;
+  const base = `/${lang ?? DEFAULT_LANGUAGE}/specialist`;
 
   useEffect(() => {
     try {

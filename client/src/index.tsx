@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import { LanguageProvider } from "./i18n/context/LanguageContext";
+import { DEFAULT_LANGUAGE, LanguageProvider } from "./i18n/context/LanguageContext";
 import { ReaderProvider } from "./contexts/ReaderContext";
 
 // Get initial language from URL or localStorage
@@ -14,7 +14,7 @@ const getInitialLanguage = (): "he" | "en" | "ar" => {
   if (stored === "he" || stored === "en" || stored === "ar") {
     return stored;
   }
-  return "he";
+  return DEFAULT_LANGUAGE;
 };
 
 const initialLanguage = getInitialLanguage();

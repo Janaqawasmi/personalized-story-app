@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { COLORS } from "../../theme";
 import { useTranslation } from "../../i18n/useTranslation";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import { useLangNavigate } from "../../i18n/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import { SuggestStoryForm } from "./components/SuggestStoryForm";
@@ -27,7 +28,7 @@ export default function SuggestStoryPage() {
   );
 
   const loginPath = useMemo(() => {
-    const l = lang ?? "he";
+    const l = lang ?? DEFAULT_LANGUAGE;
     return `/${l}/login?returnTo=/${l}/suggest`;
   }, [lang]);
 
@@ -198,7 +199,7 @@ export default function SuggestStoryPage() {
                 idToken={idToken}
                 onSuccess={(_ideaId) => setView("success")}
                 onRequireLogin={() =>
-                  navigate(`/login?returnTo=/${lang ?? "he"}/suggest`, {
+                  navigate(`/login?returnTo=/${lang ?? DEFAULT_LANGUAGE}/suggest`, {
                     state: { from: location },
                     replace: true,
                   })

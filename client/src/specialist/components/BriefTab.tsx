@@ -23,6 +23,7 @@ import type { CompleteBrief } from "../../types/storyBrief";
 import BriefForm, { type BriefFormStorageAdapter } from "../../components/brief/BriefForm";
 import SubmittedBriefReadView from "../../components/specialist/SubmittedBriefReadView";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import {
   dateLocaleForLang,
   formatRelativeTimeMs,
@@ -65,7 +66,7 @@ export default function BriefTab({ story, onStoryUpdate, onNavigateToTab }: Brie
   const { language } = useLanguage();
   const navigate = useNavigate();
   const { lang } = useParams<{ lang?: string }>();
-  const base = `/${lang ?? "he"}/specialist`;
+  const base = `/${lang ?? DEFAULT_LANGUAGE}/specialist`;
 
   // ---- generation failure: switch to editable ----
   const [generationFailed, setGenerationFailed] = useState(false);

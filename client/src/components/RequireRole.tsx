@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Box, CircularProgress } from "@mui/material";
 import { Navigate, Outlet, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { DEFAULT_LANGUAGE } from "../i18n/context/LanguageContext";
 
 type GateStatus = "loading" | "allowed" | "denied";
 
@@ -77,7 +78,7 @@ export default function RequireRole({ allowedRoles }: { allowedRoles: string[] }
   }
 
   if (status === "denied") {
-    const homePath = lang ? `/${lang}` : "/he";
+    const homePath = lang ? `/${lang}` : `/${DEFAULT_LANGUAGE}`;
     return <Navigate to={homePath} replace />;
   }
 

@@ -77,6 +77,7 @@ import {
   useStoryBriefUi,
 } from "../../i18n/storyBriefUi";
 import { useLanguage } from "../../i18n/context/useLanguage";
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import {
   createNewDraftIdWithEmptyBrief,
   deleteDraftForDraftId,
@@ -584,7 +585,7 @@ function BriefFormInner(props: Props) {
   }, [briefScrollTopOffsetPx]);
 
   if (!draftId && !storageAdapter) {
-    return <Navigate to={`/${lang ?? "he"}/specialist/stories/new`} replace />;
+    return <Navigate to={`/${lang ?? DEFAULT_LANGUAGE}/specialist/stories/new`} replace />;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -816,7 +817,7 @@ function BriefFormInner(props: Props) {
     const nid = adapter.onCreateAnother
       ? await adapter.onCreateAnother()
       : createNewDraftIdWithEmptyBrief();
-    navigate(`/${lang ?? "he"}/specialist/stories/${nid}/brief`, { replace: true });
+    navigate(`/${lang ?? DEFAULT_LANGUAGE}/specialist/stories/${nid}/brief`, { replace: true });
   }
 
   // ── Post-submit success ─

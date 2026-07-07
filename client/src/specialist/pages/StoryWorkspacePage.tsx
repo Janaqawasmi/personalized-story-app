@@ -16,6 +16,7 @@ import Skeleton from "@mui/material/Skeleton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { draftStore } from "../storage";
 import type { Story, StoryStatus } from "../../types/story";
@@ -158,7 +159,7 @@ export default function StoryWorkspacePage() {
   const navigate = useNavigate();
 
   const resolvedStoryId = storyId ?? "";
-  const base = `/${lang ?? "he"}/specialist`;
+  const base = `/${lang ?? DEFAULT_LANGUAGE}/specialist`;
 
   // ---- Data state ----
   const [story, setStory] = useState<Story | null>(null);

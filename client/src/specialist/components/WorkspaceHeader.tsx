@@ -26,6 +26,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useNavigate, useParams } from "react-router-dom";
 
+import { DEFAULT_LANGUAGE } from "../../i18n/context/LanguageContext";
 import { useSpecialistDeskUi } from "../../i18n/specialistDeskUi";
 import { useStoryBriefUi } from "../../i18n/storyBriefUi";
 import type { Story, StoryStatus } from "../../types/story";
@@ -82,7 +83,7 @@ export default function WorkspaceHeader({
   const briefUi = useStoryBriefUi();
   const navigate = useNavigate();
   const { lang } = useParams<{ lang: string }>();
-  const base = `/${lang ?? "he"}/specialist`;
+  const base = `/${lang ?? DEFAULT_LANGUAGE}/specialist`;
   const statusLabels = desk.statusLabels;
   const storyTypeLabels = briefUi.STORY_TYPE_LABELS;
   const ageRangeLabels = briefUi.AGE_RANGE_LABELS;
