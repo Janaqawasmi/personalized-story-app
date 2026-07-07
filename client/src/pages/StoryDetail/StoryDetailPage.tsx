@@ -228,11 +228,6 @@ export default function StoryDetailPage() {
 
         <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} personalizationEnabled={storyVm.personalizationEnabled} />
 
-        <HowItWorks
-          reducedMotion={reducedMotion}
-          personalizationEnabled={storyVm.personalizationEnabled}
-        />
-
         {!reducedMotion ? (
           <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
             <Box id="story-preview-section" ref={previewRef}>
@@ -264,6 +259,11 @@ export default function StoryDetailPage() {
             />
           </Box>
         )}
+
+        <HowItWorks
+          reducedMotion={reducedMotion}
+          personalizationEnabled={storyVm.personalizationEnabled}
+        />
 
         <FaqSection items={faqRows} reducedMotion={reducedMotion} />
 
