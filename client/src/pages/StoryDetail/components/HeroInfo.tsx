@@ -1,10 +1,9 @@
 import { Box, Typography } from "@mui/material";
 import { useTranslation } from "../../../i18n/useTranslation";
 import { COLORS } from "../../../theme";
-import { colorWithAlpha } from "../StoryDetail.styles";
+import { colorWithAlpha, SDRadii } from "../StoryDetail.styles";
 import type { StoryDetailVM } from "../types/story";
 import ChipsRow from "./ChipsRow";
-import FeaturesGrid from "./FeaturesGrid";
 import PricingCard from "./PricingCard";
 import CtaRow from "./CtaRow";
 
@@ -23,7 +22,6 @@ interface HeroInfoProps {
   /** Error message to show if adding the story to the cart failed. */
   buyError: string | null;
   language: string;
-  isRTL: boolean;
   reducedMotion: boolean;
   favoriteLoading: boolean;
 }
@@ -41,7 +39,6 @@ export default function HeroInfo({
   buying,
   buyError,
   language,
-  isRTL,
   reducedMotion,
   favoriteLoading,
 }: HeroInfoProps) {
@@ -109,30 +106,39 @@ export default function HeroInfo({
         </Typography>
       ) : null}
 
-      <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} />
+      {/* Purchase panel — format selector, price, trust note and the main CTA
+          all live in one visually connected card (see PricingCard / CtaRow). */}
+      <Box
+        sx={{
+          background: COLORS.background,
+          border: `1px solid ${COLORS.border}`,
+          borderRadius: SDRadii.card,
+          padding: "20px",
+        }}
+      >
+        <PricingCard
+          priceDigital={story.priceDigital}
+          pricePrint={story.pricePrint}
+          currency={story.currency}
+          printAvailable={story.printAvailable}
+          status={story.status}
+        />
 
-      <PricingCard
-        priceDigital={story.priceDigital}
-        pricePrint={story.pricePrint}
-        currency={story.currency}
-        printAvailable={story.printAvailable}
-        status={story.status}
-      />
-
-      <CtaRow
-        onPersonalize={onPersonalize}
-        onBuy={onBuy}
-        buying={buying}
-        buyError={buyError}
-        onFavoriteToggle={onFavoriteToggle}
-        isFavorite={isFavorite}
-        status={story.status}
-        personalizationEnabled={story.personalizationEnabled}
-        canStartPersonalization={story.canStartPersonalization}
-        blockedReason={story.personalizationBlockedReason}
-        favoriteLoading={favoriteLoading}
-        reducedMotion={reducedMotion}
-      />
+        <CtaRow
+          onPersonalize={onPersonalize}
+          onBuy={onBuy}
+          buying={buying}
+          buyError={buyError}
+          onFavoriteToggle={onFavoriteToggle}
+          isFavorite={isFavorite}
+          status={story.status}
+          personalizationEnabled={story.personalizationEnabled}
+          canStartPersonalization={story.canStartPersonalization}
+          blockedReason={story.personalizationBlockedReason}
+          favoriteLoading={favoriteLoading}
+          reducedMotion={reducedMotion}
+        />
+      </Box>
     </Box>
   );
 }

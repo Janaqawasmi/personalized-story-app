@@ -974,10 +974,11 @@
     "freePreview": "معاينة مجانية",
     "illustrationPreview": "معاينة الرسم التوضيحي",
     "pageRange": "الصفحة {start}–{end}",
-    "childNameHint": "سيحتوي هذا النص على اسم طفلك",
+    "childNameHint": "في النسخة المخصصة، سيصبح اسم \"آدم\" هو اسم طفلك.",
     "bridgeTitle": "على استعداد لجعله عن طفلك؟",
     "bridgeSub": "الخطوة 2 - أضف الاسم والجنس والصورة",
-    "spreadNav": "انتشار"
+    "spreadNav": "انتشار",
+    "spreadLabel": "انتشار {n}"
   },
   "faq": {
     "title": "الأسئلة الشائعة",
@@ -1006,6 +1007,15 @@
   },
   "sticky": {
     "subline": "رقمي · مرة واحدة"
+  },
+  "howItWorks": {
+    "title": "كيف تعمل",
+    "step1Title": "عاين القصة",
+    "step1Desc": "اقرأ صفحتين مجانيتين — بلا حاجة لحساب.",
+    "step2Title": "خصّصها",
+    "step2Desc": "أضف اسم طفلك وجنسه وصورته.",
+    "step3Title": "احصل على قصتك المخصصة",
+    "step3Desc": "شاهد النتيجة قبل أي عملية دفع."
   },
   "waitingScreen": {
     "playPuzzle": "🧩 العب لغزًا",

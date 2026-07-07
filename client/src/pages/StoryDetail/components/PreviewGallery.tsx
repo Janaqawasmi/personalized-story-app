@@ -216,11 +216,12 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
             component="div"
             sx={{
               fontFamily: storyFont,
-              fontSize: "18px",
-              fontStyle: language === "he" ? "normal" : "italic",
-              lineHeight: 1.7,
+              fontSize: { xs: "16px", md: "18px" },
+              fontStyle: "normal",
+              lineHeight: 1.85,
               color: COLORS.textPrimary,
               flex: 1,
+              maxWidth: "34ch",
               whiteSpace: "pre-wrap",
             }}
           >
@@ -276,7 +277,7 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
           <Typography sx={{ fontSize: "20px", fontWeight: 700, color: COLORS.textPrimary }}>{t("preview.seeInside")}</Typography>
           <Typography sx={{ fontSize: "14px", color: COLORS.textSecondary, mt: 0.5 }}>{t("preview.genericVersionNote")}</Typography>
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0, flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1, flexShrink: 0 }}>
           <Box
             sx={{
               background: COLORS.primary,
@@ -285,38 +286,42 @@ const PreviewGallery = forwardRef<HTMLDivElement, PreviewGalleryProps>(function 
               fontWeight: 700,
               padding: "5px 14px",
               borderRadius: "20px",
+              alignSelf: { xs: "flex-start", sm: "flex-end" },
             }}
           >
             {t("preview.freePreview")}
           </Box>
-          <Box sx={{ display: "flex", gap: "8px" }}>
-            {resolvedSpreads.map((_, i) => (
-              <Button
-                key={i}
-                aria-label={`${t("preview.spreadNav")} ${i + 1}`}
-                onClick={() => setActiveSpread(i)}
-                sx={{
-                  minWidth: 36,
-                  width: 36,
-                  height: 36,
-                  padding: 0,
-                  borderRadius: SDRadii.spreadNav,
-                  border: `1.5px solid ${COLORS.border}`,
-                  background: COLORS.surface,
-                  fontSize: "13px",
-                  fontWeight: 700,
-                  color: activeSpread === i ? COLORS.primary : COLORS.textPrimary,
-                  borderColor: activeSpread === i ? COLORS.primary : COLORS.border,
-                  bgcolor: activeSpread === i ? theme.palette.primary.light : COLORS.surface,
-                  "&:hover": {
-                    borderColor: activeSpread === i ? COLORS.primary : COLORS.border,
-                    bgcolor: activeSpread === i ? theme.palette.primary.light : alpha(COLORS.textPrimary, 0.04),
-                  },
-                }}
-              >
-                {i + 1}
-              </Button>
-            ))}
+          <Box sx={{ display: "flex", gap: "8px", flexWrap: "wrap" }} role="tablist" aria-label={t("preview.seeInside")}>
+            {resolvedSpreads.map((_, i) => {
+              const selected = activeSpread === i;
+              return (
+                <Button
+                  key={i}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setActiveSpread(i)}
+                  sx={{
+                    minWidth: 0,
+                    height: 38,
+                    px: "16px",
+                    borderRadius: SDRadii.spreadNav,
+                    border: `1.5px solid ${selected ? COLORS.primary : COLORS.border}`,
+                    background: selected ? COLORS.primary : COLORS.surface,
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    textTransform: "none",
+                    color: selected ? COLORS.surface : COLORS.textPrimary,
+                    boxShadow: selected ? `0 4px 12px ${alpha(COLORS.primary, 0.3)}` : "none",
+                    "&:hover": {
+                      borderColor: COLORS.primary,
+                      background: selected ? theme.palette.primary.dark : alpha(COLORS.primary, 0.06),
+                    },
+                  }}
+                >
+                  {t("preview.spreadLabel", { n: i + 1 })}
+                </Button>
+              );
+            })}
           </Box>
         </Box>
       </Box>

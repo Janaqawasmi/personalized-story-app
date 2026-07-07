@@ -61,11 +61,11 @@ export default function FaqSection({ items, reducedMotion }: FaqSectionProps) {
             <AccordionDetails
               sx={{
                 px: 2.5,
+                pt: 0,
                 pb: 2.25,
                 fontSize: "14px",
                 lineHeight: 1.7,
                 color: COLORS.textSecondary,
-                borderTop: `1px solid ${COLORS.border}`,
                 bgcolor: COLORS.background,
               }}
             >

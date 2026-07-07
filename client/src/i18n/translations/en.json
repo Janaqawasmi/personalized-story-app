@@ -974,10 +974,11 @@
     "freePreview": "Free preview",
     "illustrationPreview": "Illustration preview",
     "pageRange": "Page {start}–{end}",
-    "childNameHint": "This text will feature your child's name",
+    "childNameHint": "In the personalized version, \"Adam\" becomes your child's name.",
     "bridgeTitle": "Ready to make it about your child?",
     "bridgeSub": "Step 2 — Add their name, gender, and photo",
-    "spreadNav": "Spread"
+    "spreadNav": "Spread",
+    "spreadLabel": "Spread {n}"
   },
   "faq": {
     "title": "Common questions",
@@ -1006,6 +1007,15 @@
   },
   "sticky": {
     "subline": "Digital · one-time"
+  },
+  "howItWorks": {
+    "title": "How it works",
+    "step1Title": "Preview the story",
+    "step1Desc": "Read two free pages — no account needed.",
+    "step2Title": "Personalize it",
+    "step2Desc": "Add your child's name, gender, and photo.",
+    "step3Title": "Get your personalized story",
+    "step3Desc": "Preview the result before you pay a thing."
   },
   "waitingScreen": {
     "playPuzzle": "🧩 Play a puzzle",

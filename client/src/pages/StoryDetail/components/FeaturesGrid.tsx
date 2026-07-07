@@ -23,6 +23,11 @@ const SOFT_ICON = {
   lang: colorWithAlpha(COLORS.secondary, 0.6),
 } as const;
 
+/**
+ * Secondary trust row — full-width, below the hero. Holds the trust signals
+ * that don't need to compete with the title/purchase panel for attention
+ * (AI personalization, psychologist design, preview-first, languages).
+ */
 export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps) {
   const t = useTranslation();
   const itemVariant = reducedMotion ? undefined : isRTL ? featureItemRtl : featureItemLtr;
@@ -53,16 +58,15 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
     </Box>
   );
 
-  const grid = (
-    <Box
-      sx={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        columnGap: "16px",
-        rowGap: "6px",
-        mb: 2.5,
-      }}
-    >
+  const gridSx = {
+    display: "grid",
+    gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+    columnGap: "16px",
+    rowGap: { xs: "16px", md: "8px" },
+  } as const;
+
+  const row = (
+    <Box sx={gridSx}>
       {items.map(({ key, iconColor, Icon, tKey }) => (
         <Box key={key} sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
           {iconSlot(Icon, iconColor)}
@@ -82,21 +86,11 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
     </Box>
   );
 
-  if (reducedMotion || !itemVariant) {
-    return grid;
-  }
-
-  return (
-    <motion.div variants={staggerVariant} initial="hidden" animate="visible" style={{ width: "100%" }}>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          columnGap: "16px",
-          rowGap: "6px",
-          mb: 2.5,
-        }}
-      >
+  const content = reducedMotion || !itemVariant ? (
+    row
+  ) : (
+    <motion.div variants={staggerVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.3 }} style={{ width: "100%" }}>
+      <Box sx={gridSx}>
         {items.map(({ key, iconColor, Icon, tKey }) => (
           <motion.div key={key} variants={itemVariant}>
             <Box sx={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
@@ -117,5 +111,18 @@ export default function FeaturesGrid({ isRTL, reducedMotion }: FeaturesGridProps
         ))}
       </Box>
     </motion.div>
+  );
+
+  return (
+    <Box
+      sx={{
+        borderTop: `1px solid ${COLORS.border}`,
+        borderBottom: `1px solid ${COLORS.border}`,
+        py: 3,
+        mb: 5,
+      }}
+    >
+      {content}
+    </Box>
   );
 }

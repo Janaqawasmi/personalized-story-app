@@ -11,6 +11,8 @@ import { useRelatedStories } from "./hooks/useRelatedStories";
 import type { StoryDetailVM } from "./types/story";
 import HeroCover from "./components/HeroCover";
 import HeroInfo from "./components/HeroInfo";
+import FeaturesGrid from "./components/FeaturesGrid";
+import HowItWorks from "./components/HowItWorks";
 import PreviewGallery from "./components/PreviewGallery";
 import FaqSection from "./components/FaqSection";
 import RelatedStories from "./components/RelatedStories";
@@ -194,7 +196,6 @@ export default function StoryDetailPage() {
         buying={buying}
         buyError={buyError}
         language={language}
-        isRTL={isRTL}
         reducedMotion={reducedMotion}
         favoriteLoading={favoriteLoading}
       />
@@ -212,7 +213,7 @@ export default function StoryDetailPage() {
           language === "he" ? "'Assistant', 'Nunito', sans-serif" : "'Nunito', 'Segoe UI', sans-serif",
       }}
     >
-      <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 }, pb: { xs: 12, md: 10 } }}>
+      <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 }, pb: { xs: "calc(96px + env(safe-area-inset-bottom, 0px))", md: 10 } }}>
         <BackNav onBack={() => navigate("/books")} isRTL={isRTL} label={t("storyDetail.backToCatalog")} />
 
         <Box ref={heroRef}>
@@ -224,6 +225,10 @@ export default function StoryDetailPage() {
             heroGrid
           )}
         </Box>
+
+        <FeaturesGrid isRTL={isRTL} reducedMotion={reducedMotion} />
+
+        <HowItWorks reducedMotion={reducedMotion} />
 
         {!reducedMotion ? (
           <motion.div variants={fadeUpVariant} initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.15 }}>
