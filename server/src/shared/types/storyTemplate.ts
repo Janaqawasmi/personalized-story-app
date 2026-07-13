@@ -1,6 +1,7 @@
 import { Timestamp } from "firebase-admin/firestore";
 import type { AgeRange, StoryLanguage } from "../../models/storyBrief.model";
 import type { IllustrationStyleId } from "./visualStyles";
+import type { TextVariantFailureInfo } from "./textVariant";
 
 export interface LocalizedString {
   ar?: string;
@@ -227,15 +228,28 @@ export interface StoryTemplate {
 
   /**
    * Text-variant generation lifecycle, display-only (workspace status chip).
-   *   "none"       → no variants generated yet (initial state after publish),
-   *                  or generation failed and was reset for retry
-   *   "generating" → LLM call in flight (optimistic; reset to "none" on error)
-   * The terminal state is `textPersonalizationReady = true`; this field is
-   * cleared back to "none" as soon as generation completes, since generation
-   * itself — not a separate approval — is what makes variants ready.
+   *   "none"       → no variants generated yet (initial state after publish)
+   *   "generating" → LLM call in flight (optimistic)
+   *   "failed"     → every attempt (incl. automatic retries) failed; the
+   *                  reason is recorded in `textVariantFailure`. NOT reset to
+   *                  "none" — a failed publish must stay distinguishable from
+   *                  "never started" so the repair job / retry endpoint can
+   *                  find and re-run exactly these templates.
+   * The success terminal state is `textPersonalizationReady = true`; this
+   * field is cleared back to "none" as soon as generation completes, since
+   * generation itself — not a separate approval — is what makes variants ready.
    * Pre-Phase-3 templates omit this field; treat absence as "none".
    */
-  textVariantStatus?: "none" | "generating";
+  textVariantStatus?: "none" | "generating" | "failed";
+
+  /**
+   * Durable record of the last text-variant generation failure (reason,
+   * retryable, attempts, technical detail, timestamp). Set alongside
+   * `textVariantStatus: "failed"`; cleared to `null` on the next success.
+   * `detail` is for diagnostics/logs only and must never be shown to a
+   * specialist or caregiver.
+   */
+  textVariantFailure?: TextVariantFailureInfo | null;
 
   /**
    * true when the art-direction snapshot (Visual Bible + per-page structured

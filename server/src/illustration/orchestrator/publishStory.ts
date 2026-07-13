@@ -19,6 +19,7 @@ import { fillIllustrationV2DocDefaults, STORIES_COLLECTION, type Story } from "@
 import { coerceStoryLanguage, type AgeRange, type StoryLanguage } from "@/models/storyBrief.model";
 import { COLLECTIONS } from "@/shared/firestore/paths";
 import { generateTextVariants } from "@/services/textVariants.service";
+import { classifyTextVariantFailure } from "@/services/textVariantFailure";
 import { checkReferenceItem } from "@/services/referenceData.service";
 
 export class PublishStoryError extends Error {
@@ -478,19 +479,28 @@ export async function publishStory(params: {
     // Pages[].textTemplate currently holds raw manuscript text (Agent 1's
     // author-facing [CHILD_NAME]/[HIS/HER/THEIR] placeholders, not the
     // {{CHILD_NAME}} format the caregiver flow requires). Kick off variant
-    // generation immediately — it validates and merges the variants into
-    // pages[].textTemplate and flips textPersonalizationReady itself, with
-    // no specialist review/approval step in between. The manuscript text
-    // this is derived from was already approved before publish.
-    // Best-effort: generation failure must not fail the publish itself.
-    // On failure textVariantStatus resets to "none" so a retry (calling
-    // generateTextVariants again) is always safe.
+    // generation immediately — it retries transient failures internally,
+    // validates and merges the variants into pages[].textTemplate, and flips
+    // textPersonalizationReady itself, with no specialist review/approval step.
+    // The manuscript text this is derived from was already approved before
+    // publish.
+    //
+    // Best-effort: generation failure must not fail the publish itself. When
+    // it does fail, generateTextVariants() has already exhausted its retries
+    // and persisted a durable `textVariantStatus: "failed"` + `textVariantFailure`
+    // record on the template, so the repair job / manual retry endpoint can
+    // recover it later. Publishing still succeeds — the story is viewable; only
+    // caregiver text-personalization is deferred. The reason is logged for us,
+    // never surfaced to the specialist or caregiver.
     try {
       await generateTextVariants(templateId);
     } catch (err) {
+      const classified = classifyTextVariantFailure(err);
       console.error(
-        `[publishStory] auto text-variant generation failed for templateId=${templateId}: ` +
-          `${err instanceof Error ? err.message : String(err)}`,
+        `[publishStory] text-variant generation failed after retries for ` +
+          `templateId=${templateId}: reason=${classified.reason} ` +
+          `retryable=${classified.retryable} detail="${classified.detail}". ` +
+          `Persisted as textVariantStatus="failed" for automatic repair.`,
       );
     }
   }

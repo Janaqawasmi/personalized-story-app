@@ -160,6 +160,9 @@ function mockLLMResponse(entries: Array<{ pageNumber: number; masculine: string;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Deterministic, instant retries in tests: 3 attempts, no real backoff wait.
+  process.env.TEXT_VARIANT_MAX_ATTEMPTS = "3";
+  process.env.TEXT_VARIANT_RETRY_BASE_MS = "0";
   batchUpdates.length = 0;
   batchSets.length = 0;
   directUpdates.length = 0;
@@ -270,8 +273,13 @@ describe("generateTextVariants — aborts entirely when a variant fails validati
     // No batch was ever committed with page/readiness data.
     expect(batchUpdates).toHaveLength(0);
     expect(batchSets).toHaveLength(0);
-    // Status was reset to "none" so a retry is safe.
-    expect(directUpdates[directUpdates.length - 1]).toEqual({ textVariantStatus: "none" });
+    // The failure is persisted durably (status "failed" + classified reason),
+    // NOT reset to "none" — so the repair job / retry endpoint can find it.
+    const lastUpdate = directUpdates[directUpdates.length - 1]!;
+    expect(lastUpdate.textVariantStatus).toBe("failed");
+    expect((lastUpdate.textVariantFailure as { reason: string }).reason).toBe(
+      "placeholder_validation",
+    );
     expect(templateDocData.textPersonalizationReady).toBe(false);
   });
 
@@ -435,12 +443,123 @@ describe("generateTextVariants — other error cases", () => {
     });
   });
 
-  test("resets textVariantStatus to 'none' and rejects when the LLM call throws", async () => {
+  test("persists a durable 'failed' status with a classified reason when the LLM call throws", async () => {
     mockCallLLM.mockRejectedValue(new Error("LLM unavailable"));
 
     await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
       code: "GENERATION_FAILED",
     });
-    expect(directUpdates[directUpdates.length - 1]).toEqual({ textVariantStatus: "none" });
+    // A bare Error is an unknown internal problem — non-retryable, so it stops
+    // after one attempt and records the reason instead of resetting to "none".
+    expect(mockCallLLM).toHaveBeenCalledTimes(1);
+    const lastUpdate = directUpdates[directUpdates.length - 1]!;
+    expect(lastUpdate.textVariantStatus).toBe("failed");
+    const failure = lastUpdate.textVariantFailure as { reason: string; retryable: boolean };
+    expect(failure.reason).toBe("internal_error");
+    expect(failure.retryable).toBe(false);
+  });
+});
+
+// ── Reliability: automatic retry of transient failures + durable failure state ─
+
+describe("generateTextVariants — automatic retry + durable failure recording", () => {
+  const validResponse = [
+    { pageNumber: 1, masculine: "{{CHILD_NAME}} ילד", feminine: "{{CHILD_NAME}} ילדה" },
+    { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא", feminine: "{{CHILD_NAME}} מצאה" },
+  ];
+  const okResult = {
+    text: JSON.stringify(validResponse),
+    inputTokens: 10,
+    outputTokens: 10,
+    latencyMs: 5,
+  };
+
+  test("self-recovers: a transient rate-limit on the first attempt, then succeeds", async () => {
+    const rateLimit = Object.assign(new Error("Too Many Requests"), { status: 429 });
+    mockCallLLM.mockRejectedValueOnce(rateLimit).mockResolvedValueOnce(okResult);
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    expect(mockCallLLM).toHaveBeenCalledTimes(2); // retried once, then succeeded
+    const templateUpdate = batchUpdates.find((u) => u.ref === `story_templates/${TEMPLATE_ID}`)!;
+    expect(templateUpdate.data.textPersonalizationReady).toBe(true);
+    expect(templateUpdate.data.textVariantStatus).toBe("none");
+    expect(templateUpdate.data.textVariantFailure).toBeNull(); // cleared on success
+  });
+
+  test("self-recovers from a single invalid-JSON sample by retrying", async () => {
+    mockCallLLM
+      .mockResolvedValueOnce({ text: "not json at all", inputTokens: 1, outputTokens: 1, latencyMs: 1 })
+      .mockResolvedValueOnce(okResult);
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    expect(mockCallLLM).toHaveBeenCalledTimes(2);
+    const templateUpdate = batchUpdates.find((u) => u.ref === `story_templates/${TEMPLATE_ID}`)!;
+    expect(templateUpdate.data.textPersonalizationReady).toBe(true);
+  });
+
+  test("self-corrects: a dropped {{CHILD_NAME}} is fed back as a correction and fixed on retry", async () => {
+    // Attempt 1: page 1 masculine uses a bare pronoun and drops the placeholder
+    // (the exact deterministic failure seen in production). Attempt 2: valid.
+    mockCallLLM
+      .mockResolvedValueOnce({
+        text: JSON.stringify([
+          { pageNumber: 1, masculine: "He felt afraid.", feminine: "{{CHILD_NAME}} felt afraid." },
+          { pageNumber: 2, masculine: "{{CHILD_NAME}} מצא", feminine: "{{CHILD_NAME}} מצאה" },
+        ]),
+        inputTokens: 10,
+        outputTokens: 10,
+        latencyMs: 5,
+      })
+      .mockResolvedValueOnce(okResult);
+
+    await generateTextVariants(TEMPLATE_ID);
+
+    expect(mockCallLLM).toHaveBeenCalledTimes(2);
+    // The retry prompt must carry the corrective feedback naming the exact miss.
+    const retryPrompt = mockCallLLM.mock.calls[1]![0].prompt;
+    expect(retryPrompt).toContain("Correction required");
+    expect(retryPrompt).toContain("Page 1 masculine");
+    const templateUpdate = batchUpdates.find((u) => u.ref === `story_templates/${TEMPLATE_ID}`)!;
+    expect(templateUpdate.data.textPersonalizationReady).toBe(true);
+    expect(templateUpdate.data.textVariantFailure).toBeNull();
+  });
+
+  test("records reason=rate_limited, retryable=true, attempts=maxAttempts after exhausting retries", async () => {
+    const rateLimit = Object.assign(new Error("Too Many Requests"), { status: 429 });
+    mockCallLLM.mockRejectedValue(rateLimit);
+
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
+      code: "GENERATION_FAILED",
+    });
+
+    expect(mockCallLLM).toHaveBeenCalledTimes(3); // maxAttempts
+    expect(batchUpdates).toHaveLength(0); // nothing merged into pages[]
+    const lastUpdate = directUpdates[directUpdates.length - 1]!;
+    expect(lastUpdate.textVariantStatus).toBe("failed");
+    const failure = lastUpdate.textVariantFailure as {
+      reason: string;
+      retryable: boolean;
+      attempts: number;
+    };
+    expect(failure.reason).toBe("rate_limited");
+    expect(failure.retryable).toBe(true);
+    expect(failure.attempts).toBe(3);
+  });
+
+  test("stops immediately (no retry) on a non-retryable missing-API-config error", async () => {
+    const authErr = Object.assign(new Error("Unauthorized"), { status: 401 });
+    mockCallLLM.mockRejectedValue(authErr);
+
+    await expect(generateTextVariants(TEMPLATE_ID)).rejects.toMatchObject({
+      code: "GENERATION_FAILED",
+    });
+
+    expect(mockCallLLM).toHaveBeenCalledTimes(1); // missing_api_config → no retry
+    const lastUpdate = directUpdates[directUpdates.length - 1]!;
+    const failure = lastUpdate.textVariantFailure as { reason: string; retryable: boolean };
+    expect(failure.reason).toBe("missing_api_config");
+    expect(failure.retryable).toBe(false);
   });
 });

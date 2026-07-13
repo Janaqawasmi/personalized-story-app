@@ -17,6 +17,7 @@ import {
   getTextVariants,
   TextVariantError,
 } from "@/services/textVariants.service";
+import { TEXT_VARIANT_UNAVAILABLE_MESSAGE } from "@/shared/types/textVariant";
 
 const router = Router();
 router.use(requireAuth);
@@ -95,11 +96,26 @@ async function handleGenerateTextVariants(req: Request, res: Response): Promise<
     res.status(200).json(result);
   } catch (err) {
     if (err instanceof TextVariantError) {
-      const status =
-        err.code === "TEMPLATE_NOT_FOUND" ? 404
-        : err.code === "NOT_PERSONALIZABLE" ? 409
-        : 422;
-      res.status(status).json({ error: err.code, message: err.message });
+      if (err.code === "TEMPLATE_NOT_FOUND") {
+        res.status(404).json({ error: err.code, message: "Template not found." });
+        return;
+      }
+      if (err.code === "NOT_PERSONALIZABLE") {
+        res.status(409).json({
+          error: err.code,
+          message: "This story does not support personalization.",
+        });
+        return;
+      }
+      // GENERATION_FAILED / VALIDATION_FAILED: the technical reason is already
+      // logged server-side and persisted on the template (textVariantFailure).
+      // Return a neutral, user-safe message — never expose provider/model/parse
+      // detail to the specialist. The failed template is picked up by the
+      // repair job / a later retry automatically.
+      res.status(503).json({
+        error: "TEXT_PERSONALIZATION_UNAVAILABLE",
+        message: TEXT_VARIANT_UNAVAILABLE_MESSAGE,
+      });
       return;
     }
     throw err;
